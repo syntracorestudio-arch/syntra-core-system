@@ -1,35 +1,62 @@
-# Proyecto: Sitio Web Oficial SYNTRA CORE
+# BRIEF — SITIO WEB OFICIAL SYNTRA CORE
 
-Objetivo:
+Proyecto:
 
-Construir el sitio oficial de la empresa para captar clientes y comunicar servicios.
+Sitio Web Oficial SYNTRA CORE
 
-Secciones:
+Objetivo principal:
 
-1. Hero principal
-2. Servicios
-3. Beneficios
-4. Cómo trabajamos
-5. Automatización IA
-6. CTA
-7. Formulario leads
-8. Footer
+Construir la plataforma oficial de SYNTRA CORE para:
 
-Diseño:
+- presentar la empresa
+- generar confianza
+- captar leads
+- mostrar servicios
+- automatizar procesos
+- funcionar como ecosistema interno escalable
 
-- Dark mode
-- Futurista
-- Minimalista
-- Profesional
-- Alto contraste
+---
+
+Usuarios objetivo:
+
+- pequeñas empresas
+- negocios tradicionales
+- inmobiliarias
+- estudios jurídicos
+- clínicas estéticas
+- SaaS
+- emprendedores
+
+---
 
 Servicios a mostrar:
 
-- Desarrollo Web Premium
-- Automatización IA
-- Agentes Inteligentes
+1. Desarrollo Web Premium
+
+- Landing Pages
+- Dashboards
+- CRM
 - Sistemas personalizados
 
-Objetivo comercial:
+2. Automatización Inteligente
 
-Generar reuniones y captar leads.
+- Automatización de procesos
+- Workflows n8n
+- Integraciones API
+- IA aplicada
+
+3. Sistemas IA
+
+- Chatbots
+- Agentes IA
+- Automatizaciones con IA
+
+---
+
+Objetivos técnicos:
+
+- Lighthouse +95
+- Mobile-first
+- SEO técnico
+- Performance optimizada
+- Arquitectura modular
