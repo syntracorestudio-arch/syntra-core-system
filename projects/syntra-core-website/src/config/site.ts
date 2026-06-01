@@ -1,0 +1,324 @@
+import type {
+  AboutPillar,
+  FaqItem,
+  NavItem,
+  ServiceItem,
+  SiteConfig,
+  StackItem,
+  UseCaseItem,
+  WhyChooseItem,
+  WorkflowStep,
+} from "@/types";
+
+/**
+ * SYNTRA CORE — Configuración del sitio (content-driven).
+ *
+ * Toda la copy vive acá: las secciones mapean sobre estos datos.
+ * Posicionamiento: premium tecnológico ACCESIBLE — mensaje claro y
+ * concreto para negocios reales, sin jerga abstracta. Idioma: español.
+ */
+
+export const siteConfig: SiteConfig = {
+  name: "SYNTRA CORE",
+  domain: "syntracore.dev",
+  url: "https://syntracore.dev",
+  email: "hola@syntracore.dev",
+  tagline: "Sistemas digitales que hacen crecer tu negocio",
+  description:
+    "Diseñamos y construimos webs premium, automatizaciones e integraciones con IA para que tu empresa trabaje más rápido y venda mejor.",
+  nav: [
+    { label: "Servicios", href: "/#servicios" },
+    { label: "Casos", href: "/#casos" },
+    { label: "Por qué SYNTRA", href: "/#por-que" },
+    { label: "Proceso", href: "/#proceso" },
+    { label: "FAQ", href: "/#faq" },
+    { label: "Contacto", href: "/#contacto" },
+  ],
+  cta: {
+    primary: "Solicitar propuesta",
+    secondary: "Ver servicios",
+  },
+  hero: {
+    badge: "Software Factory AI-Native",
+    titleLead: "Sistemas digitales que",
+    titleHighlight: "hacen crecer",
+    titleTail: "tu negocio",
+    subtitle:
+      "Diseñamos y construimos webs premium, automatizaciones e integraciones con IA. Tecnología moderna, aplicada a resultados reales para tu empresa.",
+    proof: [
+      "Webs ultra rápidas",
+      "Procesos automatizados",
+      "Soluciones con IA",
+    ],
+  },
+  sections: {
+    services: {
+      eyebrow: "Qué hacemos",
+      title: "Tres formas de hacer crecer tu empresa",
+      subtitle:
+        "No vendemos plantillas. Construimos el sistema digital que tu negocio necesita para vender más y operar mejor.",
+    },
+    useCases: {
+      eyebrow: "Para quién",
+      title: "Pensado para tu rubro",
+      subtitle:
+        "Cada negocio tiene desafíos distintos. Diseñamos soluciones digitales y automatizaciones adaptadas a la forma en que trabajás, para ayudarte a captar más oportunidades y reducir tareas manuales.",
+    },
+    whyChoose: {
+      eyebrow: "Por qué SYNTRA",
+      title: "Por qué elegir SYNTRA",
+      subtitle:
+        "No entregamos una web y desaparecemos. Construimos un sistema que trabaja para tu negocio y te acompañamos en el camino.",
+    },
+    about: {
+      eyebrow: "Quiénes somos",
+      title: "Un estudio digital, no una agencia más",
+      subtitle:
+        "SYNTRA CORE es un estudio de desarrollo AI-native que combina diseño, desarrollo y automatización para crear soluciones digitales modernas.",
+    },
+    workflow: {
+      eyebrow: "Cómo trabajamos",
+      title: "De tu idea a un sistema funcionando",
+      subtitle:
+        "Un proceso claro, sin vueltas. Sabés en todo momento qué estamos haciendo y por qué.",
+    },
+    faq: {
+      eyebrow: "Preguntas frecuentes",
+      title: "Lo que solés preguntarte antes de empezar",
+      subtitle:
+        "Y si te queda alguna duda, escribinos: respondemos claro y sin compromiso.",
+    },
+    finalCta: {
+      title: "¿Listo para dar el siguiente paso?",
+      subtitle:
+        "Contanos qué necesitás y te mostraremos la mejor forma de llevarlo a cabo, sin compromiso.",
+    },
+  },
+};
+
+export const mainNav: NavItem[] = siteConfig.nav;
+
+export const services: ServiceItem[] = [
+  {
+    id: "web",
+    icon: "LayoutTemplate",
+    title: "Desarrollo Web Premium",
+    description:
+      "Sitios y aplicaciones rápidas, modernas y listas para escalar. Diseño que transmite profesionalismo desde el primer segundo.",
+    features: [
+      "Landing pages y sitios corporativos",
+      "Aplicaciones web a medida",
+      "Dashboards y paneles de gestión",
+      "Optimización de velocidad y SEO",
+    ],
+  },
+  {
+    id: "automation",
+    icon: "Workflow",
+    title: "Automatización de Procesos",
+    description:
+      "Conectamos tus herramientas y eliminamos el trabajo manual repetitivo. Menos tareas operativas, más tiempo para vender.",
+    features: [
+      "Flujos de trabajo con n8n",
+      "Integraciones entre tus apps",
+      "Automatización comercial y operativa",
+      "Notificaciones y reportes automáticos",
+    ],
+  },
+  {
+    id: "ia",
+    icon: "Sparkles",
+    title: "Soluciones con IA",
+    description:
+      "Asistentes y agentes inteligentes que atienden, califican y responden por vos. Tecnología de punta, aplicada a resultados.",
+    features: [
+      "Chatbots y asistentes inteligentes",
+      "Agentes que automatizan tareas",
+      "Procesamiento automático de datos",
+      "IA integrada a tus sistemas",
+    ],
+  },
+];
+
+export const useCases: UseCaseItem[] = [
+  {
+    id: "inmobiliarias",
+    icon: "Building2",
+    title: "Inmobiliarias",
+    description:
+      "Mostrá tus propiedades con una web rápida y profesional, y dejá de responder las mismas consultas a mano.",
+    deliverables: [
+      "Catálogo de propiedades con buscador y filtros",
+      "Captación de interesados desde la web",
+      "Respuestas y seguimiento automatizados",
+    ],
+  },
+  {
+    id: "legal",
+    icon: "Scale",
+    title: "Estudios jurídicos",
+    description:
+      "Transmití seriedad desde el primer clic y ordená la entrada de consultas sin perder tiempo administrativo.",
+    deliverables: [
+      "Sitio institucional sobrio y confiable",
+      "Formularios de consulta calificada",
+      "Automatización de turnos y seguimiento",
+    ],
+  },
+  {
+    id: "salud",
+    icon: "Stethoscope",
+    title: "Clínicas y profesionales",
+    description:
+      "Una presencia online cuidada y un sistema de turnos que reduce las idas y vueltas con tus pacientes.",
+    deliverables: [
+      "Web clara con servicios y especialidades",
+      "Solicitud de turnos online",
+      "Recordatorios y mensajes automáticos",
+    ],
+  },
+  {
+    id: "pymes",
+    icon: "Store",
+    title: "Empresas de servicios y PyMEs",
+    description:
+      "Profesionalizá tu imagen y automatizá las tareas repetitivas que hoy te consumen horas todos los días.",
+    deliverables: [
+      "Sitio o sistema a medida de tu operación",
+      "Captación y gestión de clientes",
+      "Automatización de procesos internos",
+    ],
+  },
+];
+
+export const whyChoose: WhyChooseItem[] = [
+  {
+    id: "web-premium",
+    icon: "Gem",
+    title: "Desarrollo web premium",
+    description:
+      "Sitios rápidos, modernos y diseñados para transmitir confianza desde el primer contacto.",
+  },
+  {
+    id: "ia",
+    icon: "Bot",
+    title: "Automatización e IA aplicada",
+    description:
+      "Automatizamos tareas repetitivas para que puedas dedicar más tiempo a hacer crecer tu negocio.",
+  },
+  {
+    id: "procesos",
+    icon: "Workflow",
+    title: "Soluciones integrales",
+    description:
+      "No trabajamos solo en la web. Conectamos procesos, herramientas y automatizaciones para que todo funcione como un sistema.",
+  },
+  {
+    id: "soporte",
+    icon: "LifeBuoy",
+    title: "Acompañamiento real",
+    description:
+      "Te acompañamos antes, durante y después del lanzamiento para que la solución siga generando valor.",
+  },
+];
+
+export const aboutPillars: AboutPillar[] = [
+  {
+    id: "ia",
+    icon: "Sparkles",
+    title: "Proceso impulsado por IA",
+    description:
+      "Usamos inteligencia artificial y automatización en todo nuestro proceso para entregar más rápido y con mejor calidad.",
+  },
+  {
+    id: "premium",
+    icon: "Gem",
+    title: "Diseño de nivel premium",
+    description:
+      "No hacemos solo páginas: construimos sistemas con un diseño cuidado que transmite profesionalismo desde el primer contacto.",
+  },
+  {
+    id: "segura",
+    icon: "ShieldCheck",
+    title: "Tecnología moderna y segura",
+    description:
+      "Trabajamos con tecnología actual y prácticas seguras para que tu negocio funcione mejor, sin complejidad de tu lado.",
+  },
+];
+
+export const faqs: FaqItem[] = [
+  {
+    question: "¿Cuánto cuesta un proyecto?",
+    answer:
+      "Cada proyecto es diferente. Analizamos tus necesidades y te presentamos una propuesta clara, transparente y sin costos ocultos.",
+  },
+  {
+    question: "¿Cuánto tiempo tarda?",
+    answer:
+      "Varía según el proyecto. Una landing puede estar lista en pocas semanas; un sistema con automatizaciones lleva más. En la propuesta te damos un plazo claro antes de empezar.",
+  },
+  {
+    question: "¿Sirve para mi tipo de negocio?",
+    answer:
+      "Trabajamos con PyMEs, inmobiliarias, estudios jurídicos, clínicas y profesionales de servicios. Si tu negocio atiende clientes y tiene tareas repetitivas, podemos ayudarte.",
+  },
+  {
+    question: "¿Necesito saber de tecnología?",
+    answer:
+      "No. De la parte técnica nos encargamos nosotros. Vos contás qué necesitás y te explicamos todo en lenguaje claro, sin tecnicismos.",
+  },
+  {
+    question: "¿Qué pasa después de lanzar?",
+    answer:
+      "Te acompañamos. Hacemos soporte, ajustes y mejoras, y el sistema puede crecer con tu negocio sin tener que empezar de cero.",
+  },
+  {
+    question: "¿Puedo automatizar tareas de mi empresa?",
+    answer:
+      "Sí. Conectamos tus herramientas y automatizamos procesos como respuestas, seguimiento de clientes, turnos o reportes, con o sin inteligencia artificial.",
+  },
+];
+
+export const workflow: WorkflowStep[] = [
+  {
+    step: 1,
+    icon: "Search",
+    title: "Entendemos tu negocio",
+    description:
+      "Analizamos tus objetivos, tus procesos y dónde estás perdiendo tiempo o ventas. Antes de proponer, escuchamos.",
+  },
+  {
+    step: 2,
+    icon: "PenTool",
+    title: "Diseñamos el sistema",
+    description:
+      "Definimos arquitectura, diseño y automatizaciones a medida de tu caso. Nada genérico, todo pensado para vos.",
+  },
+  {
+    step: 3,
+    icon: "Workflow",
+    title: "Construimos y automatizamos",
+    description:
+      "Desarrollamos con tecnología moderna y conectamos tus herramientas para que el trabajo repetitivo se haga solo.",
+  },
+  {
+    step: 4,
+    icon: "Rocket",
+    title: "Lanzamos y acompañamos",
+    description:
+      "Publicamos, medimos resultados reales y hacemos crecer el sistema a medida que crece tu negocio.",
+  },
+];
+
+export const stack: StackItem[] = [
+  { name: "Next.js", category: "Frontend" },
+  { name: "React", category: "Frontend" },
+  { name: "TypeScript", category: "Frontend" },
+  { name: "TailwindCSS", category: "Frontend" },
+  { name: "Supabase", category: "Backend" },
+  { name: "PostgreSQL", category: "Backend" },
+  { name: "Vercel", category: "Infraestructura" },
+  { name: "Cloudflare", category: "Infraestructura" },
+  { name: "n8n", category: "Automatización" },
+  { name: "Claude", category: "IA" },
+];

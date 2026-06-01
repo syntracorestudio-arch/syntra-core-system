@@ -19,6 +19,11 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        // Variantes premium SYNTRA
+        brand:
+          "bg-primary text-primary-foreground font-semibold transition-all duration-200 hover:brightness-110 hover:glow-electric focus-visible:glow-electric",
+        "brand-outline":
+          "border-border surface-glass text-foreground transition-all duration-200 hover:border-brand-cyan/40 hover:text-brand-cyan",
       },
       size: {
         default:
@@ -32,6 +37,9 @@ const buttonVariants = cva(
         "icon-sm":
           "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
+        // Tamaños premium con padding amplio (design-rules.md)
+        xl: "h-12 gap-2 rounded-xl px-7 text-base has-data-[icon=inline-end]:pr-5 has-data-[icon=inline-start]:pl-5 [&_svg:not([class*='size-'])]:size-5",
+        "2xl": "h-14 gap-2.5 rounded-xl px-9 text-base font-semibold has-data-[icon=inline-end]:pr-7 has-data-[icon=inline-start]:pl-7 [&_svg:not([class*='size-'])]:size-5",
       },
     },
     defaultVariants: {
