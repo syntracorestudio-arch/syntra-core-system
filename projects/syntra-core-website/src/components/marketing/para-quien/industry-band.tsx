@@ -62,14 +62,15 @@ function IndustryBand({
       initial="hidden"
       whileInView="visible"
       viewport={VIEWPORT}
-      className="grid items-center gap-6 md:min-h-[380px] md:grid-cols-[1fr_auto_1fr] md:gap-8 lg:min-h-[420px]"
+      className="grid items-center gap-6 md:min-h-[300px] md:grid-cols-[1fr_auto_1fr] md:gap-8 lg:min-h-[320px]"
     >
-      {/* Lado "antes" (gris, apagado) — beat: aparece +0.12s tras el rótulo */}
+      {/* Lado "antes" — panel neutro/apagado, mismo nivel estructural que
+          "Después" pero sin glow ni acento azul (jerarquía narrativa). */}
       <motion.div
         variants={fadeIn}
         transition={t(0.12)}
         className={cn(
-          "flex flex-col gap-4",
+          "flex flex-col gap-3 rounded-2xl border border-border/60 bg-secondary/20 p-6",
           reversed ? "md:order-3" : "md:order-1",
         )}
       >
@@ -93,7 +94,7 @@ function IndustryBand({
         variants={fadeUp}
         transition={t(0.62)}
         className={cn(
-          "relative flex flex-col gap-4 rounded-2xl border border-brand-electric/20 bg-brand-electric/[0.04] p-6",
+          "relative flex flex-col gap-3 rounded-2xl border border-brand-electric/20 bg-brand-electric/[0.04] p-6",
           reversed ? "md:order-1" : "md:order-3",
         )}
       >

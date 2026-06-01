@@ -14,11 +14,12 @@ function HeroVisual() {
       aria-label="Representación visual del sistema SYNTRA CORE"
       className="relative mx-auto aspect-[620/560] w-full max-w-[560px]"
     >
-      {/* Glow ambiental (componente compartido reutilizado) */}
+      {/* Glow ambiental (componente compartido reutilizado).
+          Respiración: solo opacity, sin cambiar color. Único loop del sitio. */}
       <GlowOrb
         tone="electric"
         size="md"
-        className="top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-50"
+        className="top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-breathe"
       />
 
       {/* Surface — fondo algo más definido que el dark base (no glass plano) */}
@@ -38,12 +39,14 @@ function HeroVisual() {
             <line x1="160" y1="160" x2="77" y2="208" />
           </g>
 
-          {/* Hexágono central (grande, neutro) */}
+          {/* Hexágono central (grande, neutro) — micro-latido lento */}
           <path
             d="M160 96 L213 127 V189 L160 220 L107 189 V127 Z"
             fill="var(--brand-bg)"
             stroke="var(--input)"
             strokeWidth="2"
+            className="animate-pulse-slow"
+            style={{ transformBox: "fill-box", transformOrigin: "center" }}
           />
 
           {/* Hexágonos satélite (tenues) */}

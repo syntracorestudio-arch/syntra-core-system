@@ -22,7 +22,7 @@ function ServicesSection() {
   const { eyebrow, title, subtitle } = siteConfig.sections.services;
 
   return (
-    <Section id="servicios">
+    <Section id="servicios" className="bg-depth-raised">
       <BlurReveal>
         <SectionHeading eyebrow={eyebrow} title={title} subtitle={subtitle} />
       </BlurReveal>
@@ -32,9 +32,9 @@ function ServicesSection() {
           const Icon = getIcon(service.icon);
           return (
             <StaggerItem key={service.id} className="h-full">
-              <Card className="group h-full transition-colors duration-300 hover:border-brand-cyan/30">
+              <Card className="group h-full hover:border-accent-primary/40">
                 <CardHeader>
-                  <span className="mb-2 inline-flex size-12 items-center justify-center rounded-xl border border-brand-electric/20 bg-brand-electric/10 text-brand-cyan transition-colors group-hover:glow-cyan">
+                  <span className="mb-2 inline-flex size-12 items-center justify-center rounded-xl border border-border-strong bg-surface-2 text-muted-foreground transition-all duration-200 group-hover:scale-105 group-hover:border-accent-primary/40 group-hover:text-accent-secondary">
                     <Icon className="size-6" aria-hidden="true" />
                   </span>
                   <CardTitle>{service.title}</CardTitle>

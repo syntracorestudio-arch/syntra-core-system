@@ -14,7 +14,7 @@ function FaqSection() {
   const { eyebrow, title, subtitle } = siteConfig.sections.faq;
 
   return (
-    <Section id="faq">
+    <Section id="faq" className="bg-depth-raised">
       <BlurReveal>
         <SectionHeading eyebrow={eyebrow} title={title} subtitle={subtitle} />
       </BlurReveal>
@@ -23,7 +23,7 @@ function FaqSection() {
         {faqs.map((faq) => (
           <details
             key={faq.question}
-            className="group surface-glass rounded-2xl border border-border px-5 open:border-brand-cyan/30"
+            className="group rounded-2xl border border-border bg-surface-1 px-5 transition-colors open:border-accent-primary/40"
           >
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 font-medium text-foreground [&::-webkit-details-marker]:hidden">
               {faq.question}

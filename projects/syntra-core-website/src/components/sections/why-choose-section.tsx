@@ -24,8 +24,8 @@ function WhyChooseSection() {
           const Icon = getIcon(pillar.icon);
           return (
             <StaggerItem key={pillar.id} className="h-full">
-              <Card className="h-full gap-4">
-                <span className="inline-flex size-11 items-center justify-center rounded-xl border border-brand-electric/20 bg-brand-electric/10 text-brand-cyan">
+              <Card className="group h-full gap-4 hover:border-accent-primary/40">
+                <span className="inline-flex size-11 items-center justify-center rounded-xl border border-border-strong bg-surface-2 text-muted-foreground transition-all duration-200 group-hover:scale-105 group-hover:text-accent-secondary">
                   <Icon className="size-5" aria-hidden="true" />
                 </span>
                 <CardTitle className="text-base">{pillar.title}</CardTitle>

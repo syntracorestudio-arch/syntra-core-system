@@ -32,7 +32,7 @@ function SectionHeading({
         className,
       )}
     >
-      {eyebrow ? <Badge variant="brand">{eyebrow}</Badge> : null}
+      {eyebrow ? <Badge variant="neutral">{eyebrow}</Badge> : null}
       <h2 className="font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
         {title}
       </h2>

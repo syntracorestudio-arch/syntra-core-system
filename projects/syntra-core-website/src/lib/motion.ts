@@ -50,13 +50,17 @@ export const blurReveal: Variants = {
   },
 };
 
-/** Contenedor para aparición progresiva (stagger) de hijos */
+/**
+ * Contenedor para aparición progresiva (stagger) de hijos.
+ * Scroll choreography: el contenido (cards) entra DESPUÉS del heading
+ * (delayChildren) y escalonado entre sí (staggerChildren). Sin loop.
+ */
 export const staggerContainer: Variants = {
   hidden: {},
   visible: {
     transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.05,
+      staggerChildren: 0.09,
+      delayChildren: 0.18,
     },
   },
 };

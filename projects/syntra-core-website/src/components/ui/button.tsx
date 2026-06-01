@@ -19,11 +19,11 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
-        // Variantes premium SYNTRA
+        // Variantes premium SYNTRA — CTA como "elemento activo del sistema"
         brand:
-          "bg-primary text-primary-foreground font-semibold transition-all duration-200 hover:brightness-110 hover:glow-electric focus-visible:glow-electric",
+          "cta-sweep bg-primary text-primary-foreground font-semibold transition-all duration-200 hover:brightness-110 hover:glow-electric focus-visible:glow-electric",
         "brand-outline":
-          "border-border surface-glass text-foreground transition-all duration-200 hover:border-brand-cyan/40 hover:text-brand-cyan",
+          "border-border-strong bg-surface-1 text-foreground transition-all duration-200 hover:border-accent-primary/40 hover:bg-surface-2",
       },
       size: {
         default:

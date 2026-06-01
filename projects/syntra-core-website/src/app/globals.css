@@ -38,6 +38,17 @@
   --color-brand-cyan: var(--brand-cyan);
   --color-brand-smoke: var(--brand-smoke);
 
+  /* Color + Depth System v1 (utilidades: bg-depth-raised, bg-surface-2, border-strong...) */
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-depth-core: var(--bg-core);
+  --color-depth-raised: var(--bg-raised);
+  --color-depth-sunken: var(--bg-sunken);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border-strong: var(--border-strong);
+
   /* Tipografías oficiales */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-sora), var(--font-inter), sans-serif;
@@ -93,6 +104,32 @@
   --ring: #2563eb;
 
   --radius: 1rem;
+
+  /* ============================================================
+     COLOR + DEPTH SYSTEM v1 (syntra-color-depth-spec.md)
+     Base slate conservada (#0F172A). El azul = señal (regla 90/10):
+     acción / inteligencia / resultado. Todo lo demás, neutro.
+     Roles mapeados a los azules de identidad del repo (no #3B82F6).
+     ============================================================ */
+
+  /* Acentos (azul de identidad del repo) */
+  --accent-primary: var(--brand-electric);   /* acción / foco / CTA / nodo IA */
+  --accent-secondary: var(--brand-cyan);     /* soporte / inteligencia */
+
+  /* Escala de profundidad (elevación tonal sobre la base slate) */
+  --bg-core: #0f172a;     /* plano base */
+  --bg-raised: #131d33;   /* secciones elevadas */
+  --bg-sunken: #0b1120;   /* valles / separadores / pie */
+
+  /* Superficies (cards / containers) */
+  --surface-1: #111c33;   /* card en reposo */
+  --surface-2: #16223d;   /* card elevada / hover */
+  --surface-3: #1b2a49;   /* foreground destacado (lado "después") */
+
+  /* Bordes */
+  --border-subtle: rgba(248, 250, 252, 0.08);  /* reposo, casi imperceptible */
+  --border-strong: rgba(248, 250, 252, 0.16);  /* neutro con presencia */
+  /* border-accent = var(--accent-primary) — SOLO hover/focus/active */
 }
 
 /* Theme dark explícito (idéntico a :root — habilita variantes dark: de shadcn) */
@@ -154,6 +191,69 @@
 }
 
 @layer utilities {
+  /* === Hero "vida constante" — único elemento con motion en loop ===
+     Glow respiracional (solo opacity) + micro-latido. Sin cambio de color.
+     prefers-reduced-motion lo desactiva (regla global más abajo). */
+  @keyframes syntra-breathe {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.7; }
+  }
+  @keyframes syntra-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+  }
+  .animate-breathe {
+    animation: syntra-breathe 5s ease-in-out infinite;
+  }
+  .animate-pulse-slow {
+    animation: syntra-pulse 4.5s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  /* === CTA sweep — barrido de luz izq→der en hover (200ms) ===
+     Pseudo-elemento sobre el botón; sin reflow (solo transform/opacity). */
+  .cta-sweep {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .cta-sweep::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-120%);
+    background: linear-gradient(
+      100deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.22) 50%,
+      transparent 70%
+    );
+    transition: transform 0.5s ease;
+    pointer-events: none;
+  }
+  .cta-sweep:hover::after {
+    transform: translateX(120%);
+  }
+  /* Pulso de acción al click (glow-action) */
+  .cta-sweep:active {
+    box-shadow: 0 0 110px -20px rgba(37, 99, 235, 0.45);
+  }
+
+  /* === Glow System v1 (funcional — un foco por viewport) === */
+  /* Ambiental: profundidad de fondo detrás del foco de sección (6%). */
+  .glow-ambient {
+    background: radial-gradient(
+      circle at center,
+      rgba(37, 99, 235, 0.06) 0%,
+      transparent 70%
+    );
+    filter: blur(80px);
+  }
+  /* Foco: halo del elemento clave (nodo IA / panel "después"). */
+  .glow-focus {
+    box-shadow: 0 0 80px -10px rgba(37, 99, 235, 0.22);
+  }
+
   /* Glow sutil premium (uso moderado — design-rules.md) */
   .glow-electric {
     box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2),

@@ -22,7 +22,7 @@ function UseCasesSection() {
         <SectionHeading eyebrow={eyebrow} title={title} subtitle={subtitle} />
       </BlurReveal>
 
-      <div className="mx-auto mt-16 flex max-w-5xl flex-col gap-16 lg:gap-20">
+      <div className="mx-auto mt-16 flex max-w-5xl flex-col gap-12 lg:gap-14">
         {useCases.map((useCase, index) => {
           const Icon = getIcon(useCase.icon);
           return (

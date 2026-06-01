@@ -33,10 +33,10 @@ function WorkflowSection() {
                 key={item.step}
                 className="relative flex flex-col items-center text-center"
               >
-                <span className="relative z-10 inline-flex size-14 items-center justify-center rounded-2xl border border-brand-electric/30 bg-background text-brand-cyan glow-electric">
+                <span className="relative z-10 inline-flex size-14 items-center justify-center rounded-2xl border border-border-strong bg-surface-2 text-muted-foreground">
                   <Icon className="size-6" aria-hidden="true" />
                 </span>
-                <span className="mt-4 font-accent text-xs tracking-widest text-brand-cyan/80">
+                <span className="mt-4 font-accent text-xs tracking-widest text-muted-foreground">
                   PASO {String(item.step).padStart(2, "0")}
                 </span>
                 <h3 className="mt-1 font-heading text-lg font-semibold tracking-tight">
