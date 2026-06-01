@@ -60,7 +60,9 @@ export interface UseCaseItem {
   title: string;
   /** Narrativa breve: el problema típico y cómo lo resolvemos */
   description: string;
-  /** Entregables concretos para ese rubro */
+  /** Dolor "antes" del rubro (banda Antes/Después) */
+  pain: string;
+  /** Entregables concretos para ese rubro (lado "después") */
   deliverables: string[];
 }
 

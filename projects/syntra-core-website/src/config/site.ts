@@ -147,6 +147,7 @@ export const useCases: UseCaseItem[] = [
     title: "Inmobiliarias",
     description:
       "Mostrá tus propiedades con una web rápida y profesional, y dejá de responder las mismas consultas a mano.",
+    pain: "Respondiendo las mismas consultas a mano, una por una.",
     deliverables: [
       "Catálogo de propiedades con buscador y filtros",
       "Captación de interesados desde la web",
@@ -159,6 +160,7 @@ export const useCases: UseCaseItem[] = [
     title: "Estudios jurídicos",
     description:
       "Transmití seriedad desde el primer clic y ordená la entrada de consultas sin perder tiempo administrativo.",
+    pain: "Consultas que entran desordenadas y tiempo administrativo que se pierde.",
     deliverables: [
       "Sitio institucional sobrio y confiable",
       "Formularios de consulta calificada",
@@ -171,6 +173,7 @@ export const useCases: UseCaseItem[] = [
     title: "Clínicas y profesionales",
     description:
       "Una presencia online cuidada y un sistema de turnos que reduce las idas y vueltas con tus pacientes.",
+    pain: "Idas y vueltas constantes con pacientes para coordinar cada turno.",
     deliverables: [
       "Web clara con servicios y especialidades",
       "Solicitud de turnos online",
@@ -183,6 +186,7 @@ export const useCases: UseCaseItem[] = [
     title: "Empresas de servicios y PyMEs",
     description:
       "Profesionalizá tu imagen y automatizá las tareas repetitivas que hoy te consumen horas todos los días.",
+    pain: "Tareas repetitivas que consumen horas todos los días.",
     deliverables: [
       "Sitio o sistema a medida de tu operación",
       "Captación y gestión de clientes",

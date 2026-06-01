@@ -40,7 +40,13 @@
       "Bash(curl -s -o /tmp/h.html -w \"GET / HTTP %{http_code}\\\\n\" --max-time 30 http://localhost:3000/)",
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" --max-time 30 http://localhost:3000/)",
       "Bash(curl -s -o /tmp/h.html -w \"HTTP %{http_code}\\\\n\" --max-time 35 http://localhost:3000/)",
-      "Bash(sed 's/.*/QUEDA azul en algun stroke/')"
+      "Bash(sed 's/.*/QUEDA azul en algun stroke/')",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\('next:',p.dependencies.next,'| react:',p.dependencies.react\\)\")",
+      "Bash(ls src/app/page.tsx)",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\('framer-motion:', p.dependencies['framer-motion'] || 'NO PRESENTE'\\)\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\('tailwindcss:', p.devDependencies.tailwindcss || p.dependencies.tailwindcss || 'no'\\)\")",
+      "Bash(ls src/app/globals.css)",
+      "Bash(npx next *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Mati\\.claude\\projects\\c--Users-Mati-Desktop-SYNTRA-CORE\\memory"

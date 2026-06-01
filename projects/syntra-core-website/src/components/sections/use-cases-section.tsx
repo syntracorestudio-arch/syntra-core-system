@@ -1,22 +1,17 @@
-import { Check } from "lucide-react";
-
 import { siteConfig, useCases } from "@/config/site";
 import { getIcon } from "@/lib/icons";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Section } from "@/components/layout/section";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { BlurReveal } from "@/components/animations/blur-reveal";
-import { Stagger, StaggerItem } from "@/components/animations/stagger";
+import { IndustryBand } from "@/components/marketing/para-quien/industry-band";
 
 /**
- * UseCasesSection — casos de uso por industria (escenario problema → solución).
- * Content-driven, sin métricas ni casos inventados. Server Component.
+ * UseCasesSection — "Pensado para tu rubro": 4 bandas full-width antes/después
+ * con reveal al entrar en viewport. Content-driven (config/site.ts).
+ * Conserva el ancla #casos (navegación del navbar).
+ *
+ * El rótulo (ícono + nombre) se arma acá (Server Component, mismo patrón que
+ * Servicios) y se pasa como `label` a IndustryBand, que es Client.
  */
 function UseCasesSection() {
   const { eyebrow, title, subtitle } = siteConfig.sections.useCases;
@@ -27,40 +22,30 @@ function UseCasesSection() {
         <SectionHeading eyebrow={eyebrow} title={title} subtitle={subtitle} />
       </BlurReveal>
 
-      <Stagger className="mt-14 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        {useCases.map((useCase) => {
+      <div className="mx-auto mt-16 flex max-w-5xl flex-col gap-16 lg:gap-20">
+        {useCases.map((useCase, index) => {
           const Icon = getIcon(useCase.icon);
           return (
-            <StaggerItem key={useCase.id} className="h-full">
-              <Card className="h-full transition-colors duration-300 hover:border-brand-cyan/30">
-                <CardHeader>
-                  <span className="mb-2 inline-flex size-12 items-center justify-center rounded-xl border border-brand-electric/20 bg-brand-electric/10 text-brand-cyan">
-                    <Icon className="size-6" aria-hidden="true" />
+            <IndustryBand
+              key={useCase.id}
+              index={index}
+              label={
+                <span className="flex items-center gap-3">
+                  <span className="inline-flex size-11 items-center justify-center rounded-xl border border-border bg-secondary/40 text-muted-foreground">
+                    <Icon className="size-5" aria-hidden="true" />
                   </span>
-                  <CardTitle>{useCase.title}</CardTitle>
-                  <CardDescription>{useCase.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="mt-2">
-                  <ul className="flex flex-col gap-2.5">
-                    {useCase.deliverables.map((item) => (
-                      <li
-                        key={item}
-                        className="flex items-start gap-2.5 text-sm text-muted-foreground"
-                      >
-                        <Check
-                          className="mt-0.5 size-4 shrink-0 text-brand-cyan"
-                          aria-hidden="true"
-                        />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            </StaggerItem>
+                  <span className="font-heading text-lg font-semibold tracking-tight">
+                    {useCase.title}
+                  </span>
+                </span>
+              }
+              pain={useCase.pain}
+              solutions={useCase.deliverables}
+              reversed={index % 2 === 1}
+            />
           );
         })}
-      </Stagger>
+      </div>
     </Section>
   );
 }
