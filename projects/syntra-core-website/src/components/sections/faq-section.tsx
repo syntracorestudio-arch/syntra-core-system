@@ -14,7 +14,7 @@ function FaqSection() {
   const { eyebrow, title, subtitle } = siteConfig.sections.faq;
 
   return (
-    <Section id="faq" className="bg-depth-raised">
+    <Section id="faq" className="bg-depth-sunken">
       <BlurReveal>
         <SectionHeading eyebrow={eyebrow} title={title} subtitle={subtitle} />
       </BlurReveal>

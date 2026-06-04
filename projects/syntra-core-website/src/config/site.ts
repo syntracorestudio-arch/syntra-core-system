@@ -28,7 +28,7 @@ export const siteConfig: SiteConfig = {
     "Diseñamos y construimos webs premium, automatizaciones e integraciones con IA para que tu empresa trabaje más rápido y venda mejor.",
   nav: [
     { label: "Servicios", href: "/#servicios" },
-    { label: "Casos", href: "/#casos" },
+    { label: "Aplicaciones", href: "/#casos" },
     { label: "Nosotros", href: "/#nosotros" },
     { label: "Proceso", href: "/#proceso" },
     { label: "FAQ", href: "/#faq" },
@@ -59,10 +59,10 @@ export const siteConfig: SiteConfig = {
         "No vendemos plantillas. Construimos el sistema digital que tu negocio necesita para vender más y operar mejor.",
     },
     useCases: {
-      eyebrow: "Para quién",
-      title: "Pensado para tu rubro",
+      eyebrow: "Dónde aplica",
+      title: "Pensado para problemas reales de tu negocio",
       subtitle:
-        "Cada negocio tiene desafíos distintos. Diseñamos soluciones digitales y automatizaciones adaptadas a la forma en que trabajás, para ayudarte a captar más oportunidades y reducir tareas manuales.",
+        "Estos son escenarios de aplicación por rubro: la situación típica y el sistema que diseñaríamos para resolverla. Cada proyecto se adapta a tu caso.",
     },
     about: {
       eyebrow: "Quiénes somos",
@@ -146,8 +146,8 @@ export const useCases: UseCaseItem[] = [
     icon: "Building2",
     title: "Inmobiliarias",
     description:
-      "Mostrá tus propiedades con una web rápida y profesional, y dejá de responder las mismas consultas a mano.",
-    pain: "Respondiendo las mismas consultas a mano, una por una.",
+      "Una web rápida con catálogo y buscador, conectada a un sistema que podría captar interesados y automatizar respuestas y seguimiento.",
+    pain: "Las consultas de propiedades llegan por varios canales y se responden a mano, una por una.",
     deliverables: [
       "Catálogo de propiedades con buscador y filtros",
       "Captación de interesados desde la web",
@@ -159,8 +159,8 @@ export const useCases: UseCaseItem[] = [
     icon: "Scale",
     title: "Estudios jurídicos",
     description:
-      "Transmití seriedad desde el primer clic y ordená la entrada de consultas sin perder tiempo administrativo.",
-    pain: "Consultas que entran desordenadas y tiempo administrativo que se pierde.",
+      "Un sitio institucional sobrio con formularios de consulta calificada y automatización de turnos y seguimiento.",
+    pain: "Las consultas entran desordenadas por mail, teléfono y formularios, y se pierde tiempo administrativo ordenándolas.",
     deliverables: [
       "Sitio institucional sobrio y confiable",
       "Formularios de consulta calificada",
@@ -172,8 +172,8 @@ export const useCases: UseCaseItem[] = [
     icon: "Stethoscope",
     title: "Clínicas y profesionales",
     description:
-      "Una presencia online cuidada y un sistema de turnos que reduce las idas y vueltas con tus pacientes.",
-    pain: "Idas y vueltas constantes con pacientes para coordinar cada turno.",
+      "Una web clara con solicitud de turnos online y recordatorios automáticos que pueden reducir la coordinación manual.",
+    pain: "Coordinar cada turno implica idas y vueltas constantes con los pacientes.",
     deliverables: [
       "Web clara con servicios y especialidades",
       "Solicitud de turnos online",
@@ -185,8 +185,8 @@ export const useCases: UseCaseItem[] = [
     icon: "Store",
     title: "Empresas de servicios y PyMEs",
     description:
-      "Profesionalizá tu imagen y automatizá las tareas repetitivas que hoy te consumen horas todos los días.",
-    pain: "Tareas repetitivas que consumen horas todos los días.",
+      "Un sitio o sistema a medida que podría captar y gestionar clientes y automatizar los procesos internos que hoy se hacen a mano.",
+    pain: "Tareas repetitivas consumen horas todos los días y frenan la operación.",
     deliverables: [
       "Sitio o sistema a medida de tu operación",
       "Captación y gestión de clientes",
@@ -194,6 +194,13 @@ export const useCases: UseCaseItem[] = [
     ],
   },
 ];
+
+/** Nota de honestidad de la sección Aplicaciones (escenarios, no casos reales). */
+export const applicationsNote =
+  "Escenarios de aplicación — ejemplos de cómo trabajamos, adaptados a cada negocio. No representan clientes específicos.";
+
+/** Frase-firma editorial de la sección Nosotros (statement de identidad). */
+export const aboutStatement = "La forma SYNTRA de construir.";
 
 export const aboutPillars: AboutPillar[] = [
   {

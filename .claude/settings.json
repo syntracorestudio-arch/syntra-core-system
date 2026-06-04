@@ -77,7 +77,8 @@
       "Bash(echo \"dev pid $!\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/)",
       "Bash(echo \"tsc exit: $?\")",
-      "Bash(curl -s -o /dev/null -w \"/ → %{http_code}\\\\n\" http://localhost:3000/)"
+      "Bash(curl -s -o /dev/null -w \"/ → %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(grep -E \"Compiled|Static|^┌|/$|Error\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Mati\\.claude\\projects\\c--Users-Mati-Desktop-SYNTRA-CORE\\memory",

@@ -1,20 +1,35 @@
-import { siteConfig, useCases } from "@/config/site";
+import { applicationsNote, siteConfig, useCases } from "@/config/site";
 import { getIcon } from "@/lib/icons";
 import { Section } from "@/components/layout/section";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { BlurReveal } from "@/components/animations/blur-reveal";
-import { IndustryBand } from "@/components/marketing/para-quien/industry-band";
+import {
+  ApplicationSelector,
+  type ApplicationItem,
+} from "@/components/marketing/aplicaciones/application-selector";
 
 /**
- * UseCasesSection — "Pensado para tu rubro": 4 bandas full-width antes/después
- * con reveal al entrar en viewport. Content-driven (config/site.ts).
- * Conserva el ancla #casos (navegación del navbar).
+ * UseCasesSection — "Aplicaciones": escenarios de aplicación por rubro (TASK-010C).
  *
- * El rótulo (ícono + nombre) se arma acá (Server Component, mismo patrón que
- * Servicios) y se pasa como `label` a IndustryBand, que es Client.
+ * Reemplaza el formato Antes/Después por un rail de pills + panel de escenario
+ * (situación típica → lo que diseñaríamos → qué incluiría), en tono condicional
+ * y honesto (no son casos reales). Los íconos se resuelven en este Server
+ * Component y se pasan ya renderizados al island. Conserva el ancla #casos.
  */
 function UseCasesSection() {
   const { eyebrow, title, subtitle } = siteConfig.sections.useCases;
+
+  const items: ApplicationItem[] = useCases.map((useCase) => {
+    const Icon = getIcon(useCase.icon);
+    return {
+      id: useCase.id,
+      title: useCase.title,
+      icon: <Icon className="size-4" aria-hidden="true" />,
+      situacion: useCase.pain,
+      sistema: useCase.description,
+      capacidades: useCase.deliverables,
+    };
+  });
 
   return (
     <Section id="casos">
@@ -22,30 +37,11 @@ function UseCasesSection() {
         <SectionHeading eyebrow={eyebrow} title={title} subtitle={subtitle} />
       </BlurReveal>
 
-      <div className="mx-auto mt-16 flex max-w-5xl flex-col gap-12 lg:gap-14">
-        {useCases.map((useCase, index) => {
-          const Icon = getIcon(useCase.icon);
-          return (
-            <IndustryBand
-              key={useCase.id}
-              index={index}
-              label={
-                <span className="flex items-center gap-3">
-                  <span className="inline-flex size-11 items-center justify-center rounded-xl border border-border bg-secondary/40 text-muted-foreground">
-                    <Icon className="size-5" aria-hidden="true" />
-                  </span>
-                  <span className="font-heading text-lg font-semibold tracking-tight">
-                    {useCase.title}
-                  </span>
-                </span>
-              }
-              pain={useCase.pain}
-              solutions={useCase.deliverables}
-              reversed={index % 2 === 1}
-            />
-          );
-        })}
-      </div>
+      <ApplicationSelector
+        items={items}
+        note={applicationsNote}
+        className="mx-auto mt-12 max-w-5xl"
+      />
     </Section>
   );
 }
