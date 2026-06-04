@@ -202,6 +202,156 @@
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.03); }
   }
+  /* === Sección Sistema "en ejecución" (TASK-004) ===
+     Loop CSS de 7s: cada nodo enciende en su fase (delay escalonado por --i)
+     y el conector previo "dispara" antes. Estética blueprint lineal, distinta
+     del Synapse Graph del Hero (SVG/SMIL). prefers-reduced-motion lo desactiva. */
+  @keyframes sys-node-activate {
+    0%, 3% {
+      border-color: var(--border-strong);
+      box-shadow: none;
+      transform: scale(1);
+    }
+    /* Rampa de entrada suave → meseta de encendido (la capa "respira"
+       su momento activo) → bajada gradual. Ventana ancha = flujo continuo. */
+    9%, 18% {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 26px -6px rgba(37, 99, 235, 0.4);
+      transform: scale(1.025);
+    }
+    26%, 100% {
+      border-color: var(--border-strong);
+      box-shadow: none;
+      transform: scale(1);
+    }
+  }
+  @keyframes sys-connector-fire {
+    0%, 4% { color: rgba(248, 250, 252, 0.25); }
+    10%, 16% { color: var(--accent-primary); }
+    24%, 100% { color: rgba(248, 250, 252, 0.25); }
+  }
+  .sys-node {
+    animation: sys-node-activate 7s ease-in-out infinite;
+    animation-delay: calc(var(--i) * 1.05s);
+  }
+  /* Cableado direccional: línea con gradiente hacia el destino + chevron.
+     `color` (currentColor) pulsa con sys-connector-fire → glow en fase.
+     Mobile = vertical (top→bottom); desktop = horizontal (left→right). */
+  .sys-connector {
+    position: relative;
+    display: block;
+    width: 1rem;
+    height: 2rem;
+    color: var(--border-strong);
+    animation: sys-connector-fire 7s ease-in-out infinite;
+    animation-delay: calc(var(--i) * 1.05s + 0.55s);
+  }
+  .sys-connector::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0.3rem;
+    width: 1px;
+    transform: translateX(-50%);
+    background: linear-gradient(to bottom, transparent, currentColor);
+  }
+  .sys-connector::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 0;
+    height: 0;
+    transform: translateX(-50%);
+    border-left: 3px solid transparent;
+    border-right: 3px solid transparent;
+    border-top: 4px solid currentColor;
+  }
+  @media (min-width: 768px) {
+    .sys-connector {
+      width: 2.5rem;
+      height: 1rem;
+    }
+    .sys-connector::before {
+      inset: 50% 0.3rem auto 0;
+      width: auto;
+      height: 1px;
+      transform: translateY(-50%);
+      background: linear-gradient(to right, transparent, currentColor);
+    }
+    .sys-connector::after {
+      inset: 50% 0 auto auto;
+      transform: translateY(-50%);
+      border-top: 3px solid transparent;
+      border-bottom: 3px solid transparent;
+      border-left: 4px solid currentColor;
+      border-right: 0;
+    }
+  }
+  /* Hover/focus: pausa el loop y enciende el nodo apuntado (CSS puro) */
+  .sys-flow:hover .sys-node,
+  .sys-flow:hover .sys-connector {
+    animation-play-state: paused;
+  }
+  .sys-node:hover,
+  .sys-node:focus-visible {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 28px -6px rgba(37, 99, 235, 0.45);
+  }
+
+  /* === Live Automation Canvas (TASK-005) === */
+
+  /* Grid técnico de fondo: trama fina a muy baja opacidad, con máscara radial
+     para que se desvanezca en los bordes. Decorativo; los nodos son el foco. */
+  .sys-canvas-grid {
+    background-image:
+      linear-gradient(to right, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+    background-size: 28px 28px;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 55%, transparent 100%);
+    mask-image: radial-gradient(ellipse at center, #000 55%, transparent 100%);
+  }
+
+  /* Dot de actividad del nodo: late al unísono con la activación del módulo. */
+  @keyframes sys-node-dot {
+    0%, 3% { background-color: var(--border-strong); box-shadow: none; }
+    9%, 18% { background-color: var(--accent-primary); box-shadow: 0 0 8px -1px rgba(37, 99, 235, 0.6); }
+    26%, 100% { background-color: var(--border-strong); box-shadow: none; }
+  }
+  .sys-node-dot {
+    animation: sys-node-dot 7s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * 1.05s);
+  }
+  .sys-flow:hover .sys-node-dot {
+    animation-play-state: paused;
+  }
+
+  /* Dot de estado "online": latido sobrio, independiente del loop de flujo. */
+  @keyframes sys-status-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(52, 211, 153, 0); }
+  }
+  .sys-status-dot {
+    animation: sys-status-pulse 2.4s ease-in-out infinite;
+  }
+
+  /* Cue de resultado (nodo output): atenuado en reposo, enciende en la fase
+     final del flujo (delay alineado con el nodo Reporte). No es permanente. */
+  @keyframes sys-output-reveal {
+    0%, 8% { opacity: 0.4; box-shadow: none; }
+    16%, 26% { opacity: 1; box-shadow: 0 0 14px -4px rgba(37, 99, 235, 0.5); }
+    34%, 100% { opacity: 0.4; box-shadow: none; }
+  }
+  .sys-output-badge {
+    opacity: 0.4;
+    animation: sys-output-reveal 7s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * 1.05s);
+  }
+  .sys-flow:hover .sys-output-badge {
+    animation-play-state: paused;
+  }
+
   .animate-breathe {
     animation: syntra-breathe 5s ease-in-out infinite;
   }

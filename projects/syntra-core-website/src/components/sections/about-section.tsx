@@ -24,7 +24,7 @@ function AboutSection() {
         <SectionHeading eyebrow={eyebrow} title={title} subtitle={subtitle} />
       </BlurReveal>
 
-      <Stagger className="mt-14 grid gap-6 md:grid-cols-3">
+      <Stagger className="mx-auto mt-14 grid max-w-4xl gap-6 sm:grid-cols-2 lg:grid-cols-2">
         {aboutPillars.map((pillar) => {
           const Icon = getIcon(pillar.icon);
           return (

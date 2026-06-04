@@ -4,9 +4,9 @@ import type {
   NavItem,
   ServiceItem,
   SiteConfig,
+  SolutionNode,
   StackItem,
   UseCaseItem,
-  WhyChooseItem,
   WorkflowStep,
 } from "@/types";
 
@@ -29,7 +29,7 @@ export const siteConfig: SiteConfig = {
   nav: [
     { label: "Servicios", href: "/#servicios" },
     { label: "Casos", href: "/#casos" },
-    { label: "Por qué SYNTRA", href: "/#por-que" },
+    { label: "Nosotros", href: "/#nosotros" },
     { label: "Proceso", href: "/#proceso" },
     { label: "FAQ", href: "/#faq" },
     { label: "Contacto", href: "/#contacto" },
@@ -64,12 +64,6 @@ export const siteConfig: SiteConfig = {
       subtitle:
         "Cada negocio tiene desafíos distintos. Diseñamos soluciones digitales y automatizaciones adaptadas a la forma en que trabajás, para ayudarte a captar más oportunidades y reducir tareas manuales.",
     },
-    whyChoose: {
-      eyebrow: "Por qué SYNTRA",
-      title: "Por qué elegir SYNTRA",
-      subtitle:
-        "No entregamos una web y desaparecemos. Construimos un sistema que trabaja para tu negocio y te acompañamos en el camino.",
-    },
     about: {
       eyebrow: "Quiénes somos",
       title: "Un estudio digital, no una agencia más",
@@ -81,6 +75,12 @@ export const siteConfig: SiteConfig = {
       title: "De tu idea a un sistema funcionando",
       subtitle:
         "Un proceso claro, sin vueltas. Sabés en todo momento qué estamos haciendo y por qué.",
+    },
+    solutionArchitecture: {
+      eyebrow: "Cómo se ve",
+      title: "Así se ve un sistema SYNTRA por dentro",
+      subtitle:
+        "No entregamos páginas sueltas: conectamos web, datos, automatización e IA en un sistema que trabaja solo. Este es el tipo de arquitectura que diseñamos para cada negocio.",
     },
     faq: {
       eyebrow: "Preguntas frecuentes",
@@ -195,37 +195,6 @@ export const useCases: UseCaseItem[] = [
   },
 ];
 
-export const whyChoose: WhyChooseItem[] = [
-  {
-    id: "web-premium",
-    icon: "Gem",
-    title: "Desarrollo web premium",
-    description:
-      "Sitios rápidos, modernos y diseñados para transmitir confianza desde el primer contacto.",
-  },
-  {
-    id: "ia",
-    icon: "Bot",
-    title: "Automatización e IA aplicada",
-    description:
-      "Automatizamos tareas repetitivas para que puedas dedicar más tiempo a hacer crecer tu negocio.",
-  },
-  {
-    id: "procesos",
-    icon: "Workflow",
-    title: "Soluciones integrales",
-    description:
-      "No trabajamos solo en la web. Conectamos procesos, herramientas y automatizaciones para que todo funcione como un sistema.",
-  },
-  {
-    id: "soporte",
-    icon: "LifeBuoy",
-    title: "Acompañamiento real",
-    description:
-      "Te acompañamos antes, durante y después del lanzamiento para que la solución siga generando valor.",
-  },
-];
-
 export const aboutPillars: AboutPillar[] = [
   {
     id: "ia",
@@ -247,6 +216,13 @@ export const aboutPillars: AboutPillar[] = [
     title: "Tecnología moderna y segura",
     description:
       "Trabajamos con tecnología actual y prácticas seguras para que tu negocio funcione mejor, sin complejidad de tu lado.",
+  },
+  {
+    id: "soporte",
+    icon: "LifeBuoy",
+    title: "Acompañamiento real",
+    description:
+      "Te acompañamos antes, durante y después del lanzamiento para que la solución siga generando valor.",
   },
 ];
 
@@ -313,6 +289,37 @@ export const workflow: WorkflowStep[] = [
       "Publicamos, medimos resultados reales y hacemos crecer el sistema a medida que crece tu negocio.",
   },
 ];
+
+/**
+ * Diagrama de arquitectura de solución (prueba honesta — TASK-003).
+ * Ejemplo conceptual de cómo SYNTRA conecta las capas de un sistema.
+ * NO es un caso real ni un cliente: es ilustrativo (ver `solutionArchitectureNote`).
+ */
+export const solutionNodes: SolutionNode[] = [
+  { id: "cliente", icon: "Users", label: "Cliente", caption: "Llega" },
+  { id: "web", icon: "LayoutTemplate", label: "Web", caption: "Capta" },
+  { id: "crm", icon: "Database", label: "CRM", caption: "Ordena" },
+  { id: "automatizacion", icon: "Workflow", label: "Automatización", caption: "Automatiza" },
+  { id: "ia", icon: "Sparkles", label: "IA", caption: "Decide" },
+  { id: "reporte", icon: "BarChart3", label: "Reporte", caption: "Reporta" },
+];
+
+export const solutionArchitectureNote =
+  "Ejemplo de arquitectura — adaptamos cada sistema a tu negocio.";
+
+/** Label del header del canvas (tipo barra de sistema). */
+export const solutionCanvasLabel = "syntra-os · flujo en ejecución";
+
+/** Strings de la barra inferior de sistema del canvas (status bar). */
+export const solutionCanvasStatus = {
+  sync: "sincronizado",
+  pipeline: "pipeline activo",
+  meta: "6 módulos · 5 conexiones",
+  coords: "x:1240 · y:320 · z:1.0",
+};
+
+/** Cue de resultado del nodo final (Reporte). Enciende al cierre del flujo. */
+export const solutionOutputLabel = "reporte actualizado";
 
 export const stack: StackItem[] = [
   { name: "Next.js", category: "Frontend" },

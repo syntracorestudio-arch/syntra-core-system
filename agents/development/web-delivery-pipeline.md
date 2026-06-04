@@ -2,6 +2,24 @@ SYNTRA WEB DELIVERY PIPELINE — CORE SYSTEM
 
 1. PROPÓSITO
 
+## RELACIÓN CON SYNTRA WEB PLAYBOOK
+
+Este documento es la fuente oficial de ejecución para proyectos web.
+
+Define:
+
+- estados
+- transiciones
+- aprobaciones
+- bloqueos
+- rollback
+
+El SYNTRA WEB PLAYBOOK complementa este pipeline mediante guías prácticas y criterios operativos.
+
+Ante cualquier conflicto:
+
+este pipeline prevalece.
+
 Este pipeline define el ciclo completo de vida de cualquier producto web dentro de SYNTRA CORE, desde la idea hasta producción y validación.
 
 Opera como equivalente directo del:
@@ -99,6 +117,32 @@ consistencia lógica
 Output:
 spec funcional sin ambigüedad
 Transición a:
+
+🎬 STATE 2.5 — CREATIVE DIRECTION
+
+Agente activo
+
+Creative Director
+
+Función
+
+Definir la dirección creativa del producto antes del diseño de experiencia.
+
+Se define:
+
+- diferenciación
+- identidad conceptual
+- narrativa visual
+- principios de innovación
+- percepción deseada del producto
+
+Output:
+
+creative direction approved
+
+Transición a:
+
+👉 STATE 3
 
 👉 STATE 3
 
@@ -236,6 +280,32 @@ Estado final:
 
 ✅ COMPLETED
 
+🎭 STATE 9.5 — EXPERIENCE AUDIT
+
+Agente activo
+
+Website Experience Auditor
+
+Función
+
+Auditar el resultado final desde la perspectiva de experiencia.
+
+Se valida:
+
+- diferenciación
+- percepción premium
+- memorabilidad
+- coherencia narrativa
+- ausencia de señales de template
+
+Output:
+
+APPROVED / REQUIRES IMPROVEMENT
+
+Transición a:
+
+👉 COMPLETED
+
 🔁 4. REGLAS DE TRANSICIÓN
 4.1 Regla de avance obligatorio
 
@@ -275,6 +345,21 @@ Implementation	Frontend + Backend
 QA	Web QA
 Deploy	Deploy
 Production Verified	Production Verified
+
+## 6. FAST TRACK INTEGRATION
+
+Los cambios clasificados como
+Categoría A dentro del Fast Track Protocol
+pueden utilizar un pipeline simplificado.
+
+Referencia:
+
+agents/governance/fast-track-protocol.md
+
+El Fast Track NO reemplaza este pipeline.
+
+Solo define excepciones para cambios de bajo impacto.
+
 🧭 7. PRINCIPIO FINAL
 
 El sistema web no se diseña, se ejecuta en estados controlados.

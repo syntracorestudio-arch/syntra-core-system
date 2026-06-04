@@ -4,15 +4,15 @@ import { JsonLd } from "@/components/shared/json-ld";
 import { HeroSection } from "@/components/sections/hero-section";
 import { ServicesSection } from "@/components/sections/services-section";
 import { UseCasesSection } from "@/components/sections/use-cases-section";
-import { WhyChooseSection } from "@/components/sections/why-choose-section";
 import { AboutSection } from "@/components/sections/about-section";
 import { WorkflowSection } from "@/components/sections/workflow-section";
+import { SolutionArchitectureSection } from "@/components/sections/solution-architecture-section";
 import { FaqSection } from "@/components/sections/faq-section";
 import { FinalCtaSection } from "@/components/sections/final-cta-section";
 
 /**
  * Home — landing oficial SYNTRA CORE.
- * Flujo: Hero → Servicios → Casos → Por qué SYNTRA → Nosotros → Proceso → FAQ → CTA.
+ * Flujo: Hero → Servicios → Casos → Nosotros → Proceso → Sistema → FAQ → CTA.
  */
 export default function Home() {
   return (
@@ -24,9 +24,9 @@ export default function Home() {
         <HeroSection />
         <ServicesSection />
         <UseCasesSection />
-        <WhyChooseSection />
         <AboutSection />
         <WorkflowSection />
+        <SolutionArchitectureSection />
         <FaqSection />
         <FinalCtaSection />
       </main>

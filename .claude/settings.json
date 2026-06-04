@@ -50,11 +50,39 @@
       "Bash(curl -s -o /tmp/v2.html -w \"GET / HTTP %{http_code}\\\\n\" --max-time 40 http://localhost:3000/)",
       "Bash(node -e \"console.log\\('tailwind', require\\('./package.json'\\).devDependencies.tailwindcss\\)\")",
       "Bash(curl -s -o /tmp/b1.html -w \"GET / HTTP %{http_code}\\\\n\" --max-time 40 http://localhost:3000/)",
-      "Bash(curl -s -o /tmp/b3.html -w \"GET / HTTP %{http_code}\\\\n\" --max-time 40 http://localhost:3000/)"
+      "Bash(curl -s -o /tmp/b3.html -w \"GET / HTTP %{http_code}\\\\n\" --max-time 40 http://localhost:3000/)",
+      "Bash(sed -n '85,110p' agents/ROLE-AUTHORITY-MAP.md)",
+      "Bash(sed -n '448,460p' agents/ROLE-AUTHORITY-MAP.md)",
+      "Bash(cd /c/Users/Mati/Desktop/SYNTRA-CORE/projects/syntra-core-website *)",
+      "Bash(sed -n '/export const whyChoose/,/^];/p' src/config/site.ts)",
+      "Bash(sed -n '/export const aboutPillars/,/^];/p' src/config/site.ts)",
+      "Bash(sed -n '/whyChoose: {/,/},/p' src/config/site.ts)",
+      "Bash(sed -n '/about: {/,/},/p' src/config/site.ts)",
+      "Bash(rm -f src/components/sections/why-choose-section.tsx)",
+      "Bash(grep -rniE \"whychoose|why-choose|por-que|por qué SYNTRA|WhyChooseItem\" src/)",
+      "Bash(grep -rn \"por-que\" src/)",
+      "Bash(curl -s -o /dev/null -w \"localhost:3000 → HTTP %{http_code}\\\\n\" --max-time 10 http://localhost:3000/)",
+      "Bash(sed -n '/workflow: {/,/},/p' src/config/site.ts)",
+      "Bash(sed -n '/export const workflow/,/^];/p' src/config/site.ts)",
+      "Bash(node -e \"const i=require\\('lucide-react'\\); ['Users','LayoutTemplate','Database','Workflow','Sparkles','BarChart3','Bot'].forEach\\(n=>console.log\\(n, n in i?'OK':'MISSING'\\)\\)\")",
+      "Bash(nohup npm run dev)",
+      "Read(//c/Users/Mati/assets/images/**)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(grep -q \"Ready in\" dev.log)",
+      "Bash(break)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(echo \"---TSC EXIT $?---\")",
+      "Bash(nohup npx next dev)",
+      "Bash(echo \"dev pid $!\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(echo \"tsc exit: $?\")",
+      "Bash(curl -s -o /dev/null -w \"/ → %{http_code}\\\\n\" http://localhost:3000/)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Mati\\.claude\\projects\\c--Users-Mati-Desktop-SYNTRA-CORE\\memory",
-      "\\tmp"
+      "\\tmp",
+      "c:\\Users\\Mati\\Desktop\\SYNTRA-CORE\\src\\config"
     ]
   }
 }

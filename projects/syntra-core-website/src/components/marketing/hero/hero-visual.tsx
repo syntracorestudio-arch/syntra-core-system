@@ -1,75 +1,327 @@
+"use client";
+
+import {
+  Database,
+  MessageCircle,
+  Send,
+  Sparkles,
+  UserPlus,
+  type LucideIcon,
+} from "lucide-react";
+import { useReducedMotion } from "framer-motion";
+
 import { GlowOrb } from "@/components/shared/glow-orb";
 
 /**
- * HeroVisual — visual estático de la columna derecha del Hero (FASE 1).
+ * HeroVisual — Synapse Graph como Event Loop Simulator (v3).
  *
- * Reserva el espacio del futuro grafo (FASE 2) con un aspect-ratio fijo para
- * evitar CLS. Sin estado, sin efectos, sin librerías. Server Component.
- * Reutiliza el GlowOrb compartido como fondo ambiental (no crea uno nuevo).
+ * El grafo simula el sistema ejecutándose: los nodos se ACTIVAN en secuencia
+ * narrativa (Lead → Consulta → IA → CRM → Acción → reset), un evento por fase,
+ * sincronizados con la partícula. Loop de 8s, lento e intencional.
+ * Cada glow = un evento del sistema (nada se ilumina decorativamente).
+ *
+ * Material: glass + estados REST/ACTIVE/FOCUS. ACTIVE se dispara por nodo vía
+ * SMIL (begin escalonado) sobre el mismo loop de 8s que recorre la partícula.
+ * IA = FOCUS permanente (late siempre, pico en su fase).
+ *
+ * prefers-reduced-motion → idle estático: glass + IA con glow, sin secuencia,
+ * sin partícula, sin pulso. Mobile: 3 fases (Entrada → IA → Acción).
  */
+
+const LOOP = "8s";
+const GHOST_LABELS = false; // capa opcional — OFF por defecto (spec §4)
+
+/** Vértices de un hexágono flat-top centrado en (cx,cy) con radio r. */
+function hexPoints(cx: number, cy: number, r: number): string {
+  const h = r * 0.866;
+  return [
+    [cx + r, cy],
+    [cx + r / 2, cy + h],
+    [cx - r / 2, cy + h],
+    [cx - r, cy],
+    [cx - r / 2, cy - h],
+    [cx + r / 2, cy - h],
+  ]
+    .map((p) => p.join(","))
+    .join(" ");
+}
+
+interface NodeDef {
+  id: string;
+  label: string;
+  ghost: string;
+  icon: LucideIcon;
+  cx: number;
+  cy: number;
+  r: number;
+  /** Inicio de la fase ACTIVE del nodo dentro del loop (segundos). */
+  beginS: number;
+  /** Duración de la activación (segundos). */
+  activeS: number;
+  opacity?: number;
+  dominant?: boolean;
+}
+
+interface NodeViewProps {
+  node: NodeDef;
+  iconSize: number;
+  animate: boolean;
+}
+
+function SynapseNode({ node, iconSize, animate }: NodeViewProps) {
+  const Icon = node.icon;
+  const labelY = node.cy + node.r + 20;
+  // keyTimes del pulso de evento dentro del loop de 8s (in → pico → out).
+  const total = 8;
+  const kIn = node.beginS / total;
+  const kPeak = (node.beginS + node.activeS / 2) / total;
+  const kOut = (node.beginS + node.activeS) / total;
+
+  return (
+    <g opacity={node.opacity ?? 1}>
+      {/* Halo de ACTIVE (glow azul de evento) — solo aparece en la fase del nodo */}
+      {animate && !node.dominant ? (
+        <circle cx={node.cx} cy={node.cy} r={node.r + 6} fill="var(--accent-primary)" opacity="0">
+          <animate
+            attributeName="opacity"
+            dur={LOOP}
+            begin="0s"
+            repeatCount="indefinite"
+            keyTimes={`0;${kIn};${kPeak};${kOut};1`}
+            values={`0;0;0.5;0;0`}
+          />
+        </circle>
+      ) : null}
+
+      {/* Hexágono glass. El cambio de borde en ACTIVE se expresa con un polígono
+          superpuesto de borde accent cuya opacidad pulsa en la fase (SMIL no
+          interpola var() en 'stroke', por eso se hace por opacity de una capa). */}
+      <polygon
+        points={hexPoints(node.cx, node.cy, node.r)}
+        fill="var(--surface-2)"
+        fillOpacity={node.dominant ? 0.55 : 0.35}
+        stroke={node.dominant ? "var(--accent-primary)" : "var(--border-strong)"}
+        strokeWidth={node.dominant ? 2.5 : 1.5}
+        className={node.dominant ? "animate-pulse-slow" : undefined}
+        style={
+          node.dominant
+            ? { transformBox: "fill-box", transformOrigin: "center" }
+            : undefined
+        }
+      />
+      {animate && !node.dominant ? (
+        <polygon
+          points={hexPoints(node.cx, node.cy, node.r)}
+          fill="none"
+          stroke="var(--accent-primary)"
+          strokeWidth="2"
+          opacity="0"
+        >
+          <animate
+            attributeName="opacity"
+            dur={LOOP}
+            begin="0s"
+            repeatCount="indefinite"
+            keyTimes={`0;${kIn};${kPeak};${kOut};1`}
+            values="0;0;1;0;0"
+          />
+        </polygon>
+      ) : null}
+
+      {/* Ícono centrado (lucide vía foreignObject) */}
+      <foreignObject
+        x={node.cx - iconSize / 2}
+        y={node.cy - iconSize / 2}
+        width={iconSize}
+        height={iconSize}
+        style={{ pointerEvents: "none" }}
+      >
+        <div className="flex h-full w-full items-center justify-center">
+          <Icon
+            size={iconSize}
+            className={node.dominant ? "text-accent-secondary" : "text-muted-foreground"}
+            aria-hidden="true"
+          />
+        </div>
+      </foreignObject>
+
+      {/* Label */}
+      <text
+        x={node.cx}
+        y={labelY}
+        textAnchor="middle"
+        className={node.dominant ? "fill-current text-foreground" : "fill-current text-muted-foreground"}
+        style={{ fontSize: 13, fontWeight: node.dominant ? 600 : 400 }}
+      >
+        {node.label}
+      </text>
+
+      {/* Ghost label (OFF por defecto) — texto flotante tenue durante la fase */}
+      {animate && GHOST_LABELS ? (
+        <text
+          x={node.cx}
+          y={node.cy - node.r - 10}
+          textAnchor="middle"
+          className="fill-current text-muted-foreground"
+          style={{ fontSize: 10, opacity: 0 }}
+        >
+          {node.ghost}
+          <animate
+            attributeName="opacity"
+            dur={LOOP}
+            begin="0s"
+            repeatCount="indefinite"
+            keyTimes={`0;${kIn};${kPeak};${kOut};1`}
+            values="0;0;0.4;0;0"
+          />
+        </text>
+      ) : null}
+
+      {/* Anillo de pulso del nodo IA (FOCUS permanente) */}
+      {node.dominant && animate ? (
+        <circle cx={node.cx} cy={node.cy} r={node.r} fill="none" stroke="var(--accent-primary)" strokeWidth="1.5">
+          <animate attributeName="r" values={`${node.r};${node.r * 1.6}`} dur="3s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.4;0" dur="3s" repeatCount="indefinite" />
+        </circle>
+      ) : null}
+    </g>
+  );
+}
+
+/**
+ * EdgePulse — pulso que recorre UNA arista durante su fase del loop (8s).
+ * Viaja en `travel` segundos desde su `begin`; invisible el resto del ciclo
+ * (opacity 0 fuera de fase) → nunca hay dos pulsos visibles a la vez.
+ * Usa animateMotion (recorrido) + animate de opacity (aparición por fase).
+ */
+function EdgePulse({
+  path,
+  begin,
+  r = 5,
+  travel = 0.9,
+}: {
+  path: string;
+  begin: string;
+  r?: number;
+  travel?: number;
+}) {
+  const b = parseFloat(begin);
+  const total = 8;
+  const kStart = b / total;
+  const kEnd = (b + travel) / total;
+  return (
+    <circle r={r} fill="var(--accent-primary)" opacity="0">
+      {/* animateMotion de 8s (loop completo): quieto en el origen de la arista
+          hasta su fase (keyPoint 0), viaja 0→1 durante `travel`, queda al final. */}
+      <animateMotion
+        dur={LOOP}
+        repeatCount="indefinite"
+        calcMode="linear"
+        path={path}
+        keyTimes={`0;${kStart};${kEnd};1`}
+        keyPoints="0;0;1;1"
+      />
+      {/* Visible solo durante su fase (aparece al iniciar el viaje, se va al final) */}
+      <animate
+        attributeName="opacity"
+        dur={LOOP}
+        repeatCount="indefinite"
+        keyTimes={`0;${kStart};${kStart + 0.001};${kEnd};${kEnd + 0.001};1`}
+        values="0;0;1;1;0;0"
+      />
+    </circle>
+  );
+}
+
 function HeroVisual() {
+  const reduce = useReducedMotion();
+  const animate = !reduce;
+
+  // Event loop (tabla §1): begin escalonado, una activación por fase.
+  const desktopNodes: NodeDef[] = [
+    { id: "node-lead", label: "Lead", ghost: "Lead detectado", icon: UserPlus, cx: 90, cy: 92, r: 30, opacity: 0.85, beginS: 0.0, activeS: 0.7 },
+    { id: "node-consulta", label: "Consulta", ghost: "Consulta recibida", icon: MessageCircle, cx: 90, cy: 268, r: 28, opacity: 0.85, beginS: 1.0, activeS: 0.7 },
+    { id: "node-ia", label: "IA", ghost: "Procesando intención…", icon: Sparkles, cx: 260, cy: 180, r: 48, dominant: true, beginS: 2.2, activeS: 1.2 },
+    { id: "node-crm", label: "CRM", ghost: "Registrando en CRM", icon: Database, cx: 452, cy: 84, r: 32, beginS: 3.8, activeS: 0.7 },
+    { id: "node-accion", label: "Acción", ghost: "Acción enviada", icon: Send, cx: 452, cy: 276, r: 30, beginS: 4.8, activeS: 0.7 },
+  ];
+  const desktopEdges = ["M90,92 L260,180", "M90,268 L260,180", "M260,180 L452,84", "M260,180 L452,276"];
+
+  const mobileNodes: NodeDef[] = [
+    { id: "node-entrada", label: "Entrada", ghost: "", icon: UserPlus, cx: 56, cy: 70, r: 24, opacity: 0.85, beginS: 0.0, activeS: 0.8 },
+    { id: "node-ia-m", label: "IA", ghost: "", icon: Sparkles, cx: 160, cy: 70, r: 38, dominant: true, beginS: 2.2, activeS: 1.2 },
+    { id: "node-accion-m", label: "Acción", ghost: "", icon: Send, cx: 264, cy: 70, r: 26, beginS: 4.8, activeS: 0.8 },
+  ];
+  const mobileEdges = ["M56,70 L160,70", "M160,70 L264,70"];
+
   return (
     <div
       role="img"
-      aria-label="Representación visual del sistema SYNTRA CORE"
-      className="relative mx-auto aspect-[620/560] w-full max-w-[560px]"
+      aria-label="Sistema de automatización SYNTRA: un lead y una consulta entran, son procesados por IA y derivan en registro en CRM y una acción"
+      className="relative mx-auto w-full max-w-[560px]"
     >
-      {/* Glow ambiental (componente compartido reutilizado).
-          Respiración: solo opacity, sin cambiar color. Único loop del sitio. */}
       <GlowOrb
         tone="electric"
         size="md"
         className="top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-breathe"
       />
 
-      {/* Surface — fondo algo más definido que el dark base (no glass plano) */}
-      <div className="relative flex h-full w-full items-center justify-center rounded-3xl border border-border bg-card/60 backdrop-blur-md">
-        {/* Constelación estática de hexágonos (geometría del logo). Sin animación. */}
-        <svg
-          viewBox="0 0 320 320"
-          className="h-[72%] w-[72%]"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          {/* Líneas conectoras (sugieren red/sistema) */}
-          <g stroke="var(--input)" strokeWidth="1.5">
-            <line x1="160" y1="160" x2="160" y2="64" />
-            <line x1="160" y1="160" x2="243" y2="208" />
-            <line x1="160" y1="160" x2="77" y2="208" />
-          </g>
+      {/* === Desktop: 5 nodos === */}
+      <svg
+        viewBox="0 0 540 380"
+        className="relative hidden h-auto w-full md:block"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <g stroke="var(--border-strong)" strokeWidth="1.5">
+          {desktopEdges.map((d) => (
+            <path key={d} d={d} />
+          ))}
+        </g>
 
-          {/* Hexágono central (grande, neutro) — micro-latido lento */}
-          <path
-            d="M160 96 L213 127 V189 L160 220 L107 189 V127 Z"
-            fill="var(--brand-bg)"
-            stroke="var(--input)"
-            strokeWidth="2"
-            className="animate-pulse-slow"
-            style={{ transformBox: "fill-box", transformOrigin: "center" }}
-          />
+        {/* Glow de foco permanente del nodo IA */}
+        <circle cx="260" cy="180" r="64" fill="var(--accent-primary)" opacity="0.10" />
 
-          {/* Hexágonos satélite (tenues) */}
-          <g
-            fill="var(--brand-bg)"
-            stroke="var(--input)"
-            strokeWidth="1.5"
-            opacity="0.85"
-          >
-            {/* arriba */}
-            <path d="M160 36 L188 52 V84 L160 100 L132 84 V52 Z" />
-            {/* abajo-derecha */}
-            <path d="M243 180 L271 196 V228 L243 244 L215 228 V196 Z" />
-            {/* abajo-izquierda */}
-            <path d="M77 180 L105 196 V228 L77 244 L49 228 V196 Z" />
-          </g>
-        </svg>
+        {/* Pulsos por arista: un pulso recorre la arista correcta en su fase,
+            siempre sobre líneas reales. Entradas convergen en IA (fases 1-2),
+            IA diverge a salidas (fases 4-5). Uno visible a la vez. */}
+        {animate ? (
+          <>
+            <EdgePulse path="M90,92 L260,180" begin="0s" />
+            <EdgePulse path="M90,268 L260,180" begin="1s" />
+            <EdgePulse path="M260,180 L452,84" begin="3.8s" />
+            <EdgePulse path="M260,180 L452,276" begin="4.8s" />
+          </>
+        ) : null}
 
-        {/* Etiqueta */}
-        <span className="absolute bottom-6 font-accent text-sm tracking-widest text-muted-foreground">
-          IA
-        </span>
-      </div>
+        {desktopNodes.map((n) => (
+          <SynapseNode key={n.id} node={n} iconSize={n.dominant ? 26 : 18} animate={animate} />
+        ))}
+      </svg>
+
+      {/* === Mobile: 3 nodos === */}
+      <svg
+        viewBox="0 0 320 140"
+        className="relative block h-auto w-full md:hidden"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <g stroke="var(--border-strong)" strokeWidth="1.5">
+          {mobileEdges.map((d) => (
+            <path key={d} d={d} />
+          ))}
+        </g>
+        <circle cx="160" cy="70" r="52" fill="var(--accent-primary)" opacity="0.10" />
+        {animate ? (
+          <>
+            <EdgePulse path="M56,70 L160,70" begin="0s" r={4.5} />
+            <EdgePulse path="M160,70 L264,70" begin="4.8s" r={4.5} />
+          </>
+        ) : null}
+        {mobileNodes.map((n) => (
+          <SynapseNode key={n.id} node={n} iconSize={n.dominant ? 22 : 16} animate={animate} />
+        ))}
+      </svg>
     </div>
   );
 }

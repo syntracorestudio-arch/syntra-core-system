@@ -66,14 +66,6 @@ export interface UseCaseItem {
   deliverables: string[];
 }
 
-/** Pilar de valor de "¿Por qué elegir SYNTRA?" */
-export interface WhyChooseItem {
-  id: string;
-  icon: string;
-  title: string;
-  description: string;
-}
-
 /** Pregunta frecuente (manejo de objeciones). */
 export interface FaqItem {
   question: string;
@@ -86,6 +78,16 @@ export interface AboutPillar {
   icon: string;
   title: string;
   description: string;
+}
+
+/** Capa del diagrama de arquitectura de solución (prueba honesta). */
+export interface SolutionNode {
+  id: string;
+  icon: string;
+  /** Nombre de la capa (ej. "Web") */
+  label: string;
+  /** Micro-leyenda de valor en lenguaje de negocio (ej. "Capta") */
+  caption: string;
 }
 
 export interface HeroContent {
@@ -115,9 +117,9 @@ export interface SiteConfig {
   sections: {
     services: SectionMeta;
     useCases: SectionMeta;
-    whyChoose: SectionMeta;
     about: SectionMeta;
     workflow: SectionMeta;
+    solutionArchitecture: SectionMeta;
     faq: SectionMeta;
     finalCta: {
       title: string;
