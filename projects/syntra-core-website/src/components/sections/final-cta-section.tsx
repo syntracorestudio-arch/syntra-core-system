@@ -2,6 +2,7 @@ import { siteConfig } from "@/config/site";
 import { Section } from "@/components/layout/section";
 import { GlowOrb } from "@/components/shared/glow-orb";
 import { BlurReveal } from "@/components/animations/blur-reveal";
+import { TrackedLink } from "@/components/shared/tracked-link";
 import { ContactForm } from "@/components/sections/contact-form";
 
 /**
@@ -33,12 +34,13 @@ function FinalCtaSection() {
               </p>
               <p className="text-sm text-muted-foreground">
                 O escribinos directo a{" "}
-                <a
+                <TrackedLink
                   href={`mailto:${siteConfig.email}`}
                   className="text-brand-cyan underline-offset-4 hover:underline"
+                  trackProps={{ location: "final_cta", target: "mailto" }}
                 >
                   {siteConfig.email}
-                </a>
+                </TrackedLink>
               </p>
             </div>
 

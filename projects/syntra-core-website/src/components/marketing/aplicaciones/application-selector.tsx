@@ -5,6 +5,7 @@ import { Check, Info } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/analytics";
 
 export interface ApplicationItem {
   id: string;
@@ -39,7 +40,10 @@ interface ApplicationSelectorProps {
 function ApplicationSelector({ items, note, className }: ApplicationSelectorProps) {
   const reduce = useReducedMotion();
   const [activeId, setActiveId] = React.useState(items[0]?.id);
-  const handleSelect = React.useCallback((id: string) => setActiveId(id), []);
+  const handleSelect = React.useCallback((id: string) => {
+    track("application_tab_click", { industry: id });
+    setActiveId(id);
+  }, []);
 
   const active = items.find((it) => it.id === activeId) ?? items[0];
   if (!active) return null;

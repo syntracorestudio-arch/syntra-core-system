@@ -27,10 +27,22 @@ function ContactForm() {
   const baseId = React.useId();
   const fieldId = (name: string) => `${baseId}-${name}`;
 
+  // form_start: una sola vez por montaje, al primer focus de cualquier campo.
+  const formStarted = React.useRef(false);
+  const handleFirstFocus = () => {
+    if (!formStarted.current) {
+      formStarted.current = true;
+      track("form_start");
+    }
+  };
+
   // Tracking de resultado (nuevo objeto state por envío).
   React.useEffect(() => {
     if (state.status === "success") track("lead_submitted");
-    else if (state.status === "error") track("lead_submit_error");
+    else if (state.status === "error") {
+      // reason genérico, sin PII (validation = errores de campo; server = el resto).
+      track("lead_submit_error", { reason: state.errors ? "validation" : "server" });
+    }
   }, [state]);
 
   if (state.status === "success") {
@@ -50,6 +62,7 @@ function ContactForm() {
     <form
       action={formAction}
       onSubmit={() => track("lead_submit_attempt")}
+      onFocus={handleFirstFocus}
       noValidate
       className="flex flex-col gap-5 text-left"
     >

@@ -1,7 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Sora, Space_Grotesk } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { HashScroll } from "@/components/shared/hash-scroll";
+
+/** Analytics (Plausible) — se monta solo si hay dominio configurado. */
+const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
+const plausibleSrc =
+  process.env.NEXT_PUBLIC_PLAUSIBLE_SRC ?? "https://plausible.io/js/script.js";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -82,6 +88,14 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        {plausibleDomain ? (
+          <>
+            <Script id="plausible-init" strategy="afterInteractive">
+              {`window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments)}`}
+            </Script>
+            <Script defer data-domain={plausibleDomain} src={plausibleSrc} />
+          </>
+        ) : null}
         <HashScroll />
         {children}
       </body>
