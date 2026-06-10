@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { CheckCircle2, Send } from "lucide-react";
 
 import { track } from "@/lib/analytics";
@@ -130,6 +131,19 @@ function ContactForm() {
         {isPending ? "Enviando..." : "Enviar mensaje"}
         {!isPending && <Send data-icon="inline-end" />}
       </Button>
+
+      {/* Microcopy de confianza + privacidad (sin prometer tiempos) */}
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Primero entendemos tu caso y te respondemos con una propuesta clara, sin
+        compromiso. Mirá cómo tratamos tus datos en{" "}
+        <Link
+          href="/privacidad"
+          className="text-brand-cyan underline-offset-4 hover:underline"
+        >
+          Privacidad
+        </Link>
+        .
+      </p>
     </form>
   );
 }
