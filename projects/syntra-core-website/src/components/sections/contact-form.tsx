@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CheckCircle2, Send } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, Send } from "lucide-react";
 
+import { contactSuccess } from "@/config/site";
 import { track } from "@/lib/analytics";
 import { HONEYPOT_FIELD } from "@/lib/validations/lead";
 import { submitLead } from "@/app/actions/submit-lead";
@@ -49,11 +50,29 @@ function ContactForm() {
     return (
       <div
         role="status"
-        className="flex flex-col items-center gap-3 rounded-2xl border border-brand-electric/20 bg-brand-electric/5 px-6 py-10 text-center"
+        className="success-reveal relative overflow-hidden rounded-2xl border border-brand-electric/25 bg-brand-electric/5 px-6 py-12 text-center shadow-[0_0_60px_-20px_rgba(37,99,235,0.45)]"
       >
-        <CheckCircle2 className="size-10 text-brand-cyan" aria-hidden="true" />
-        <p className="font-heading text-lg font-semibold">Mensaje enviado</p>
-        <p className="max-w-sm text-sm text-muted-foreground">{state.message}</p>
+        {/* Hairline de acento superior */}
+        <span
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-brand-electric/60 to-transparent"
+        />
+        <span className="success-check mx-auto mb-5 inline-flex size-14 items-center justify-center rounded-full border border-brand-electric/30 bg-brand-electric/10 text-brand-cyan">
+          <CheckCircle2 className="size-7" aria-hidden="true" />
+        </span>
+        <p className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">
+          {contactSuccess.title}
+        </p>
+        <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
+          {contactSuccess.body}
+        </p>
+        <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-foreground/80">
+          {contactSuccess.microcopy}
+        </p>
+        <p className="mt-8 inline-flex items-center gap-1.5 rounded-full border border-brand-electric/25 bg-brand-electric/5 px-3 py-1 text-xs font-medium text-brand-cyan">
+          <Check className="size-3 shrink-0" aria-hidden="true" />
+          {contactSuccess.secondary}
+        </p>
       </div>
     );
   }
@@ -121,15 +140,20 @@ function ContactForm() {
         {state.errors?.message ? (
           <p
             id={`${fieldId("message")}-error`}
-            className="text-sm text-destructive"
+            className="flex items-center gap-1.5 text-sm text-destructive"
           >
+            <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
             {state.errors.message}
           </p>
         ) : null}
       </div>
 
       {state.status === "error" && state.message ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p
+          role="alert"
+          className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive"
+        >
+          <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           {state.message}
         </p>
       ) : null}
@@ -184,7 +208,11 @@ function Field({ id, name, label, error, type = "text", ...rest }: FieldProps) {
         {...rest}
       />
       {error ? (
-        <p id={`${id}-error`} className="text-sm text-destructive">
+        <p
+          id={`${id}-error`}
+          className="flex items-center gap-1.5 text-sm text-destructive"
+        >
+          <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           {error}
         </p>
       ) : null}

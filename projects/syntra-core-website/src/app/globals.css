@@ -159,6 +159,15 @@
     @apply border-border outline-ring/50;
   }
 
+  /* Foco por teclado consistente para elementos sin manejo propio
+     (links de navbar/footer, etc.). Los inputs/botones declaran
+     `outline-none` + su propio ring → no se duplica el anillo. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
   html {
     @apply font-sans antialiased;
     scroll-behavior: smooth;
@@ -350,6 +359,24 @@
   }
   .sys-flow:hover .sys-output-badge {
     animation-play-state: paused;
+  }
+
+  /* Reveal del success state (TASK-015A): fade + scale mínimo, una sola vez.
+     prefers-reduced-motion lo neutraliza (regla global). */
+  @keyframes success-reveal {
+    from { opacity: 0; transform: translateY(6px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .success-reveal {
+    animation: success-reveal 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes success-check {
+    0% { opacity: 0; transform: scale(0.6); }
+    60% { opacity: 1; transform: scale(1.06); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .success-check {
+    animation: success-check 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
   }
 
   .animate-breathe {

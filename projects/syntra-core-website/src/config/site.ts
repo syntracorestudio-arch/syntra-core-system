@@ -96,6 +96,14 @@ export const siteConfig: SiteConfig = {
   },
 };
 
+/** Copy del estado de éxito del formulario (momento de marca, content-driven). */
+export const contactSuccess = {
+  title: "Mensaje recibido",
+  body: "Gracias. Ya tenemos tu solicitud y vamos a revisar la mejor forma de ayudarte.",
+  microcopy: "Te contactaremos para entender mejor tu proyecto y definir el próximo paso.",
+  secondary: "Solicitud registrada correctamente.",
+};
+
 export const mainNav: NavItem[] = siteConfig.nav;
 
 export const services: ServiceItem[] = [
