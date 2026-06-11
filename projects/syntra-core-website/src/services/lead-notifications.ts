@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHmac } from "node:crypto";
+
 import { siteConfig } from "@/config/site";
 import { updateLeadNotification } from "@/services/lead-service";
 import type { NotificationErrorCode } from "@/lib/validations/lead";
@@ -23,6 +25,18 @@ const TIMEOUT_MS = 3000;
 const BACKOFF_MS = [500, 2000]; // espera entre intentos
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Firma HMAC-SHA256 del mensaje `${timestamp}.${body}` (TASK-023A).
+ * Devuelve el valor versionado del header: `v1=<hmac hex>`. El secreto NUNCA
+ * viaja en esta firma (solo su derivada). Reusa `LEAD_WEBHOOK_SECRET`.
+ */
+function signPayload(secret: string, timestamp: string, body: string): string {
+  const hmac = createHmac("sha256", secret)
+    .update(`${timestamp}.${body}`)
+    .digest("hex");
+  return `v1=${hmac}`;
+}
 
 /** Mapea un error de transporte a un código controlado (sin PII/secretos). */
 function toErrorCode(err: unknown): NotificationErrorCode {
@@ -83,7 +97,17 @@ export async function notifyNewLead(lead: Lead): Promise<void> {
     // Clave de idempotencia: n8n deduplica por el id del lead.
     "x-idempotency-key": lead.id,
   };
-  if (secret) headers["x-syntra-signature"] = secret;
+  if (secret) {
+    // Migración de firma (TASK-023A — headers duales, sin downtime):
+    // 1) Legacy: secreto en claro. Se mantiene para que el n8n ACTUAL no rompa.
+    headers["x-syntra-signature"] = secret;
+    // 2) Nuevo: HMAC real + timestamp. Se calculan UNA sola vez por lead, fuera
+    //    del loop de reintentos → la firma es estable durante los 3 intentos
+    //    (no rompe idempotencia ni la futura ventana anti-replay de n8n).
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    headers["x-syntra-timestamp"] = timestamp;
+    headers["x-syntra-hmac"] = signPayload(secret, timestamp, body);
+  }
 
   let lastErrorCode: NotificationErrorCode = "unexpected_error";
 
