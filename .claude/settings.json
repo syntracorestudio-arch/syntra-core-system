@@ -88,7 +88,11 @@
       "Bash(curl -s -o /dev/null -w \"/ -> %{http_code}\\\\n\" http://localhost:3000/)",
       "Bash(curl -s -o /dev/null -w \"/#contacto -> %{http_code}\\\\n\" http://localhost:3000/)",
       "Bash(curl -s -o /dev/null -w \"/ -> %{http_code} \\(dev arriba\\)\\\\n\" http://localhost:3000/)",
-      "Bash(git status *)"
+      "Bash(git status *)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(node_modules/.bin/eslint .)",
+      "Bash(node_modules/.bin/next build *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Mati\\.claude\\projects\\c--Users-Mati-Desktop-SYNTRA-CORE\\memory",
