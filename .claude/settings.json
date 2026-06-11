@@ -87,7 +87,8 @@
       "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
       "Bash(curl -s -o /dev/null -w \"/ -> %{http_code}\\\\n\" http://localhost:3000/)",
       "Bash(curl -s -o /dev/null -w \"/#contacto -> %{http_code}\\\\n\" http://localhost:3000/)",
-      "Bash(curl -s -o /dev/null -w \"/ -> %{http_code} \\(dev arriba\\)\\\\n\" http://localhost:3000/)"
+      "Bash(curl -s -o /dev/null -w \"/ -> %{http_code} \\(dev arriba\\)\\\\n\" http://localhost:3000/)",
+      "Bash(git status *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Mati\\.claude\\projects\\c--Users-Mati-Desktop-SYNTRA-CORE\\memory",
