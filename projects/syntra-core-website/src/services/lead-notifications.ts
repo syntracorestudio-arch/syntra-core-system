@@ -1,6 +1,8 @@
 import "server-only";
 
 import { siteConfig } from "@/config/site";
+import { updateLeadNotification } from "@/services/lead-service";
+import type { NotificationErrorCode } from "@/lib/validations/lead";
 import type { Lead } from "@/types";
 
 /**
@@ -10,6 +12,10 @@ import type { Lead } from "@/types";
  * Best-effort con reintentos acotados: si falla, el lead YA está persistido
  * en Supabase (fuente de verdad). La entrega final al canal (email) es
  * responsabilidad de n8n.
+ *
+ * Observabilidad (TASK-020): el resultado del salto app→n8n se registra en el
+ * eje `notification_status` del lead (pending → sent | failed). La escritura del
+ * estado es best-effort y nunca compromete el lead.
  */
 
 const MAX_ATTEMPTS = 3;
@@ -17,6 +23,16 @@ const TIMEOUT_MS = 3000;
 const BACKOFF_MS = [500, 2000]; // espera entre intentos
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Mapea un error de transporte a un código controlado (sin PII/secretos). */
+function toErrorCode(err: unknown): NotificationErrorCode {
+  if (err instanceof Error || (typeof err === "object" && err !== null)) {
+    const name = (err as { name?: string }).name;
+    if (name === "TimeoutError" || name === "AbortError") return "timeout";
+    if (name === "TypeError") return "network_error";
+  }
+  return "unexpected_error";
+}
 
 function buildPayload(lead: Lead) {
   return {
@@ -41,7 +57,22 @@ function buildPayload(lead: Lead) {
 export async function notifyNewLead(lead: Lead): Promise<void> {
   const url = process.env.LEAD_WEBHOOK_URL;
   if (!url) {
-    console.warn("[notify] LEAD_WEBHOOK_URL no configurado — sin notificación.");
+    // En producción, no tener webhook es una misconfiguración real → failed.
+    // Fuera de prod, NO marcar failed (sería falso positivo): queda 'pending'.
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "[notify] LEAD_WEBHOOK_URL no configurado en producción — lead no notificado.",
+      );
+      await updateLeadNotification(lead.id, {
+        status: "failed",
+        attempts: 0,
+        errorCode: "missing_webhook_url",
+      });
+    } else {
+      console.warn(
+        "[notify] LEAD_WEBHOOK_URL no configurado (no-prod) — sin notificación, lead queda pending.",
+      );
+    }
     return;
   }
 
@@ -53,6 +84,8 @@ export async function notifyNewLead(lead: Lead): Promise<void> {
     "x-idempotency-key": lead.id,
   };
   if (secret) headers["x-syntra-signature"] = secret;
+
+  let lastErrorCode: NotificationErrorCode = "unexpected_error";
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
@@ -66,10 +99,18 @@ export async function notifyNewLead(lead: Lead): Promise<void> {
         if (attempt > 1) {
           console.info(`[notify] lead ${lead.id} notificado (intento ${attempt}).`);
         }
+        await updateLeadNotification(lead.id, {
+          status: "sent",
+          attempts: attempt,
+          notifiedAt: new Date().toISOString(),
+          errorCode: null,
+        });
         return;
       }
+      lastErrorCode = "http_error";
       console.error(`[notify] intento ${attempt}: n8n respondió ${res.status}.`);
     } catch (err) {
+      lastErrorCode = toErrorCode(err);
       console.error(
         `[notify] intento ${attempt} falló:`,
         err instanceof Error ? err.message : "error desconocido",
@@ -82,4 +123,9 @@ export async function notifyNewLead(lead: Lead): Promise<void> {
     `[notify] lead ${lead.id} NO notificado tras ${MAX_ATTEMPTS} intentos. ` +
       "El lead está persistido en Supabase (fuente de verdad).",
   );
+  await updateLeadNotification(lead.id, {
+    status: "failed",
+    attempts: MAX_ATTEMPTS,
+    errorCode: lastErrorCode,
+  });
 }

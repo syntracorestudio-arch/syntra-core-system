@@ -3,7 +3,11 @@
  * Fuente única de verdad para los datos que consumen las secciones.
  */
 
-import type { LeadStatus } from "@/lib/validations/lead";
+import type {
+  LeadStatus,
+  NotificationStatus,
+  NotificationErrorCode,
+} from "@/lib/validations/lead";
 
 export interface NavItem {
   label: string;
@@ -26,6 +30,11 @@ export interface Lead {
   source: string;
   status: LeadStatus;
   created_at: string;
+  /** Eje de observabilidad de notificación (TASK-020), separado de `status`. */
+  notification_status: NotificationStatus;
+  notified_at: string | null;
+  notification_attempts: number;
+  last_notification_error_code: NotificationErrorCode | null;
 }
 
 export interface ServiceItem {

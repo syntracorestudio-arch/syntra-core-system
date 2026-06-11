@@ -8,6 +8,7 @@ import { Container } from "@/components/layout/container";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/panel/status-badge";
 import { StatusSelect } from "@/components/panel/status-select";
+import { NotificationBadge } from "@/components/panel/notification-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,27 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
             </dt>
             <dd>
               <StatusSelect id={lead.id} status={lead.status} />
+            </dd>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <dt className="text-xs tracking-wide text-muted-foreground uppercase">
+              Notificación
+            </dt>
+            <dd className="flex flex-wrap items-center gap-2">
+              <NotificationBadge status={lead.notification_status} />
+              {lead.notified_at ? (
+                <span className="text-xs text-muted-foreground">
+                  {formatDateTime(lead.notified_at)}
+                </span>
+              ) : null}
+              {lead.notification_status === "failed" ? (
+                <span className="text-xs text-muted-foreground">
+                  {lead.notification_attempts} intento(s)
+                  {lead.last_notification_error_code
+                    ? ` · ${lead.last_notification_error_code}`
+                    : ""}
+                </span>
+              ) : null}
             </dd>
           </div>
         </dl>

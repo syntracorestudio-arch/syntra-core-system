@@ -1,7 +1,12 @@
 import "server-only";
 
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/server";
-import type { LeadInput, LeadStatus } from "@/lib/validations/lead";
+import type {
+  LeadInput,
+  LeadStatus,
+  NotificationStatus,
+  NotificationErrorCode,
+} from "@/lib/validations/lead";
 import type { Lead } from "@/types";
 
 /**
@@ -33,6 +38,8 @@ export async function createLead(
     company: input.company?.length ? input.company : null,
     message: input.message,
     source: meta.source ?? "website",
+    // Eje de notificación (TASK-020): todo lead nace pendiente de notificar.
+    notification_status: "pending" as NotificationStatus,
   };
 
   if (!isSupabaseConfigured()) {
@@ -81,13 +88,16 @@ export type ListLeadsResult =
 
 interface ListLeadsOptions {
   status?: LeadStatus;
+  /** Filtro por eje de notificación (TASK-020), independiente de `status`. */
+  notification?: NotificationStatus;
   /** Orden por fecha de creación. */
   sort?: "recent" | "oldest";
   /** Máximo de filas a traer (default 200; paginación real es futura). */
   limit?: number;
 }
 
-const LEAD_COLUMNS = "id,name,email,company,message,source,status,created_at";
+const LEAD_COLUMNS =
+  "id,name,email,company,message,source,status,created_at,notification_status,notified_at,notification_attempts,last_notification_error_code";
 
 export async function listLeads(
   opts: ListLeadsOptions = {},
@@ -108,6 +118,10 @@ export async function listLeads(
 
   if (opts.status) {
     query = query.eq("status", opts.status);
+  }
+
+  if (opts.notification) {
+    query = query.eq("notification_status", opts.notification);
   }
 
   const { data, error } = await query;
@@ -209,4 +223,50 @@ export async function updateLeadStatus(
   }
 
   return { ok: true };
+}
+
+// ============================================================
+// Estado de notificación (TASK-020) — observabilidad app-owned
+// ============================================================
+
+interface NotificationPatch {
+  status: NotificationStatus;
+  /** Intentos realizados hacia n8n. */
+  attempts: number;
+  /** Solo en 'sent'. */
+  notifiedAt?: string | null;
+  /** Código controlado (nunca PII/secretos/texto libre). */
+  errorCode?: NotificationErrorCode | null;
+}
+
+/**
+ * Actualiza el eje de notificación de un lead. BEST-EFFORT: nunca lanza ni
+ * devuelve error accionable. Si la escritura falla, se loguea y se sigue —
+ * la persistencia del lead (fuente de verdad) jamás se compromete por esto.
+ */
+export async function updateLeadNotification(
+  id: string,
+  patch: NotificationPatch,
+): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from(LEADS_TABLE)
+    .update({
+      notification_status: patch.status,
+      notification_attempts: patch.attempts,
+      notified_at: patch.notifiedAt ?? null,
+      last_notification_error_code: patch.errorCode ?? null,
+    })
+    .eq("id", id);
+
+  if (error) {
+    // Observabilidad degradada, no fallo de negocio. No re-lanzar.
+    console.error(
+      "[lead-service] No se pudo actualizar notification_status:",
+      error.message,
+    );
+  }
 }

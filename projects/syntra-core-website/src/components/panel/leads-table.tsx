@@ -4,6 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 import type { Lead } from "@/types";
 import { formatDateTime } from "@/lib/format";
 import { StatusSelect } from "@/components/panel/status-select";
+import { NotificationBadge } from "@/components/panel/notification-badge";
 
 /** Tabla de leads (desktop). Server Component, <table> nativa (sin librerías). */
 function LeadsTable({ leads }: { leads: Lead[] }) {
@@ -15,6 +16,7 @@ function LeadsTable({ leads }: { leads: Lead[] }) {
             <th className="px-4 py-3 font-medium">Lead</th>
             <th className="px-4 py-3 font-medium">Empresa</th>
             <th className="px-4 py-3 font-medium">Estado</th>
+            <th className="px-4 py-3 font-medium">Notif.</th>
             <th className="px-4 py-3 font-medium">Origen</th>
             <th className="px-4 py-3 font-medium">Fecha</th>
             <th className="px-4 py-3" />
@@ -41,6 +43,9 @@ function LeadsTable({ leads }: { leads: Lead[] }) {
               </td>
               <td className="px-4 py-3">
                 <StatusSelect id={lead.id} status={lead.status} />
+              </td>
+              <td className="px-4 py-3">
+                <NotificationBadge status={lead.notification_status} />
               </td>
               <td className="px-4 py-3 text-muted-foreground">{lead.source}</td>
               <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">

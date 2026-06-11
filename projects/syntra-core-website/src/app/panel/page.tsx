@@ -1,6 +1,11 @@
 import { Inbox } from "lucide-react";
 
-import { LEAD_STATUSES, type LeadStatus } from "@/lib/validations/lead";
+import {
+  LEAD_STATUSES,
+  NOTIFICATION_STATUSES,
+  type LeadStatus,
+  type NotificationStatus,
+} from "@/lib/validations/lead";
 import { getLeadCounts, listLeads } from "@/services/lead-service";
 import { Container } from "@/components/layout/container";
 import { PanelHeader } from "@/components/panel/panel-header";
@@ -13,7 +18,7 @@ import { LeadCard } from "@/components/panel/lead-card";
 export const dynamic = "force-dynamic";
 
 interface PanelPageProps {
-  searchParams: Promise<{ status?: string; sort?: string }>;
+  searchParams: Promise<{ status?: string; notif?: string; sort?: string }>;
 }
 
 function parseStatus(value: string | undefined): LeadStatus | undefined {
@@ -22,13 +27,22 @@ function parseStatus(value: string | undefined): LeadStatus | undefined {
     : undefined;
 }
 
+function parseNotification(
+  value: string | undefined,
+): NotificationStatus | undefined {
+  return (NOTIFICATION_STATUSES as readonly string[]).includes(value ?? "")
+    ? (value as NotificationStatus)
+    : undefined;
+}
+
 export default async function PanelPage({ searchParams }: PanelPageProps) {
   const sp = await searchParams;
   const status = parseStatus(sp.status);
+  const notification = parseNotification(sp.notif);
   const sort = sp.sort === "oldest" ? "oldest" : "recent";
 
   const [listRes, countsRes] = await Promise.all([
-    listLeads({ status, sort }),
+    listLeads({ status, notification, sort }),
     getLeadCounts(),
   ]);
 
@@ -41,7 +55,11 @@ export default async function PanelPage({ searchParams }: PanelPageProps) {
       ) : null}
 
       <div className="flex flex-col gap-5">
-        <PanelToolbar currentStatus={status} currentSort={sort} />
+        <PanelToolbar
+          currentStatus={status}
+          currentNotification={notification}
+          currentSort={sort}
+        />
 
         {!listRes.ok ? (
           <p className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">

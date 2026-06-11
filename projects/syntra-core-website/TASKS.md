@@ -18,7 +18,7 @@
 | TASK-017 | QA e2e: inserción real en staging | Alta | DONE | Matias / SYNTRA CORE | No | Supabase | — |
 | TASK-018 | Rotar `PANEL_PASSWORD` + revisar secretos del panel | Alta | DONE | Matias / SYNTRA CORE | No | Vercel | — |
 | TASK-019 | Verificar workflow n8n (valida firma + dedup por idempotency-key) | Media | DONE | Matias / SYNTRA CORE | No | n8n | TASK-017 |
-| TASK-020 | Observabilidad para "lead no notificado tras 3 intentos" | Media | TODO | Matias / SYNTRA CORE | Sí | Sentry/Logflare | TASK-017 |
+| TASK-020 | Observabilidad para "lead no notificado tras 3 intentos" | Media | DONE | Matias / SYNTRA CORE | Sí | Supabase | TASK-017 |
 | TASK-021 | Verificar Plausible en Vercel (`NEXT_PUBLIC_PLAUSIBLE_DOMAIN`) | Media | DONE | Matias / SYNTRA CORE | No | Vercel | — |
 | TASK-022 | Dedup/UNIQUE + lowercase de email | Media | TODO | Matias / SYNTRA CORE | Sí | Supabase (SQL) | TASK-017 |
 | TASK-023 | HMAC real en webhook n8n (hoy el secreto viaja en claro) | Media | TODO | Matias / SYNTRA CORE | Sí | n8n | TASK-019 |
@@ -60,11 +60,15 @@ y deduplica por `x-idempotency-key` (= `lead.id`). Sin dedup → emails duplicad
 - **Evidencia (2026-06-11):** Workflow n8n verificado y reforzado: valida `x-syntra-signature`, rechaza firma inválida con 401, procesa emails solo en rama autorizada y deduplica leads por `x-idempotency-key` mediante Data Table persistente.
 - **Idempotencia:** Data Table `syntra_lead_notifications`. Flujo: Webhook → Validar firma → Buscar clave de idempotencia → ¿Lead ya procesado? → responder duplicado o registrar key → enviar email → responder 200.
 
-### TASK-020 — Observabilidad "lead no notificado tras 3 intentos" — Media — TODO
+### TASK-020 — Observabilidad "lead no notificado tras 3 intentos" — Media — DONE
 Hoy el fallo de notificación tras 3 intentos es solo un `console.error` efímero.
-Agregar un sink (Sentry/Logflare) que capture ese evento para que un lead
-persistido pero nunca notificado no pase desapercibido.
-- **Con código** (app) + servicio externo. **Depende de:** TASK-017.
+Resuelto con **Opción B (app-owned)**: eje `notification_status` en `leads`
+(pending/sent/failed/unknown) + `notified_at`/`notification_attempts`/
+`last_notification_error_code`, escrito best-effort desde `notifyNewLead`, visible
+en el panel (badge + filtro, separado del status comercial).
+- **Con código** (app) + Supabase (migración). **Depende de:** TASK-017.
+- **QA técnico:** `npx tsc --noEmit`, `npm run lint`, `npm run build` → verdes.
+- **Evidencia (2026-06-11):** Migración 0002 aplicada en Supabase. Panel validado en runtime: leads legacy muestran `unknown`/Desconocido, filtros y badges de notificación funcionan, y un lead nuevo completó el flujo `pending → sent` con `notified_at`, `notification_attempts` y email n8n correcto.
 
 ### TASK-021 — Verificar Plausible en Vercel — Media — DONE
 `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` no está en `.env.local`; en prod el script solo se

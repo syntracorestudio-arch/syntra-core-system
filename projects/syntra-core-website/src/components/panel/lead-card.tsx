@@ -5,6 +5,7 @@ import type { Lead } from "@/types";
 import { formatDateTime } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { StatusSelect } from "@/components/panel/status-select";
+import { NotificationBadge } from "@/components/panel/notification-badge";
 
 /** Card de lead (mobile). Server Component. */
 function LeadCard({ lead }: { lead: Lead }) {
@@ -36,6 +37,12 @@ function LeadCard({ lead }: { lead: Lead }) {
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">Fecha</dt>
           <dd className="text-right">{formatDateTime(lead.created_at)}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-muted-foreground">Notificación</dt>
+          <dd className="text-right">
+            <NotificationBadge status={lead.notification_status} />
+          </dd>
         </div>
       </dl>
 

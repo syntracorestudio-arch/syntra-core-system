@@ -45,6 +45,34 @@ export const LEAD_STATUSES = [
 export const leadStatusSchema = z.enum(LEAD_STATUSES);
 export type LeadStatus = z.infer<typeof leadStatusSchema>;
 
+/**
+ * Eje de notificación (TASK-020) — SEPARADO del status comercial.
+ * - pending: lead creado, notificación a n8n aún no confirmada.
+ * - sent: n8n respondió OK tras el flujo de email.
+ * - failed: se agotaron los intentos hacia n8n o faltó la config en prod.
+ * - unknown: leads legacy creados antes de la migración 0002.
+ */
+export const NOTIFICATION_STATUSES = [
+  "pending",
+  "sent",
+  "failed",
+  "unknown",
+] as const;
+
+export const notificationStatusSchema = z.enum(NOTIFICATION_STATUSES);
+export type NotificationStatus = z.infer<typeof notificationStatusSchema>;
+
+/** Códigos de error controlados (nunca texto libre, PII ni secretos). */
+export const NOTIFICATION_ERROR_CODES = [
+  "timeout",
+  "network_error",
+  "http_error",
+  "unexpected_error",
+  "missing_webhook_url",
+] as const;
+
+export type NotificationErrorCode = (typeof NOTIFICATION_ERROR_CODES)[number];
+
 /** Validación de la mutación de status (Server Action del panel). */
 export const updateLeadStatusSchema = z.object({
   id: z.uuid("ID de lead inválido"),
