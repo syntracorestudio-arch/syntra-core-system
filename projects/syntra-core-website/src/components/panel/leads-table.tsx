@@ -5,9 +5,16 @@ import type { Lead } from "@/types";
 import { formatDateTime } from "@/lib/format";
 import { StatusSelect } from "@/components/panel/status-select";
 import { NotificationBadge } from "@/components/panel/notification-badge";
+import { DuplicateLeadBadge } from "@/components/panel/duplicate-lead-badge";
 
 /** Tabla de leads (desktop). Server Component, <table> nativa (sin librerías). */
-function LeadsTable({ leads }: { leads: Lead[] }) {
+function LeadsTable({
+  leads,
+  duplicateEmails,
+}: {
+  leads: Lead[];
+  duplicateEmails: Set<string>;
+}) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border">
       <table className="w-full text-left text-sm">
@@ -29,13 +36,16 @@ function LeadsTable({ leads }: { leads: Lead[] }) {
               className="border-b border-border/60 transition-colors last:border-0 hover:bg-secondary/30"
             >
               <td className="px-4 py-3">
-                <div className="flex flex-col">
+                <div className="flex flex-col gap-1">
                   <span className="font-medium text-foreground">
                     {lead.name}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {lead.email}
                   </span>
+                  {duplicateEmails.has(lead.email) ? (
+                    <DuplicateLeadBadge />
+                  ) : null}
                 </div>
               </td>
               <td className="px-4 py-3 text-muted-foreground">

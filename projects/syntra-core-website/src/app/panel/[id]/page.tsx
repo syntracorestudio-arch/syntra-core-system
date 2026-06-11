@@ -2,13 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Mail } from "lucide-react";
 
-import { getLead } from "@/services/lead-service";
+import { getLead, countLeadsByEmail } from "@/services/lead-service";
 import { formatDateTime } from "@/lib/format";
 import { Container } from "@/components/layout/container";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/panel/status-badge";
 import { StatusSelect } from "@/components/panel/status-select";
 import { NotificationBadge } from "@/components/panel/notification-badge";
+import { DuplicateLeadBadge } from "@/components/panel/duplicate-lead-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,8 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   }
 
   const lead = res.lead;
+  // TASK-022: ¿este email aparece en más de un lead? Señal no bloqueante.
+  const isPossibleDuplicate = (await countLeadsByEmail(lead.email)) > 1;
 
   return (
     <Container className="flex flex-col gap-6 py-8">
@@ -51,6 +54,7 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
             {lead.name}
           </h1>
           <StatusBadge status={lead.status} />
+          {isPossibleDuplicate ? <DuplicateLeadBadge /> : null}
         </div>
         <a
           href={`mailto:${lead.email}`}

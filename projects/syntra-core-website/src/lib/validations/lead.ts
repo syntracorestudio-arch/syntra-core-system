@@ -13,6 +13,9 @@ export const leadSchema = z.object({
   email: z
     .string()
     .trim()
+    // Normalización (TASK-022): el email se canoniza a minúsculas en la fuente
+    // única de validación → fluye así a Supabase, panel y payload n8n.
+    .toLowerCase()
     .min(1, "Ingresá tu email")
     .email("Ingresá un email válido")
     .max(120, "El email es demasiado largo"),

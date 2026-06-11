@@ -6,15 +6,23 @@ import { formatDateTime } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { StatusSelect } from "@/components/panel/status-select";
 import { NotificationBadge } from "@/components/panel/notification-badge";
+import { DuplicateLeadBadge } from "@/components/panel/duplicate-lead-badge";
 
 /** Card de lead (mobile). Server Component. */
-function LeadCard({ lead }: { lead: Lead }) {
+function LeadCard({
+  lead,
+  isPossibleDuplicate = false,
+}: {
+  lead: Lead;
+  isPossibleDuplicate?: boolean;
+}) {
   return (
     <Card className="gap-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-1">
           <span className="font-medium text-foreground">{lead.name}</span>
           <span className="text-xs text-muted-foreground">{lead.email}</span>
+          {isPossibleDuplicate ? <DuplicateLeadBadge /> : null}
         </div>
         <Link
           href={`/panel/${lead.id}`}

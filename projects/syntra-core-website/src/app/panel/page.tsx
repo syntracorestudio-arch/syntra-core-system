@@ -46,6 +46,18 @@ export default async function PanelPage({ searchParams }: PanelPageProps) {
     getLeadCounts(),
   ]);
 
+  // Detección de duplicados (TASK-022): en memoria sobre el listado visible.
+  // Un email que aparece más de una vez en el listado se marca como posible
+  // duplicado. No bloquea, no oculta, no fusiona.
+  const duplicateEmails = new Set<string>();
+  if (listRes.ok) {
+    const seen = new Set<string>();
+    for (const lead of listRes.leads) {
+      if (seen.has(lead.email)) duplicateEmails.add(lead.email);
+      else seen.add(lead.email);
+    }
+  }
+
   return (
     <Container className="flex flex-col gap-8 py-8">
       <PanelHeader />
@@ -79,12 +91,16 @@ export default async function PanelPage({ searchParams }: PanelPageProps) {
           <>
             {/* Desktop */}
             <div className="hidden md:block">
-              <LeadsTable leads={listRes.leads} />
+              <LeadsTable leads={listRes.leads} duplicateEmails={duplicateEmails} />
             </div>
             {/* Mobile */}
             <div className="flex flex-col gap-3 md:hidden">
               {listRes.leads.map((lead) => (
-                <LeadCard key={lead.id} lead={lead} />
+                <LeadCard
+                  key={lead.id}
+                  lead={lead}
+                  isPossibleDuplicate={duplicateEmails.has(lead.email)}
+                />
               ))}
             </div>
           </>

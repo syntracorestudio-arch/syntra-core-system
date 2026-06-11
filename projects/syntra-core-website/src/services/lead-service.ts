@@ -160,6 +160,28 @@ export async function getLead(id: string): Promise<GetLeadResult> {
   return { ok: true, lead: (data as Lead | null) ?? null };
 }
 
+/**
+ * Cuenta cuántos leads comparten un email (TASK-022 — detección de duplicados).
+ * Best-effort: ante error o sin config devuelve 0 (no rompe el detalle). El
+ * email ya llega normalizado (lowercase) desde leadSchema.
+ */
+export async function countLeadsByEmail(email: string): Promise<number> {
+  if (!isSupabaseConfigured()) return 0;
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return 0;
+
+  const { count, error } = await supabase
+    .from(LEADS_TABLE)
+    .select("id", { count: "exact", head: true })
+    .eq("email", email);
+
+  if (error) {
+    console.error("[lead-service] Error al contar por email:", error.message);
+    return 0;
+  }
+  return count ?? 0;
+}
+
 export type LeadCountsResult =
   | { ok: true; counts: Record<LeadStatus, number>; total: number }
   | { ok: false; error: string };
