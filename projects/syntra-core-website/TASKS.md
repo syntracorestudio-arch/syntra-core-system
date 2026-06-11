@@ -15,7 +15,7 @@
 | ID | Tarea | Prioridad | Estado | Owner | Código | Externo | Depende de |
 |----------|-------|-----------|--------|-------|--------|---------|------------|
 | TASK-016 | Auditoría read-only del lead pipeline | — | DONE | Matias / SYNTRA CORE | No | — | — |
-| TASK-017 | QA e2e: inserción real en staging | Alta | TODO | Matias / SYNTRA CORE | No | Supabase | — |
+| TASK-017 | QA e2e: inserción real en staging | Alta | DONE | Matias / SYNTRA CORE | No | Supabase | — |
 | TASK-018 | Rotar `PANEL_PASSWORD` + revisar secretos del panel | Alta | TODO | Matias / SYNTRA CORE | No | Vercel | — |
 | TASK-019 | Verificar workflow n8n (valida firma + dedup por idempotency-key) | Media | TODO | Matias / SYNTRA CORE | No | n8n | TASK-017 |
 | TASK-020 | Observabilidad para "lead no notificado tras 3 intentos" | Media | TODO | Matias / SYNTRA CORE | Sí | Sentry/Logflare | TASK-017 |
@@ -37,13 +37,13 @@ verdes; sin bugs críticos. Riesgos = configuración, operación y hardening.
 Corrección clave: `SUPABASE_SERVICE_ROLE_KEY` usa el nuevo formato `sb_secret_…`
 (válido), no es placeholder; `LEAD_WEBHOOK_SECRET` está presente.
 
-### TASK-017 — QA e2e: inserción real en staging — Alta — TODO
+### TASK-017 — QA e2e: inserción real en staging — Alta — DONE
 **Gate de verdad: desbloquea el resto del plan.** Hacer un envío real desde el
 formulario en staging y verificar en el dashboard de Supabase que el lead
 persiste con todos los campos correctos. Confirma que la `sb_secret_…` no está
 revocada y tiene permiso de escritura sobre `leads`.
 - **Sin código.** Externo: Supabase.
-- **Próximo paso:** preparar entorno staging → envío real → verificar fila.
+- **Evidencia (2026-06-11):** E2E manual ejecutado correctamente: form → Supabase → n8n/email.
 
 ### TASK-018 — Rotar `PANEL_PASSWORD` + revisar secretos del panel — Alta — TODO
 El passcode actual del panel es débil/predecible. Rotarlo por uno fuerte y
