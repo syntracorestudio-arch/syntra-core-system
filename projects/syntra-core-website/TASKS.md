@@ -20,7 +20,7 @@
 | TASK-019 | Verificar workflow n8n (valida firma + dedup por idempotency-key) | Media | DONE | Matias / SYNTRA CORE | No | n8n | TASK-017 |
 | TASK-020 | Observabilidad para "lead no notificado tras 3 intentos" | Media | DONE | Matias / SYNTRA CORE | Sí | Supabase | TASK-017 |
 | TASK-021 | Verificar Plausible en Vercel (`NEXT_PUBLIC_PLAUSIBLE_DOMAIN`) | Media | DONE | Matias / SYNTRA CORE | No | Vercel | — |
-| TASK-022 | Dedup/UNIQUE + lowercase de email | Media | TODO | Matias / SYNTRA CORE | Sí | Supabase (SQL) | TASK-017 |
+| TASK-022 | Dedup/UNIQUE + lowercase de email | Media | DONE | Matias / SYNTRA CORE | Sí | Supabase (SQL) | TASK-017 |
 | TASK-023 | HMAC real en webhook n8n (hoy el secreto viaja en claro) | Media | TODO | Matias / SYNTRA CORE | Sí | n8n | TASK-019 |
 | TASK-024 | Rate-limit distribuido (in-memory no sobrevive serverless) | Baja | TODO | Matias / SYNTRA CORE | Sí | Upstash/Vercel KV | — |
 | TASK-025 | Hardening menor (ver checklist) | Baja | TODO | Matias / SYNTRA CORE | Sí | — | — |
@@ -78,11 +78,19 @@ conversión no corre.
 - **Evidencia (2026-06-11):** Plausible validado en producción: script activo, dominio syntra-core-system.vercel.app configurado, eventos y goals creados correctamente.
 - **Goals creados:** `lead_submitted`, `cta_click`, `form_start`, `lead_submit_attempt`, `lead_submit_error`, `application_tab_click`.
 
-### TASK-022 — Dedup/UNIQUE + lowercase de email — Media — TODO
+### TASK-022 — Dedup/UNIQUE + lowercase de email — Media — DONE
 Hoy `Mati@x.com` y `mati@x.com` se tratan como distintos y no hay UNIQUE → leads
 duplicados y ruido en counts. Normalizar email a minúsculas (Zod) y decidir
 constraint UNIQUE (migración SQL).
-- **Con código** (Zod) + Supabase (SQL). **Depende de:** TASK-017.
+Resuelto con **A + D**: `trim().toLowerCase()` en `leadSchema` (fuente única) +
+señal **no bloqueante** "Posible duplicado" en el panel (detección en memoria
+sobre el listado visible; en el detalle vía `countLeadsByEmail`). **Sin UNIQUE
+global** (un lead es una consulta, no una persona) y **sin bloqueo de repetidos**.
+Migración `0003_lead_email_index.sql`: backfill legacy a lowercase + índice no
+único `leads_email_idx`.
+- **Con código** (Zod + panel) + Supabase (SQL). **Depende de:** TASK-017.
+- **QA técnico:** `npx tsc --noEmit`, `npm run lint`, `npm run build` → verdes.
+- **Evidencia (2026-06-11):** Migración 0003 aplicada en Supabase. Email legacy normalizado a lowercase, índice `leads_email_idx` creado, lead nuevo con email en mayúsculas se persistió en lowercase, n8n/panel recibieron lowercase, y dos leads con el mismo email persistieron correctamente mostrando badge no bloqueante "Posible duplicado".
 
 ### TASK-023 — HMAC real en webhook n8n — Media — TODO
 `x-syntra-signature` envía el secreto en claro (no es un HMAC del payload); el
