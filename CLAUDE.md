@@ -202,8 +202,30 @@ antes de realizar implementaciones importantes.
 # Agent Routing Rules
 
 Esta sección es operativa y obligatoria. Define qué subagent usar en cada tarea.
-La definición de cada agente vive en `.claude/agents/*.md` (fuente de verdad única);
-esta tabla solo enruta.
+Los wrappers de routing viven en `.claude/agents/*.md`; esta tabla solo enruta.
+La definición profunda de cada rol se rige por **Fuente de verdad de agentes** (abajo).
+
+## Fuente de verdad de agentes
+
+Existen dos capas y **no se contradicen**:
+
+- **`.claude/agents/*.md` = runtime / routing operativo de Claude Code.** Wrappers
+  finos que Claude usa para invocar subagents. **No deben duplicar el prompt completo**
+  del rol.
+- **`agents/*.md` = biblioteca completa de especificaciones de agentes** (roles,
+  autoridad, pipelines, frameworks). Es la fuente de la definición profunda de cada rol.
+  Declarada **V1.1 CONGELADA**: priorizar simplificación/fusión antes que expansión.
+
+Reglas:
+
+1. La edición profunda de un rol (responsabilidades, límites, autoridad) se hace en
+   `agents/`, **nunca** en el wrapper.
+2. Un wrapper de `.claude/agents/` debe apuntar a una spec existente en `agents/`
+   (línea `Reference source:`), o justificar por qué crea una nueva.
+3. Si CLAUDE.md y un wrapper parecen contradecirse, **manda esta sección**:
+   `.claude/agents` enruta, `agents/` define.
+4. **No crear nuevos wrappers en `.claude/agents/` sin evidencia operativa o
+   aprobación explícita.**
 
 ## Principio de routing
 

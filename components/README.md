@@ -55,3 +55,15 @@ Utilidades premium: `.glow-electric`, `.glow-cyan`, `.text-gradient-brand`, `.su
 - **Motion:** importar variantes de `lib/motion.ts`, nunca redefinir tiempos/easing.
 - **Copy:** editar en `config/site.ts`, no hardcodear texto en componentes.
 - **Accesibilidad:** `prefers-reduced-motion` ya se respeta globalmente desde `globals.css`.
+
+---
+
+## Estado: PLACEHOLDER OS-LEVEL (no conectado al website)
+
+Esta carpeta raíz **no contiene componentes conectados al website**.
+
+- Los componentes reales viven en **`projects/syntra-core-website/src/components`**
+  (`ui/`, `layout/`, `sections/`, `animations/`, `shared/`, `marketing/`, `panel/`).
+- Las subcarpetas de esta carpeta raíz están vacías por diseño.
+- Solo puede evolucionar a una **biblioteca reutilizable OS-level** si se formaliza
+  (fase posterior). Hasta entonces, lo que se cree aquí no impacta el sitio actual.
