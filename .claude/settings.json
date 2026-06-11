@@ -78,7 +78,16 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/)",
       "Bash(echo \"tsc exit: $?\")",
       "Bash(curl -s -o /dev/null -w \"/ → %{http_code}\\\\n\" http://localhost:3000/)",
-      "Bash(grep -E \"Compiled|Static|^┌|/$|Error\")"
+      "Bash(grep -E \"Compiled|Static|^┌|/$|Error\")",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(node --env-file=.env.local diag-webhook.mjs)",
+      "Bash(node diag-webhook.mjs)",
+      "Bash(awk -F= '/^[A-Z_]+=/{ *)",
+      "Bash(rm -f diag-webhook.mjs)",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(curl -s -o /dev/null -w \"/ -> %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"/#contacto -> %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"/ -> %{http_code} \\(dev arriba\\)\\\\n\" http://localhost:3000/)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Mati\\.claude\\projects\\c--Users-Mati-Desktop-SYNTRA-CORE\\memory",

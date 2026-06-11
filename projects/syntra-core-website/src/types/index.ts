@@ -10,6 +10,12 @@ export interface NavItem {
   href: string;
 }
 
+/** Canal social/externo del footer. Estructura preparada para uso futuro. */
+export interface SocialLink {
+  label: string;
+  href: string;
+}
+
 /** Fila completa de un lead (tal como vive en Supabase). */
 export interface Lead {
   id: string;
@@ -109,6 +115,11 @@ export interface SiteConfig {
   tagline: string;
   description: string;
   nav: NavItem[];
+  /**
+   * Canales sociales (opcional). Vacío o ausente = no se renderiza nada.
+   * No inventar perfiles: agregar solo cuando existan canales reales.
+   */
+  socialLinks?: SocialLink[];
   cta: {
     primary: string;
     secondary: string;

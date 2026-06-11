@@ -34,6 +34,8 @@ export const siteConfig: SiteConfig = {
     { label: "FAQ", href: "/#faq" },
     { label: "Contacto", href: "/#contacto" },
   ],
+  // Canales sociales: vacío a propósito. No renderiza nada hasta tener perfiles reales.
+  socialLinks: [],
   cta: {
     primary: "Solicitar propuesta",
     secondary: "Ver servicios",
@@ -95,6 +97,10 @@ export const siteConfig: SiteConfig = {
     },
   },
 };
+
+/** Footer — frase de cierre de marca (content-driven, TASK-015B). */
+export const footerBrand =
+  "Construimos sistemas digitales que hacen crecer tu negocio.";
 
 /** Copy del estado de éxito del formulario (momento de marca, content-driven). */
 export const contactSuccess = {

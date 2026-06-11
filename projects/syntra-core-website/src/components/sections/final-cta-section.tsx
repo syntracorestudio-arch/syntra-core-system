@@ -14,7 +14,7 @@ function FinalCtaSection() {
   const { finalCta } = siteConfig.sections;
 
   return (
-    <Section id="contacto">
+    <Section id="contacto" className="pb-14 sm:pb-20 lg:pb-16">
       <BlurReveal>
         <div className="surface-glass relative overflow-hidden rounded-3xl border border-border px-6 py-14 sm:px-12 sm:py-16">
           <GlowOrb
