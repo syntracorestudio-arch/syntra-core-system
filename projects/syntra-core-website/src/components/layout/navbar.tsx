@@ -20,7 +20,7 @@ function Navbar() {
   const [open, setOpen] = React.useState(false);
 
   React.useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const onScroll = () => setScrolled(window.scrollY > 64);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -31,10 +31,17 @@ function Navbar() {
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-all duration-300",
         scrolled
-          ? "border-b border-border surface-glass"
+          ? "border-b border-border bg-depth-sunken/90 backdrop-blur-md"
           : "border-b border-transparent",
       )}
     >
+      {!scrolled && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-20 bg-gradient-to-b from-background/70 to-transparent"
+        />
+      )}
+
       <Container className="flex h-16 items-center justify-between">
         <Link href="/" aria-label="SYNTRA CORE — Inicio">
           <Image
@@ -93,7 +100,7 @@ function Navbar() {
         <nav
           id="mobile-menu"
           aria-label="Navegación móvil"
-          className="border-t border-border surface-glass md:hidden"
+          className="border-t border-border bg-depth-sunken md:hidden"
         >
           <Container className="flex flex-col gap-1 py-4">
             {siteConfig.nav.map((item) => (
