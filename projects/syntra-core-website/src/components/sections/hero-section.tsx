@@ -35,7 +35,7 @@ function HeroSection() {
         {/* Columna izquierda: contenido — espaciado escalonado (badge+H1 agrupados) */}
         <div className="flex flex-col items-center gap-5 text-center lg:items-start lg:text-left">
           <BlurReveal>
-            <Badge variant="neutral">{hero.badge}</Badge>
+            <Badge variant="neutral" className="max-w-full whitespace-normal text-balance leading-snug text-center">{hero.badge}</Badge>
           </BlurReveal>
 
           <BlurReveal delay={0.08}>
