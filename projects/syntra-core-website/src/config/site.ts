@@ -149,9 +149,9 @@ export const services: ServiceItem[] = [
       "Asistentes que atienden, responden y califican consultas por vos. Ninguna queda sin respuesta, ni fuera de horario.",
     features: [
       "Chatbots y asistentes inteligentes",
-      "Asistentes que hacen tareas repetitivas por vos",
+      "Calificación automática de consultas",
       "Organización automática de tu información",
-      "Inteligencia artificial aplicada a tu día a día",
+      "Respuestas con el tono de tu marca",
     ],
   },
 ];
