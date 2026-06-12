@@ -38,19 +38,19 @@ export const siteConfig: SiteConfig = {
   socialLinks: [],
   cta: {
     primary: "Solicitar propuesta",
-    secondary: "Ver servicios",
+    secondary: "Ver qué hacemos",
   },
   hero: {
-    badge: "Software Factory AI-Native",
+    badge: "Estudio de desarrollo + automatización con IA",
     titleLead: "Sistemas digitales que",
     titleHighlight: "hacen crecer",
     titleTail: "tu negocio",
     subtitle:
-      "Diseñamos y construimos webs premium, automatizaciones e integraciones con IA. Tecnología moderna, aplicada a resultados reales para tu empresa.",
+      "Diseñamos y construimos webs premium, automatizaciones e integraciones con IA, para que tu empresa atienda más rápido, venda mejor y dedique menos tiempo a tareas manuales.",
     proof: [
-      "Webs ultra rápidas",
-      "Procesos automatizados",
-      "Soluciones con IA",
+      "Webs que cargan al instante",
+      "Menos trabajo manual",
+      "Atención automática a tus clientes",
     ],
   },
   sections: {
@@ -70,7 +70,7 @@ export const siteConfig: SiteConfig = {
       eyebrow: "Quiénes somos",
       title: "Un estudio digital, no una agencia más",
       subtitle:
-        "SYNTRA CORE es un estudio de desarrollo AI-native que combina diseño, desarrollo y automatización para crear soluciones digitales modernas.",
+        "SYNTRA CORE es un estudio de desarrollo AI-native: combinamos diseño, ingeniería y automatización para construir sistemas que tu negocio usa todos los días, no solo una web que se ve bien.",
     },
     workflow: {
       eyebrow: "Cómo trabajamos",
@@ -122,8 +122,8 @@ export const services: ServiceItem[] = [
     features: [
       "Landing pages y sitios corporativos",
       "Aplicaciones web a medida",
-      "Dashboards y paneles de gestión",
-      "Optimización de velocidad y SEO",
+      "Paneles para ver tu negocio de un vistazo",
+      "Velocidad de carga y mejor posición en Google",
     ],
   },
   {
@@ -133,7 +133,7 @@ export const services: ServiceItem[] = [
     description:
       "Conectamos tus herramientas y eliminamos el trabajo manual repetitivo. Menos tareas operativas, más tiempo para vender.",
     features: [
-      "Flujos de trabajo con n8n",
+      "Conexión automática entre tus herramientas",
       "Integraciones entre tus apps",
       "Automatización comercial y operativa",
       "Notificaciones y reportes automáticos",
@@ -144,12 +144,12 @@ export const services: ServiceItem[] = [
     icon: "Sparkles",
     title: "Soluciones con IA",
     description:
-      "Asistentes y agentes inteligentes que atienden, califican y responden por vos. Tecnología de punta, aplicada a resultados.",
+      "Asistentes y agentes que atienden, califican y responden por vos, para que ninguna consulta quede sin respuesta, ni siquiera fuera de horario.",
     features: [
       "Chatbots y asistentes inteligentes",
-      "Agentes que automatizan tareas",
-      "Procesamiento automático de datos",
-      "IA integrada a tus sistemas",
+      "Asistentes que hacen tareas repetitivas por vos",
+      "Organización automática de tu información",
+      "Inteligencia artificial aplicada a tu día a día",
     ],
   },
 ];
@@ -160,7 +160,7 @@ export const useCases: UseCaseItem[] = [
     icon: "Building2",
     title: "Inmobiliarias",
     description:
-      "Una web rápida con catálogo y buscador, conectada a un sistema que podría captar interesados y automatizar respuestas y seguimiento.",
+      "Una web rápida con catálogo y buscador, conectada a un sistema que capta interesados y automatiza respuestas y seguimiento.",
     pain: "Las consultas de propiedades llegan por varios canales y se responden a mano, una por una.",
     deliverables: [
       "Catálogo de propiedades con buscador y filtros",
@@ -186,7 +186,7 @@ export const useCases: UseCaseItem[] = [
     icon: "Stethoscope",
     title: "Clínicas y profesionales",
     description:
-      "Una web clara con solicitud de turnos online y recordatorios automáticos que pueden reducir la coordinación manual.",
+      "Una web clara con solicitud de turnos online y recordatorios automáticos que reducen la coordinación manual.",
     pain: "Coordinar cada turno implica idas y vueltas constantes con los pacientes.",
     deliverables: [
       "Web clara con servicios y especialidades",
@@ -199,7 +199,7 @@ export const useCases: UseCaseItem[] = [
     icon: "Store",
     title: "Empresas de servicios y PyMEs",
     description:
-      "Un sitio o sistema a medida que podría captar y gestionar clientes y automatizar los procesos internos que hoy se hacen a mano.",
+      "Un sitio o sistema a medida que capta y gestiona clientes y automatiza los procesos internos que hoy se hacen a mano.",
     pain: "Tareas repetitivas consumen horas todos los días y frenan la operación.",
     deliverables: [
       "Sitio o sistema a medida de tu operación",
@@ -229,7 +229,7 @@ export const aboutPillars: AboutPillar[] = [
     icon: "Gem",
     title: "Diseño de nivel premium",
     description:
-      "No hacemos solo páginas: construimos sistemas con un diseño cuidado que transmite profesionalismo desde el primer contacto.",
+      "No entregamos solo una página linda: construimos sistemas con un diseño cuidado al detalle, del tipo que tu cliente asocia con una empresa seria.",
   },
   {
     id: "segura",
@@ -293,7 +293,7 @@ export const workflow: WorkflowStep[] = [
     icon: "PenTool",
     title: "Diseñamos el sistema",
     description:
-      "Definimos arquitectura, diseño y automatizaciones a medida de tu caso. Nada genérico, todo pensado para vos.",
+      "Definimos cómo va a funcionar todo: diseño, estructura y las tareas que se van a automatizar. Nada de plantillas, todo pensado para tu caso.",
   },
   {
     step: 3,
