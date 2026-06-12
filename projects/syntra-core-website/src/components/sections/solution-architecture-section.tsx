@@ -38,10 +38,10 @@ const NODE_ROLE: Record<string, "input" | "proceso" | "ia" | "output"> = {
 
 /** Micro-tag de rol (mono, solo desktop). */
 const ROLE_TAG: Record<string, string> = {
-  input: "in",
-  proceso: "proc",
-  ia: "ia",
-  output: "out",
+  input: "",
+  proceso: "",
+  ia: "",
+  output: "",
 };
 
 /** Acento del chip de ícono por rol (border + bg + text, sin pelear el loop de borde del nodo). */
@@ -80,7 +80,7 @@ function SolutionArchitectureSection() {
             <span className="ml-auto flex items-center gap-2">
               <span className="sys-status-dot size-2 rounded-full bg-emerald-400" aria-hidden="true" />
               <span className="font-mono text-[11px] tracking-wide text-muted-foreground">
-                online
+                En línea
               </span>
             </span>
           </div>

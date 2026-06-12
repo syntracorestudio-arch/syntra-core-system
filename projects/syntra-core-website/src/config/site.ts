@@ -345,28 +345,28 @@ export const workflow: WorkflowStep[] = [
 export const solutionNodes: SolutionNode[] = [
   { id: "cliente", icon: "Users", label: "Cliente", caption: "Llega" },
   { id: "web", icon: "LayoutTemplate", label: "Web", caption: "Capta" },
-  { id: "crm", icon: "Database", label: "CRM", caption: "Ordena" },
+  { id: "crm", icon: "Database", label: "Tus clientes", caption: "Ordena" },
   { id: "automatizacion", icon: "Workflow", label: "Automatización", caption: "Automatiza" },
-  { id: "ia", icon: "Sparkles", label: "IA", caption: "Decide" },
+  { id: "ia", icon: "Sparkles", label: "IA", caption: "Responde" },
   { id: "reporte", icon: "BarChart3", label: "Reporte", caption: "Reporta" },
 ];
 
 export const solutionArchitectureNote =
-  "Ejemplo de arquitectura — adaptamos cada sistema a tu negocio.";
+  "Es un ejemplo de cómo lo armamos — cada negocio es distinto.";
 
 /** Label del header del canvas (tipo barra de sistema). */
-export const solutionCanvasLabel = "syntra-os · flujo en ejecución";
+export const solutionCanvasLabel = "Tu negocio, funcionando";
 
 /** Strings de la barra inferior de sistema del canvas (status bar). */
 export const solutionCanvasStatus = {
-  sync: "sincronizado",
-  pipeline: "pipeline activo",
-  meta: "6 módulos · 5 conexiones",
-  coords: "x:1240 · y:320 · z:1.0",
+  sync: "Todo al día",
+  pipeline: "Trabajando ahora",
+  meta: "Todo conectado",
+  coords: "",
 };
 
 /** Cue de resultado del nodo final (Reporte). Enciende al cierre del flujo. */
-export const solutionOutputLabel = "reporte actualizado";
+export const solutionOutputLabel = "Reporte listo";
 
 export const stack: StackItem[] = [
   { name: "Next.js", category: "Frontend" },
