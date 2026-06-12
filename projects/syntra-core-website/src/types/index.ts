@@ -79,6 +79,8 @@ export interface UseCaseItem {
   pain: string;
   /** Entregables concretos para ese rubro (lado "después") */
   deliverables: string[];
+  /** Mini-flujo temporal: pasos en lenguaje de cliente; el último es el resultado. */
+  flow: string[];
 }
 
 /** Pregunta frecuente (manejo de objeciones). */

@@ -1,8 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Check, Info } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { ArrowDown, ArrowRight, Check, Info } from "lucide-react";
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+  type Variants,
+} from "framer-motion";
 
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
@@ -19,6 +24,8 @@ export interface ApplicationItem {
   sistema: string;
   /** Capacidades / qué incluiría. */
   capacidades: string[];
+  /** Mini-flujo temporal: pasos en lenguaje de cliente; el último es el resultado. */
+  flow: string[];
 }
 
 interface ApplicationSelectorProps {
@@ -46,6 +53,23 @@ function ApplicationSelector({ items, note, className }: ApplicationSelectorProp
   }, []);
 
   const active = items.find((it) => it.id === activeId) ?? items[0];
+
+  // Stagger del mini-flujo: re-dispara al cambiar de rubro (el panel re-monta por key).
+  const flowContainer: Variants = {
+    hidden: {},
+    visible: {
+      transition: reduce ? {} : { staggerChildren: 0.08, delayChildren: 0.08 },
+    },
+  };
+  const flowItem: Variants = {
+    hidden: reduce ? { opacity: 1 } : { opacity: 0, y: 8 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: reduce ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] },
+    },
+  };
+
   if (!active) return null;
 
   return (
@@ -157,6 +181,61 @@ function ApplicationSelector({ items, note, className }: ApplicationSelectorProp
                   ))}
                 </ul>
               </div>
+            </div>
+
+            {/* Mini-flujo temporal: el recorrido paso a paso */}
+            <div className="mt-8 border-t border-border pt-6">
+              <p className="text-xs font-medium tracking-widest text-muted-foreground/70 uppercase">
+                El recorrido, paso a paso
+              </p>
+              <motion.div
+                variants={flowContainer}
+                initial="hidden"
+                animate="visible"
+                className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:gap-2"
+              >
+                {active.flow.map((step, i) => {
+                  const isLast = i === active.flow.length - 1;
+                  return (
+                    <React.Fragment key={step}>
+                      <motion.div
+                        variants={flowItem}
+                        className="flex items-center gap-2.5 md:flex-1 md:flex-col md:items-center md:gap-2 md:text-center"
+                      >
+                        <span
+                          className={cn(
+                            "size-1.5 shrink-0 rounded-full",
+                            isLast ? "bg-brand-cyan" : "bg-muted-foreground/40",
+                          )}
+                        />
+                        <span
+                          className={cn(
+                            "text-sm text-balance leading-snug md:text-xs lg:text-sm",
+                            isLast ? "text-foreground" : "text-muted-foreground",
+                          )}
+                        >
+                          {step}
+                        </span>
+                      </motion.div>
+                      {!isLast && (
+                        <div
+                          aria-hidden="true"
+                          className="flex shrink-0 items-center justify-center"
+                        >
+                          <div className="flex flex-col items-center md:hidden">
+                            <span className="h-5 w-px bg-gradient-to-b from-border to-brand-electric/40" />
+                            <ArrowDown className="size-4 text-brand-electric/60" />
+                          </div>
+                          <div className="hidden items-center md:flex">
+                            <span className="h-px w-5 bg-gradient-to-r from-border to-brand-electric/40 lg:w-8" />
+                            <ArrowRight className="size-4 text-brand-electric/60" />
+                          </div>
+                        </div>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </motion.div>
             </div>
 
             {/* Footer de honestidad integrado */}

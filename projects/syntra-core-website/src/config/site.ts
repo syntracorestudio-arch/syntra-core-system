@@ -167,6 +167,12 @@ export const useCases: UseCaseItem[] = [
       "Captación de interesados desde la web",
       "Respuestas y seguimiento automatizados",
     ],
+    flow: [
+      "Busca en tu catálogo",
+      "Deja una consulta",
+      "Queda registrado como interesado",
+      "Respuesta y seguimiento listos",
+    ],
   },
   {
     id: "legal",
@@ -179,6 +185,12 @@ export const useCases: UseCaseItem[] = [
       "Sitio institucional sobrio y confiable",
       "Formularios de consulta calificada",
       "Automatización de turnos y seguimiento",
+    ],
+    flow: [
+      "Consulta calificada por formulario",
+      "Caso ordenado por tipo",
+      "Turno propuesto automáticamente",
+      "Recordatorio antes de la reunión",
     ],
   },
   {
@@ -193,6 +205,12 @@ export const useCases: UseCaseItem[] = [
       "Solicitud de turnos online",
       "Recordatorios y mensajes automáticos",
     ],
+    flow: [
+      "Solicita un turno online",
+      "Turno registrado en la agenda",
+      "Confirmación automática al paciente",
+      "Recordatorio antes de la cita",
+    ],
   },
   {
     id: "pymes",
@@ -205,6 +223,12 @@ export const useCases: UseCaseItem[] = [
       "Sitio o sistema a medida de tu operación",
       "Captación y gestión de clientes",
       "Automatización de procesos internos",
+    ],
+    flow: [
+      "Contacto desde la web",
+      "Cliente cargado solo",
+      "Tarea repetitiva hecha sola",
+      "Reporte listo para revisar",
     ],
   },
 ];

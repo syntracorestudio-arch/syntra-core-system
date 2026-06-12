@@ -28,6 +28,7 @@ function UseCasesSection() {
       situacion: useCase.pain,
       sistema: useCase.description,
       capacidades: useCase.deliverables,
+      flow: useCase.flow,
     };
   });
 
