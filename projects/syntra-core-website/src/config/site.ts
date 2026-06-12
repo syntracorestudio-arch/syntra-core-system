@@ -313,6 +313,7 @@ export const workflow: WorkflowStep[] = [
     title: "Entendemos tu negocio",
     description:
       "Analizamos tus objetivos, tus procesos y dónde estás perdiendo tiempo o ventas. Antes de proponer, escuchamos.",
+    result: "Diagnóstico claro",
   },
   {
     step: 2,
@@ -320,6 +321,7 @@ export const workflow: WorkflowStep[] = [
     title: "Diseñamos el sistema",
     description:
       "Definimos cómo va a funcionar todo: diseño, estructura y las tareas que se van a automatizar. Nada de plantillas, todo pensado para tu caso.",
+    result: "Plan a medida",
   },
   {
     step: 3,
@@ -327,6 +329,7 @@ export const workflow: WorkflowStep[] = [
     title: "Construimos y automatizamos",
     description:
       "Desarrollamos con tecnología moderna y conectamos tus herramientas para que el trabajo repetitivo se haga solo.",
+    result: "Sistema funcionando",
   },
   {
     step: 4,
@@ -334,6 +337,7 @@ export const workflow: WorkflowStep[] = [
     title: "Lanzamos y acompañamos",
     description:
       "Publicamos, medimos resultados reales y hacemos crecer el sistema a medida que crece tu negocio.",
+    result: "En marcha y con soporte",
   },
 ];
 

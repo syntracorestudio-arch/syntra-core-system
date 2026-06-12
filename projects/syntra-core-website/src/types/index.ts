@@ -55,6 +55,8 @@ export interface WorkflowStep {
   icon: string;
   title: string;
   description: string;
+  /** Entregable de la etapa — label del estado HECHO */
+  result: string;
 }
 
 /** Encabezado reutilizable de sección (eyebrow + título + subtítulo) */
