@@ -192,7 +192,7 @@ function ApplicationSelector({ items, note, className }: ApplicationSelectorProp
                 variants={flowContainer}
                 initial="hidden"
                 animate="visible"
-                className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:gap-2"
+                className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-2"
               >
                 {active.flow.map((step, i) => {
                   const isLast = i === active.flow.length - 1;
@@ -200,7 +200,7 @@ function ApplicationSelector({ items, note, className }: ApplicationSelectorProp
                     <React.Fragment key={step}>
                       <motion.div
                         variants={flowItem}
-                        className="flex items-center gap-2.5 md:flex-1 md:flex-col md:items-center md:gap-2 md:text-center"
+                        className="flex items-center gap-2.5 lg:flex-1 lg:flex-col lg:items-center lg:gap-2 lg:text-center"
                       >
                         <span
                           className={cn(
@@ -210,7 +210,7 @@ function ApplicationSelector({ items, note, className }: ApplicationSelectorProp
                         />
                         <span
                           className={cn(
-                            "text-sm text-balance leading-snug md:text-xs lg:text-sm",
+                            "text-sm text-balance leading-snug lg:text-sm",
                             isLast ? "text-foreground" : "text-muted-foreground",
                           )}
                         >
@@ -222,11 +222,11 @@ function ApplicationSelector({ items, note, className }: ApplicationSelectorProp
                           aria-hidden="true"
                           className="flex shrink-0 items-center justify-center"
                         >
-                          <div className="flex flex-col items-center md:hidden">
+                          <div className="flex flex-col items-center lg:hidden">
                             <span className="h-5 w-px bg-gradient-to-b from-border to-brand-electric/40" />
                             <ArrowDown className="size-4 text-brand-electric/60" />
                           </div>
-                          <div className="hidden items-center md:flex">
+                          <div className="hidden items-center lg:flex">
                             <span className="h-px w-5 bg-gradient-to-r from-border to-brand-electric/40 lg:w-8" />
                             <ArrowRight className="size-4 text-brand-electric/60" />
                           </div>
