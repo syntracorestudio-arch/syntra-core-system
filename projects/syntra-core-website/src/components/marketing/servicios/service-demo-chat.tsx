@@ -7,13 +7,13 @@ import { AnimatePresence, motion, useInView, useReducedMotion } from "framer-mot
 import { EASE_PREMIUM, DURATION } from "@/lib/motion";
 
 /**
- * ServiceDemoChat — mini chat en estado "respuesta lista".
- * WEB-009B: secuencia one-shot al entrar en viewport (sin loop infinito):
- * consulta visible → typing dots (~1.2s) → respuesta (opacity+y) →
- * status "Respuesta enviada". Luego queda estático. Los typing dots solo
- * existen durante la ventana del one-shot.
+ * ServiceDemoChat — mini chat: la consulta entra y recibe respuesta (PENDIENTE →
+ * ACTIVO → HECHO, live-system-motion-spec). Secuencia one-shot al entrar en
+ * viewport (sin loop infinito): la consulta ENTRA (opacity + y) → typing dots
+ * (~1.2s) → respuesta (opacity + y) → "Respuesta enviada" (HECHO persistente).
+ * Luego queda estático. Los typing dots solo existen durante la ventana del one-shot.
  * Solo se anima opacity/transform (translateY) — NUNCA box-shadow/filter.
- * useReducedMotion → estado final directo (respuesta + status, sin typing).
+ * useReducedMotion → estado final directo (consulta + respuesta + status, sin typing).
  * Texto genérico ilustrativo, sin nombres ni datos inventados. aria-hidden.
  */
 function ServiceDemoChat() {
@@ -48,12 +48,18 @@ function ServiceDemoChat() {
           <span className="text-xs text-muted-foreground">En línea ahora</span>
         </div>
 
-        {/* Consulta entrante (izquierda) */}
-        <div className="max-w-[80%] self-start rounded-2xl rounded-bl-sm border border-border bg-surface-2 px-3.5 py-2.5">
+        {/* Consulta entrante (izquierda): ENTRA con opacity + y al viewport
+            (igual que la respuesta). reduced-motion → directa, sin animación. */}
+        <motion.div
+          className="max-w-[80%] self-start rounded-2xl rounded-bl-sm border border-border bg-surface-2 px-3.5 py-2.5"
+          initial={reduce ? false : { opacity: 0, y: 12 }}
+          animate={reduce || inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+          transition={{ duration: reduce ? 0 : DURATION.standard, ease: EASE_PREMIUM }}
+        >
           <p className="text-sm text-muted-foreground">
             Hola, ¿atienden los fines de semana?
           </p>
-        </div>
+        </motion.div>
 
         {/* Slot de respuesta con alto reservado (evita reflujo typing→respuesta) */}
         <div className="flex min-h-[5.5rem] flex-col">
