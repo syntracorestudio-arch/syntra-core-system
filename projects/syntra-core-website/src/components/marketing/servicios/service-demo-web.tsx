@@ -1,29 +1,75 @@
 "use client";
 
 import * as React from "react";
-import { Check } from "lucide-react";
-import { motion, useInView, useReducedMotion } from "framer-motion";
+import { Check, Lock } from "lucide-react";
+import {
+  motion,
+  useInView,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "framer-motion";
 
 import { EASE_PREMIUM, DURATION } from "@/lib/motion";
 
 /**
- * ServiceDemoWeb — la web captura una visita: PENDIENTE → ACTIVO → HECHO
- * (live-system-motion-spec). El wireframe queda presente como chasis. Una visita
- * (dot abstracto, sin avatar/cara/emoji) entra desde un borde y se desplaza
- * (translate) hacia el botón CTA; al llegar, el CTA destella ACTIVO one-shot
- * (overlay opacity, sin repeat) y una tarjeta "Nueva consulta lista" (check cyan)
- * revela (opacity + y) en la bandeja y QUEDA (HECHO persistente).
- * Patrón: useInView once + useReducedMotion + one-shot, sin loop.
- * Solo se anima opacity/transform (translate/scale) — NUNCA box-shadow/filter/
- * width/height/color/background. reduced-motion → wireframe + tarjeta final
- * directos, sin visita animada. CLS = 0: la bandeja reserva alto (min-h).
- * Labels en lenguaje de cliente. Decorativo: aria-hidden. Tokens existentes.
+ * ServiceDemoWeb — escena premium (WEB-009F-A). Deja de ser wireframe: se siente
+ * como producto real + resultado visible. Ancla visual Vercel (escena oscura
+ * enmarcada + glow atmosférico) + Raycast (frame de producto + tarjeta-resultado
+ * que flota con profundidad). Paleta SYNTRA (slate / brand-electric / brand-cyan,
+ * regla 90/10). Atmósfera 100% CSS (sin raster: NO usa next/image).
+ *
+ * Tres planos Z:
+ *  1. Fondo atmosférico (radial mesh azul/cyan por opacidad + grilla `sys-canvas-grid`).
+ *  2. Frame de navegador premium con mini-landing de alta fidelidad (texto real).
+ *  3. Tarjeta-resultado flotante (Raycast) que se solapa al frame y PERSISTE (HECHO).
+ *
+ * Motion (live-system-motion-spec): patrón PENDIENTE → ACTIVO → HECHO, reveal por
+ * capas, one-shot por viewport (useInView once + useReducedMotion). Solo se anima
+ * opacity/transform (translate/scale) — NUNCA box-shadow/filter/width/height/color/
+ * background. Sin loops, sin parallax-scroll, sin partículas. Hover de profundidad
+ * sutil (desktop fine-pointer) vía motion values; off en touch y reduced-motion.
+ * reduced-motion → escena final completa directa (fondo + frame + landing + tarjeta
+ * + badge), sin reveal ni hover. CLS = 0: contenedor con alto reservado; lo que
+ * aparece entra por opacity/transform en slots dimensionados. Decorativo: aria-hidden.
  */
 
-/** Etiqueta de cierre — lenguaje de cliente (sin jerga). */
-const HECHO_LABEL = "Nueva consulta lista";
-/** Duración del recorrido de la visita hacia el CTA (s) — lento y premium. */
-const TRAVEL = 1.1;
+/**
+ * SceneFrame — chasis reutilizable de la escena (slot fondo + slot contenido).
+ * Pensado para reusar en 009F-B (las otras escenas de Servicios). Se deja inline
+ * en este archivo a propósito: extraerlo a un módulo nuevo requeriría crear un
+ * archivo fuera del alcance de edición de esta tarea. Cuando 009F-B lo necesite,
+ * se promueve a `./scene-frame.tsx` sin cambios de API.
+ *
+ * Reserva alto (min-h responsive) → CLS = 0: lo que aparece dentro entra por
+ * opacity/transform, nunca empuja el flujo. El fondo va detrás (slot absoluto),
+ * el contenido encima en un plano relativo. Decorativo: aria-hidden lo pone el
+ * consumidor en su contenedor raíz.
+ */
+function SceneFrame({
+  background,
+  children,
+}: {
+  background: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative min-h-[20rem] overflow-hidden rounded-2xl border border-border bg-depth-sunken p-5 sm:min-h-[22rem] sm:p-6">
+      {/* Slot de fondo (plano 1) */}
+      {background}
+      {/* Slot de contenido (planos 2–3) */}
+      <div className="relative z-10 h-full">{children}</div>
+    </div>
+  );
+}
+
+/* Timing de la secuencia por capas (s). Amplitudes/delays DISTINTOS por plano
+   → eso construye la profundidad. Curva y duraciones de `lib/motion`. */
+const T_BG = 0; // fondo revela primero
+const T_FRAME = 0.18; // el frame sube después
+const T_CTA = 0.74; // el indicador de visita llega y el CTA destella ACTIVO
+const T_CARD = 1.0; // la tarjeta-resultado revela y queda (HECHO)
 
 function ServiceDemoWeb() {
   const reduce = useReducedMotion();
@@ -32,102 +78,194 @@ function ServiceDemoWeb() {
   // La secuencia arranca al entrar en viewport (o directo si reduce).
   const run = reduce || inView;
 
+  // ── Hover de profundidad (desktop fine-pointer). Motion values suavizados;
+  // cada plano se desplaza pocos px en sentidos distintos → parallax de puntero.
+  // Off en touch (sin pointer fino) y en reduced-motion: nunca se actualizan.
+  const px = useMotionValue(0);
+  const py = useMotionValue(0);
+  const sx = useSpring(px, { stiffness: 120, damping: 18, mass: 0.4 });
+  const sy = useSpring(py, { stiffness: 120, damping: 18, mass: 0.4 });
+  // Fondo se mueve menos (lejos); tarjeta más (cerca) → sensación de capas.
+  const bgX = useTransform(sx, [-0.5, 0.5], [-4, 4]);
+  const bgY = useTransform(sy, [-0.5, 0.5], [-4, 4]);
+  const frameX = useTransform(sx, [-0.5, 0.5], [6, -6]);
+  const frameY = useTransform(sy, [-0.5, 0.5], [6, -6]);
+  const cardX = useTransform(sx, [-0.5, 0.5], [14, -14]);
+  const cardY = useTransform(sy, [-0.5, 0.5], [12, -12]);
+
+  const hoverEnabled = !reduce;
+
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    // Solo punteros finos (mouse/trackpad): evita drift en táctil.
+    if (!hoverEnabled || e.pointerType !== "mouse") return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    px.set((e.clientX - rect.left) / rect.width - 0.5);
+    py.set((e.clientY - rect.top) / rect.height - 0.5);
+  }
+  function handlePointerLeave() {
+    px.set(0);
+    py.set(0);
+  }
+
   return (
     <div
       ref={ref}
       aria-hidden="true"
-      className="relative rounded-xl border border-border bg-depth-sunken p-5 sm:p-6"
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      className="relative"
     >
-      <div className="flex flex-col gap-4">
-        {/* Barra superior (nav) */}
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2.5">
-          <span className="size-2.5 rounded-full bg-brand-cyan/70" />
-          <span className="h-2 w-16 rounded-full bg-border-strong" />
-          <div className="ml-auto flex items-center gap-2">
-            <span className="h-2 w-8 rounded-full bg-border-strong" />
-            <span className="h-2 w-8 rounded-full bg-border-strong" />
-            <span className="h-2 w-12 rounded-full bg-brand-electric/30" />
-          </div>
-        </div>
-
-        {/* Bloque hero */}
-        <div className="rounded-lg border border-border bg-surface-2 p-4">
-          <div className="flex flex-col gap-2.5">
-            <span className="h-3 w-3/5 rounded-full bg-border-strong" />
-            <span className="h-2 w-4/5 rounded-full bg-border-strong/70" />
-            <span className="h-2 w-2/5 rounded-full bg-border-strong/70" />
-            {/* CTA del wireframe — destino de la visita. El overlay de acento
-                destella ACTIVO one-shot (solo opacity) cuando la visita llega. */}
-            <span className="relative mt-1 inline-flex h-6 w-24 overflow-hidden rounded-md border border-brand-electric/30 bg-brand-electric/10">
-              {!reduce ? (
-                <motion.span
-                  className="pointer-events-none absolute inset-0 rounded-md bg-brand-electric/40"
-                  initial={{ opacity: 0 }}
-                  animate={run ? { opacity: [0, 0.7, 0] } : { opacity: 0 }}
-                  transition={{
-                    duration: DURATION.standard,
-                    delay: TRAVEL,
-                    ease: EASE_PREMIUM,
-                  }}
-                />
-              ) : null}
-            </span>
-          </div>
-        </div>
-
-        {/* Grilla de contenido */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3">
-            <span className="size-6 rounded-md bg-border-strong" />
-            <span className="h-2 w-3/4 rounded-full bg-border-strong" />
-            <span className="h-2 w-1/2 rounded-full bg-border-strong/70" />
-          </div>
-          <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3">
-            <span className="size-6 rounded-md bg-border-strong" />
-            <span className="h-2 w-3/4 rounded-full bg-border-strong" />
-            <span className="h-2 w-1/2 rounded-full bg-border-strong/70" />
-          </div>
-        </div>
-
-        {/* Bandeja (HECHO): tarjeta "Nueva consulta lista" revela y QUEDA.
-            Slot con alto reservado (min-h) → CLS = 0. */}
-        <div className="flex min-h-[2.5rem] items-start">
-          <motion.span
-            className="inline-flex items-center gap-1.5 rounded-full border border-brand-cyan/30 bg-surface-2 px-3 py-1.5 font-accent text-xs tracking-wide text-brand-cyan"
-            initial={reduce ? false : { opacity: 0, y: 8 }}
-            animate={run ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+      {/* Wrapper relativo SIN overflow: deja que la tarjeta-resultado flote fuera
+          del frame sin recortarse (el SceneFrame sí recorta su atmósfera). */}
+      <div className="relative">
+        <SceneFrame
+          background={
+          // ── Plano 1: fondo atmosférico (detrás). Glow mesh radial azul/cyan
+          // por OPACIDAD (nunca box-shadow animado) + grilla técnica con máscara.
+          <motion.div
+            aria-hidden="true"
+            className="absolute inset-0"
+            style={hoverEnabled ? { x: bgX, y: bgY } : undefined}
+            initial={reduce ? false : { opacity: 0 }}
+            animate={run ? { opacity: 1 } : { opacity: 0 }}
             transition={{
-              duration: reduce ? 0 : DURATION.standard,
-              delay: reduce ? 0 : TRAVEL + DURATION.standard,
+              duration: reduce ? 0 : DURATION.hero,
+              delay: reduce ? 0 : T_BG,
               ease: EASE_PREMIUM,
             }}
           >
-            <Check className="size-3" aria-hidden="true" />
-            {HECHO_LABEL}
-          </motion.span>
+            {/* Dark mesh gradient azul/cyan (solo on-brand, no multicolor) */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(60% 55% at 30% 22%, rgba(37,99,235,0.18), transparent 70%), radial-gradient(55% 50% at 78% 82%, rgba(56,189,248,0.14), transparent 72%)",
+              }}
+            />
+            {/* Grilla técnica sutil (clase existente: trama + máscara radial) */}
+            <div className="absolute inset-0 sys-canvas-grid" />
+          </motion.div>
+        }
+      >
+        {/* ── Plano 2: frame de navegador premium (mid). Sube con opacity+y. */}
+        <motion.div
+          className="relative"
+          style={hoverEnabled ? { x: frameX, y: frameY } : undefined}
+          initial={reduce ? false : { opacity: 0, y: 22 }}
+          animate={run ? { opacity: 1, y: 0 } : { opacity: 0, y: 22 }}
+          transition={{
+            duration: reduce ? 0 : DURATION.hero,
+            delay: reduce ? 0 : T_FRAME,
+            ease: EASE_PREMIUM,
+          }}
+        >
+          <div className="overflow-hidden rounded-xl border border-border bg-surface-1 shadow-sm">
+            {/* Chrome sobrio tipo ventana-de-producto */}
+            <div className="flex items-center gap-3 border-b border-border bg-surface-2 px-4 py-2.5">
+              <div className="flex items-center gap-1.5">
+                <span className="size-2.5 rounded-full bg-border-strong" />
+                <span className="size-2.5 rounded-full bg-border-strong" />
+                <span className="size-2.5 rounded-full bg-border-strong" />
+              </div>
+              <div className="ml-2 flex items-center gap-1.5 rounded-md border border-border bg-depth-sunken px-2.5 py-1">
+                <Lock className="size-3 text-muted-foreground" aria-hidden="true" />
+                <span className="font-mono text-xs text-muted-foreground">
+                  tunegocio.com
+                </span>
+              </div>
+            </div>
+
+            {/* Mini-landing de alta fidelidad (texto real, no placeholders) */}
+            <div className="flex flex-col gap-4 p-5 sm:p-6">
+              <span className="font-accent text-[0.65rem] uppercase tracking-widest text-muted-foreground/70">
+                Estudio profesional · ejemplo
+              </span>
+
+              {/* Franja "hero": mesh on-brand en CSS (azul/cyan, no foto/gris) */}
+              <div className="relative overflow-hidden rounded-lg border border-border p-5">
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      "radial-gradient(70% 80% at 18% 0%, rgba(37,99,235,0.28), transparent 70%), radial-gradient(60% 70% at 90% 100%, rgba(56,189,248,0.22), transparent 72%), linear-gradient(135deg, #111c33, #0b1120)",
+                  }}
+                />
+                <div className="relative flex flex-col gap-2">
+                  <h4 className="font-heading text-base font-semibold leading-snug tracking-tight text-foreground text-balance sm:text-lg">
+                    Una web clara para recibir consultas
+                  </h4>
+                  <p className="text-xs leading-relaxed text-muted-foreground text-pretty sm:text-sm">
+                    Mostrá lo que hacés, transmití confianza y recibí consultas
+                    en un solo lugar.
+                  </p>
+                </div>
+              </div>
+
+              {/* CTA real (cta-sweep). El overlay de acento destella ACTIVO
+                  one-shot (solo opacity) cuando la visita llega. */}
+              <div className="relative inline-flex w-fit">
+                <span className="cta-sweep relative inline-flex items-center justify-center overflow-hidden rounded-md border border-brand-electric/40 bg-brand-electric/15 px-4 py-2 text-xs font-medium text-foreground">
+                  Solicitar información
+                  {!reduce ? (
+                    <motion.span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 rounded-md bg-brand-electric/45"
+                      initial={{ opacity: 0 }}
+                      animate={run ? { opacity: [0, 0.7, 0] } : { opacity: 0 }}
+                      transition={{
+                        duration: DURATION.standard,
+                        delay: T_CTA,
+                        ease: EASE_PREMIUM,
+                      }}
+                    />
+                  ) : null}
+                </span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+        </SceneFrame>
+
+        {/* ── Plano 3: tarjeta-resultado flotante (front, Raycast). Hermana del
+            SceneFrame dentro del wrapper SIN overflow → se solapa al borde inferior
+            del frame y NO se recorta. Revela y QUEDA (HECHO persiste).
+            Slot con alto reservado (min-h) → CLS = 0. */}
+        <div className="pointer-events-none absolute right-3 -bottom-4 flex min-h-[4rem] w-[15rem] max-w-[80%] justify-end sm:right-5 sm:-bottom-5">
+          <motion.div
+            style={hoverEnabled ? { x: cardX, y: cardY } : undefined}
+            initial={reduce ? false : { opacity: 0, y: 14, scale: 0.96 }}
+            animate={
+              run
+                ? { opacity: 1, y: 0, scale: 1 }
+                : { opacity: 0, y: 14, scale: 0.96 }
+            }
+            transition={{
+              duration: reduce ? 0 : DURATION.section,
+              delay: reduce ? 0 : T_CARD,
+              ease: EASE_PREMIUM,
+            }}
+            className="surface-glass w-full rounded-xl border border-brand-cyan/30 bg-surface-2/80 p-3.5"
+          >
+            <div className="flex items-center gap-2">
+              <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-brand-cyan/40 bg-brand-cyan/15">
+                <Check className="size-3 text-brand-cyan" aria-hidden="true" />
+              </span>
+              <span className="font-accent text-[0.7rem] tracking-wide text-brand-cyan">
+                Nueva consulta · ejemplo · hace 1 min
+              </span>
+            </div>
+            <p className="mt-2 text-xs leading-snug text-muted-foreground">
+              &quot;Quiero más información para mi negocio&quot;
+            </p>
+          </motion.div>
         </div>
       </div>
 
-      {/* Visita abstracta (dot, sin avatar/cara/emoji): entra desde el borde
-          izquierdo y se desplaza (translate) hacia el CTA. Solo opacity/transform.
-          Ausente en reduced-motion (estado final ya completo). */}
-      {!reduce ? (
-        <motion.span
-          aria-hidden="true"
-          className="pointer-events-none absolute top-6 left-5 z-10 size-2.5 rounded-full bg-brand-electric sm:left-6"
-          initial={{ opacity: 0, x: -16, y: 0 }}
-          animate={
-            run
-              ? { opacity: [0, 1, 1, 0], x: [-16, 40, 120, 150], y: [0, 30, 70, 96] }
-              : { opacity: 0 }
-          }
-          transition={{
-            duration: TRAVEL,
-            ease: EASE_PREMIUM,
-            times: [0, 0.2, 0.85, 1],
-          }}
-        />
-      ) : null}
+      {/* Badge de honestidad (lenguaje de cliente) */}
+      <p className="mt-7 text-xs text-muted-foreground">
+        Ejemplo · no es un cliente real
+      </p>
     </div>
   );
 }

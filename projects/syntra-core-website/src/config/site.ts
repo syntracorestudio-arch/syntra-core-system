@@ -235,6 +235,13 @@ export const useCases: UseCaseItem[] = [
   },
 ];
 
+/**
+ * Nota de honestidad de la sección Servicios (escenas ilustrativas, no clientes).
+ * Disponible para 009F-B; no se renderiza en 009F-A.
+ */
+export const servicesNote =
+  "Escenas ilustrativas. Mostramos cómo funciona cada sistema con ejemplos de rubro. No son clientes reales ni resultados garantizados.";
+
 /** Nota de honestidad de la sección Aplicaciones (escenarios, no casos reales). */
 export const applicationsNote =
   "Escenarios de aplicación — ejemplos de cómo trabajamos, adaptados a cada negocio. No representan clientes específicos.";
