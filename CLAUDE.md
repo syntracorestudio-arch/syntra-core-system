@@ -251,6 +251,7 @@ Ante cualquier tarea no trivial:
 | Layout, jerarquía visual, grids, composición, responsive, motion de interfaz, accesibilidad visual | `ui-ux-designer` | read-only |
 | Auditoría de experiencia web sección por sección (premium vs genérico, conversión, confianza, mobile) | `website-experience-auditor` | read-only |
 | Implementar UI ya aprobada en React/Next/TypeScript/Tailwind, componentes, integración del design system, refactors controlados | `frontend-engineer` | edita (solo si aprobado) |
+| Implementar backend ya aprobado: Supabase (modelo de datos, migraciones SQL), server actions, APIs/route handlers, auth/session, validaciones server-side, rate limiting, seguridad de webhooks (HMAC) | `backend-engineer` | edita (solo si aprobado) |
 | Validar TypeScript, lint, build, responsive, accesibilidad, performance y regresiones antes de cerrar/deploy | `qa-performance-guard` | read + valida |
 
 ## Reglas de gobierno
@@ -258,7 +259,8 @@ Ante cualquier tarea no trivial:
 1. Ante una tarea no trivial, identificar el dominio y seleccionar los subagents antes de actuar.
 2. Separar siempre diagnóstico, plan, implementación y QA en fases distintas.
 3. No modificar archivos sin aprobación explícita cuando la tarea afecte código, diseño, configuración, datos o automatizaciones.
-4. `frontend-engineer` solo implementa UI ya aprobada (TASK ID + OK explícito).
+4. `frontend-engineer` y `backend-engineer` solo implementan trabajo ya aprobado
+   (TASK ID + OK explícito); ante ambigüedad, frenan y derivan.
 5. `qa-performance-guard` valida antes de cerrar cualquier trabajo web.
 6. Los agentes de diseño, producto, auditoría y arquitectura trabajan siempre read-only: nunca implementan.
 7. Para automatizaciones, seguir la secuencia:
