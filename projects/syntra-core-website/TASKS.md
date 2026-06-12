@@ -1,12 +1,13 @@
 # TASKS — SYNTRA CORE WEBSITE
 
-> Tracker operativo del proyecto. Los IDs `TASK-0NN` son consistentes con los
-> comentarios en código (`TASK-0NN` en `src/`).
+> Tracker operativo del proyecto. Dos tracks: **`TASK-0NN`** (lead pipeline /
+> backend, consistente con los comentarios en código) y **`WEB-0xx`** (track visual
+> de la Home — ver "Home — Live System" abajo).
 > Fuente de verdad de tareas. Reemplaza a `todo.md` (en prosa, desactualizado).
 >
 > **Estados válidos:** `TODO` · `DOING` · `BLOCKED` · `REVIEW` · `DONE`
 > **Owner por defecto:** Matias / SYNTRA CORE
-> **Última actualización:** 2026-06-11
+> **Última actualización:** 2026-06-12
 
 ---
 
@@ -164,3 +165,36 @@ TASK-024  (diferida)
   el dashboard correspondiente.
 - TASK-023 y TASK-019 tocan ambas la firma del webhook: hacer 019 antes de 023 o
   023 rompe el workflow validado.
+
+---
+
+## Home — Live System (track visual `WEB-0xx`)
+
+> Track de evolución visual/UX de la Home, separado del lead pipeline. Dirección
+> aprobada: **Nivel B — "El recorrido de una consulta"**, patrón
+> **PENDIENTE → ACTIVO → HECHO**. Norte: `docs/specs/live-system-motion-spec.md`.
+> Gate por sección: `design-system-guardian` + `qa-performance-guard`.
+
+| ID | Tarea | Estado |
+|----|-------|--------|
+| WEB-001A | Auditoría comercial de lenguaje/demostración | DONE |
+| WEB-002A/B | Inventario + de-jargon de copy (`site.ts`) | DONE |
+| WEB-003A/B (+PATCH) | Mini-flujo demostrativo en Aplicaciones | DONE |
+| WEB-004A | Fix overflow del badge del Hero en mobile | DONE |
+| WEB-006 | Revisión post-cambios | DONE |
+| WEB-007A | Auditoría radical sección por sección | DONE |
+| WEB-007B | Dirección creativa "Sistema vivo" | DONE |
+| WEB-008 | Header + navegación (nav corto, CTA blando, glass sólido) | DONE |
+| WEB-009A/B/C | Servicios: zig-zag + demos vivas + copy IA diferenciado | DONE |
+| WEB-LIVE-SYSTEM-RESET | Reset de dirección → Nivel B | DONE |
+| WEB-LIVE-SPEC | Spec de motion unificado (`live-system-motion-spec.md`) | DONE |
+| WEB-LIVE-JARGON | Limpiar copy visible del Canvas (content-only, FROZEN-copy) | TODO *(próxima)* |
+| WEB-010 | Proceso — checklist que se completa (piloto del patrón) | TODO |
+| WEB-009D | Servicios — elevar Web/Automatización al patrón vivo | TODO |
+| WEB-011 | Casos — el escenario se ejecuta al seleccionar el rubro | TODO |
+| WEB-012 | Transiciones — conector-puente + frases-bisagra | TODO |
+| WEB-013 | Contacto — microdiagnóstico 1-vista (toca backend: `submitLead`/Zod) | TODO |
+| — | Hero / Canvas (reconcepción "recorrido completo") | FROZEN (requiere descongelamiento) |
+
+**Próxima acción:** `WEB-LIVE-JARGON` (content-only). Luego el piloto `WEB-010`
+(Proceso). Hero/Canvas-motion/Nosotros permanecen FROZEN salvo OK nominal del owner.
