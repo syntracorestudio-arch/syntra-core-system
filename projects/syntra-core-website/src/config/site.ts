@@ -28,8 +28,7 @@ export const siteConfig: SiteConfig = {
     "Diseñamos y construimos webs premium, automatizaciones e integraciones con IA para que tu empresa trabaje más rápido y venda mejor.",
   nav: [
     { label: "Servicios", href: "/#servicios" },
-    { label: "Aplicaciones", href: "/#casos" },
-    { label: "Nosotros", href: "/#nosotros" },
+    { label: "Casos", href: "/#casos" },
     { label: "Proceso", href: "/#proceso" },
     { label: "FAQ", href: "/#faq" },
     { label: "Contacto", href: "/#contacto" },
@@ -37,7 +36,7 @@ export const siteConfig: SiteConfig = {
   // Canales sociales: vacío a propósito. No renderiza nada hasta tener perfiles reales.
   socialLinks: [],
   cta: {
-    primary: "Solicitar propuesta",
+    primary: "Contanos tu proyecto",
     secondary: "Ver qué hacemos",
   },
   hero: {
