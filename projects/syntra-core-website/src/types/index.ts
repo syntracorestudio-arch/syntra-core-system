@@ -42,6 +42,8 @@ export interface ServiceItem {
   id: string;
   /** Nombre del ícono de lucide-react (resuelto en el componente) */
   icon: string;
+  /** Micro-tag de categoría: web | automatización | ia */
+  tag: string;
   title: string;
   description: string;
   features: string[];

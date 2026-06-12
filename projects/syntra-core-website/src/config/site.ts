@@ -54,10 +54,10 @@ export const siteConfig: SiteConfig = {
   },
   sections: {
     services: {
-      eyebrow: "Qué hacemos",
-      title: "Tres formas de hacer crecer tu empresa",
+      eyebrow: "Qué entregamos",
+      title: "Tres cosas que tu negocio se lleva funcionando",
       subtitle:
-        "No vendemos plantillas. Construimos el sistema digital que tu negocio necesita para vender más y operar mejor.",
+        "No te entregamos una lista de servicios: te mostramos lo que va a estar funcionando en tu negocio.",
     },
     useCases: {
       eyebrow: "Dónde aplica",
@@ -115,9 +115,10 @@ export const services: ServiceItem[] = [
   {
     id: "web",
     icon: "LayoutTemplate",
-    title: "Desarrollo Web Premium",
+    tag: "web",
+    title: "Una web que trabaja para vos",
     description:
-      "Sitios y aplicaciones rápidas, modernas y listas para escalar. Diseño que transmite profesionalismo desde el primer segundo.",
+      "Una web que carga al instante, transmite seriedad y convierte visitas en consultas. No solo se ve bien: trabaja.",
     features: [
       "Landing pages y sitios corporativos",
       "Aplicaciones web a medida",
@@ -128,9 +129,10 @@ export const services: ServiceItem[] = [
   {
     id: "automation",
     icon: "Workflow",
-    title: "Automatización de Procesos",
+    tag: "automatización",
+    title: "Tu operación en piloto automático",
     description:
-      "Conectamos tus herramientas y eliminamos el trabajo manual repetitivo. Menos tareas operativas, más tiempo para vender.",
+      "Conectamos tus herramientas y el trabajo repetitivo se hace solo. Menos tareas manuales, más tiempo para vender.",
     features: [
       "Conexión automática entre tus herramientas",
       "Integraciones entre tus apps",
@@ -141,9 +143,10 @@ export const services: ServiceItem[] = [
   {
     id: "ia",
     icon: "Sparkles",
-    title: "Soluciones con IA",
+    tag: "ia",
+    title: "Tu atención que nunca duerme",
     description:
-      "Asistentes y agentes que atienden, califican y responden por vos, para que ninguna consulta quede sin respuesta, ni siquiera fuera de horario.",
+      "Asistentes que atienden, responden y califican consultas por vos. Ninguna queda sin respuesta, ni fuera de horario.",
     features: [
       "Chatbots y asistentes inteligentes",
       "Asistentes que hacen tareas repetitivas por vos",
