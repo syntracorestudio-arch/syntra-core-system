@@ -1,6 +1,6 @@
 # "Para quién" V1 — Implementation Spec (Antes / Después)
 
-> Target path in repo: `/docs/para-quien-v1-spec.md`
+> Target path in repo: `projects/syntra-core-website/docs/specs/para-quien-v1-spec.md`
 > Scope: rediseñar la sección "Pensado para tu rubro" como 4 bandas full-width antes/después alternadas con reveal al entrar en viewport. No tocar otras secciones.
 
 ---

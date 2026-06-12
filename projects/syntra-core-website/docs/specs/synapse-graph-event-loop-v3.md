@@ -1,6 +1,6 @@
 # Synapse Graph — Event Loop Simulator v3
 
-> Target path in repo: `/docs/synapse-graph-event-loop-v3.md`
+> Target path in repo: `projects/syntra-core-website/docs/specs/synapse-graph-event-loop-v3.md`
 > Scope: evolucionar el Synapse Graph de "diagrama con estados" a "simulación del sistema en ejecución" mediante un event loop secuencial. NO cambia layout, tokens, estructura de nodos, íconos ni mecanismo de motion. Construye sobre Material System v2.
 
 ---

@@ -1,6 +1,6 @@
 # Hero Synapse Graph — Icons & Flow FIX v2
 
-> Target path in repo: `/docs/hero-synapse-graph-icons-fix.md`
+> Target path in repo: `projects/syntra-core-website/docs/archive/hero-synapse-graph-icons-fix.md`
 > Scope: refinar el Synapse Graph YA funcional (nodos con label, conexiones, IA dominante, partícula). Agrega íconos dentro de los hexágonos, reagrupa los nodos en flujo izquierda→derecha, rompe la simetría plana y suma un anillo de pulso en el nodo IA. NO rediseña layout, NO cambia color system, NO cambia el mecanismo de motion.
 
 ---

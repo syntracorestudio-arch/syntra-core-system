@@ -1,6 +1,6 @@
 # SYNTRA COLOR SYSTEM & DEPTH SPEC v1
 
-> Target path in repo: `/docs/syntra-color-depth-spec.md`
+> Target path in repo: `projects/syntra-core-website/docs/specs/syntra-color-depth-spec.md`
 > Scope: capa visual y sistema de uso del color + profundidad. NO cambia paleta de identidad, NO cambia IA, NO rediseña secciones.
 
 ---

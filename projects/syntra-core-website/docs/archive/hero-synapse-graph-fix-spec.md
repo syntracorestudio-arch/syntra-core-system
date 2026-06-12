@@ -1,6 +1,6 @@
 # Hero Synapse Graph — FIX Spec v1
 
-> Target path in repo: `/docs/hero-synapse-graph-fix-spec.md`
+> Target path in repo: `projects/syntra-core-website/docs/archive/hero-synapse-graph-fix-spec.md`
 > Scope: completar la implementación parcial del Synapse Graph en el Hero. NO rediseña layout, NO cambia color system, NO cambia el sistema de motion base. Solo cierra la brecha entre lo implementado (cascarón) y lo especificado (sistema vivo).
 
 ---

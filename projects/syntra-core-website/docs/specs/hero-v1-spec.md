@@ -1,6 +1,6 @@
 # Hero V1 — Implementation Spec (FASE 1)
 
-> Target path in repo: `/docs/hero-v1-spec.md`
+> Target path in repo: `projects/syntra-core-website/docs/specs/hero-v1-spec.md`
 > Scope: layout 2 columnas + placeholder estático + glow ambiental. Sin animaciones, sin partículas, sin Synapse Graph.
 
 ---
