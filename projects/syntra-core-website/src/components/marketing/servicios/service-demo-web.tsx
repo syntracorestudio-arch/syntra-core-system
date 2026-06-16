@@ -49,7 +49,7 @@ const T_CARD = 1.0; // la tarjeta-resultado revela y queda (HECHO)
 function ServiceDemoWeb() {
   const reduce = useReducedMotion();
   const ref = React.useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, amount: 0.4 });
+  const inView = useInView(ref, { once: true, amount: 0.25 });
   // La secuencia arranca al entrar en viewport (o directo si reduce).
   const run = reduce || inView;
 
@@ -61,12 +61,12 @@ function ServiceDemoWeb() {
   const sx = useSpring(px, { stiffness: 120, damping: 18, mass: 0.4 });
   const sy = useSpring(py, { stiffness: 120, damping: 18, mass: 0.4 });
   // Fondo se mueve menos (lejos); tarjeta más (cerca) → sensación de capas.
-  const bgX = useTransform(sx, [-0.5, 0.5], [-4, 4]);
-  const bgY = useTransform(sy, [-0.5, 0.5], [-4, 4]);
-  const frameX = useTransform(sx, [-0.5, 0.5], [6, -6]);
-  const frameY = useTransform(sy, [-0.5, 0.5], [6, -6]);
-  const cardX = useTransform(sx, [-0.5, 0.5], [14, -14]);
-  const cardY = useTransform(sy, [-0.5, 0.5], [12, -12]);
+  const bgX = useTransform(sx, [-0.5, 0.5], [-3, 3]);
+  const bgY = useTransform(sy, [-0.5, 0.5], [-3, 3]);
+  const frameX = useTransform(sx, [-0.5, 0.5], [8, -8]);
+  const frameY = useTransform(sy, [-0.5, 0.5], [8, -8]);
+  const cardX = useTransform(sx, [-0.5, 0.5], [18, -18]);
+  const cardY = useTransform(sy, [-0.5, 0.5], [16, -16]);
 
   const hoverEnabled = !reduce;
 
@@ -148,7 +148,7 @@ function ServiceDemoWeb() {
               </span>
 
               {/* Franja "hero": mesh on-brand en CSS (azul/cyan, no foto/gris) */}
-              <div className="relative overflow-hidden rounded-lg border border-border p-5">
+              <div className="relative overflow-hidden rounded-lg border border-border p-6 sm:p-7">
                 <div
                   aria-hidden="true"
                   className="absolute inset-0"
@@ -158,7 +158,7 @@ function ServiceDemoWeb() {
                   }}
                 />
                 <div className="relative flex flex-col gap-2">
-                  <h4 className="font-heading text-base font-semibold leading-snug tracking-tight text-foreground text-balance sm:text-lg">
+                  <h4 className="font-heading text-lg font-semibold leading-snug tracking-tight text-foreground text-balance sm:text-xl">
                     Una web clara para recibir consultas
                   </h4>
                   <p className="text-xs leading-relaxed text-muted-foreground text-pretty sm:text-sm">
@@ -171,14 +171,14 @@ function ServiceDemoWeb() {
               {/* CTA real (cta-sweep). El overlay de acento destella ACTIVO
                   one-shot (solo opacity) cuando la visita llega. */}
               <div className="relative inline-flex w-fit">
-                <span className="cta-sweep relative inline-flex items-center justify-center overflow-hidden rounded-md border border-brand-electric/40 bg-brand-electric/15 px-4 py-2 text-xs font-medium text-foreground">
+                <span className="cta-sweep relative inline-flex items-center justify-center overflow-hidden rounded-md border border-brand-electric/40 bg-brand-electric/15 px-5 py-2.5 text-sm font-medium text-foreground">
                   Solicitar información
                   {!reduce ? (
                     <motion.span
                       aria-hidden="true"
                       className="pointer-events-none absolute inset-0 rounded-md bg-brand-electric/45"
                       initial={{ opacity: 0 }}
-                      animate={run ? { opacity: [0, 0.7, 0] } : { opacity: 0 }}
+                      animate={run ? { opacity: [0, 0.85, 0.85, 0] } : { opacity: 0 }}
                       transition={{
                         duration: DURATION.standard,
                         delay: T_CTA,
@@ -197,27 +197,27 @@ function ServiceDemoWeb() {
             SceneFrame dentro del wrapper SIN overflow → se solapa al borde inferior
             del frame y NO se recorta. Revela y QUEDA (HECHO persiste).
             Slot con alto reservado (min-h) → CLS = 0. */}
-        <div className="pointer-events-none absolute right-3 -bottom-4 flex min-h-[4rem] w-[15rem] max-w-[80%] justify-end sm:right-5 sm:-bottom-5">
+        <div className="pointer-events-none absolute right-3 -bottom-4 z-20 flex min-h-[4rem] w-[16.5rem] max-w-[78%] justify-end sm:right-5 sm:-bottom-5 sm:w-[17rem]">
           <motion.div
             style={hoverEnabled ? { x: cardX, y: cardY } : undefined}
-            initial={reduce ? false : { opacity: 0, y: 14, scale: 0.96 }}
+            initial={reduce ? false : { opacity: 0, y: 20, scale: 0.94 }}
             animate={
               run
                 ? { opacity: 1, y: 0, scale: 1 }
-                : { opacity: 0, y: 14, scale: 0.96 }
+                : { opacity: 0, y: 20, scale: 0.94 }
             }
             transition={{
               duration: reduce ? 0 : DURATION.section,
               delay: reduce ? 0 : T_CARD,
               ease: EASE_PREMIUM,
             }}
-            className="surface-glass w-full rounded-xl border border-brand-cyan/30 bg-surface-2/80 p-3.5"
+            className="surface-glass w-full rounded-xl border border-brand-cyan/40 bg-surface-2/90 p-4"
           >
             <div className="flex items-center gap-2">
               <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-brand-cyan/40 bg-brand-cyan/15">
                 <Check className="size-3 text-brand-cyan" aria-hidden="true" />
               </span>
-              <span className="font-accent text-[0.7rem] tracking-wide text-brand-cyan">
+              <span className="font-accent text-[0.75rem] tracking-wide text-brand-cyan">
                 Nueva consulta · ejemplo · hace 1 min
               </span>
             </div>

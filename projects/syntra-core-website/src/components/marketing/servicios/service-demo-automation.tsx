@@ -64,7 +64,7 @@ const TASKS = [
 function ServiceDemoAutomation() {
   const reduce = useReducedMotion();
   const ref = React.useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, amount: 0.4 });
+  const inView = useInView(ref, { once: true, amount: 0.25 });
   // La secuencia arranca al entrar en viewport (o directo si reduce).
   const run = reduce || inView;
 
@@ -74,12 +74,12 @@ function ServiceDemoAutomation() {
   const py = useMotionValue(0);
   const sx = useSpring(px, { stiffness: 120, damping: 18, mass: 0.4 });
   const sy = useSpring(py, { stiffness: 120, damping: 18, mass: 0.4 });
-  const bgX = useTransform(sx, [-0.5, 0.5], [-4, 4]);
-  const bgY = useTransform(sy, [-0.5, 0.5], [-4, 4]);
-  const panelX = useTransform(sx, [-0.5, 0.5], [6, -6]);
-  const panelY = useTransform(sy, [-0.5, 0.5], [6, -6]);
-  const cardX = useTransform(sx, [-0.5, 0.5], [14, -14]);
-  const cardY = useTransform(sy, [-0.5, 0.5], [12, -12]);
+  const bgX = useTransform(sx, [-0.5, 0.5], [-3, 3]);
+  const bgY = useTransform(sy, [-0.5, 0.5], [-3, 3]);
+  const panelX = useTransform(sx, [-0.5, 0.5], [8, -8]);
+  const panelY = useTransform(sy, [-0.5, 0.5], [8, -8]);
+  const cardX = useTransform(sx, [-0.5, 0.5], [18, -18]);
+  const cardY = useTransform(sy, [-0.5, 0.5], [16, -16]);
 
   const hoverEnabled = !reduce;
 
@@ -163,7 +163,7 @@ function ServiceDemoAutomation() {
                   />
                   <div className="relative">
                     <h4 className="font-heading text-base font-semibold leading-snug tracking-tight text-foreground text-balance sm:text-lg">
-                      El trabajo repetitivo, hecho solo
+                      Cada consulta queda lista sin tocarla
                     </h4>
                   </div>
                 </div>
@@ -188,7 +188,7 @@ function ServiceDemoAutomation() {
                             className="pointer-events-none absolute inset-0 rounded-md border border-brand-electric/50 bg-brand-electric/10"
                             initial={{ opacity: 0 }}
                             animate={
-                              run ? { opacity: [0, 0.7, 0] } : { opacity: 0 }
+                              run ? { opacity: [0, 0.7, 0.7, 0] } : { opacity: 0 }
                             }
                             transition={{
                               duration: DURATION.standard,
@@ -214,11 +214,11 @@ function ServiceDemoAutomation() {
                           {/* HECHO: check cyan que revela (opacity + scale) y QUEDA */}
                           <motion.span
                             className="inline-flex text-brand-cyan"
-                            initial={reduce ? false : { opacity: 0, scale: 0.8 }}
+                            initial={reduce ? false : { opacity: 0, scale: 0.6 }}
                             animate={
                               run
                                 ? { opacity: 1, scale: 1 }
-                                : { opacity: 0, scale: 0.8 }
+                                : { opacity: 0, scale: 0.6 }
                             }
                             transition={{
                               duration: reduce ? 0 : DURATION.standard,
@@ -255,18 +255,18 @@ function ServiceDemoAutomation() {
         <div className="pointer-events-none absolute right-3 -bottom-3 z-20 flex min-h-[4rem] w-[13.5rem] max-w-[72%] justify-end sm:right-5 sm:-bottom-4 sm:w-[15rem] sm:max-w-[80%] lg:w-[13rem] lg:max-w-[72%]">
           <motion.div
             style={hoverEnabled ? { x: cardX, y: cardY } : undefined}
-            initial={reduce ? false : { opacity: 0, y: 14, scale: 0.96 }}
+            initial={reduce ? false : { opacity: 0, y: 20, scale: 0.94 }}
             animate={
               run
                 ? { opacity: 1, y: 0, scale: 1 }
-                : { opacity: 0, y: 14, scale: 0.96 }
+                : { opacity: 0, y: 20, scale: 0.94 }
             }
             transition={{
               duration: reduce ? 0 : DURATION.section,
               delay: reduce ? 0 : T_CARD,
               ease: EASE_PREMIUM,
             }}
-            className="surface-glass w-full rounded-xl border border-brand-cyan/30 bg-surface-2/80 p-3.5"
+            className="surface-glass w-full rounded-xl border border-brand-cyan/40 bg-surface-2/90 p-3.5"
           >
             <div className="flex items-center gap-2">
               <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-brand-cyan/40 bg-brand-cyan/15">

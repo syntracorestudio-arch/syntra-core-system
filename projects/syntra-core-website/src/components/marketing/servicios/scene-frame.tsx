@@ -23,7 +23,7 @@ function SceneFrame({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative min-h-[20rem] overflow-hidden rounded-2xl border border-border bg-depth-sunken p-5 sm:min-h-[22rem] sm:p-6">
+    <div className="relative min-h-[22rem] overflow-hidden rounded-2xl border border-border bg-depth-sunken p-5 sm:min-h-[24rem] sm:p-6 lg:min-h-[26rem]">
       {/* Slot de fondo (plano 1) */}
       {background}
       {/* Slot de contenido (planos 2–3) */}
