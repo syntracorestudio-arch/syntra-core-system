@@ -57,7 +57,7 @@ export const siteConfig: SiteConfig = {
       eyebrow: "Qué entregamos",
       title: "Tres cosas que tu negocio se lleva funcionando",
       subtitle:
-        "No te entregamos una lista de servicios: te mostramos lo que va a estar funcionando en tu negocio.",
+        "Web, automatización e IA trabajando juntas: captan consultas, las ordenan solas y responden aunque vos no estés.",
     },
     useCases: {
       eyebrow: "Dónde aplica",
@@ -116,9 +116,9 @@ export const services: ServiceItem[] = [
     id: "web",
     icon: "LayoutTemplate",
     tag: "web",
-    title: "Una web que trabaja para vos",
+    title: "Una web que convierte visitas en consultas",
     description:
-      "Una web que carga al instante, transmite seriedad y convierte visitas en consultas. No solo se ve bien: trabaja.",
+      "Carga al instante, transmite seriedad y guía a cada visita hasta dejar su consulta. No solo se ve bien: trabaja.",
     features: [
       "Landing pages y sitios corporativos",
       "Aplicaciones web a medida",
@@ -130,9 +130,9 @@ export const services: ServiceItem[] = [
     id: "automation",
     icon: "Workflow",
     tag: "automatización",
-    title: "Tu operación en piloto automático",
+    title: "Menos tareas a mano, más tiempo para vender",
     description:
-      "Conectamos tus herramientas y el trabajo repetitivo se hace solo. Menos tareas manuales, más tiempo para vender.",
+      "Conectamos tus herramientas y el trabajo repetitivo se hace solo: lo que hoy hacés a mano, pasa a pasar sin que nadie lo toque.",
     features: [
       "Conexión automática entre tus herramientas",
       "Integraciones entre tus apps",
@@ -144,7 +144,7 @@ export const services: ServiceItem[] = [
     id: "ia",
     icon: "Sparkles",
     tag: "ia",
-    title: "Tu atención que nunca duerme",
+    title: "Una atención que responde cuando vos no podés",
     description:
       "Asistentes que atienden, responden y califican consultas por vos. Ninguna queda sin respuesta, ni fuera de horario.",
     features: [
