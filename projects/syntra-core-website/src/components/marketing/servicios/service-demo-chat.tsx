@@ -16,25 +16,28 @@ import { EASE_PREMIUM, DURATION } from "@/lib/motion";
 import { SceneFrame, SceneAtmosphere } from "./scene-frame";
 
 /**
- * ServiceDemoChat — escena premium (WEB-009F-C). Hermana de Web/Automatización:
+ * ServiceDemoChat — escena premium (WEB-009F-E). Hermana de Web/Automatización:
  * mismo chasis (`SceneFrame`), misma atmósfera (`SceneAtmosphere`), misma firma
  * de resultado (tarjeta-resultado flotante cyan + badge de honestidad). Identidad
- * propia: una CONVERSACIÓN multi-turno — la IA responde con info del negocio y
- * LUEGO encamina la consulta al equipo (asistente comercial útil, no un mero
- * derivador). Web = lo público; Automatización = lo interno; IA = la atención.
- * Paleta SYNTRA (slate / brand-electric / brand-cyan, regla 90/10).
+ * propia: una CONVERSACIÓN multi-turno donde la IA es el ASISTENTE DEL NEGOCIO DEL
+ * CLIENTE (una clínica) atendiendo a un PACIENTE: presenta info del negocio, ofrece
+ * un turno y estructura la solicitud para que el EQUIPO confirme el horario (asistente
+ * de atención útil, nunca diagnóstico/decisión). Web = lo público; Automatización =
+ * lo interno; IA = la atención. Paleta SYNTRA (slate / brand-electric / brand-cyan,
+ * regla 90/10).
  *
  * Tres planos Z:
  *  1. Fondo atmosférico compartido (`SceneAtmosphere`).
  *  2. Panel de chat: cabecera "En línea ahora" (dot verde del sistema) + un
- *     "replay de chat" — 4 burbujas cliente (izq) / IA (der) que entran en
- *     secuencia, con UN typing one-shot justo antes de la respuesta-valor (msg 2).
- *  3. Tarjeta-resultado flotante (Raycast, hermana): "Consulta respondida y
- *     encaminada", revela al final y PERSISTE (HECHO).
+ *     "replay de chat" — 4 burbujas paciente (izq) / IA (der) que entran en
+ *     secuencia, con UN typing one-shot justo antes de la respuesta-valor (msg 2),
+ *     y una tarjeta-resumen INLINE (solicitud de turno) tras el msg 4.
+ *  3. Tarjeta-resultado flotante (Raycast, hermana): "Consulta lista para el
+ *     equipo", revela al final y PERSISTE (HECHO).
  *
  * Conversación de 4 mensajes, una sola versión sin responsive hiding (todas las
- * burbujas `flex` siempre visibles): cliente pregunta → IA responde con valor →
- * cliente pide contacto → IA encamina. Sin shift por breakpoint.
+ * burbujas `flex` siempre visibles): paciente pregunta → IA presenta y ofrece turno
+ * → paciente acepta → IA encamina la solicitud al equipo. Sin shift por breakpoint.
  *
  * Motion (live-system-motion-spec): PENDIENTE → ACTIVO → HECHO, reveal en secuencia,
  * one-shot por viewport (useInView once + useReducedMotion). Solo opacity/transform
@@ -47,14 +50,16 @@ import { SceneFrame, SceneAtmosphere } from "./scene-frame";
  */
 
 /* Timing de la secuencia (s). El typing gobierna la aparición de la respuesta-valor.
-   Orden perceptible: msg1 → typing → msg2 (valor) → msg3 → msg4 → tarjeta. */
+   Orden perceptible: msg1 → typing → msg2 (valor) → msg3 → msg4 → tarjeta-resumen
+   inline → tarjeta-resultado flotante. */
 const T_BG = 0; // fondo revela primero
 const T_PANEL = 0.18; // el panel sube después
 const STAGGER = 0.4; // separación entre burbujas (replay de chat vivo)
-const T_MSG1 = 0.32; // CLIENTE: quiero una web (entra tras el panel)
-const T_MSG3 = 0.18; // CLIENTE: quiero que me contacten (tras la respuesta-valor)
-const T_MSG4 = T_MSG3 + STAGGER; // IA: consulta encaminada
-const T_CARD = T_MSG4 + STAGGER; // tarjeta-resultado revela al final y QUEDA
+const T_MSG1 = 0.32; // PACIENTE: consulta de primera visita (entra tras el panel)
+const T_MSG3 = 0.18; // PACIENTE: acepta buscar turno (tras la respuesta-valor)
+const T_MSG4 = T_MSG3 + STAGGER; // IA: encamina la solicitud de turno
+const T_SUMMARY = T_MSG4 + 0.18; // tarjeta-resumen inline (justo después del msg4)
+const T_CARD = T_SUMMARY + STAGGER; // tarjeta-resultado flotante revela al final y QUEDA
 
 /* Disparo del typing tras el mensaje 1 (su entrada + un beat de "escritura"). */
 const TYPING_START_MS = (T_PANEL + T_MSG1) * 1000 + 400;
@@ -174,7 +179,7 @@ function ServiceDemoChat() {
                   (banda inferior, idéntica a la escena Automatización) para que la
                   tarjeta-resultado flotante solape borde vacío, no el último msg. */}
               <div className="flex flex-col gap-4 p-5 pb-12 sm:p-6 sm:pb-14">
-                {/* 1 · CLIENTE: quiero una web (izquierda, siempre visible) */}
+                {/* 1 · PACIENTE: consulta de primera visita (izquierda, siempre visible) */}
                 <motion.div
                   className="flex max-w-[80%] flex-col self-start rounded-2xl rounded-bl-sm border border-border bg-surface-2 px-3.5 py-2.5"
                   initial={reduce ? false : { opacity: 0, y: 12 }}
@@ -188,16 +193,16 @@ function ServiceDemoChat() {
                   }}
                 >
                   <p className="text-sm text-muted-foreground">
-                    Hola, quiero saber si pueden ayudarme con una web para mi
-                    negocio.
+                    Hola, ¿atienden consultas particulares? ¿Cómo es la primera
+                    visita?
                   </p>
                 </motion.div>
 
                 {/* Slot del swap typing → respuesta-valor (mensaje 2). Alto
-                    reservado para la respuesta más larga (hasta ~4 líneas en la
-                    columna más angosta) → el swap typing→respuesta no empuja el
-                    layout. Más holgado en sm+ donde el texto wrapea distinto. */}
-                <div className="flex min-h-[8rem] flex-col sm:min-h-[6.5rem]">
+                    reservado para la respuesta más larga (hasta ~6 líneas a 360px)
+                    → el swap typing→respuesta no empuja el layout (CLS 0). Más
+                    holgado en sm+ donde el texto wrapea en menos líneas. */}
+                <div className="flex min-h-[9rem] flex-col sm:min-h-[6.5rem]">
                   {/* Typing dots: ÚNICO loop, vive solo durante su ventana y se
                       DESMONTA al responder (sin loop tras el estado final). */}
                   <AnimatePresence>
@@ -240,15 +245,15 @@ function ServiceDemoChat() {
                       }}
                     >
                       <p className="text-sm text-foreground">
-                        Sí, podemos ayudarte. Hacemos webs claras para mostrar tus
-                        servicios, recibir consultas y presentar la información clave
-                        de tu negocio.
+                        Hola. Sí, atendemos particulares. La primera consulta es una
+                        evaluación general de unos 40 minutos. ¿Querés que te busque
+                        un turno?
                       </p>
                     </motion.div>
                   ) : null}
                 </div>
 
-                {/* 3 · CLIENTE: quiero que me contacten (izquierda) */}
+                {/* 3 · PACIENTE: acepta buscar turno (izquierda) */}
                 <motion.div
                   className="flex max-w-[80%] flex-col self-start rounded-2xl rounded-bl-sm border border-border bg-surface-2 px-3.5 py-2.5"
                   initial={reduce ? false : { opacity: 0, y: 12 }}
@@ -262,11 +267,11 @@ function ServiceDemoChat() {
                   }}
                 >
                   <p className="text-sm text-muted-foreground">
-                    Perfecto, quiero que me contacten.
+                    Sí, algo esta semana a la tarde.
                   </p>
                 </motion.div>
 
-                {/* 4 · IA: consulta encaminada (derecha, borde neutro: 90/10) */}
+                {/* 4 · IA: encamina la solicitud de turno (derecha, borde neutro: 90/10) */}
                 <motion.div
                   className="flex max-w-[80%] flex-col self-end rounded-2xl rounded-br-sm border border-border bg-surface-2 px-3.5 py-2.5"
                   initial={reduce ? false : { opacity: 0, y: 12 }}
@@ -280,8 +285,35 @@ function ServiceDemoChat() {
                   }}
                 >
                   <p className="text-sm text-foreground">
-                    Listo. Dejé tu consulta encaminada para que el equipo pueda
-                    responderte con más detalle.
+                    Listo. Te dejo la solicitud de turno para que el equipo confirme
+                    el horario.
+                  </p>
+                </motion.div>
+
+                {/* Tarjeta-resumen INLINE: la IA estructura la solicitud de turno.
+                    SIEMPRE montada (revela por opacity → alto reservado, CLS 0).
+                    "Card" no "bubble", neutra (sin cyan: el cyan se reserva para el
+                    cierre flotante = 90/10), sin sombras/swatch/badge. self-end. */}
+                <motion.div
+                  className="mt-2 max-w-[80%] self-end rounded-xl border border-border bg-surface-2 px-3.5 py-3"
+                  initial={reduce ? false : { opacity: 0, y: 12 }}
+                  animate={
+                    showResponse ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }
+                  }
+                  transition={{
+                    duration: reduce ? 0 : DURATION.standard,
+                    delay: reduce ? 0 : T_SUMMARY,
+                    ease: EASE_PREMIUM,
+                  }}
+                >
+                  <p className="font-accent text-[0.7rem] uppercase tracking-widest text-muted-foreground">
+                    Solicitud de turno
+                  </p>
+                  <p className="mt-1.5 text-sm leading-snug text-foreground">
+                    Primera consulta
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Esta semana, a la tarde
                   </p>
                 </motion.div>
               </div>
@@ -313,11 +345,11 @@ function ServiceDemoChat() {
                 <Check className="size-3 text-brand-cyan" aria-hidden="true" />
               </span>
               <span className="font-accent text-[0.7rem] tracking-wide text-brand-cyan">
-                Consulta respondida y encaminada
+                Consulta lista para el equipo
               </span>
             </div>
             <p className="mt-2 text-xs leading-snug text-muted-foreground">
-              El equipo sigue con tu consulta.
+              El equipo confirma el horario.
             </p>
           </motion.div>
         </div>
