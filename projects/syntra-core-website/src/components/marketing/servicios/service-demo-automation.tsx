@@ -27,8 +27,9 @@ import { SceneFrame, SceneAtmosphere } from "./scene-frame";
  *  2. Panel interno de operación: 3 tareas reales que se TILDAN SOLAS (sin botón
  *     que apretar = "se hace solo"), una ACTIVA por vez (electric por opacidad),
  *     cada una queda HECHA con check cyan persistente.
- *  3. Tarjeta-aviso flotante (Raycast, hermana de la de Web): "Te llega el aviso"
- *     con timestamp, revela al final y PERSISTE (HECHO).
+ *  3. Tarjeta-aviso flotante (Raycast, hermana de la de Web): "Aviso enviado · hace
+ *     unos segundos", revela al final y PERSISTE (HECHO). z-20 para que no la tape
+ *     el contenido del panel (z-10); banda inferior (pb) para no pisar la 3ª tarea.
  *
  * Motion (live-system-motion-spec): PENDIENTE → ACTIVO → HECHO, reveal por capas,
  * one-shot por viewport (useInView once + useReducedMotion). Solo opacity/transform
@@ -48,11 +49,16 @@ const T_TASKS_START = 0.6; // la primera tarea se tilda cuando el panel ya asent
 const T_STAGGER = 0.45; // recorrido deliberado entre tareas (una activa por vez)
 const T_CARD = 1.9; // la tarjeta-aviso revela tras la última tarea y QUEDA
 
-/* Tareas en lenguaje de cliente (beneficio, no mecanismo). Sin datos inventados. */
+/* Tareas en lenguaje de cliente (beneficio, no mecanismo). Sin datos inventados.
+   La primera lleva la consulta concreta (sub-cita) para dar contexto de qué entra,
+   rimando con la "Nueva consulta" de la escena Web — sin sumar otro plano. */
 const TASKS = [
-  "Entra una consulta",
-  "Se ordena sola",
-  "Se avisa a tu equipo",
+  {
+    label: "Entra una consulta",
+    note: "“Quiero más información para mi negocio”",
+  },
+  { label: "Se ordena sola" },
+  { label: "Tu equipo recibe el aviso" },
 ] as const;
 
 function ServiceDemoAutomation() {
@@ -142,7 +148,9 @@ function ServiceDemoAutomation() {
                 </span>
               </div>
 
-              <div className="flex flex-col gap-4 p-5 sm:p-6">
+              {/* pb extra: banda inferior para que la tarjeta-aviso solape borde
+                  vacío del panel, no la última tarea. */}
+              <div className="flex flex-col gap-4 p-5 pb-12 sm:p-6 sm:pb-14">
                 {/* Franja con el valor (mesh on-brand en CSS, igual rima que Web) */}
                 <div className="relative overflow-hidden rounded-lg border border-border p-5">
                   <div
@@ -153,13 +161,10 @@ function ServiceDemoAutomation() {
                         "radial-gradient(70% 80% at 18% 0%, rgba(37,99,235,0.28), transparent 70%), radial-gradient(60% 70% at 90% 100%, rgba(56,189,248,0.22), transparent 72%), linear-gradient(135deg, #111c33, #0b1120)",
                     }}
                   />
-                  <div className="relative flex flex-col gap-2">
+                  <div className="relative">
                     <h4 className="font-heading text-base font-semibold leading-snug tracking-tight text-foreground text-balance sm:text-lg">
                       El trabajo repetitivo, hecho solo
                     </h4>
-                    <p className="text-xs leading-relaxed text-muted-foreground text-pretty sm:text-sm">
-                      Cada consulta se ordena y se avisa, sin que nadie la toque.
-                    </p>
                   </div>
                 </div>
 
@@ -172,8 +177,8 @@ function ServiceDemoAutomation() {
                       : T_TASKS_START + index * T_STAGGER;
                     return (
                       <li
-                        key={task}
-                        className="relative flex items-center gap-2.5 rounded-md border border-border bg-surface-2 px-3 py-2.5"
+                        key={task.label}
+                        className="relative flex items-start gap-2.5 rounded-md border border-border bg-surface-2 px-3 py-2.5"
                       >
                         {/* ACTIVO: destello de acento electric one-shot (solo
                             opacity). Por el stagger, una tarea activa por vez. */}
@@ -225,9 +230,16 @@ function ServiceDemoAutomation() {
                           </motion.span>
                         </span>
 
-                        <span className="relative text-xs text-muted-foreground sm:text-sm">
-                          {task}
-                        </span>
+                        <div className="relative flex min-w-0 flex-col gap-0.5">
+                          <span className="text-xs text-muted-foreground sm:text-sm">
+                            {task.label}
+                          </span>
+                          {"note" in task ? (
+                            <span className="text-pretty text-[0.7rem] italic leading-snug text-muted-foreground/70">
+                              {task.note}
+                            </span>
+                          ) : null}
+                        </div>
                       </li>
                     );
                   })}
@@ -240,7 +252,7 @@ function ServiceDemoAutomation() {
         {/* ── Plano 3: tarjeta-aviso flotante (front, Raycast). Hermana de la de
             Web (misma firma cyan/glass) pero distinta por copy + ícono de aviso.
             Revela al final y QUEDA (HECHO persiste). Slot con alto reservado. */}
-        <div className="pointer-events-none absolute right-3 -bottom-4 flex min-h-[4rem] w-[15rem] max-w-[80%] justify-end sm:right-5 sm:-bottom-5">
+        <div className="pointer-events-none absolute right-3 -bottom-3 z-20 flex min-h-[4rem] w-[13.5rem] max-w-[72%] justify-end sm:right-5 sm:-bottom-4 sm:w-[15rem] sm:max-w-[80%] lg:w-[13rem] lg:max-w-[72%]">
           <motion.div
             style={hoverEnabled ? { x: cardX, y: cardY } : undefined}
             initial={reduce ? false : { opacity: 0, y: 14, scale: 0.96 }}
@@ -261,7 +273,7 @@ function ServiceDemoAutomation() {
                 <Bell className="size-3 text-brand-cyan" aria-hidden="true" />
               </span>
               <span className="font-accent text-[0.7rem] tracking-wide text-brand-cyan">
-                Te llega el aviso · hace unos segundos
+                Aviso enviado · hace unos segundos
               </span>
             </div>
             <p className="mt-2 text-xs leading-snug text-muted-foreground">
