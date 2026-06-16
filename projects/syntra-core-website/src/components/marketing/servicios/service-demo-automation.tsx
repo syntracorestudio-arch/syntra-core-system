@@ -57,7 +57,7 @@ const TASKS = [
     label: "Entra una consulta",
     note: "“Quiero más información para mi negocio”",
   },
-  { label: "Se ordena sola" },
+  { label: "Queda ordenada" },
   { label: "Tu equipo recibe el aviso" },
 ] as const;
 
@@ -163,7 +163,7 @@ function ServiceDemoAutomation() {
                   />
                   <div className="relative">
                     <h4 className="font-heading text-base font-semibold leading-snug tracking-tight text-foreground text-balance sm:text-lg">
-                      Cada consulta queda lista sin tocarla
+                      Cada consulta se ordena sola
                     </h4>
                   </div>
                 </div>
@@ -277,7 +277,7 @@ function ServiceDemoAutomation() {
               </span>
             </div>
             <p className="mt-2 text-xs leading-snug text-muted-foreground">
-              Sin que nadie lo haga a mano.
+              Sin hacerlo a mano.
             </p>
           </motion.div>
         </div>

@@ -159,11 +159,11 @@ function ServiceDemoWeb() {
                 />
                 <div className="relative flex flex-col gap-2">
                   <h4 className="font-heading text-lg font-semibold leading-snug tracking-tight text-foreground text-balance sm:text-xl">
-                    Una web clara para recibir consultas
+                    Tu negocio presentado con claridad
                   </h4>
                   <p className="text-xs leading-relaxed text-muted-foreground text-pretty sm:text-sm">
-                    Mostrá lo que hacés, transmití confianza y recibí consultas
-                    en un solo lugar.
+                    Mostrá tus servicios, generá confianza y recibí consultas
+                    desde un solo lugar.
                   </p>
                 </div>
               </div>
@@ -218,7 +218,7 @@ function ServiceDemoWeb() {
                 <Check className="size-3 text-brand-cyan" aria-hidden="true" />
               </span>
               <span className="font-accent text-[0.75rem] tracking-wide text-brand-cyan">
-                Nueva consulta · ejemplo · hace 1 min
+                Nueva consulta · ejemplo
               </span>
             </div>
             <p className="mt-2 text-xs leading-snug text-muted-foreground">

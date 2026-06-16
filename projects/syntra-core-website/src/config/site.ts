@@ -57,7 +57,7 @@ export const siteConfig: SiteConfig = {
       eyebrow: "Qué entregamos",
       title: "Tres cosas que tu negocio se lleva funcionando",
       subtitle:
-        "Web, automatización e IA trabajando juntas: captan consultas, las ordenan solas y responden aunque vos no estés.",
+        "Web, automatización e IA que trabajan juntas: atraen consultas, las ordenan solas y responden por vos cuando no estás.",
     },
     useCases: {
       eyebrow: "Dónde aplica",
@@ -118,7 +118,7 @@ export const services: ServiceItem[] = [
     tag: "web",
     title: "Una web que convierte visitas en consultas",
     description:
-      "Carga al instante, transmite seriedad y guía a cada visita hasta dejar su consulta. No solo se ve bien: trabaja.",
+      "Una web clara, rápida y profesional: tus clientes entienden qué ofrecés y te dejan su consulta sin vueltas.",
     features: [
       "Landing pages y sitios corporativos",
       "Aplicaciones web a medida",
@@ -132,7 +132,7 @@ export const services: ServiceItem[] = [
     tag: "automatización",
     title: "Menos tareas a mano, más tiempo para vender",
     description:
-      "Conectamos tus herramientas y el trabajo repetitivo se hace solo: lo que hoy hacés a mano, pasa a pasar sin que nadie lo toque.",
+      "Automatizamos tareas repetitivas para que cada consulta quede ordenada y tu equipo responda más rápido.",
     features: [
       "Conexión automática entre tus herramientas",
       "Integraciones entre tus apps",
@@ -146,10 +146,10 @@ export const services: ServiceItem[] = [
     tag: "ia",
     title: "Una atención que responde cuando vos no podés",
     description:
-      "Asistentes que atienden, responden y califican consultas por vos. Ninguna queda sin respuesta, ni fuera de horario.",
+      "Un asistente que conoce tu negocio: responde las preguntas frecuentes y encamina cada consulta a tu equipo.",
     features: [
       "Chatbots y asistentes inteligentes",
-      "Calificación automática de consultas",
+      "Derivación de consultas a tu equipo",
       "Organización automática de tu información",
       "Respuestas con el tono de tu marca",
     ],

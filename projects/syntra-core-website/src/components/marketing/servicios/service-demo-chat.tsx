@@ -27,15 +27,14 @@ import { SceneFrame, SceneAtmosphere } from "./scene-frame";
  * Tres planos Z:
  *  1. Fondo atmosférico compartido (`SceneAtmosphere`).
  *  2. Panel de chat: cabecera "En línea ahora" (dot verde del sistema) + un
- *     "replay de chat" — burbujas cliente (izq) / IA (der) que entran en secuencia,
- *     con UN typing one-shot justo antes de la respuesta-valor (mensaje 4).
+ *     "replay de chat" — 4 burbujas cliente (izq) / IA (der) que entran en
+ *     secuencia, con UN typing one-shot justo antes de la respuesta-valor (msg 2).
  *  3. Tarjeta-resultado flotante (Raycast, hermana): "Consulta respondida y
  *     encaminada", revela al final y PERSISTE (HECHO).
  *
- * Responsive: la conversación tiene núcleo (siempre visible: la pregunta de la web
- * + la respuesta-valor) y mensajes "extra" (`hidden sm:flex`) que dan la versión
- * full en sm+. En mobile = versión corta (2 burbujas), en sm+ = full (6 burbujas).
- * Las burbujas ocultas son display:none → no ocupan, no provocan shift.
+ * Conversación de 4 mensajes, una sola versión sin responsive hiding (todas las
+ * burbujas `flex` siempre visibles): cliente pregunta → IA responde con valor →
+ * cliente pide contacto → IA encamina. Sin shift por breakpoint.
  *
  * Motion (live-system-motion-spec): PENDIENTE → ACTIVO → HECHO, reveal en secuencia,
  * one-shot por viewport (useInView once + useReducedMotion). Solo opacity/transform
@@ -43,24 +42,22 @@ import { SceneFrame, SceneAtmosphere } from "./scene-frame";
  * typing (único loop) vive solo durante su ventana y se DESMONTA al responder: no
  * hay loop tras el estado final. Hover de profundidad sutil (desktop fine-pointer)
  * vía motion values; off en touch y reduced-motion. reduced-motion → conversación
- * final completa directa (todas las burbujas del breakpoint + tarjeta), sin
- * typing/reveal/hover. CLS = 0: el slot del swap typing→respuesta tiene min-h.
- * Decorativo: aria-hidden.
+ * final completa directa (4 burbujas + tarjeta), sin typing/reveal/hover. CLS = 0:
+ * el slot del swap typing→respuesta tiene min-h. Decorativo: aria-hidden.
  */
 
-/* Timing de la secuencia (s). El typing gobierna la aparición del mensaje-valor. */
+/* Timing de la secuencia (s). El typing gobierna la aparición de la respuesta-valor.
+   Orden perceptible: msg1 → typing → msg2 (valor) → msg3 → msg4 → tarjeta. */
 const T_BG = 0; // fondo revela primero
 const T_PANEL = 0.18; // el panel sube después
 const STAGGER = 0.4; // separación entre burbujas (replay de chat vivo)
-const T_MSG1 = 0.32; // primera burbuja entra tras el panel
-const T_MSG2 = T_MSG1 + STAGGER; // IA: cómo trabajamos
-const T_MSG3 = T_MSG2 + STAGGER; // CLIENTE: quiero una web
-const T_MSG5 = 0.18; // CLIENTE: quiero que me contacten (tras la respuesta-valor)
-const T_MSG6 = T_MSG5 + STAGGER; // IA: consulta encaminada
-const T_CARD = T_MSG6 + STAGGER; // tarjeta-resultado revela al final y QUEDA
+const T_MSG1 = 0.32; // CLIENTE: quiero una web (entra tras el panel)
+const T_MSG3 = 0.18; // CLIENTE: quiero que me contacten (tras la respuesta-valor)
+const T_MSG4 = T_MSG3 + STAGGER; // IA: consulta encaminada
+const T_CARD = T_MSG4 + STAGGER; // tarjeta-resultado revela al final y QUEDA
 
-/* Disparo del typing tras el mensaje 3 (su entrada + un beat de "escritura"). */
-const TYPING_START_MS = (T_PANEL + T_MSG3) * 1000 + 200;
+/* Disparo del typing tras el mensaje 1 (su entrada + un beat de "escritura"). */
+const TYPING_START_MS = (T_PANEL + T_MSG1) * 1000 + 400;
 const TYPING_DURATION_MS = 1100;
 
 function ServiceDemoChat() {
@@ -70,9 +67,9 @@ function ServiceDemoChat() {
 
   // Dos fases del replay, marcadas async (dentro de setTimeout) para no llamar
   // setState síncrono dentro del effect (react-hooks/set-state-in-effect):
-  //  · `typing`    → el indicador de escritura aparece tras el mensaje 3.
-  //  · `responded` → el typing se DESMONTA y se revela el mensaje-valor (4) y, en
-  //                  sm+, los mensajes 5-6 y la tarjeta-resultado.
+  //  · `typing`    → el indicador de escritura aparece tras el mensaje 1.
+  //  · `responded` → el typing se DESMONTA y se revela la respuesta-valor (msg 2),
+  //                  luego los mensajes 3-4 y la tarjeta-resultado.
   const [typing, setTyping] = React.useState(false);
   const [responded, setResponded] = React.useState(false);
 
@@ -172,13 +169,14 @@ function ServiceDemoChat() {
                 </span>
               </div>
 
-              {/* Cuerpo de la conversación (replay de chat multi-turno). Las
-                  burbujas `hidden sm:flex` dan la versión full en sm+; en mobile
-                  son display:none (versión corta: solo el núcleo, sin shift). */}
-              <div className="flex flex-col gap-4 p-5 sm:p-6">
-                {/* 1 · EXTRA — CLIENTE: fuera de horario (izquierda) */}
+              {/* Cuerpo de la conversación (replay de chat de 4 mensajes, sin
+                  responsive hiding: todas las burbujas siempre visibles). pb extra
+                  (banda inferior, idéntica a la escena Automatización) para que la
+                  tarjeta-resultado flotante solape borde vacío, no el último msg. */}
+              <div className="flex flex-col gap-4 p-5 pb-12 sm:p-6 sm:pb-14">
+                {/* 1 · CLIENTE: quiero una web (izquierda, siempre visible) */}
                 <motion.div
-                  className="hidden max-w-[80%] flex-col self-start rounded-2xl rounded-bl-sm border border-border bg-surface-2 px-3.5 py-2.5 sm:flex"
+                  className="flex max-w-[80%] flex-col self-start rounded-2xl rounded-bl-sm border border-border bg-surface-2 px-3.5 py-2.5"
                   initial={reduce ? false : { opacity: 0, y: 12 }}
                   animate={
                     reduce || inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }
@@ -190,48 +188,12 @@ function ServiceDemoChat() {
                   }}
                 >
                   <p className="text-sm text-muted-foreground">
-                    Hola, ¿atienden fuera de horario?
+                    Hola, quiero saber si pueden ayudarme con una web para mi
+                    negocio.
                   </p>
                 </motion.div>
 
-                {/* 2 · EXTRA — IA: cómo trabajamos (derecha, borde neutro: 90/10) */}
-                <motion.div
-                  className="hidden max-w-[80%] flex-col self-end rounded-2xl rounded-br-sm border border-border bg-surface-2 px-3.5 py-2.5 sm:flex"
-                  initial={reduce ? false : { opacity: 0, y: 12 }}
-                  animate={
-                    reduce || inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }
-                  }
-                  transition={{
-                    duration: reduce ? 0 : DURATION.standard,
-                    delay: reduce ? 0 : T_PANEL + T_MSG2,
-                    ease: EASE_PREMIUM,
-                  }}
-                >
-                  <p className="text-sm text-foreground">
-                    Sí, también fuera de horario. Te cuento cómo trabajamos y dejo
-                    tu consulta encaminada para el equipo.
-                  </p>
-                </motion.div>
-
-                {/* 3 · CORE — CLIENTE: quiero una web (izquierda, siempre visible) */}
-                <motion.div
-                  className="flex max-w-[80%] flex-col self-start rounded-2xl rounded-bl-sm border border-border bg-surface-2 px-3.5 py-2.5"
-                  initial={reduce ? false : { opacity: 0, y: 12 }}
-                  animate={
-                    reduce || inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }
-                  }
-                  transition={{
-                    duration: reduce ? 0 : DURATION.standard,
-                    delay: reduce ? 0 : T_PANEL + T_MSG3,
-                    ease: EASE_PREMIUM,
-                  }}
-                >
-                  <p className="text-sm text-muted-foreground">
-                    Quiero una web para mi negocio. ¿Qué incluye?
-                  </p>
-                </motion.div>
-
-                {/* Slot del swap typing → respuesta-valor (mensaje 4). Alto
+                {/* Slot del swap typing → respuesta-valor (mensaje 2). Alto
                     reservado para la respuesta más larga (hasta ~4 líneas en la
                     columna más angosta) → el swap typing→respuesta no empuja el
                     layout. Más holgado en sm+ donde el texto wrapea distinto. */}
@@ -265,8 +227,8 @@ function ServiceDemoChat() {
                     ) : null}
                   </AnimatePresence>
 
-                  {/* 4 · CORE — IA respuesta-valor (derecha, FIRMA cyan). Entra al
-                      desmontarse el typing; siempre visible (también mobile). */}
+                  {/* 2 · IA respuesta-valor (derecha, FIRMA cyan). Entra al
+                      desmontarse el typing; siempre visible. */}
                   {showResponse ? (
                     <motion.div
                       className="max-w-[80%] self-end rounded-2xl rounded-br-sm border border-brand-cyan/30 bg-surface-2 px-3.5 py-2.5"
@@ -278,24 +240,24 @@ function ServiceDemoChat() {
                       }}
                     >
                       <p className="text-sm text-foreground">
-                        Podemos armar una web clara para mostrar tus servicios,
-                        recibir consultas y sumar automatizaciones y respuestas con
-                        IA si querés atender más rápido.
+                        Sí, podemos ayudarte. Hacemos webs claras para mostrar tus
+                        servicios, recibir consultas y presentar la información clave
+                        de tu negocio.
                       </p>
                     </motion.div>
                   ) : null}
                 </div>
 
-                {/* 5 · EXTRA — CLIENTE: quiero que me contacten (izquierda) */}
+                {/* 3 · CLIENTE: quiero que me contacten (izquierda) */}
                 <motion.div
-                  className="hidden max-w-[80%] flex-col self-start rounded-2xl rounded-bl-sm border border-border bg-surface-2 px-3.5 py-2.5 sm:flex"
+                  className="flex max-w-[80%] flex-col self-start rounded-2xl rounded-bl-sm border border-border bg-surface-2 px-3.5 py-2.5"
                   initial={reduce ? false : { opacity: 0, y: 12 }}
                   animate={
                     showResponse ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }
                   }
                   transition={{
                     duration: reduce ? 0 : DURATION.standard,
-                    delay: reduce ? 0 : T_MSG5,
+                    delay: reduce ? 0 : T_MSG3,
                     ease: EASE_PREMIUM,
                   }}
                 >
@@ -304,22 +266,22 @@ function ServiceDemoChat() {
                   </p>
                 </motion.div>
 
-                {/* 6 · EXTRA — IA: consulta encaminada (derecha, borde neutro) */}
+                {/* 4 · IA: consulta encaminada (derecha, borde neutro: 90/10) */}
                 <motion.div
-                  className="hidden max-w-[80%] flex-col self-end rounded-2xl rounded-br-sm border border-border bg-surface-2 px-3.5 py-2.5 sm:flex"
+                  className="flex max-w-[80%] flex-col self-end rounded-2xl rounded-br-sm border border-border bg-surface-2 px-3.5 py-2.5"
                   initial={reduce ? false : { opacity: 0, y: 12 }}
                   animate={
                     showResponse ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }
                   }
                   transition={{
                     duration: reduce ? 0 : DURATION.standard,
-                    delay: reduce ? 0 : T_MSG6,
+                    delay: reduce ? 0 : T_MSG4,
                     ease: EASE_PREMIUM,
                   }}
                 >
                   <p className="text-sm text-foreground">
-                    Listo. Dejé tu consulta encaminada para que el equipo te responda
-                    con una propuesta.
+                    Listo. Dejé tu consulta encaminada para que el equipo pueda
+                    responderte con más detalle.
                   </p>
                 </motion.div>
               </div>
@@ -355,7 +317,7 @@ function ServiceDemoChat() {
               </span>
             </div>
             <p className="mt-2 text-xs leading-snug text-muted-foreground">
-              El equipo sigue con tu propuesta.
+              El equipo sigue con tu consulta.
             </p>
           </motion.div>
         </div>
