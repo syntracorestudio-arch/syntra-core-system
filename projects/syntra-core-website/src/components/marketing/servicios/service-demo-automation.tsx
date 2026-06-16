@@ -1,36 +1,59 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDown, ArrowRight, Check, Inbox, ListChecks } from "lucide-react";
-import { motion, useInView, useReducedMotion } from "framer-motion";
+import { Bell, Check, ListChecks } from "lucide-react";
+import {
+  motion,
+  useInView,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "framer-motion";
 
 import { EASE_PREMIUM, DURATION } from "@/lib/motion";
+import { SceneFrame, SceneAtmosphere } from "./scene-frame";
 
 /**
- * ServiceDemoAutomation — la consulta se ordena sola: PENDIENTE → ACTIVO → HECHO
- * (live-system-motion-spec). One-shot disparado por viewport (sin loop): el acento
- * recorre los 3 nodos (Entra → Se ordena → Avisa) UNA sola vez, un nodo ACTIVO por
- * vez (overlay opacity, sin repeat); cada nodo queda HECHO con un check cyan
- * persistente (opacity + scale) y el dot neutro se desvanece. Bajo el último nodo,
- * un badge "Te llega el aviso" (check cyan) revela y QUEDA (HECHO persistente).
- * Patrón: useInView once + useReducedMotion + one-shot, sin loop (mismo que Proceso).
- * Solo se anima opacity/transform (scale/translate) — NUNCA box-shadow/filter/
- * width/height/color/background. reduced-motion → 3 checks + badge en estado HECHO,
- * sin animación. CLS = 0: el badge reserva alto (min-h). Conector reusado del repo.
- * Labels en lenguaje de cliente, sin jerga técnica. Decorativo: aria-hidden.
+ * ServiceDemoAutomation — escena premium (WEB-009F-B). Deja de ser diagrama de
+ * nodos: muestra el RESULTADO real de automatizar — el trabajo repetitivo hecho
+ * solo. Hermana de la escena Web (mismo `SceneFrame` + atmósfera + firma de
+ * resultado cyan), pero diferenciada: Web = frame de navegador (lo público, de
+ * cara al cliente); Automatización = panel interno de operación (lo que pasa
+ * adentro del negocio). Paleta SYNTRA (slate / brand-electric / brand-cyan, 90/10).
+ *
+ * Tres planos Z:
+ *  1. Fondo atmosférico compartido (`SceneAtmosphere`).
+ *  2. Panel interno de operación: 3 tareas reales que se TILDAN SOLAS (sin botón
+ *     que apretar = "se hace solo"), una ACTIVA por vez (electric por opacidad),
+ *     cada una queda HECHA con check cyan persistente.
+ *  3. Tarjeta-aviso flotante (Raycast, hermana de la de Web): "Te llega el aviso"
+ *     con timestamp, revela al final y PERSISTE (HECHO).
+ *
+ * Motion (live-system-motion-spec): PENDIENTE → ACTIVO → HECHO, reveal por capas,
+ * one-shot por viewport (useInView once + useReducedMotion). Solo opacity/transform
+ * (translate/scale) — NUNCA box-shadow/filter/width/height/color/background. Sin
+ * loops, sin parallax-scroll, sin partículas. Hover de profundidad sutil (desktop
+ * fine-pointer) vía motion values; off en touch y reduced-motion. reduced-motion →
+ * escena final completa directa (tareas tildadas + aviso), sin reveal ni hover.
+ * CLS = 0: alto reservado; lo que aparece entra por opacity/transform. Copy en
+ * lenguaje de cliente, sin jerga; sin logos de marca ni datos inventados.
+ * Decorativo: aria-hidden.
  */
 
-/** Etiqueta de cierre — lenguaje de cliente (sin jerga). */
-const HECHO_LABEL = "Te llega el aviso";
+/* Timing de la secuencia por capas (s). Amplitudes/delays DISTINTOS por plano. */
+const T_BG = 0; // fondo revela primero
+const T_PANEL = 0.18; // el panel sube después
+const T_TASKS_START = 0.6; // la primera tarea se tilda cuando el panel ya asentó
+const T_STAGGER = 0.45; // recorrido deliberado entre tareas (una activa por vez)
+const T_CARD = 1.9; // la tarjeta-aviso revela tras la última tarea y QUEDA
 
-const nodes = [
-  { icon: Inbox, label: "Entra" },
-  { icon: ListChecks, label: "Se ordena" },
-  { icon: Check, label: "Avisa" },
+/* Tareas en lenguaje de cliente (beneficio, no mecanismo). Sin datos inventados. */
+const TASKS = [
+  "Entra una consulta",
+  "Se ordena sola",
+  "Se avisa a tu equipo",
 ] as const;
-
-/** Duración del recorrido del acento por los 3 nodos (s) — lento y premium. */
-const SWEEP = 1.5;
 
 function ServiceDemoAutomation() {
   const reduce = useReducedMotion();
@@ -39,119 +62,219 @@ function ServiceDemoAutomation() {
   // La secuencia arranca al entrar en viewport (o directo si reduce).
   const run = reduce || inView;
 
-  const count = nodes.length;
+  // ── Hover de profundidad (desktop fine-pointer). Mismos resortes que la escena
+  // Web → la fila de Servicios se lee como un solo sistema. Off en touch/reduce.
+  const px = useMotionValue(0);
+  const py = useMotionValue(0);
+  const sx = useSpring(px, { stiffness: 120, damping: 18, mass: 0.4 });
+  const sy = useSpring(py, { stiffness: 120, damping: 18, mass: 0.4 });
+  const bgX = useTransform(sx, [-0.5, 0.5], [-4, 4]);
+  const bgY = useTransform(sy, [-0.5, 0.5], [-4, 4]);
+  const panelX = useTransform(sx, [-0.5, 0.5], [6, -6]);
+  const panelY = useTransform(sy, [-0.5, 0.5], [6, -6]);
+  const cardX = useTransform(sx, [-0.5, 0.5], [14, -14]);
+  const cardY = useTransform(sy, [-0.5, 0.5], [12, -12]);
+
+  const hoverEnabled = !reduce;
+
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!hoverEnabled || e.pointerType !== "mouse") return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    px.set((e.clientX - rect.left) / rect.width - 0.5);
+    py.set((e.clientY - rect.top) / rect.height - 0.5);
+  }
+  function handlePointerLeave() {
+    px.set(0);
+    py.set(0);
+  }
 
   return (
     <div
       ref={ref}
       aria-hidden="true"
-      className="rounded-xl border border-border bg-depth-sunken p-5 sm:p-6"
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      className="relative"
     >
-      <div className="flex flex-col items-stretch gap-3 lg:flex-row lg:items-start lg:justify-between">
-        {nodes.map((node, index) => {
-          const Icon = node.icon;
-          const isLast = index === count - 1;
-          // El nodo "index" completa cuando el acento llega a su posición.
-          const stepDelay = reduce
-            ? 0
-            : count > 1
-              ? (index / (count - 1)) * SWEEP
-              : 0;
-          return (
-            <div
-              key={node.label}
-              className="flex flex-col items-center gap-3 lg:flex-1 lg:flex-row lg:items-start lg:gap-0"
+      {/* Wrapper relativo SIN overflow: deja flotar la tarjeta-aviso fuera del
+          panel sin recortarse (el SceneFrame sí recorta su atmósfera). */}
+      <div className="relative">
+        <SceneFrame
+          background={
+            // ── Plano 1: fondo atmosférico compartido (detrás). Revela por opacity.
+            <motion.div
+              aria-hidden="true"
+              className="absolute inset-0"
+              style={hoverEnabled ? { x: bgX, y: bgY } : undefined}
+              initial={reduce ? false : { opacity: 0 }}
+              animate={run ? { opacity: 1 } : { opacity: 0 }}
+              transition={{
+                duration: reduce ? 0 : DURATION.hero,
+                delay: reduce ? 0 : T_BG,
+                ease: EASE_PREMIUM,
+              }}
             >
-              {/* Nodo */}
-              <div className="flex flex-1 flex-col items-center gap-2 lg:flex-none">
-                <span className="relative flex size-12 items-center justify-center rounded-xl border border-border-strong bg-surface-2 text-muted-foreground">
-                  {/* ACTIVO: destello de acento one-shot (solo opacity, sin repeat) */}
-                  {!reduce ? (
-                    <motion.span
-                      className="pointer-events-none absolute inset-0 rounded-xl border border-brand-electric/50 bg-brand-electric/10"
-                      initial={{ opacity: 0 }}
-                      animate={run ? { opacity: [0, 0.7, 0] } : { opacity: 0 }}
-                      transition={{
-                        duration: DURATION.standard,
-                        delay: stepDelay,
-                        ease: EASE_PREMIUM,
-                      }}
-                    />
-                  ) : null}
-                  <Icon className="size-5" />
-
-                  {/* Badge de estado (esquina): PENDIENTE = dot neutro; HECHO = check cyan */}
-                  <span className="absolute -right-1.5 -top-1.5 inline-flex size-5 items-center justify-center rounded-full border border-border-strong bg-surface-2">
-                    {/* PENDIENTE: dot neutro (se desvanece al completarse) */}
-                    <motion.span
-                      className="absolute size-1.5 rounded-full bg-muted-foreground"
-                      initial={reduce ? false : { opacity: 1 }}
-                      animate={run ? { opacity: 0 } : { opacity: 1 }}
-                      transition={{
-                        duration: reduce ? 0 : DURATION.micro,
-                        delay: stepDelay,
-                        ease: EASE_PREMIUM,
-                      }}
-                    />
-                    {/* HECHO: check cyan que revela (opacity + scale) y QUEDA */}
-                    <motion.span
-                      className="inline-flex text-brand-cyan"
-                      initial={reduce ? false : { opacity: 0, scale: 0.8 }}
-                      animate={
-                        run ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }
-                      }
-                      transition={{
-                        duration: reduce ? 0 : DURATION.standard,
-                        delay: stepDelay,
-                        ease: EASE_PREMIUM,
-                      }}
-                    >
-                      <Check className="size-3" />
-                    </motion.span>
-                  </span>
+              <SceneAtmosphere />
+            </motion.div>
+          }
+        >
+          {/* ── Plano 2: panel interno de operación (mid). Sube con opacity+y. */}
+          <motion.div
+            className="relative"
+            style={hoverEnabled ? { x: panelX, y: panelY } : undefined}
+            initial={reduce ? false : { opacity: 0, y: 22 }}
+            animate={run ? { opacity: 1, y: 0 } : { opacity: 0, y: 22 }}
+            transition={{
+              duration: reduce ? 0 : DURATION.hero,
+              delay: reduce ? 0 : T_PANEL,
+              ease: EASE_PREMIUM,
+            }}
+          >
+            <div className="overflow-hidden rounded-xl border border-border bg-surface-1 shadow-sm">
+              {/* Cabecera del panel (sin chrome de navegador → es interno) */}
+              <div className="flex items-center gap-2 border-b border-border bg-surface-2 px-4 py-2.5">
+                <ListChecks
+                  className="size-4 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <span className="font-mono text-xs text-muted-foreground">
+                  Tu operación · ejemplo
                 </span>
-                <span className="text-xs text-muted-foreground">{node.label}</span>
-
-                {/* Badge de cierre (HECHO): solo bajo el último nodo ("Avisa").
-                    Revela por opacity + y y QUEDA. Slot con min-h → CLS = 0. */}
-                {isLast ? (
-                  <div className="flex min-h-[2rem] items-start justify-center">
-                    <motion.span
-                      className="inline-flex items-center gap-1.5 rounded-full border border-brand-cyan/30 bg-surface-2 px-3 py-1 font-accent text-xs tracking-wide text-brand-cyan"
-                      initial={reduce ? false : { opacity: 0, y: 6 }}
-                      animate={run ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-                      transition={{
-                        duration: reduce ? 0 : DURATION.standard,
-                        delay: reduce ? 0 : SWEEP + DURATION.micro,
-                        ease: EASE_PREMIUM,
-                      }}
-                    >
-                      <Check className="size-3" />
-                      {HECHO_LABEL}
-                    </motion.span>
-                  </div>
-                ) : null}
               </div>
 
-              {/* Conector (no después del último nodo) */}
-              {!isLast ? (
-                <>
-                  {/* Mobile: vertical */}
-                  <div className="flex flex-col items-center lg:hidden">
-                    <span className="h-5 w-px bg-gradient-to-b from-border to-brand-electric/40" />
-                    <ArrowDown className="size-4 text-brand-electric/60" />
+              <div className="flex flex-col gap-4 p-5 sm:p-6">
+                {/* Franja con el valor (mesh on-brand en CSS, igual rima que Web) */}
+                <div className="relative overflow-hidden rounded-lg border border-border p-5">
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        "radial-gradient(70% 80% at 18% 0%, rgba(37,99,235,0.28), transparent 70%), radial-gradient(60% 70% at 90% 100%, rgba(56,189,248,0.22), transparent 72%), linear-gradient(135deg, #111c33, #0b1120)",
+                    }}
+                  />
+                  <div className="relative flex flex-col gap-2">
+                    <h4 className="font-heading text-base font-semibold leading-snug tracking-tight text-foreground text-balance sm:text-lg">
+                      El trabajo repetitivo, hecho solo
+                    </h4>
+                    <p className="text-xs leading-relaxed text-muted-foreground text-pretty sm:text-sm">
+                      Cada consulta se ordena y se avisa, sin que nadie la toque.
+                    </p>
                   </div>
-                  {/* Desktop: horizontal (alineado al nodo, no al badge) */}
-                  <div className="hidden items-center lg:flex lg:mt-3.5">
-                    <span className="h-px w-6 bg-gradient-to-r from-border to-brand-electric/40 xl:w-10" />
-                    <ArrowRight className="size-4 text-brand-electric/60" />
-                  </div>
-                </>
-              ) : null}
+                </div>
+
+                {/* Lista de tareas que se tildan solas (PENDIENTE → ACTIVO → HECHO).
+                    Altura estable (las filas siempre existen) → CLS = 0. */}
+                <ul className="flex flex-col gap-2">
+                  {TASKS.map((task, index) => {
+                    const delay = reduce
+                      ? 0
+                      : T_TASKS_START + index * T_STAGGER;
+                    return (
+                      <li
+                        key={task}
+                        className="relative flex items-center gap-2.5 rounded-md border border-border bg-surface-2 px-3 py-2.5"
+                      >
+                        {/* ACTIVO: destello de acento electric one-shot (solo
+                            opacity). Por el stagger, una tarea activa por vez. */}
+                        {!reduce ? (
+                          <motion.span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-0 rounded-md border border-brand-electric/50 bg-brand-electric/10"
+                            initial={{ opacity: 0 }}
+                            animate={
+                              run ? { opacity: [0, 0.7, 0] } : { opacity: 0 }
+                            }
+                            transition={{
+                              duration: DURATION.standard,
+                              delay,
+                              ease: EASE_PREMIUM,
+                            }}
+                          />
+                        ) : null}
+
+                        {/* Indicador de estado: PENDIENTE (dot neutro) → HECHO (check cyan) */}
+                        <span className="relative inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-brand-cyan/40 bg-brand-cyan/15">
+                          {/* PENDIENTE: dot neutro que se desvanece al completarse */}
+                          <motion.span
+                            className="absolute size-1.5 rounded-full bg-muted-foreground"
+                            initial={reduce ? false : { opacity: 1 }}
+                            animate={run ? { opacity: 0 } : { opacity: 1 }}
+                            transition={{
+                              duration: reduce ? 0 : DURATION.micro,
+                              delay,
+                              ease: EASE_PREMIUM,
+                            }}
+                          />
+                          {/* HECHO: check cyan que revela (opacity + scale) y QUEDA */}
+                          <motion.span
+                            className="inline-flex text-brand-cyan"
+                            initial={reduce ? false : { opacity: 0, scale: 0.8 }}
+                            animate={
+                              run
+                                ? { opacity: 1, scale: 1 }
+                                : { opacity: 0, scale: 0.8 }
+                            }
+                            transition={{
+                              duration: reduce ? 0 : DURATION.standard,
+                              delay,
+                              ease: EASE_PREMIUM,
+                            }}
+                          >
+                            <Check className="size-3" aria-hidden="true" />
+                          </motion.span>
+                        </span>
+
+                        <span className="relative text-xs text-muted-foreground sm:text-sm">
+                          {task}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             </div>
-          );
-        })}
+          </motion.div>
+        </SceneFrame>
+
+        {/* ── Plano 3: tarjeta-aviso flotante (front, Raycast). Hermana de la de
+            Web (misma firma cyan/glass) pero distinta por copy + ícono de aviso.
+            Revela al final y QUEDA (HECHO persiste). Slot con alto reservado. */}
+        <div className="pointer-events-none absolute right-3 -bottom-4 flex min-h-[4rem] w-[15rem] max-w-[80%] justify-end sm:right-5 sm:-bottom-5">
+          <motion.div
+            style={hoverEnabled ? { x: cardX, y: cardY } : undefined}
+            initial={reduce ? false : { opacity: 0, y: 14, scale: 0.96 }}
+            animate={
+              run
+                ? { opacity: 1, y: 0, scale: 1 }
+                : { opacity: 0, y: 14, scale: 0.96 }
+            }
+            transition={{
+              duration: reduce ? 0 : DURATION.section,
+              delay: reduce ? 0 : T_CARD,
+              ease: EASE_PREMIUM,
+            }}
+            className="surface-glass w-full rounded-xl border border-brand-cyan/30 bg-surface-2/80 p-3.5"
+          >
+            <div className="flex items-center gap-2">
+              <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-brand-cyan/40 bg-brand-cyan/15">
+                <Bell className="size-3 text-brand-cyan" aria-hidden="true" />
+              </span>
+              <span className="font-accent text-[0.7rem] tracking-wide text-brand-cyan">
+                Te llega el aviso · hace unos segundos
+              </span>
+            </div>
+            <p className="mt-2 text-xs leading-snug text-muted-foreground">
+              Sin que nadie lo haga a mano.
+            </p>
+          </motion.div>
+        </div>
       </div>
+
+      {/* Badge de honestidad (lenguaje de cliente) */}
+      <p className="mt-7 text-xs text-muted-foreground">
+        Ejemplo · no es un cliente real
+      </p>
     </div>
   );
 }

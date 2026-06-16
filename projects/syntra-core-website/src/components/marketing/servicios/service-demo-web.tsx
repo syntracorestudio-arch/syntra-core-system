@@ -12,6 +12,7 @@ import {
 } from "framer-motion";
 
 import { EASE_PREMIUM, DURATION } from "@/lib/motion";
+import { SceneFrame, SceneAtmosphere } from "./scene-frame";
 
 /**
  * ServiceDemoWeb — escena premium (WEB-009F-A). Deja de ser wireframe: se siente
@@ -35,34 +36,8 @@ import { EASE_PREMIUM, DURATION } from "@/lib/motion";
  * aparece entra por opacity/transform en slots dimensionados. Decorativo: aria-hidden.
  */
 
-/**
- * SceneFrame — chasis reutilizable de la escena (slot fondo + slot contenido).
- * Pensado para reusar en 009F-B (las otras escenas de Servicios). Se deja inline
- * en este archivo a propósito: extraerlo a un módulo nuevo requeriría crear un
- * archivo fuera del alcance de edición de esta tarea. Cuando 009F-B lo necesite,
- * se promueve a `./scene-frame.tsx` sin cambios de API.
- *
- * Reserva alto (min-h responsive) → CLS = 0: lo que aparece dentro entra por
- * opacity/transform, nunca empuja el flujo. El fondo va detrás (slot absoluto),
- * el contenido encima en un plano relativo. Decorativo: aria-hidden lo pone el
- * consumidor en su contenedor raíz.
- */
-function SceneFrame({
-  background,
-  children,
-}: {
-  background: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="relative min-h-[20rem] overflow-hidden rounded-2xl border border-border bg-depth-sunken p-5 sm:min-h-[22rem] sm:p-6">
-      {/* Slot de fondo (plano 1) */}
-      {background}
-      {/* Slot de contenido (planos 2–3) */}
-      <div className="relative z-10 h-full">{children}</div>
-    </div>
-  );
-}
+/* `SceneFrame` + `SceneAtmosphere` se comparten desde `./scene-frame` (extraídos
+   en 009F-B para que Web y Automatización usen un solo chasis/atmósfera, sin drift). */
 
 /* Timing de la secuencia por capas (s). Amplitudes/delays DISTINTOS por plano
    → eso construye la profundidad. Curva y duraciones de `lib/motion`. */
@@ -134,16 +109,7 @@ function ServiceDemoWeb() {
               ease: EASE_PREMIUM,
             }}
           >
-            {/* Dark mesh gradient azul/cyan (solo on-brand, no multicolor) */}
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(60% 55% at 30% 22%, rgba(37,99,235,0.18), transparent 70%), radial-gradient(55% 50% at 78% 82%, rgba(56,189,248,0.14), transparent 72%)",
-              }}
-            />
-            {/* Grilla técnica sutil (clase existente: trama + máscara radial) */}
-            <div className="absolute inset-0 sys-canvas-grid" />
+            <SceneAtmosphere />
           </motion.div>
         }
       >
