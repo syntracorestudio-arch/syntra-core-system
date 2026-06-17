@@ -28,6 +28,7 @@ function UseCasesSection() {
       situacion: useCase.pain,
       sistema: useCase.description,
       capacidades: useCase.deliverables,
+      tagline: useCase.tagline,
       flow: useCase.flow,
     };
   });
@@ -41,7 +42,7 @@ function UseCasesSection() {
       <ApplicationSelector
         items={items}
         note={applicationsNote}
-        className="mx-auto mt-12 max-w-5xl"
+        className="mx-auto mt-8 max-w-5xl"
       />
     </Section>
   );
