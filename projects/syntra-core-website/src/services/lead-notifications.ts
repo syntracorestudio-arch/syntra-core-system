@@ -57,6 +57,7 @@ function buildPayload(lead: Lead) {
       name: lead.name,
       email: lead.email,
       company: lead.company,
+      project_type: lead.project_type,
       message: lead.message,
       source: lead.source,
       status: lead.status,

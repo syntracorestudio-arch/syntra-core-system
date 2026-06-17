@@ -8,7 +8,9 @@ export interface LeadFormState {
   status: "idle" | "success" | "error";
   message?: string;
   /** Errores por campo (primer mensaje de cada uno) */
-  errors?: Partial<Record<"name" | "email" | "company" | "message", string>>;
+  errors?: Partial<
+    Record<"name" | "email" | "company" | "projectType" | "message", string>
+  >;
 }
 
 export const initialLeadState: LeadFormState = { status: "idle" };

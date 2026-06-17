@@ -45,13 +45,20 @@ export async function submitLead(
     name: formData.get("name"),
     email: formData.get("email"),
     company: formData.get("company") || undefined,
+    projectType: formData.get("projectType") || undefined,
     message: formData.get("message"),
   });
 
   if (!parsed.success) {
     const fieldErrors = z.flattenError(parsed.error).fieldErrors;
     const errors: LeadFormState["errors"] = {};
-    for (const key of ["name", "email", "company", "message"] as const) {
+    for (const key of [
+      "name",
+      "email",
+      "company",
+      "projectType",
+      "message",
+    ] as const) {
       const msg = fieldErrors[key]?.[0];
       if (msg) errors[key] = msg;
     }

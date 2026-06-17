@@ -4,6 +4,7 @@ import { ArrowLeft, Mail } from "lucide-react";
 
 import { getLead, countLeadsByEmail } from "@/services/lead-service";
 import { formatDateTime } from "@/lib/format";
+import { projectTypeLabel } from "@/config/site";
 import { Container } from "@/components/layout/container";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/panel/status-badge";
@@ -67,6 +68,10 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
       <Card className="gap-5">
         <dl className="grid gap-4 sm:grid-cols-2">
           <Field label="Empresa" value={lead.company ?? "—"} />
+          <Field
+            label="Tipo de proyecto"
+            value={projectTypeLabel(lead.project_type)}
+          />
           <Field label="Origen" value={lead.source} />
           <Field label="Recibido" value={formatDateTime(lead.created_at)} />
           <div className="flex flex-col gap-1.5">

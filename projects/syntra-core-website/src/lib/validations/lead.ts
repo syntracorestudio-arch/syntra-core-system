@@ -4,6 +4,14 @@ import { z } from "zod";
  * SYNTRA CORE — Schema de validación de leads.
  * Fuente única de verdad para cliente Y servidor (nunca confiar solo en el frontend).
  */
+/**
+ * Tipo de proyecto (WEB-013B) — calificación opcional del lead. Keys estables
+ * para DB/panel/payload; los labels en español viven en `config/site.ts`.
+ */
+export const PROJECT_TYPES = ["web", "automation", "ai", "unsure"] as const;
+export const projectTypeSchema = z.enum(PROJECT_TYPES);
+export type ProjectType = z.infer<typeof projectTypeSchema>;
+
 export const leadSchema = z.object({
   name: z
     .string()
@@ -24,6 +32,8 @@ export const leadSchema = z.object({
     .trim()
     .max(120, "El nombre de empresa es demasiado largo")
     .optional(),
+  // Calificación opcional (WEB-013B): ausente = válido. Solo valores controlados.
+  projectType: projectTypeSchema.optional(),
   message: z
     .string()
     .trim()

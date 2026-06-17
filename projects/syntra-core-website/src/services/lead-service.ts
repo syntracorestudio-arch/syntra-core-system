@@ -36,6 +36,7 @@ export async function createLead(
     name: input.name,
     email: input.email,
     company: input.company?.length ? input.company : null,
+    project_type: input.projectType ?? null,
     message: input.message,
     source: meta.source ?? "website",
     // Eje de notificación (TASK-020): todo lead nace pendiente de notificar.
@@ -97,7 +98,7 @@ interface ListLeadsOptions {
 }
 
 const LEAD_COLUMNS =
-  "id,name,email,company,message,source,status,created_at,notification_status,notified_at,notification_attempts,last_notification_error_code";
+  "id,name,email,company,project_type,message,source,status,created_at,notification_status,notified_at,notification_attempts,last_notification_error_code";
 
 export async function listLeads(
   opts: ListLeadsOptions = {},

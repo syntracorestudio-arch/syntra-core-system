@@ -3,6 +3,7 @@ import { ArrowUpRight } from "lucide-react";
 
 import type { Lead } from "@/types";
 import { formatDateTime } from "@/lib/format";
+import { projectTypeLabel } from "@/config/site";
 import { Card } from "@/components/ui/card";
 import { StatusSelect } from "@/components/panel/status-select";
 import { NotificationBadge } from "@/components/panel/notification-badge";
@@ -37,6 +38,10 @@ function LeadCard({
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">Empresa</dt>
           <dd className="text-right">{lead.company ?? "—"}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-muted-foreground">Tipo</dt>
+          <dd className="text-right">{projectTypeLabel(lead.project_type)}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">Origen</dt>

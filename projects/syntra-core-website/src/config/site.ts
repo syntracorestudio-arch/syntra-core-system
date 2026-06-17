@@ -9,6 +9,7 @@ import type {
   UseCaseItem,
   WorkflowStep,
 } from "@/types";
+import type { ProjectType } from "@/lib/validations/lead";
 
 /**
  * SYNTRA CORE — Configuración del sitio (content-driven).
@@ -108,6 +109,22 @@ export const contactSuccess = {
   microcopy: "Te contactaremos para entender mejor tu proyecto y definir el próximo paso.",
   secondary: "Solicitud registrada correctamente.",
 };
+
+/**
+ * Opciones del campo "tipo de proyecto" del Contacto (WEB-013B). El `value` es
+ * la key estable que viaja a DB/panel/n8n; el `label` es el copy en español.
+ */
+export const projectTypeOptions: { value: ProjectType; label: string }[] = [
+  { value: "web", label: "Web para mi negocio" },
+  { value: "automation", label: "Automatización de procesos" },
+  { value: "ai", label: "IA / integración inteligente" },
+  { value: "unsure", label: "Todavía no lo tengo claro" },
+];
+
+/** Label legible de un projectType (para el panel). null/desconocido → "—". */
+export function projectTypeLabel(value: string | null): string {
+  return projectTypeOptions.find((o) => o.value === value)?.label ?? "—";
+}
 
 export const mainNav: NavItem[] = siteConfig.nav;
 

@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { AlertCircle, Check, CheckCircle2, Send } from "lucide-react";
 
-import { contactSuccess } from "@/config/site";
+import { contactSuccess, projectTypeOptions } from "@/config/site";
 import { track } from "@/lib/analytics";
 import { HONEYPOT_FIELD } from "@/lib/validations/lead";
 import { submitLead } from "@/app/actions/submit-lead";
@@ -125,6 +125,32 @@ function ContactForm() {
         autoComplete="organization"
         error={state.errors?.company}
       />
+
+      {/* Tipo de proyecto (opcional) — orienta antes del mensaje (WEB-013B).
+          Radios nativos: envío por FormData + grupo accesible. Materialidad
+          mínima/on-system; la elevación visual completa es WEB-013C. */}
+      <fieldset>
+        <legend className="text-sm font-medium text-foreground">
+          Tipo de proyecto{" "}
+          <span className="font-normal text-muted-foreground">(opcional)</span>
+        </legend>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {projectTypeOptions.map((opt) => (
+            <label
+              key={opt.value}
+              className="cursor-pointer rounded-full border border-border bg-depth-sunken px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground has-[:checked]:border-border-strong has-[:checked]:bg-surface-1 has-[:checked]:text-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-primary/40"
+            >
+              <input
+                type="radio"
+                name="projectType"
+                value={opt.value}
+                className="sr-only"
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <div className="flex flex-col gap-2">
         <Label htmlFor={fieldId("message")}>¿Qué necesitás?</Label>

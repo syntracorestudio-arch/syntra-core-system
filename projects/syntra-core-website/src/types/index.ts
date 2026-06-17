@@ -26,6 +26,8 @@ export interface Lead {
   name: string;
   email: string;
   company: string | null;
+  /** Tipo de proyecto (calificación opcional — WEB-013B). null si no se eligió. */
+  project_type: string | null;
   message: string;
   source: string;
   status: LeadStatus;
