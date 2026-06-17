@@ -201,7 +201,27 @@ TASK-024  (diferida)
 | WEB-011 | Casos — el escenario se ejecuta al seleccionar el rubro | TODO |
 | WEB-012 | Transiciones — conector-puente + frases-bisagra | TODO |
 | WEB-013 | Contacto — microdiagnóstico 1-vista (toca backend: `submitLead`/Zod) | TODO |
-| — | Hero / Canvas (reconcepción "recorrido completo") | FROZEN (requiere descongelamiento) |
+| WEB-HERO-FUTURE | **Hero — rediseñar como una sola escena integrada** (ver detalle) | FROZEN / DEFERRED |
+| — | Canvas / Sistema + Nosotros (motion + estructura) | FROZEN (requiere descongelamiento) |
+
+### WEB-HERO-FUTURE — Rediseñar Hero como una sola escena integrada — FROZEN / DEFERRED
+
+Tras 5 iteraciones de composición (50/50 → 28/36/34rem, **todas revertidas, sin merge**),
+el diagnóstico `HERO-REDESIGN-001` confirmó que el problema NO es métrico (`rem`) sino
+**estructural**: dos islas separadas, grafo en caja con lenguaje de feature card, visual
+técnico/liviano, sin escena protagonista, aire sin intención. Además el grafo **duplica**
+la sección `solutionArchitecture` (mismo lenguaje de nodos).
+
+- **Dirección preferida: Opción B** — "una sola escena" integrada (texto + vida del sistema
+  en un solo plano; sin grid 2-columnas ni chasis-caja).
+- **Fallback: Opción A** — editorial centrado + atmósfera full-bleed (menor riesgo).
+- **Evolución de mayor costo: Opción C** — escena framer one-shot que reemplaza el SMIL.
+- **No ejecutar hasta** terminar Casos/Transiciones (madurar el lenguaje visual) **o**
+  decisión explícita del owner. Pre-requisitos: descongelamiento nominal acotado +
+  criterio de aprobación escrito + ancla premium + **1 ciclo del Visual Quality Gate**
+  (`agents/governance/visual-quality-gate.md`).
 
 **Próxima acción:** `WEB-LIVE-JARGON` (content-only). Luego el piloto `WEB-010`
 (Proceso). Hero/Canvas-motion/Nosotros permanecen FROZEN salvo OK nominal del owner.
+*(Nota: el tracker de arriba está desactualizado — varias filas DONE figuran TODO;
+reconciliación pendiente, ver propuesta del PM.)*
