@@ -253,6 +253,7 @@ Ante cualquier tarea no trivial:
 | Implementar UI ya aprobada en React/Next/TypeScript/Tailwind, componentes, integración del design system, refactors controlados | `frontend-engineer` | edita (solo si aprobado) |
 | Implementar backend ya aprobado: Supabase (modelo de datos, migraciones SQL), server actions, APIs/route handlers, auth/session, validaciones server-side, rate limiting, seguridad de webhooks (HMAC) | `backend-engineer` | edita (solo si aprobado) |
 | Validar TypeScript, lint, build, responsive, accesibilidad, performance y regresiones antes de cerrar/deploy | `qa-performance-guard` | read + valida |
+| Aprobar/vetar visualmente tareas que afecten composición, layout visual, percepción premium, jerarquía, Hero, Servicios, Casos, Proceso, Contacto, motion visible, responsive visual o uso del espacio | `visual-quality-director` | read-only / veto de commit visual |
 
 ## Reglas de gobierno
 
@@ -266,9 +267,23 @@ Ante cualquier tarea no trivial:
 7. Para automatizaciones, seguir la secuencia:
    `automation-architect` → `n8n-workflow-engineer` → `automation-qa-reliability-guard`.
 8. Para UI premium, seguir la secuencia:
-   `website-experience-auditor` → `creative-director` / `product-experience-designer` → `ui-ux-designer` → `design-system-guardian` → `frontend-engineer` → `qa-performance-guard`.
+   `website-experience-auditor` → `creative-director` / `product-experience-designer` → `ui-ux-designer` → `design-system-guardian` → `frontend-engineer` → `qa-performance-guard` → `visual-quality-director` (gate de commit visual).
 9. Antes de commits, ejecutar `git status` y proponer commits atómicos.
 10. No mezclar cambios no relacionados en un mismo commit.
+11. **Gate visual (tareas visuales/perceptuales): no commitear sin aprobación visual
+    explícita del owner.** Build verde (`tsc`/`lint`/`build`/Lighthouse) NO alcanza para
+    cerrar una tarea visual. Flujo obligatorio: implementar local → QA técnico → review
+    en navegador/screenshot (360x640, 390x844, 768x1024, 1024x768, 1440x900) →
+    Visual Review de `visual-quality-director` → aprobación del owner → commit. Hasta la
+    aprobación, dejar los cambios en working tree sin commitear.
+    Protocolo: `agents/governance/visual-quality-gate.md`.
+12. Diferenciar el tipo de tarea: las técnicas/bugfix pueden commitearse si pasan QA
+    técnico y respetan el scope; las visuales/perceptuales (composición, layout, percepción
+    premium, jerarquía, Hero/Servicios/Casos/Proceso/Contacto, motion visible, responsive
+    visual, uso del espacio) requieren el gate de la regla 11. Ante la duda, tratar como visual.
+13. `visual-quality-director` puede **bloquear el commit** de un cambio visual aunque
+    `qa-performance-guard` lo haya aprobado; su veto es sobre calidad visual aprobable en
+    navegador, no técnica. No reemplaza al QA técnico: lo complementa.
 
 ---
 

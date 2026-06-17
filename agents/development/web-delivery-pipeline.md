@@ -243,7 +243,41 @@ Output:
 APPROVED / REJECTED
 Transición a:
 
-👉 STATE 8 o rollback
+👉 STATE 7.5 (si la tarea es visual) o STATE 8 o rollback
+
+🖼 STATE 7.5 — VISUAL QUALITY GATE (solo tareas visuales/perceptuales)
+Agente activo
+
+Visual Quality Director + aprobación del owner
+
+Función
+
+Validar que el resultado se vea premium y aprobable EN NAVEGADOR antes de
+commitear. Aplica a tareas de composición, layout visual, percepción premium,
+jerarquía, Hero, Servicios, Casos, Proceso, Contacto, motion visible, responsive
+visual y uso del espacio.
+
+Regla dura
+
+Build verde NO significa diseño aprobado. Las tareas visuales NO se commitean por
+tsc/lint/build/Lighthouse: se aprueban mirando el resultado.
+
+Flujo:
+prototipo local → QA técnico → review en navegador/screenshot (360x640, 390x844,
+768x1024, 1024x768, 1440x900) → Visual Review → aprobación visual del owner → commit
+
+Output:
+APROBADO / NO APROBADO / APROBADO CON AJUSTES
+
+El Visual Quality Director puede BLOQUEAR el commit aunque el Web QA & Performance
+Guard haya aprobado. Mientras no haya aprobación visual del owner, los cambios
+quedan en working tree sin commitear.
+
+Protocolo completo: agents/governance/visual-quality-gate.md
+
+Transición a:
+
+👉 STATE 8 (si aprueba) o ajuste/revert (si no aprueba)
 
 🚀 STATE 8 — PRODUCTION DEPLOYED
 Agente activo
@@ -333,6 +367,8 @@ Web QA interviene en:
 STATE 7 (validación)
 STATE 9 (producción real)
 Automation QA NO interviene en web
+Visual Quality Director interviene en STATE 7.5 (solo tareas visuales): veto de
+commit visual previo aprobación del owner. No reemplaza al Web QA.
 🧩 6. ALINEACIÓN CON EXECUTION PROTOCOL (IMPORTANTE)
 
 Este pipeline es equivalente estructural a:

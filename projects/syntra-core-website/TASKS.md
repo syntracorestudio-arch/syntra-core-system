@@ -7,7 +7,14 @@
 >
 > **Estados válidos:** `TODO` · `DOING` · `BLOCKED` · `REVIEW` · `DONE`
 > **Owner por defecto:** Matias / SYNTRA CORE
-> **Última actualización:** 2026-06-12
+> **Última actualización:** 2026-06-17
+>
+> **Gate visual (obligatorio para tareas visuales/perceptuales):** los cambios que
+> afecten composición, layout, percepción premium, jerarquía, Hero/Servicios/Casos/
+> Proceso/Contacto, motion visible o responsive visual **no se commitean sin aprobación
+> visual explícita del owner** (build verde no alcanza). Flujo: prototipo local → QA
+> técnico → review en navegador → Visual Review (`visual-quality-director`) → aprobación
+> → commit. Protocolo: `agents/governance/visual-quality-gate.md`.
 
 ---
 

@@ -1,4 +1,4 @@
-# SYNTRA ROLE AUTHORITY MAP — SYNTRA CORE (v5)
+# SYNTRA ROLE AUTHORITY MAP — SYNTRA CORE (v6)
 
 ## 1. PROPÓSITO DEL DOCUMENTO
 
@@ -606,6 +606,45 @@ No reemplaza al Product Experience Designer.
 
 ---
 
+## 🖼 Visual Quality Director
+
+Autoridad: APROBACIÓN VISUAL / VETO DE COMMIT VISUAL
+
+Decide:
+
+* si una sección se ve realmente premium (no solo prolija)
+* composición visual, jerarquía y uso del espacio
+* balance entre texto y visual
+* si el resultado es aprobable en navegador
+* si un cambio visual mejora o empeora respecto a la versión anterior
+
+Puede bloquear el **commit** de un cambio visual aunque:
+
+* `tsc` pase
+* `lint` pase
+* `build` pase
+* Lighthouse esté bien
+* el Web QA & Performance Guard no encuentre errores técnicos
+
+No diseña.
+
+No implementa.
+
+No define estrategia, producto ni dirección creativa.
+
+Su veto aplica únicamente sobre **calidad visual/perceptual aprobable en navegador**.
+La aprobación final para commitear una tarea visual es del **owner**.
+
+No reemplaza al Web QA & Performance Guard (técnico) ni al Website Experience
+Auditor (experiencia percibida end-to-end): los complementa con un gate de commit
+visual para tareas de composición/layout/percepción.
+
+👉 Decide si el resultado se ve premium y aprobable en navegador antes del commit.
+
+👉 Protocolo de ejecución: `agents/governance/visual-quality-gate.md`.
+
+---
+
 ## 4. REGLAS DE CONFLICTO
 
 ### 4.1 Jerarquía de prioridad
@@ -641,6 +680,7 @@ Cuando exista conflicto dentro de un mismo tier, aplicar esta prioridad:
 15. Web QA & Performance Guard
 16. Automation QA & Reliability Guard
 17. Website Experience Auditor
+18. Visual Quality Director
 
 Esta jerarquía fina existe para resolver conflictos específicos.
 
@@ -726,6 +766,8 @@ consistencia del sistema visual → Design System Guardian
 
 auditoría de experiencia digital → Website Experience Auditor
 
+aprobación visual / gate de commit visual → Visual Quality Director
+
 calidad técnica y validación → QA (Web + Automation)
 
 ---
@@ -761,6 +803,7 @@ La ejecución por estados vive en:
 * Automation Execution Protocol → agents/automation/syntra-execution-protocol.md
 * QA Governance Layer → agents/governance/qa-governance-layer.md
 * Fast Track Protocol → agents/governance/fast-track-protocol.md
+* Visual Quality Gate → agents/governance/visual-quality-gate.md
 
 La jerarquía de conflicto de §4.1 es la fuente única.
 
