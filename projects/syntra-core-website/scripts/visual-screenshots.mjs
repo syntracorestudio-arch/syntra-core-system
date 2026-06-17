@@ -6,6 +6,10 @@
 // Asume que `npm run dev` YA está corriendo en http://localhost:3000.
 // El script NO levanta el server (mantiene una sola responsabilidad: capturar).
 //
+// Antes del fullPage hace un pase de scroll hasta el final (y vuelve arriba) para
+// disparar los reveals `whileInView`/`FadeIn`; sin eso, lo de debajo del fold sale
+// en opacity:0 y el Visual Gate revisa capturas engañosas (VISUAL-WORKFLOW-003).
+//
 // Uso:   npm run visual:shots
 // Salida: .visual-review/<timestamp>/<WxH>.png   (ignorada por git — NO commitear)
 
@@ -55,6 +59,34 @@ async function checkDevServer(browser) {
   return true;
 }
 
+/**
+ * Dispara los reveals `whileInView`/`FadeIn` (framer-motion) con un pase de scroll
+ * progresivo hasta el final, y vuelve arriba, ANTES del `fullPage`. Sin esto, todo
+ * lo que está debajo del fold queda en `opacity: 0` en la captura. Como los reveals
+ * usan `once: true`, permanecen visibles tras volver al tope. Solo lee/scrollea la
+ * página servida — no modifica la web.
+ */
+async function revealByScrolling(page) {
+  await page.evaluate(async () => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const step = Math.max(200, Math.floor(window.innerHeight * 0.8));
+    let lastY = -1;
+    // Bajar en pasos hasta tocar fondo (o hasta que scrollY deje de avanzar).
+    for (let i = 0; i < 200; i++) {
+      window.scrollBy(0, step);
+      await sleep(120); // dejar disparar whileInView + correr el reveal one-shot
+      const y = window.scrollY;
+      const atBottom =
+        y + window.innerHeight >= document.documentElement.scrollHeight - 2;
+      if (atBottom || y === lastY) break;
+      lastY = y;
+    }
+    await sleep(300); // asentar el último reveal
+    window.scrollTo(0, 0); // volver arriba para el fullPage
+    await sleep(300); // asentar tras volver al tope
+  });
+}
+
 async function main() {
   await mkdir(outDir, { recursive: true });
 
@@ -78,8 +110,13 @@ async function main() {
       const page = await context.newPage();
       // `load` (no `networkidle`: el websocket HMR de Next dev nunca queda idle).
       await page.goto(BASE_URL + ROUTE, { waitUntil: "load", timeout: 30000 });
-      // Dejar asentar fuentes + reveals de framer-motion antes de capturar.
-      await page.waitForTimeout(1200);
+      // Asentar fuentes + hidratación inicial.
+      await page.waitForTimeout(800);
+      // Pase de scroll: dispara los reveals whileInView/FadeIn debajo del fold y
+      // vuelve arriba (los reveals son `once` → quedan visibles para el fullPage).
+      await revealByScrolling(page);
+      // Margen final para que el último reveal quede asentado.
+      await page.waitForTimeout(300);
 
       const file = join(outDir, `${vp.width}x${vp.height}.png`);
       await page.screenshot({ path: file, fullPage: true });
