@@ -16,7 +16,7 @@ import { GlowOrb } from "@/components/shared/glow-orb";
  * HeroVisual — Synapse Graph como Event Loop Simulator (v3).
  *
  * El grafo simula el sistema ejecutándose: los nodos se ACTIVAN en secuencia
- * narrativa (Lead → Consulta → IA → CRM → Acción → reset), un evento por fase,
+ * narrativa (Contacto → Consulta → IA → Clientes → Acción → reset), un evento por fase,
  * sincronizados con la partícula. Loop de 8s, lento e intencional.
  * Cada glow = un evento del sistema (nada se ilumina decorativamente).
  *
@@ -239,10 +239,10 @@ function HeroVisual() {
 
   // Event loop (tabla §1): begin escalonado, una activación por fase.
   const desktopNodes: NodeDef[] = [
-    { id: "node-lead", label: "Lead", ghost: "Lead detectado", icon: UserPlus, cx: 90, cy: 92, r: 30, opacity: 0.85, beginS: 0.0, activeS: 0.7 },
+    { id: "node-lead", label: "Contacto", ghost: "Contacto nuevo", icon: UserPlus, cx: 90, cy: 92, r: 30, opacity: 0.85, beginS: 0.0, activeS: 0.7 },
     { id: "node-consulta", label: "Consulta", ghost: "Consulta recibida", icon: MessageCircle, cx: 90, cy: 268, r: 28, opacity: 0.85, beginS: 1.0, activeS: 0.7 },
     { id: "node-ia", label: "IA", ghost: "Procesando intención…", icon: Sparkles, cx: 260, cy: 180, r: 48, dominant: true, beginS: 2.2, activeS: 1.2 },
-    { id: "node-crm", label: "CRM", ghost: "Registrando en CRM", icon: Database, cx: 452, cy: 84, r: 32, beginS: 3.8, activeS: 0.7 },
+    { id: "node-crm", label: "Clientes", ghost: "Sumado a tus clientes", icon: Database, cx: 452, cy: 84, r: 32, beginS: 3.8, activeS: 0.7 },
     { id: "node-accion", label: "Acción", ghost: "Acción enviada", icon: Send, cx: 452, cy: 276, r: 30, beginS: 4.8, activeS: 0.7 },
   ];
   const desktopEdges = ["M90,92 L260,180", "M90,268 L260,180", "M260,180 L452,84", "M260,180 L452,276"];
@@ -257,7 +257,7 @@ function HeroVisual() {
   return (
     <div
       role="img"
-      aria-label="Sistema de automatización SYNTRA: un lead y una consulta entran, son procesados por IA y derivan en registro en CRM y una acción"
+      aria-label="Cómo trabaja el sistema de SYNTRA: entran un contacto y una consulta, la IA los procesa, y el resultado son tus clientes ordenados y una acción automática."
       className="relative mx-auto w-full max-w-[560px]"
     >
       <GlowOrb
