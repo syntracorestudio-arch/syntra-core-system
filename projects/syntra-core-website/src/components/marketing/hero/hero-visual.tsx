@@ -258,14 +258,14 @@ function HeroVisual() {
     <div
       role="img"
       aria-label="Cómo trabaja el sistema de SYNTRA: entran un contacto y una consulta, la IA los procesa, y el resultado son tus clientes ordenados y una acción automática."
-      className="relative mx-auto w-full max-w-[560px]"
+      className="relative mx-auto w-full max-w-[560px] lg:max-w-none"
     >
       {/* Chasis premium (inspirado en SceneFrame, WEB-HERO-A): borde + superficie
           hundida + atmósfera estática on-brand → presencia y profundidad. NO lo
           convierte en una escena de Servicios: adentro sigue el grafo = el sistema
           de un vistazo. Un solo foco por viewport (atmósfera + halo de IA del SVG);
           se quitaron los GlowOrbs sueltos que competían. SMIL del grafo intacto. */}
-      <div className="relative flex min-h-[12rem] items-center overflow-hidden rounded-2xl border border-border bg-depth-sunken p-4 sm:min-h-[15rem] sm:p-6 lg:min-h-[24rem]">
+      <div className="relative flex min-h-[12rem] items-center overflow-hidden rounded-2xl border border-border bg-depth-sunken p-4 sm:min-h-[15rem] sm:p-6 lg:aspect-[3/2] lg:min-h-0">
         <SceneAtmosphere />
         <div className="relative z-10 w-full">
           {/* === Desktop: 5 nodos (desde lg, alineado con el grid de 2 columnas) === */}

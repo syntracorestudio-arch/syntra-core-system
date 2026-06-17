@@ -29,7 +29,7 @@ function HeroSection() {
       className="flex items-center justify-center overflow-hidden lg:min-h-[40rem]"
     >
       {/* Layout 2 columnas (desktop) / stack (mobile, texto primero → CTAs sobre el fold) */}
-      <div className="grid w-full items-center gap-10 lg:grid-cols-2 lg:gap-16">
+      <div className="grid w-full items-center gap-10 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)] lg:gap-12">
         {/* Columna izquierda: contenido en bloques (mensaje / acción / prueba) */}
         <div className="flex flex-col items-center gap-7 text-center lg:items-start lg:text-left">
           {/* Bloque mensaje: badge + H1 + subtítulo, ritmo propio */}
@@ -44,7 +44,7 @@ function HeroSection() {
             </BlurReveal>
 
             <BlurReveal delay={0.08}>
-              <h1 className="font-heading text-4xl font-bold tracking-tight text-balance sm:text-5xl lg:max-w-[15ch] lg:text-6xl">
+              <h1 className="font-heading text-4xl font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl">
                 {hero.titleLead}{" "}
                 <span className="text-gradient-brand">{hero.titleHighlight}</span>{" "}
                 {hero.titleTail}
@@ -52,7 +52,7 @@ function HeroSection() {
             </BlurReveal>
 
             <FadeIn delay={0.16}>
-              <p className="max-w-xl text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg lg:max-w-md">
+              <p className="max-w-xl text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg">
                 {hero.subtitle}
               </p>
             </FadeIn>
