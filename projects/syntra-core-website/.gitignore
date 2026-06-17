@@ -37,6 +37,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# visual review (gate visual — screenshots locales, NO commitear)
+.visual-review/
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
