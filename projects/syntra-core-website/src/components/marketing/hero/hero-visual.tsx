@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useReducedMotion } from "framer-motion";
 
-import { GlowOrb } from "@/components/shared/glow-orb";
+import { SceneAtmosphere } from "@/components/marketing/servicios/scene-frame";
 
 /**
  * HeroVisual — Synapse Graph como Event Loop Simulator (v3).
@@ -260,16 +260,18 @@ function HeroVisual() {
       aria-label="Cómo trabaja el sistema de SYNTRA: entran un contacto y una consulta, la IA los procesa, y el resultado son tus clientes ordenados y una acción automática."
       className="relative mx-auto w-full max-w-[560px]"
     >
-      <GlowOrb
-        tone="electric"
-        size="md"
-        className="top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-breathe"
-      />
-
-      {/* === Desktop: 5 nodos === */}
-      <svg
-        viewBox="0 0 540 380"
-        className="relative hidden h-auto w-full md:block"
+      {/* Chasis premium (inspirado en SceneFrame, WEB-HERO-A): borde + superficie
+          hundida + atmósfera estática on-brand → presencia y profundidad. NO lo
+          convierte en una escena de Servicios: adentro sigue el grafo = el sistema
+          de un vistazo. Un solo foco por viewport (atmósfera + halo de IA del SVG);
+          se quitaron los GlowOrbs sueltos que competían. SMIL del grafo intacto. */}
+      <div className="relative flex min-h-[12rem] items-center overflow-hidden rounded-2xl border border-border bg-depth-sunken p-4 sm:min-h-[15rem] sm:p-6 lg:min-h-[24rem]">
+        <SceneAtmosphere />
+        <div className="relative z-10 w-full">
+          {/* === Desktop: 5 nodos (desde lg, alineado con el grid de 2 columnas) === */}
+          <svg
+            viewBox="0 0 540 380"
+            className="relative hidden h-auto w-full lg:block"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
@@ -299,10 +301,10 @@ function HeroVisual() {
         ))}
       </svg>
 
-      {/* === Mobile: 3 nodos === */}
-      <svg
-        viewBox="0 0 320 140"
-        className="relative block h-auto w-full md:hidden"
+          {/* === Mobile/tablet: 3 nodos (hasta lg, así no aparece el grafo desktop suelto en tablet) === */}
+          <svg
+            viewBox="0 0 320 140"
+            className="relative mx-auto block h-auto w-full max-w-[420px] lg:hidden"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
@@ -321,7 +323,9 @@ function HeroVisual() {
         {mobileNodes.map((n) => (
           <SynapseNode key={n.id} node={n} iconSize={n.dominant ? 22 : 16} animate={animate} />
         ))}
-      </svg>
+          </svg>
+        </div>
+      </div>
     </div>
   );
 }
