@@ -163,17 +163,19 @@ export const useCases: UseCaseItem[] = [
     title: "Inmobiliarias",
     description:
       "Una web rápida con catálogo y buscador, conectada a un sistema que capta interesados y automatiza respuestas y seguimiento.",
-    pain: "Las consultas de propiedades llegan por varios canales y se responden a mano, una por una.",
+    pain: "Las consultas de propiedades te llegan por WhatsApp, mail y la web, y las respondés a mano, una por una.",
+    tagline:
+      "Cada consulta recibe respuesta y seguimiento al instante, mientras vos mostrás propiedades.",
     deliverables: [
       "Catálogo de propiedades con buscador y filtros",
       "Captación de interesados desde la web",
       "Respuestas y seguimiento automatizados",
     ],
     flow: [
-      "Busca en tu catálogo",
-      "Deja una consulta",
-      "Queda registrado como interesado",
-      "Respuesta y seguimiento listos",
+      "Entra una consulta por una propiedad",
+      "Queda registrada como interesado",
+      "Se activan la respuesta y el seguimiento",
+      "Listo para coordinar la visita",
     ],
   },
   {
@@ -183,16 +185,18 @@ export const useCases: UseCaseItem[] = [
     description:
       "Un sitio institucional sobrio con formularios de consulta calificada y automatización de turnos y seguimiento.",
     pain: "Las consultas entran desordenadas por mail, teléfono y formularios, y se pierde tiempo administrativo ordenándolas.",
+    tagline:
+      "Las consultas llegan filtradas y ordenadas; tu equipo dedica el tiempo a los casos, no a clasificarlas.",
     deliverables: [
       "Sitio institucional sobrio y confiable",
       "Formularios de consulta calificada",
       "Automatización de turnos y seguimiento",
     ],
     flow: [
-      "Consulta calificada por formulario",
-      "Caso ordenado por tipo",
-      "Turno propuesto automáticamente",
-      "Recordatorio antes de la reunión",
+      "Entra una consulta por el formulario",
+      "Se ordena por tipo de caso",
+      "Se propone turno y recordatorio",
+      "Lista para que el equipo la tome",
     ],
   },
   {
@@ -201,17 +205,19 @@ export const useCases: UseCaseItem[] = [
     title: "Clínicas y profesionales",
     description:
       "Una web clara con solicitud de turnos online y recordatorios automáticos que reducen la coordinación manual.",
-    pain: "Coordinar cada turno implica idas y vueltas constantes con los pacientes.",
+    pain: "Coordinar cada turno es una cadena de idas y vueltas por teléfono y WhatsApp, y aun así hay ausencias.",
+    tagline:
+      "Tus pacientes sacan turno solos y reciben el recordatorio; vos te dedicás a atender.",
     deliverables: [
       "Web clara con servicios y especialidades",
       "Solicitud de turnos online",
       "Recordatorios y mensajes automáticos",
     ],
     flow: [
-      "Solicita un turno online",
-      "Turno registrado en la agenda",
-      "Confirmación automática al paciente",
-      "Recordatorio antes de la cita",
+      "Entra una solicitud de turno",
+      "Queda registrada en la agenda",
+      "Se envían confirmación y recordatorio",
+      "Listo para la consulta, sin coordinar",
     ],
   },
   {
@@ -220,16 +226,18 @@ export const useCases: UseCaseItem[] = [
     title: "Empresas de servicios y PyMEs",
     description:
       "Un sitio o sistema a medida que capta y gestiona clientes y automatiza los procesos internos que hoy se hacen a mano.",
-    pain: "Tareas repetitivas consumen horas todos los días y frenan la operación.",
+    pain: "Tareas repetitivas —cargar clientes, pasar planillas, armar presupuestos— consumen horas todos los días y frenan la operación.",
+    tagline:
+      "Lo repetitivo se hace solo; tu equipo se enfoca en lo que solo un humano puede hacer.",
     deliverables: [
       "Sitio o sistema a medida de tu operación",
       "Captación y gestión de clientes",
       "Automatización de procesos internos",
     ],
     flow: [
-      "Contacto desde la web",
-      "Cliente cargado solo",
-      "Tarea repetitiva hecha sola",
+      "Entra un contacto desde la web",
+      "El cliente queda cargado al instante",
+      "Su presupuesto se arma solo",
       "Reporte listo para revisar",
     ],
   },

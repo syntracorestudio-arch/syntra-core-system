@@ -79,11 +79,13 @@ export interface UseCaseItem {
   title: string;
   /** Narrativa breve: el problema típico y cómo lo resolvemos */
   description: string;
-  /** Dolor "antes" del rubro (banda Antes/Después) */
+  /** Dolor concreto del rubro (situación "antes") */
   pain: string;
-  /** Entregables concretos para ese rubro (lado "después") */
+  /** Frase comercial / promesa del rubro (una línea) */
+  tagline: string;
+  /** Entregables concretos para ese rubro (qué incluiría) */
   deliverables: string[];
-  /** Mini-flujo temporal: pasos en lenguaje de cliente; el último es el resultado. */
+  /** Recorrido vivo de 4 pasos en lenguaje de cliente; el 4º es el resultado (estado HECHO). */
   flow: string[];
 }
 
