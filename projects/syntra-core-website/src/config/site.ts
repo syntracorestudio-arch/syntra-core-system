@@ -257,6 +257,17 @@ export const applicationsNote =
 /** Frase-firma editorial de la sección Nosotros (statement de identidad). */
 export const aboutStatement = "La forma SYNTRA de construir.";
 
+/**
+ * Frases-bisagra entre secciones de la Home (WEB-012B) — narrativa continua.
+ * Cada una nombra el resultado de la sección anterior como input de la siguiente.
+ * Copy-first: las renderiza `SectionBridge`, sin conectores visuales.
+ */
+export const homeBridges = {
+  servicesToUseCases: "Esto mismo, puesto a trabajar:",
+  useCasesToWorkflow: "Y así lo construimos, paso a paso:",
+  workflowToSolution: "Y todo esto vive en un solo lugar:",
+} as const;
+
 export const aboutPillars: AboutPillar[] = [
   {
     id: "ia",
