@@ -209,7 +209,9 @@ TASK-024  (diferida)
 | WEB-012A | Transiciones — concept audit: orden + enfoque copy-first (descarta conector visual pesado) | DONE |
 | WEB-012B | Transiciones — reorden Nosotros tras Sistema + 3 frases-bisagra (`SectionBridge`) — commit `9304c3b` | DONE |
 | VISUAL-WORKFLOW-003 | Mejorar `visual:shots`: pase de scroll antes del `fullPage` para reveals debajo del fold (whileInView/FadeIn) — commit `e60e21e` | DONE |
-| WEB-013 | Contacto — microdiagnóstico 1-vista (toca backend: `submitLead`/Zod) | TODO |
+| WEB-013A | Contacto — concept + logic audit (backend production-safe; decisión: agregar `projectType`) | DONE |
+| WEB-013B | Contacto — `projectType` full-stack (Zod → action → tipo → persistencia → n8n → panel + pills accesibles + migración `0004`) — commit `f5dbd3d` | DONE |
+| WEB-013C | Contacto — elevar materialidad + copy de cierre + success eco-neutro, bajo Visual Gate | TODO *(próxima)* |
 | WEB-HERO-FUTURE | **Hero — rediseñar como una sola escena integrada** (ver detalle) | FROZEN / DEFERRED |
 | — | Canvas / Sistema + Nosotros (motion + estructura) | FROZEN (requiere descongelamiento) |
 
@@ -230,8 +232,11 @@ la sección `solutionArchitecture` (mismo lenguaje de nodos).
   criterio de aprobación escrito + ancla premium + **1 ciclo del Visual Quality Gate**
   (`agents/governance/visual-quality-gate.md`).
 
-**Próxima acción:** `WEB-013` (Contacto) — microdiagnóstico 1-vista. Tarea mixta: lógica/backend
-(`submitLead`/Zod) + visual/conversión bajo el Visual Gate. Transiciones cerrado (`WEB-012A/B`,
-copy-first + reorden, commit `9304c3b`); `VISUAL-WORKFLOW-003` cerrado (`e60e21e`, capturas fieles
-debajo del fold). Casos cerrado (`WEB-011A→D`). El Hero queda diferido (`WEB-HERO-FUTURE`);
-Canvas-motion / Nosotros permanecen FROZEN salvo OK nominal del owner.
+**Próxima acción:** `WEB-013C` (Contacto) — elevar materialidad, copy de cierre y success state
+bajo el Visual Gate. **No tocar lógica salvo bug.** Contacto: `013A` (audit) + `013B` (`projectType`
+full-stack, commit `f5dbd3d`) cerrados. Transiciones (`WEB-012A/B`, `9304c3b`) y Casos
+(`WEB-011A→D`) cerrados. El Hero queda diferido (`WEB-HERO-FUTURE`); Canvas-motion / Nosotros FROZEN.
+
+> ⚠️ **Deploy:** aplicar `supabase/migrations/0004_lead_project_type.sql` en Supabase **antes** del
+> próximo deploy productivo (o de que producción use este código), o los `select` con
+> `project_type` fallan contra la DB real.
