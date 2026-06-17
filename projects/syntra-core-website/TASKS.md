@@ -206,7 +206,9 @@ TASK-024  (diferida)
 | WEB-011B | Casos — copy & rubros: pain/flow al léxico de 4 verbos + tagline — commit `ff60a13` | DONE |
 | WEB-011C | Casos — Premium Scenario Rail: recorrido vivo PENDIENTE→ACTIVO→HECHO por clic, nodos-chip con iconografía semántica (entrada→orden→acción), HECHO cyan persistente (C.1 plan → C.2/C.3/C.4 prototipos, bajo Visual Gate) | DONE |
 | WEB-011D | Casos — commit del prototipo aprobado por el owner (`feat(web): bring use cases scenarios to life`) | DONE |
-| WEB-012 | Transiciones — conector-puente + frases-bisagra | TODO |
+| WEB-012A | Transiciones — concept audit: orden + enfoque copy-first (descarta conector visual pesado) | DONE |
+| WEB-012B | Transiciones — reorden Nosotros tras Sistema + 3 frases-bisagra (`SectionBridge`) — commit `9304c3b` | DONE |
+| VISUAL-WORKFLOW-003 | Mejorar `visual:shots`: capturar reveals debajo del fold (scroll antes del `fullPage`) | TODO *(próxima)* |
 | WEB-013 | Contacto — microdiagnóstico 1-vista (toca backend: `submitLead`/Zod) | TODO |
 | WEB-HERO-FUTURE | **Hero — rediseñar como una sola escena integrada** (ver detalle) | FROZEN / DEFERRED |
 | — | Canvas / Sistema + Nosotros (motion + estructura) | FROZEN (requiere descongelamiento) |
@@ -228,7 +230,8 @@ la sección `solutionArchitecture` (mismo lenguaje de nodos).
   criterio de aprobación escrito + ancla premium + **1 ciclo del Visual Quality Gate**
   (`agents/governance/visual-quality-gate.md`).
 
-**Próxima acción:** `WEB-012` (Transiciones) — conector-puente + frases-bisagra, bajo el
-Visual Quality Gate (`agents/governance/visual-quality-gate.md`). Luego `WEB-013` (Contacto).
-Casos cerrado (`WEB-011A→D`). El Hero queda diferido (`WEB-HERO-FUTURE`);
-Canvas-motion / Nosotros permanecen FROZEN salvo OK nominal del owner.
+**Próxima acción:** `VISUAL-WORKFLOW-003` — mejorar `visual:shots` para reveals debajo del fold
+(el `fullPage` no scrollea → el contenido con `whileInView`/`FadeIn` queda en opacity 0). Luego
+`WEB-013` (Contacto — microdiagnóstico, toca backend). Transiciones cerrado (`WEB-012A/B`,
+copy-first + reorden, commit `9304c3b`; el conector visual 012C se descartó). Casos cerrado
+(`WEB-011A→D`). El Hero queda diferido (`WEB-HERO-FUTURE`); Canvas-motion / Nosotros FROZEN.
