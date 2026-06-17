@@ -90,12 +90,19 @@ No commitear.
 Toda revisión visual valida, como mínimo:
 
 ```text
-360x640
-390x844
-768x1024
-1024x768
-1440x900
+360x640     — mobile real
+390x844     — mobile real
+768x1024    — tablet
+1024x768    — laptop chico / tablet landscape
+1440x900    — desktop estándar
+1920x1080   — desktop grande / monitor real
 ```
+
+En desktop grande (1920) el diseño NO debe estirarse: conservar densidad visual,
+jerarquía, límites de lectura, balance entre columnas, intención de la escena y
+control del espacio negativo. Si una sección se percibe como contenido flotando
+en una superficie demasiado grande, el diseño falla aunque sea técnicamente
+responsive. Mobile-first siempre, con validación desktop-premium.
 
 ---
 

@@ -18,15 +18,20 @@ prototipo local → QA técnico → screenshots → visual-quality-director (Vis
 ```
 1. **Prototipo local** — implement in the working tree. **Do NOT commit.**
 2. **QA técnico** — `npx tsc --noEmit`, `npm run lint`, `npm run build`. Must be green. (Necessary, not sufficient.)
-3. **Screenshots** — with `npm run dev` running, `npm run visual:shots`. Captures the 5 mandatory breakpoints to `.visual-review/<timestamp>/` (gitignored).
+3. **Screenshots** — with `npm run dev` running, `npm run visual:shots`. Captures the 6 mandatory breakpoints (incl. 1920×1080 large desktop) to `.visual-review/<timestamp>/` (gitignored).
 4. **Visual Review** — invoke the real `visual-quality-director` subagent on the screenshots + code. It can VETO even if technical QA is green.
 5. **Owner approval** — the owner approves visually in browser/screenshots. **No commit without explicit owner approval.**
 6. **Commit** — only after owner approval, via `syntra-safe-commit-gate`.
 
 ## Mandatory breakpoints
 ```
-360x640   390x844   768x1024   1024x768   1440x900
+360x640   390x844   768x1024   1024x768   1440x900   1920x1080
 ```
+Validate mobile-first, but with desktop-premium validation. On large desktop
+(1920) the design must NOT just stretch — it must keep visual density, hierarchy,
+reading limits, column balance, scene intent and control of negative space. If a
+section reads as content floating on a too-large surface, the design fails even if
+it is technically responsive.
 
 ## Visual Review format (visual-quality-director output)
 ```
@@ -51,7 +56,7 @@ prototipo local → QA técnico → screenshots → visual-quality-director (Vis
 - No se entiende en pocos segundos / no se reconoce el contexto.
 - Rompe la percepción premium (ancla: Linear / Vercel / Stripe / Raycast / Framer).
 - Cyan usado fuera del estado HECHO.
-- No fue revisado en los 5 breakpoints.
+- No fue revisado en los 6 breakpoints (incl. 1920×1080).
 
 Its veto is over approvable visual quality, NOT technical correctness; it complements `qa-performance-guard`, it does not replace it (CLAUDE.md rules 11–13).
 

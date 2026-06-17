@@ -250,16 +250,23 @@ eliminarla.
 
 5.8 Responsive Design
 
-Diseñar obligatoriamente para:
+Diseñar y validar obligatoriamente en:
 
-390px
-768px
-1024px
-1440px
+390px   — mobile real
+768px   — tablet
+1024px  — laptop chico / tablet landscape
+1440px  — desktop estándar
+1920px  — desktop grande / monitor real
 
-Mobile-first siempre.
+Mobile-first siempre, pero con validación desktop-premium.
 
 No permitir que una idea funcione solo en desktop.
+No permitir que una idea funcione solo hasta 1440px.
+
+En pantallas grandes el diseño no debe estirarse: conservar densidad visual,
+jerarquía, límites de lectura, balance entre columnas, intención de la escena y
+control del espacio negativo. Si una sección se percibe como contenido flotando
+en una superficie demasiado grande, el diseño falla aunque sea responsive.
 
 5.9 Consistencia global
 

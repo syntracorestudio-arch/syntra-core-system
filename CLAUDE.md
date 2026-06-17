@@ -273,7 +273,7 @@ Ante cualquier tarea no trivial:
 11. **Gate visual (tareas visuales/perceptuales): no commitear sin aprobación visual
     explícita del owner.** Build verde (`tsc`/`lint`/`build`/Lighthouse) NO alcanza para
     cerrar una tarea visual. Flujo obligatorio: implementar local → QA técnico → review
-    en navegador/screenshot (360x640, 390x844, 768x1024, 1024x768, 1440x900) →
+    en navegador/screenshot (360x640, 390x844, 768x1024, 1024x768, 1440x900, 1920x1080) →
     Visual Review de `visual-quality-director` → aprobación del owner → commit. Hasta la
     aprobación, dejar los cambios en working tree sin commitear.
     Protocolo: `agents/governance/visual-quality-gate.md`.

@@ -23,11 +23,14 @@ const ROUTE = "/";
 
 // Breakpoints obligatorios del gate visual.
 const VIEWPORTS = [
-  { width: 360, height: 640 },
-  { width: 390, height: 844 },
-  { width: 768, height: 1024 },
-  { width: 1024, height: 768 },
-  { width: 1440, height: 900 },
+  { width: 360, height: 640 }, // mobile real
+  { width: 390, height: 844 }, // mobile real
+  { width: 768, height: 1024 }, // tablet
+  { width: 1024, height: 768 }, // laptop chico / tablet landscape
+  { width: 1440, height: 900 }, // desktop estándar
+  // Desktop grande / monitor real. deviceScaleFactor 1: el panorama grande no
+  // necesita retina y evita PNGs gigantes (1920 a 2x sobre una página larga).
+  { width: 1920, height: 1080, deviceScaleFactor: 1 },
 ];
 
 // Raíz del proyecto derivada de la ubicación del script (robusto en Windows y
@@ -105,7 +108,9 @@ async function main() {
       // Un context por viewport: sin estado/scroll arrastrado entre capturas.
       const context = await browser.newContext({
         viewport: { width: vp.width, height: vp.height },
-        deviceScaleFactor: 2, // retina: capturas nítidas para la review
+        // retina por defecto (capturas nítidas); 1x donde el viewport lo pida
+        // (desktop grande, para no generar PNGs gigantes).
+        deviceScaleFactor: vp.deviceScaleFactor ?? 2,
       });
       const page = await context.newPage();
       // `load` (no `networkidle`: el websocket HMR de Next dev nunca queda idle).

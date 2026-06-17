@@ -264,7 +264,9 @@ tsc/lint/build/Lighthouse: se aprueban mirando el resultado.
 
 Flujo:
 prototipo local → QA técnico → review en navegador/screenshot (360x640, 390x844,
-768x1024, 1024x768, 1440x900) → Visual Review → aprobación visual del owner → commit
+768x1024, 1024x768, 1440x900, 1920x1080) → Visual Review → aprobación visual del
+owner → commit. En desktop grande (1920) el diseño no debe estirarse: conservar
+densidad, jerarquía y control del espacio negativo.
 
 Output:
 APROBADO / NO APROBADO / APROBADO CON AJUSTES
