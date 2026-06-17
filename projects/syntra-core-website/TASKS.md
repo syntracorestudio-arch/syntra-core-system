@@ -208,7 +208,7 @@ TASK-024  (diferida)
 | WEB-011D | Casos — commit del prototipo aprobado por el owner (`feat(web): bring use cases scenarios to life`) | DONE |
 | WEB-012A | Transiciones — concept audit: orden + enfoque copy-first (descarta conector visual pesado) | DONE |
 | WEB-012B | Transiciones — reorden Nosotros tras Sistema + 3 frases-bisagra (`SectionBridge`) — commit `9304c3b` | DONE |
-| VISUAL-WORKFLOW-003 | Mejorar `visual:shots`: capturar reveals debajo del fold (scroll antes del `fullPage`) | TODO *(próxima)* |
+| VISUAL-WORKFLOW-003 | Mejorar `visual:shots`: pase de scroll antes del `fullPage` para reveals debajo del fold (whileInView/FadeIn) — commit `e60e21e` | DONE |
 | WEB-013 | Contacto — microdiagnóstico 1-vista (toca backend: `submitLead`/Zod) | TODO |
 | WEB-HERO-FUTURE | **Hero — rediseñar como una sola escena integrada** (ver detalle) | FROZEN / DEFERRED |
 | — | Canvas / Sistema + Nosotros (motion + estructura) | FROZEN (requiere descongelamiento) |
@@ -230,8 +230,8 @@ la sección `solutionArchitecture` (mismo lenguaje de nodos).
   criterio de aprobación escrito + ancla premium + **1 ciclo del Visual Quality Gate**
   (`agents/governance/visual-quality-gate.md`).
 
-**Próxima acción:** `VISUAL-WORKFLOW-003` — mejorar `visual:shots` para reveals debajo del fold
-(el `fullPage` no scrollea → el contenido con `whileInView`/`FadeIn` queda en opacity 0). Luego
-`WEB-013` (Contacto — microdiagnóstico, toca backend). Transiciones cerrado (`WEB-012A/B`,
-copy-first + reorden, commit `9304c3b`; el conector visual 012C se descartó). Casos cerrado
-(`WEB-011A→D`). El Hero queda diferido (`WEB-HERO-FUTURE`); Canvas-motion / Nosotros FROZEN.
+**Próxima acción:** `WEB-013` (Contacto) — microdiagnóstico 1-vista. Tarea mixta: lógica/backend
+(`submitLead`/Zod) + visual/conversión bajo el Visual Gate. Transiciones cerrado (`WEB-012A/B`,
+copy-first + reorden, commit `9304c3b`); `VISUAL-WORKFLOW-003` cerrado (`e60e21e`, capturas fieles
+debajo del fold). Casos cerrado (`WEB-011A→D`). El Hero queda diferido (`WEB-HERO-FUTURE`);
+Canvas-motion / Nosotros permanecen FROZEN salvo OK nominal del owner.
