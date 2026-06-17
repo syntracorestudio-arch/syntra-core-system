@@ -195,10 +195,14 @@ TASK-024  (diferida)
 | WEB-009A/B/C | Servicios: zig-zag + demos vivas + copy IA diferenciado | DONE |
 | WEB-LIVE-SYSTEM-RESET | Reset de dirección → Nivel B | DONE |
 | WEB-LIVE-SPEC | Spec de motion unificado (`live-system-motion-spec.md`) | DONE |
-| WEB-LIVE-JARGON | Limpiar copy visible del Canvas (content-only, FROZEN-copy) | TODO *(próxima)* |
-| WEB-010 | Proceso — checklist que se completa (piloto del patrón) | TODO |
-| WEB-009D | Servicios — elevar Web/Automatización al patrón vivo | TODO |
-| WEB-011 | Casos — el escenario se ejecuta al seleccionar el rubro | TODO |
+| WEB-LIVE-JARGON | Limpiar copy visible del Canvas (content-only) — commit `085539d` | DONE |
+| WEB-010 | Proceso — checklist que se completa (piloto del patrón) — commit `542f3ab` | DONE |
+| WEB-009D | Servicios — alinear demos Web/Automatización al patrón vivo — commit `eb9417d` | DONE |
+| WEB-009F (A–E) | Servicios "producto, no plano": escenas premium Web/Automatización/IA + polish + IA client-ready (supersede 009E) — commits `6853f8e`…`a9f743a` | DONE |
+| WEB-LIVE-HERO-JARGON | Hero — de-jargon de labels/aria del grafo (content-only) — commit `68d6f68` | DONE |
+| WEB-HERO-A/B | Hero — layout + chasis + composición asimétrica — commits `efa23c6`/`9eda7c1`; recalibraciones posteriores (B2/B2.1) revertidas → ver `WEB-HERO-FUTURE` | DONE |
+| WEB-VISUAL-GATE | Visual Quality Gate + `visual-quality-director` + `npm run visual:shots` (gobernanza/infra) — commits `99886cc`/`e405ac7` | DONE |
+| WEB-011 | Casos — el escenario se ejecuta al seleccionar el rubro | TODO *(próxima)* |
 | WEB-012 | Transiciones — conector-puente + frases-bisagra | TODO |
 | WEB-013 | Contacto — microdiagnóstico 1-vista (toca backend: `submitLead`/Zod) | TODO |
 | WEB-HERO-FUTURE | **Hero — rediseñar como una sola escena integrada** (ver detalle) | FROZEN / DEFERRED |
@@ -221,7 +225,7 @@ la sección `solutionArchitecture` (mismo lenguaje de nodos).
   criterio de aprobación escrito + ancla premium + **1 ciclo del Visual Quality Gate**
   (`agents/governance/visual-quality-gate.md`).
 
-**Próxima acción:** `WEB-LIVE-JARGON` (content-only). Luego el piloto `WEB-010`
-(Proceso). Hero/Canvas-motion/Nosotros permanecen FROZEN salvo OK nominal del owner.
-*(Nota: el tracker de arriba está desactualizado — varias filas DONE figuran TODO;
-reconciliación pendiente, ver propuesta del PM.)*
+**Próxima acción:** `WEB-011` (Casos) — el escenario del rubro se ejecuta al seleccionarlo,
+bajo el Visual Quality Gate (`agents/governance/visual-quality-gate.md`). Luego `WEB-012`
+(Transiciones) y `WEB-013` (Contacto). El Hero queda diferido (`WEB-HERO-FUTURE`);
+Canvas-motion / Nosotros permanecen FROZEN salvo OK nominal del owner.
