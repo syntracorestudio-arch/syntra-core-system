@@ -9,12 +9,12 @@ import {
 } from "@/components/marketing/aplicaciones/application-selector";
 
 /**
- * UseCasesSection — "Aplicaciones": escenarios de aplicación por rubro (TASK-010C).
- *
- * Reemplaza el formato Antes/Después por un rail de pills + panel de escenario
- * (situación típica → lo que diseñaríamos → qué incluiría), en tono condicional
- * y honesto (no son casos reales). Los íconos se resuelven en este Server
- * Component y se pasan ya renderizados al island. Conserva el ancla #casos.
+ * UseCasesSection — "Casos / Aplicaciones" (VISUAL-RESET, ruta Editorial Split +
+ * Industry Object Scene). Full-bleed con campo de luz propio (spotlight
+ * asimétrico): NO una card central con dashboard adentro. El selector elige el
+ * rubro y abajo se compone un split editorial — texto a un lado, OBJETO de
+ * producto del rubro flotando al otro. Heading alineado a la izquierda para el
+ * ritmo editorial. Server Component; los íconos se resuelven acá.
  */
 function UseCasesSection() {
   const { eyebrow, title, subtitle } = siteConfig.sections.useCases;
@@ -34,16 +34,26 @@ function UseCasesSection() {
   });
 
   return (
-    <Section id="casos">
-      <BlurReveal>
-        <SectionHeading eyebrow={eyebrow} title={title} subtitle={subtitle} />
-      </BlurReveal>
+    <Section id="casos" contained={false} className="relative overflow-hidden">
+      {/* Campo de luz propio de la sección: spotlight CÁLIDO asimétrico (lado de
+          la ficha de papel), para no reforzar el azul. Distinto del Hero
+          (gradient + glow cyan) y de Sistema (paths). */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute top-1/2 right-[6%] size-[44rem] max-w-[90vw] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(231,200,160,0.10),rgba(168,140,100,0.05)_42%,transparent_70%)] blur-3xl" />
+      </div>
 
-      <ApplicationSelector
-        items={items}
-        note={applicationsNote}
-        className="mx-auto mt-8 max-w-5xl"
-      />
+      <div className="mx-auto w-full max-w-6xl px-6 lg:max-w-7xl lg:px-8">
+        <BlurReveal>
+          <SectionHeading
+            eyebrow={eyebrow}
+            title={title}
+            subtitle={subtitle}
+            align="left"
+          />
+        </BlurReveal>
+
+        <ApplicationSelector items={items} note={applicationsNote} className="mt-10" />
+      </div>
     </Section>
   );
 }

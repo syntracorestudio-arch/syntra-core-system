@@ -64,7 +64,7 @@ export const siteConfig: SiteConfig = {
       eyebrow: "Dónde aplica",
       title: "Pensado para problemas reales de tu negocio",
       subtitle:
-        "Estos son escenarios de aplicación por rubro: la situación típica y el sistema que diseñaríamos para resolverla. Cada proyecto se adapta a tu caso.",
+        "Escenarios reales de uso: cómo una consulta, un turno o un pedido puede convertirse en una respuesta ordenada y accionable. Cada solución se adapta a tu negocio.",
     },
     about: {
       eyebrow: "Quiénes somos",
@@ -179,10 +179,10 @@ export const useCases: UseCaseItem[] = [
     icon: "Building2",
     title: "Inmobiliarias",
     description:
-      "Una web rápida con catálogo y buscador, conectada a un sistema que capta interesados y automatiza respuestas y seguimiento.",
-    pain: "Las consultas de propiedades te llegan por WhatsApp, mail y la web, y las respondés a mano, una por una.",
+      "El sistema ordena el lead, responde con la información clave y evita que una oportunidad quede sin seguimiento.",
+    pain: "Cuando una consulta llega por WhatsApp, el asistente responde y ayuda a coordinar la visita.",
     tagline:
-      "Cada consulta recibe respuesta y seguimiento al instante, mientras vos mostrás propiedades.",
+      "Mientras vos mostrás propiedades, cada interesado recibe respuesta y seguimiento.",
     deliverables: [
       "Catálogo de propiedades con buscador y filtros",
       "Captación de interesados desde la web",
@@ -200,10 +200,10 @@ export const useCases: UseCaseItem[] = [
     icon: "Scale",
     title: "Estudios jurídicos",
     description:
-      "Un sitio institucional sobrio con formularios de consulta calificada y automatización de turnos y seguimiento.",
-    pain: "Las consultas entran desordenadas por mail, teléfono y formularios, y se pierde tiempo administrativo ordenándolas.",
+      "El sistema registra el motivo, reúne la información inicial y evita que un mensaje importante quede perdido.",
+    pain: "Cuando llega una consulta legal, el asistente ordena el caso y lo deriva para revisión.",
     tagline:
-      "Las consultas llegan filtradas y ordenadas; tu equipo dedica el tiempo a los casos, no a clasificarlas.",
+      "Mientras el estudio atiende casos, cada consulta entra ordenada y lista para revisar.",
     deliverables: [
       "Sitio institucional sobrio y confiable",
       "Formularios de consulta calificada",
@@ -221,10 +221,10 @@ export const useCases: UseCaseItem[] = [
     icon: "Stethoscope",
     title: "Clínicas y profesionales",
     description:
-      "Una web clara con solicitud de turnos online y recordatorios automáticos que reducen la coordinación manual.",
-    pain: "Coordinar cada turno es una cadena de idas y vueltas por teléfono y WhatsApp, y aun así hay ausencias.",
+      "El sistema registra la consulta, comparte la información inicial y ofrece horarios disponibles para que cada contacto quede ordenado desde el primer mensaje.",
+    pain: "Cuando un paciente consulta por WhatsApp, el asistente responde y ayuda a coordinar el turno.",
     tagline:
-      "Tus pacientes sacan turno solos y reciben el recordatorio; vos te dedicás a atender.",
+      "Mientras el equipo atiende pacientes, cada consulta recibe respuesta y seguimiento.",
     deliverables: [
       "Web clara con servicios y especialidades",
       "Solicitud de turnos online",
@@ -242,10 +242,10 @@ export const useCases: UseCaseItem[] = [
     icon: "Store",
     title: "Empresas de servicios y PyMEs",
     description:
-      "Un sitio o sistema a medida que capta y gestiona clientes y automatiza los procesos internos que hoy se hacen a mano.",
-    pain: "Tareas repetitivas —cargar clientes, pasar planillas, armar presupuestos— consumen horas todos los días y frenan la operación.",
+      "El sistema registra la consulta, responde con la información clave y evita que una venta se pierda por demora o desorden.",
+    pain: "Cuando entra un pedido por WhatsApp, el asistente responde y ayuda a confirmarlo.",
     tagline:
-      "Lo repetitivo se hace solo; tu equipo se enfoca en lo que solo un humano puede hacer.",
+      "Mientras tu negocio vende, cada consulta recibe respuesta y cada pedido queda encaminado.",
     deliverables: [
       "Sitio o sistema a medida de tu operación",
       "Captación y gestión de clientes",
