@@ -33,6 +33,25 @@ reading limits, column balance, scene intent and control of negative space. If a
 section reads as content floating on a too-large surface, the design fails even if
 it is technically responsive.
 
+## Composition Balance Gate (mandatory before owner approval)
+Technical green + "usa asset / no es dashboard azul / no tapa la imagen /
+reduced-motion ok" is NOT enough. The gate also evaluates **proportion, hierarchy
+and balance**. Before requesting owner approval, every visual task answers in
+writing:
+```
+## Composition Self-Review
+### Qué se ve primero
+### Qué debería verse primero
+### Qué elemento compite con el protagonista
+### Qué está demasiado chico
+### Qué está demasiado grande
+### Qué texto se corta demasiado (sin intención editorial)
+### Cómo se comporta en 1440
+### Cómo se comporta en 1920
+### Cómo se comporta en mobile (390 y 360)
+### Qué ajustaría antes de pedir aprobación del owner
+```
+
 ## Visual Review format (visual-quality-director output)
 ```
 # Visual Review — <TASK>
@@ -56,7 +75,8 @@ it is technically responsive.
 - No se entiende en pocos segundos / no se reconoce el contexto.
 - Rompe la percepción premium (ancla: Linear / Vercel / Stripe / Raycast / Framer).
 - Cyan usado fuera del estado HECHO.
-- No fue revisado en los 6 breakpoints (incl. 1920×1080).
+- **Balance:** texto principal comprimido o heading roto en demasiadas líneas sin intención; asset/escena protagonista demasiado chico, o un secundario domina al protagonista; columnas mal proporcionadas; 1920 desaprovechado (contenido flotando); mobile con stack excesivo o ilegible.
+- No fue revisado en los 6 breakpoints (incl. 1920×1080) ni pasó la Composition Self-Review.
 
 Its veto is over approvable visual quality, NOT technical correctness; it complements `qa-performance-guard`, it does not replace it (CLAUDE.md rules 11–13).
 

@@ -133,6 +133,46 @@ APROBADO / NO APROBADO / APROBADO CON AJUSTES
 
 ---
 
+## 6.5 Composition Balance Gate (auto-revisión obligatoria)
+
+El gate aprueba contenido **y** composición. Cumplir las reglas de contenido
+(usa asset, no es dashboard azul, no tapa la imagen, reduced-motion ok, QA verde)
+**NO alcanza**: una sección puede cumplir todo eso y aun así fallar por
+**proporción, jerarquía o balance**. Esto existe por el retrabajo de
+Casos-Inmobiliarias (texto comprimido, heading roto, propiedad chica, chat
+dominando).
+
+Antes de pedir la aprobación del owner, toda tarea visual responde por escrito:
+
+```text
+## Composition Self-Review
+### Qué se ve primero
+### Qué debería verse primero
+### Qué elemento compite con el protagonista
+### Qué está demasiado chico
+### Qué está demasiado grande
+### Qué texto se corta demasiado (sin intención editorial)
+### Cómo se comporta en 1440
+### Cómo se comporta en 1920
+### Cómo se comporta en mobile (390 y 360)
+### Qué ajustaría antes de pedir aprobación del owner
+```
+
+### Veto de balance (el VQD bloquea si)
+- el texto principal queda comprimido / sin aire;
+- el heading rompe en demasiadas líneas sin intención editorial;
+- el asset o la escena protagonista es demasiado chico;
+- un elemento secundario domina al protagonista (tamaño, altura o peso visual);
+- columnas mal proporcionadas / falta de balance texto↔visual;
+- layout técnicamente correcto pero visualmente pobre;
+- 1440 aceptable pero 1920 desaprovechado (contenido flotando, aire lateral muerto);
+- mobile con stack excesivamente largo o ilegible.
+
+El balance es parte de "se ve premium". El VQD lo evalúa explícitamente (§4) y
+puede vetar el commit por composición aunque el contenido cumpla las reglas.
+
+---
+
 ## 7. Criterios de fracaso aunque compile
 
 Un cambio visual **fracasa aunque pase tsc/lint/build** si:
@@ -143,6 +183,9 @@ Un cambio visual **fracasa aunque pase tsc/lint/build** si:
 - parece dashboard genérico;
 - hay aire muerto sin intención;
 - se siente comprimido;
+- el protagonista no domina la composición / un secundario pesa más que él;
+- la columna de texto está comprimida o el heading rompe sin intención editorial;
+- en 1920 el contenido queda flotando en una superficie demasiado grande;
 - el CTA pierde fuerza;
 - el texto y el visual parecen dos bloques separados;
 - el cambio se ve peor que la versión anterior;

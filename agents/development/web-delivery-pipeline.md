@@ -264,9 +264,16 @@ tsc/lint/build/Lighthouse: se aprueban mirando el resultado.
 
 Flujo:
 prototipo local → QA técnico → review en navegador/screenshot (360x640, 390x844,
-768x1024, 1024x768, 1440x900, 1920x1080) → Visual Review → aprobación visual del
-owner → commit. En desktop grande (1920) el diseño no debe estirarse: conservar
-densidad, jerarquía y control del espacio negativo.
+768x1024, 1024x768, 1440x900, 1920x1080) → **Composition Self-Review** → Visual
+Review → aprobación visual del owner → commit. En desktop grande (1920) el diseño
+no debe estirarse: conservar densidad, jerarquía y control del espacio negativo.
+
+Composition Balance Gate (obligatorio, antes de pedir aprobación del owner):
+no alcanza con "usa asset / no es dashboard azul / reduced-motion ok / QA verde";
+el gate también evalúa proporción, jerarquía y balance. Veta si el texto principal
+queda comprimido, el heading rompe sin intención, el protagonista es demasiado
+chico, un secundario lo domina, las columnas están mal proporcionadas, 1920 queda
+desaprovechado o el stack mobile es excesivo. Detalle: `agents/governance/visual-quality-gate.md` §6.5.
 
 Output:
 APROBADO / NO APROBADO / APROBADO CON AJUSTES

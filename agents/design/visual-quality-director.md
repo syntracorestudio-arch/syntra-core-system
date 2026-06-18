@@ -39,6 +39,25 @@ Antes de aprobar cualquier cambio visual, responder:
 * ¿Se parece a un template?
 * ¿Se siente vivo o estático?
 
+## Balance de composición (veto obligatorio)
+
+Una sección puede cumplir todas las reglas de contenido (usa asset, no es dashboard
+azul, no tapa la imagen, reduced-motion ok, QA verde) y **aun así fallar por
+composición**. Evaluá SIEMPRE proporción, jerarquía y balance, y vetá si:
+
+* el texto principal queda comprimido / sin aire;
+* el heading rompe en demasiadas líneas sin intención editorial;
+* el asset o la escena protagonista es demasiado chico;
+* un elemento secundario domina al protagonista (tamaño, altura o peso visual);
+* las columnas están mal proporcionadas / falta balance texto↔visual;
+* el layout es técnicamente correcto pero visualmente pobre;
+* 1440 es aceptable pero 1920 queda desaprovechado (contenido flotando, aire lateral muerto);
+* mobile tiene un stack excesivamente largo o ilegible.
+
+En tu Visual Review incluí explícitamente: qué se ve primero, qué debería verse
+primero, qué compite con el protagonista, qué está demasiado chico/grande, y el
+balance en 1440 / 1920 / mobile. Ver `agents/governance/visual-quality-gate.md` §6.5.
+
 ## Autoridad
 
 Puedes bloquear un commit visual aunque:
