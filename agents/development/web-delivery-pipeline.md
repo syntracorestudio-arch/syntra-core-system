@@ -140,6 +140,12 @@ Output:
 
 creative direction approved
 
+Para tareas visuales Cat B/C, el output NO es solo prosa: es
+**creative direction + approved reference-lock**
+(`docs/reference-locks/<section>.md` con `status: approved`, ≥1 referencia visual
+concreta y criterios binarios). Sin reference-lock aprobado NO se pasa a
+implementación visual Cat B/C. Skill: `.claude/skills/syntra-reference-lock/SKILL.md`.
+
 Transición a:
 
 👉 STATE 3
@@ -263,10 +269,16 @@ Build verde NO significa diseño aprobado. Las tareas visuales NO se commitean p
 tsc/lint/build/Lighthouse: se aprueban mirando el resultado.
 
 Flujo:
-prototipo local → QA técnico → review en navegador/screenshot (360x640, 390x844,
-768x1024, 1024x768, 1440x900, 1920x1080) → **Composition Self-Review** → Visual
-Review → aprobación visual del owner → commit. En desktop grande (1920) el diseño
-no debe estirarse: conservar densidad, jerarquía y control del espacio negativo.
+(Cat B/C) reference-lock aprobado → prototipo local → QA técnico → review en
+navegador/screenshot (360x640, 390x844, 768x1024, 1024x768, 1440x900, 1920x1080)
+→ **Composition Self-Review** → Visual Review → aprobación visual del owner →
+commit. En desktop grande (1920) el diseño no debe estirarse: conservar densidad,
+jerarquía y control del espacio negativo.
+
+Para tareas visuales Cat B/C, el Visual Quality Director valida **resultado real
+vs `docs/reference-locks/<section>.md` aprobado** (criterios binarios del lock),
+no solo "se ve premium". Sin reference-lock aprobado no se inicia la
+implementación visual Cat B/C.
 
 Composition Balance Gate (obligatorio, antes de pedir aprobación del owner):
 no alcanza con "usa asset / no es dashboard azul / reduced-motion ok / QA verde";

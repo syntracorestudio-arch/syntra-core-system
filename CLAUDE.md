@@ -284,6 +284,10 @@ Ante cualquier tarea no trivial:
 13. `visual-quality-director` puede **bloquear el commit** de un cambio visual aunque
     `qa-performance-guard` lo haya aprobado; su veto es sobre calidad visual aprobable en
     navegador, no técnica. No reemplaza al QA técnico: lo complementa.
+14. **Reference-lock (visual Cat B/C):** el trabajo visual Cat B/C requiere un
+    reference-lock aprobado (`docs/reference-locks/<section>.md`, `status: approved`)
+    antes de implementar. Flujo: `syntra-premium-section-design` →
+    `syntra-reference-lock` → `syntra-visual-gate`. Cat A / code-first no lo requiere.
 
 ---
 

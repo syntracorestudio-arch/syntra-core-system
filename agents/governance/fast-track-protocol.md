@@ -255,6 +255,21 @@ Categoría C redefine estrategia, mensaje u oferta.
 
 ---
 
+## Reference-lock por categoría
+
+```text
+Cat A: no requiere reference-lock.
+Cat B: requiere reference-lock si hay trabajo visual relevante o pieza-firma.
+Cat C: reference-lock obligatorio para piezas visuales.
+```
+
+El reference-lock (`docs/reference-locks/<section>.md`, `status: approved`) es
+precondición de la implementación visual en Cat B/C. No convierte Cat A en
+burocracia: las correcciones/refinamientos siguen el flujo simplificado.
+Skill: `.claude/skills/syntra-reference-lock/SKILL.md`.
+
+---
+
 # CATEGORÍA A — FAST TRACK
 
 ## Definición

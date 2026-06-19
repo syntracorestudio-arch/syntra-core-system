@@ -46,16 +46,39 @@ estado seguro).
 
 ---
 
+## 2.5 Precondición: reference-lock aprobado (tareas Cat B/C)
+
+Para trabajo visual **Categoría B/C**, antes de prototipar o implementar debe
+existir un reference-lock aprobado:
+
+```text
+- docs/reference-locks/<section>.md existe;
+- status: approved;
+- contiene al menos una referencia visual concreta;
+- contiene criterios binarios de aprobación.
+```
+
+Si falta o está en `draft`: **STOP**. No se implementa. Volver a
+`syntra-reference-lock`. (Categoría A / code-first no requiere reference-lock.)
+Detalle de la skill: `.claude/skills/syntra-reference-lock/SKILL.md`.
+
+---
+
 ## 3. Flujo obligatorio
 
 ```text
+0. (Cat B/C) Verificar reference-lock aprobado (docs/reference-locks/<section>.md).
 1. Implementar localmente.
 2. Ejecutar QA técnico (tsc / lint / build).
 3. Validar en navegador / screenshot (breakpoints de §5).
-4. Entregar Visual Review (formato §6) — visual-quality-director.
+4. Entregar Visual Review (formato §6) — visual-quality-director, validando
+   resultado real vs reference-lock aprobado (no solo "se ve premium").
 5. Esperar aprobación visual explícita del owner.
 6. Recién ahí: commit + push.
 ```
+
+**Regla anti-loop:** después de 2 iteraciones fallidas contra el mismo lock,
+volver al reference-lock; no seguir parcheando código.
 
 Mientras tanto, los cambios quedan en **working tree sin commitear**. No se
 commitea por build verde ni por QA técnico aprobado.
