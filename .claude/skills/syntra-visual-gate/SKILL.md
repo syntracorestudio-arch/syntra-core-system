@@ -12,10 +12,36 @@ Any task that affects: Hero, Servicios, Casos, Proceso, Contacto, Footer, layout
 
 Technical/bugfix tasks that don't change perception may commit on technical QA alone. Visual/perceptual tasks MUST pass this gate.
 
+## Precondition: approved reference-lock for Cat B/C
+
+For visual Cat B/C work, check before prototyping or implementation:
+
+- `docs/reference-locks/<section>.md` exists.
+- `status: approved`.
+- The lock contains at least one concrete visual reference.
+- The lock contains binary approval criteria.
+
+If missing or draft:
+STOP.
+Do not implement.
+Run `syntra-reference-lock`.
+
+Reference-lock rules (Cat B/C):
+1. No prototype/visual implementation starts without an approved reference-lock.
+2. The expected lock lives at `docs/reference-locks/<section>.md`.
+3. The lock must have `status: approved`.
+4. If the lock is missing or `draft`, this gate BLOCKS implementation and returns to `syntra-reference-lock`.
+5. The VQD compares screenshots/results against the lock's binary criteria.
+6. The VQD validates "result vs approved reference", not only "premium opinion".
+7. After 2 failed iterations against the lock, stop patching code — return to the reference-lock.
+
+(Code-first / Categoría A tasks do not require a lock; this precondition applies to Cat B/C visual work.)
+
 ## Mandatory flow (do not skip steps)
 ```
-prototipo local → QA técnico → screenshots → visual-quality-director (Visual Review) → aprobación explícita del owner → commit
+reference-lock approved (Cat B/C) → prototipo local → QA técnico → screenshots → visual-quality-director (Visual Review vs lock) → aprobación explícita del owner → commit
 ```
+0. **Reference-lock check (Cat B/C)** — verify `docs/reference-locks/<section>.md` is `approved`. If missing/draft → STOP and run `syntra-reference-lock`.
 1. **Prototipo local** — implement in the working tree. **Do NOT commit.**
 2. **QA técnico** — `npx tsc --noEmit`, `npm run lint`, `npm run build`. Must be green. (Necessary, not sufficient.)
 3. **Screenshots** — with `npm run dev` running, `npm run visual:shots`. Captures the 6 mandatory breakpoints (incl. 1920×1080 large desktop) to `.visual-review/<timestamp>/` (gitignored).
@@ -68,7 +94,31 @@ writing:
 ## Decisión: Commitear / Ajustar sin commitear / Revertir / Abrir rediseño
 ```
 
+## VQD review: result vs reference-lock
+
+For Cat B/C work, the Visual Quality Director must compare the implementation against the approved `docs/reference-locks/<section>.md`:
+
+- approved references;
+- what we take from each reference;
+- what we explicitly do not take;
+- selected visual direction;
+- asset-first/code-first decision;
+- binary approval criteria;
+- visual risks.
+
+The review must state:
+
+- pass/fail per criterion;
+- deviations from the lock;
+- whether deviations are acceptable;
+- whether to approve, adjust, or return to reference-lock.
+
+This makes the veto objective (result vs approved reference), not only a subjective "premium opinion".
+
+**Anti-loop rule:** after 2 failed implementation iterations against the same lock, stop patching code. Return to the reference-lock and revise the visual reference/direction (the reference was wrong, not the CSS).
+
 ## Veto criteria (the visual-quality-director blocks the commit if)
+- **Cat B/C: no approved `docs/reference-locks/<section>.md`, or the result does not meet the lock's binary criteria.**
 - Empeora visualmente respecto a la versión anterior.
 - Parece dashboard, tabla, checklist, maqueta, PowerPoint o feature card genérica.
 - Jerarquía pobre / CTA sin peso / aire muerto o saturado.
