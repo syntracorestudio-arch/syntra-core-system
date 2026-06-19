@@ -38,19 +38,31 @@ export const siteConfig: SiteConfig = {
   socialLinks: [],
   cta: {
     primary: "Contanos tu proyecto",
-    secondary: "Ver qué hacemos",
+    secondary: "Ver ejemplos",
   },
   hero: {
     badge: "Estudio de desarrollo + automatización con IA",
-    titleLead: "Sistemas digitales que",
+    titleLead: "Sistemas digitales",
     titleHighlight: "hacen crecer",
     titleTail: "tu negocio",
     subtitle:
-      "Diseñamos y construimos webs premium, automatizaciones e integraciones con IA, para que tu empresa atienda más rápido, venda mejor y dedique menos tiempo a tareas manuales.",
-    proof: [
-      "Webs que cargan al instante",
-      "Menos trabajo manual",
-      "Atención automática a tus clientes",
+      "Diseñamos webs, automatizaciones y asistentes con IA para que tu negocio responda mejor, trabaje más ordenado y aproveche más oportunidades.",
+    capabilities: [
+      {
+        icon: "LayoutTemplate",
+        title: "Webs claras",
+        copy: "Rápidas, simples y listas para vender",
+      },
+      {
+        icon: "Workflow",
+        title: "Automatización",
+        copy: "Menos tareas manuales, más orden",
+      },
+      {
+        icon: "Sparkles",
+        title: "IA aplicada",
+        copy: "Respuestas útiles para consultas reales",
+      },
     ],
   },
   sections: {

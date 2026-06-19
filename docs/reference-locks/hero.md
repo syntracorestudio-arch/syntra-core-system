@@ -1,15 +1,17 @@
 ---
 section: hero
-status: draft
-approved_by: ""
-date: ""
+status: approved
+approved_by: owner (Matias / SYNTRA CORE)
+date: 2026-06-19
 decision: asset-first
 ---
 
 # Reference Lock — hero
 
-> **DRAFT.** No habilita implementación. Faltan referencias visuales concretas
-> aprobadas por el owner (ver "Referencias aprobadas" y "Riesgos / faltantes").
+> **APPROVED.** Asset final aprobado:
+> `docs/reference-locks/assets/hero-a1-stratos-luminosos-final.png`.
+> El Hero se implementa **contra este asset** (image-first). NO reinventar un
+> protagonista visual desde código.
 
 ## Objetivo comercial / rol en la landing
 Primera impresión y `<h1>` único. Debe vender en ~2s: **SYNTRA crea sistemas
@@ -19,6 +21,29 @@ memorable, tecnológica, confiable, sofisticada. KPI: reflejo del valor <2s +
 deseo de seguir + clic en CTA primario.
 
 ## Referencias aprobadas
+
+### ✅ Asset final aprobado (referencia principal de producción)
+![hero-final](assets/hero-a1-stratos-luminosos-final.png)
+`docs/reference-locks/assets/hero-a1-stratos-luminosos-final.png` — 1672×941 (16:9).
+Estructura de **estratos de vidrio/plata luminosos** a la derecha, **espacio negativo
+navy a la izquierda**, reflejos electric/cyan como filo. **Este es el protagonista
+visual del Hero.** El código lo **compone y anima** (image-first); no lo reemplaza.
+
+**Qué se toma del asset final:**
+- la imagen tal cual como protagonista (estratos de vidrio/plata, luz blanca/plata);
+- la masa visual a la derecha;
+- el espacio negativo a la izquierda (para el texto);
+- los reflejos electric/cyan sutiles como filo;
+- la base navy / fondo oscuro premium.
+
+**Qué NO se toma / NO se hace:**
+- NO reinventar un protagonista visual desde código (tubos, waves, glass cores,
+  cápsulas, objetos 3D nuevos, dashboards, abstractos nuevos);
+- NO recortar el asset perdiendo la masa derecha o el espacio negativo izquierdo;
+- NO tapar el asset con UI/elementos que compitan;
+- NO romper la legibilidad del texto sobre la zona negativa.
+
+### Boards de contexto (dirección, NO assets de producción)
 **Board 1 — moodboard de dirección (owner eligió A1 — Premium Digital Architecture):**
 ![board](assets/hero-premium-digital-architecture-board.png)
 `docs/reference-locks/assets/hero-premium-digital-architecture-board.png`

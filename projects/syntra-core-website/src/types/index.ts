@@ -122,8 +122,8 @@ export interface HeroContent {
   titleHighlight: string;
   titleTail: string;
   subtitle: string;
-  /** Puntos de prueba cortos mostrados bajo los CTAs */
-  proof: string[];
+  /** Capability rail: 3 mini-bloques (ícono + título + microcopy) bajo los CTAs */
+  capabilities: { icon: string; title: string; copy: string }[];
 }
 
 export interface SiteConfig {
