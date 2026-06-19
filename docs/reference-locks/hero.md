@@ -19,21 +19,27 @@ memorable, tecnológica, confiable, sofisticada. KPI: reflejo del valor <2s +
 deseo de seguir + clic en CTA primario.
 
 ## Referencias aprobadas
-**Board de referencia (moodboard, owner elige A1):**
+**Board 1 — moodboard de dirección (owner eligió A1 — Premium Digital Architecture):**
 ![board](assets/hero-premium-digital-architecture-board.png)
 `docs/reference-locks/assets/hero-premium-digital-architecture-board.png`
 
-- **Referencia principal: A1 — Estructura Estratificada** (cuadrante sup-izq del
-  board): planos translúcidos de vidrio/plata estratificados, estructura digital
-  elegante, luz blanca/plata dominante, masa a la derecha, espacio negativo limpio
-  a la izquierda.
-- **Inspiración secundaria: A4 — Ensamble Modular** (cuadrante inf-der): solo como
-  inspiración de ensamble/precisión/capas ordenadas y profundidad.
-- **Descartadas:** A2 — Núcleo Luminoso · A3 — Flujo Arquitectónico (no usar).
+**Board 2 — variantes finales de A1 (owner eligió A1.1):**
+![variant-board](assets/hero-a1-variant-board.png)
+`docs/reference-locks/assets/hero-a1-variant-board.png`
 
-> El board es un **moodboard de dirección**, no el asset de producción. El lock
-> queda en `draft`: falta generar el **asset final individual** de A1 y que el owner
-> lo apruebe (ver "Próximos assets necesarios").
+- **Variante elegida: A1.1 — Estratos Luminosos** (cuadrante sup-izq): planos de
+  vidrio/plata estratificados, luz blanca/plata dominante, masa visual a la
+  derecha, espacio negativo limpio a la izquierda, estructura digital elegante,
+  reflejos electric/cyan muy sutiles, estética editorial premium.
+- **Inspiración secundaria: A1.4 — Arquitectura Modular** (cuadrante inf-der):
+  solo como inspiración de precisión modular, capas ordenadas, arquitectura
+  digital y profundidad.
+- **Descartadas:** A1.2 — Ensamble de Planes (demasiado skyline/edificio) ·
+  A1.3 — Flujo Estratificado (demasiado wave/cinta). No usar.
+
+> Los boards son **referencia de dirección**, NO el asset final de producción. El
+> lock queda en `draft`: falta generar el **asset final individual limpio** de
+> A1.1 y que el owner lo apruebe (ver "Próximos assets necesarios").
 
 Anti-referencias (en `stash@{0}` y memoria de la sesión, NO aplicar):
 - SVG arc (plano, sin wow).
@@ -42,32 +48,28 @@ Anti-referencias (en `stash@{0}` y memoria de la sesión, NO aplicar):
 - R3F glass core (objeto oscuro poco visible, fondo apagado).
 
 ## Qué se toma de cada referencia
-**De A1 (principal):**
-- planos translúcidos de vidrio/plata;
-- estructura digital elegante;
-- sensación de sistema diseñado;
-- masa visual a la derecha;
-- espacio negativo limpio a la izquierda;
+**De A1.1 — Estratos Luminosos (elegida):**
+- planos de vidrio/plata estratificados;
 - luz blanca/plata dominante;
-- reflejos electric/cyan mínimos como filo;
-- estética premium editorial;
-- materialidad de alta fidelidad.
+- masa visual clara a la derecha;
+- espacio negativo limpio a la izquierda;
+- estructura digital elegante;
+- reflejos electric/cyan muy sutiles;
+- sensación de sistema diseñado;
+- estética editorial premium.
 
-**De A4 (solo inspiración):**
-- sensación de ensamble modular;
-- precisión;
+**De A1.4 — Arquitectura Modular (solo inspiración secundaria):**
+- precisión modular;
 - capas ordenadas;
-- lectura de "sistema";
-- profundidad arquitectónica.
+- sensación de arquitectura digital;
+- profundidad.
 
 ## Qué NO se toma
-- edificio literal · torres verticales tipo skyline · ventanas;
-- dashboard · UI · browser mockup · nodos · circuitos;
-- tubos negros · waves/cintas protagonistas · cápsulas flotantes;
-- orbes/cubos AI;
-- estética gamer/crypto;
-- exceso de cyan;
-- fondo todo azul oscuro.
+**Del artefacto board (NO replicar):** títulos · labels · board layout · marcos ·
+footer · íconos.
+**Visual:** edificios literales · torres · ventanas · UI · dashboard · personas ·
+wave/cintas protagonistas · exceso de cyan · (además: nodos/circuitos, tubos
+negros, cápsulas flotantes, orbes/cubos AI, gamer/crypto, fondo todo azul oscuro).
 
 ## Dirección visual elegida
 **Premium Digital Architecture — Estructura Estratificada (A1).** Protagonista =
@@ -128,18 +130,22 @@ sin CLS; si se va a 3D `.glb`: WebGL desktop-only + fallback mobile + DPR cap +
 dynamic ssr:false.
 
 ## Próximos assets necesarios
-El board es moodboard, NO el asset de producción. Falta generar el **asset final
-individual** de A1:
+Los boards son referencia de dirección, NO el asset de producción. Falta generar
+el **asset final individual limpio** de A1.1:
 ```
-Premium Digital Architecture — Estructura Estratificada
-16:9
-masa visual a la derecha
-espacio negativo a la izquierda
-sin texto · sin logo · sin UI · sin dashboard · sin personas · sin edificio literal
-luz blanca/plata dominante · electric/cyan solo como filo · base navy
+Archivo: docs/reference-locks/assets/hero-a1-stratos-luminosos-final.png
+Premium Digital Architecture — Estratos Luminosos.
+Imagen 16:9 limpia.
+Planos translúcidos de vidrio/plata.
+Luz blanca/plata dominante.
+Masa visual a la derecha.
+Espacio negativo limpio a la izquierda.
+Reflejos electric/cyan solo como filo.
+Sin texto · sin UI · sin dashboard · sin personas · sin edificio literal ·
+sin logo · sin marco · sin labels.
 ```
-Entregar 3–4 variantes, optimizar a `.webp/.avif`, y que el owner apruebe una
-antes de cualquier código. (También: variante 1:1/9:16 para fallback mobile.)
+Optimizar a `.webp/.avif` antes de cualquier código, y que el owner apruebe el
+asset final. (También: variante 1:1/9:16 para fallback mobile.)
 
 ## Owner approval
 
