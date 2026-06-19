@@ -41,6 +41,27 @@ decision: asset-first
      hero visual/background protagonista.
      Si asset-first: indicar qué asset hay que crear/aprobar antes del código. -->
 
+## Signature Palette Exception
+
+<!-- "no aplica" en secciones comunes (rige el 90/10 azul estándar).
+     Para Hero / piezas-firma que usen blanco/luz/plata/vidrio/acento no-azul,
+     declarar la excepción. Sin declaración aprobada, el DSG puede vetar el drift.
+     No habilita gamer/crypto/template-AI/colores random/pérdida de legibilidad. -->
+
+**¿Aplica excepción de paleta?** sí | no
+
+**Justificación:**
+
+**Colores/materiales habilitados:**
+
+**Límites de uso:**
+
+**Cómo se mantiene la marca SYNTRA:**
+
+**Cómo se protege la legibilidad:**
+
+Referencia: `docs/creative-library/signature-palette-exception.md`
+
 ## Criterios binarios de aprobación
 
 <!-- Checkboxes objetivos que el resultado debe cumplir; el VQD valida contra esto -->

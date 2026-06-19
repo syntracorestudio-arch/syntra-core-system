@@ -51,6 +51,26 @@ If there is no concrete visual reference, the lock stays `draft` and **does not 
 7. If the main protagonist is image/mockup/object/3D/protagonist background → **default asset-first**.
 8. Claude does not invent premium protagonist visuals from code alone without explicit owner approval.
 9. Anti-loop: **max 2 code iterations** of a signature piece; on the 3rd, return to the lock (the reference was wrong) instead of patching code.
+10. If the section is a **signature piece** that needs to step outside the 90/10 blue rule (white/light dominant, silver, glass, electric reflections, a controlled non-blue accent), the lock MUST declare a **Signature Palette Exception** (see below). Without it, the Design System Guardian may veto the brand drift.
+
+## Signature palette exception (piezas-firma)
+The SYNTRA palette (90/10 blue; cyan = HECHO; sober base) is the default for every
+section. A **signature piece** (Hero visual, protagonist 3D object, protagonist
+background, brand scene, high-impact first-impression asset) may step outside it —
+but **only if the approved lock declares it**. The declaration must include:
+- which extra colors/materials are allowed;
+- why they are needed;
+- their limits (how far, no further);
+- how the SYNTRA brand is kept (not generic/template);
+- how legibility is protected (text/CTA contrast).
+- reference to `docs/creative-library/signature-palette-exception.md`.
+
+Rules: common sections (Servicios/Casos/Proceso/Contacto/Sistema/UI) stay under the
+standard 90/10 — for them the exception is "no aplica". The exception NEVER allows
+gamer/crypto/template-AI, random colors, rainbow gradients, or loss of legibility.
+It does NOT suspend the Design System Guardian: it gives it a **declared, bounded**
+exception. If the lock does not declare the exception, the DSG keeps its veto over
+brand drift.
 
 ## Output Claude must deliver
 When this skill runs:
