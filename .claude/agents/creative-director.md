@@ -44,4 +44,8 @@ visual global, memorabilidad y nivel de innovación visual permitido.
 - Respetar `agents/ROLE-AUTHORITY-MAP.md` y el sistema SYNTRA (motion sobrio,
   premium accesible, tokens de color/depth existentes).
 
+> Apoyo: la skill `ui-ux-pro-max` puede consultarse para research/inspiración UI/UX
+> (NO autoridad; no puede contradecir reference-locks ni tokens). Política:
+> `agents/governance/ui-ux-pro-max-usage.md`.
+
 Reference source: agents/design/creative-director.md

@@ -43,4 +43,8 @@ del scroll, jerarquía de significado y momentos de impacto, confianza y convers
 - Respetar `agents/ROLE-AUTHORITY-MAP.md` y el sistema SYNTRA (mobile-first,
   spacing amplio, accesibilidad, premium accesible).
 
+> Apoyo: la skill `ui-ux-pro-max` puede consultarse para research de journey/patrones
+> UI/UX (NO autoridad; no puede contradecir reference-locks ni tokens). Política:
+> `agents/governance/ui-ux-pro-max-usage.md`.
+
 Reference source: agents/design/product-experience-designer.md

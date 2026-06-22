@@ -27,6 +27,37 @@ Ningún agente puede invadir el dominio de otro.
 
 ---
 
+## 2.bis AUTORIDAD DE EJECUCIÓN DE CLAUDE (Autonomy Mode)
+
+Complementa esta jerarquía sin reemplazarla. Detalle:
+`agents/governance/SYNTRA-CONTEXT-ROUTER.md`.
+
+* **Autopilot (autonomía guiada)** — para trabajo técnico/bugfix, docs/governance y
+  visual **Cat A**, Claude tiene autoridad para ejecutar el ciclo completo sin
+  aprobación paso a paso: `branch → implementar → QA → commit (staging explícito) →
+  push → abrir PR con GitHub CLI`. **El merge a main es SIEMPRE manual del owner.**
+* **Checkpoint** — visual **Cat B/C** y cambios riesgosos: Claude ejecuta autónomo
+  pero **frena en gates** (reference-lock aprobado, visual gate, migraciones) para OK
+  del owner.
+* **Manual** — Claude solo propone.
+
+Límites permanentes (no los habilita Autonomy Mode): push/merge a main, commit visual
+Cat B/C sin reference-lock + visual gate, `.claude/settings.json`, `package.json`/deps,
+migraciones/datos/env/Supabase, aplicar/borrar stashes, borrar branches no mergeadas.
+
+**Hooks de seguridad** (`.claude/hooks/`) imponen el safe-commit a nivel de tool:
+bloquean `git add .`/`-A`/`--all`, `git commit -a/-am/--all`, y el commit de archivos
+prohibidos. **GitHub CLI**: instalado (ruta completa); Claude abre PRs, el owner mergea.
+
+## 2.ter UI UX PRO MAX (recurso de apoyo, no autoridad)
+
+La skill `ui-ux-pro-max` es **consultiva**: aporta research/auditoría/inspiración UI/UX.
+No tiene autoridad de diseño. Toda recomendación suya pasa por **Creative Director +
+Design System Guardian** (DSG puede vetar) y **no puede contradecir** un reference-lock
+aprobado ni los tokens de marca. Política: `agents/governance/ui-ux-pro-max-usage.md`.
+
+---
+
 # MODELO DE MULTIPLICIDAD DE ROLES
 
 Un rol dentro de SYNTRA CORE representa una función de autoridad, no necesariamente una única persona.

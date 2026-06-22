@@ -126,6 +126,38 @@ Define:
 
 ---
 
+### SYNTRA-CONTEXT-ROUTER
+
+`agents/governance/SYNTRA-CONTEXT-ROUTER.md`. Define:
+
+* Context Receipt obligatorio
+* modos de operación (Autopilot / Checkpoint / Manual)
+* qué contexto/skills cargar por tipo de tarea
+* qué hace Claude sin permiso vs. qué requiere aprobación
+* flujo de PR con GitHub CLI (merge manual del owner)
+
+---
+
+### VISUAL-QUALITY-GATE + REFERENCE-LOCKS
+
+* `agents/governance/visual-quality-gate.md` — gate de commit visual (Cat A vs B/C).
+* `docs/reference-locks/*` — locks por sección (precondición de visual Cat B/C).
+  Vigentes: `hero.md`, `contacto.md` (`status: approved`).
+
+---
+
+### CAPA DE EJECUCIÓN (skills + hooks)
+
+* **Skills** (`.claude/skills/*`): `syntra-premium-section-design`,
+  `syntra-reference-lock`, `syntra-visual-gate`, `syntra-premium-motion-system`,
+  `syntra-safe-commit-gate`, y `ui-ux-pro-max` (apoyo, gobernada por
+  `agents/governance/ui-ux-pro-max-usage.md`).
+* **Hooks de git** (`.claude/hooks/`): `guard-git-add.mjs` + `guard-forbidden-commit.mjs`
+  (Claude Code `PreToolUse/Bash`; ver `.claude/hooks/README.md`). Scripts versionados;
+  wiring local en `.claude/settings.json` (no se commitea).
+* **GitHub CLI**: instalado (fuera de PATH → ruta completa); Claude abre PRs, el owner
+  mergea manualmente.
+
 ---
 
 # FAMILIAS DE AGENTES

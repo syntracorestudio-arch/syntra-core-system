@@ -224,5 +224,10 @@ Un cambio visual **fracasa aunque pase tsc/lint/build** si:
   (VISUAL QUALITY GATE)** para tareas visuales.
 - `agents/design/visual-quality-director.md` — fuente de verdad del rol.
 - `CLAUDE.md` — routing operativo y regla de no-commit visual.
+- `agents/governance/SYNTRA-CONTEXT-ROUTER.md` — modos de operación: este gate es el
+  **Checkpoint** del trabajo visual Cat B/C. En Autopilot (técnico/Cat A) no aplica;
+  ahí Claude puede commitear/abrir PR tras QA.
+- `.claude/hooks/` + `.claude/skills/syntra-safe-commit-gate` — imponen el safe-commit
+  a nivel de tool (no `git add .`, no commit de archivos prohibidos).
 
 Ningún documento de ejecución puede saltarse este gate para tareas visuales.

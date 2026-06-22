@@ -43,4 +43,8 @@ reutilizables, spacing, patrones y reglas del design system.
 - Pedir aprobación antes de que un hallazgo se vuelva cambio.
 - Respetar `agents/ROLE-AUTHORITY-MAP.md` y el sistema SYNTRA.
 
+> Apoyo: el Design System Guardian es quien **filtra** las recomendaciones de la skill
+> `ui-ux-pro-max` (consultiva, no autoridad); puede vetarlas si generan drift. Política:
+> `agents/governance/ui-ux-pro-max-usage.md`.
+
 Reference source: agents/design/design-system-guardian.md
