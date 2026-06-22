@@ -298,8 +298,9 @@ function ApplicationSelector({ items, note, className }: ApplicationSelectorProp
 
   return (
     <div className={cn("flex flex-col", className)}>
-      {/* Rail: segmented control de rubros (alineado a la izquierda, editorial) */}
-      <div className="flex">
+      {/* Rail: segmented control de rubros (alineado a la izquierda, editorial).
+          Wrapper relativo inline → ancla el fade lateral al ancho real del bar. */}
+      <div className="relative inline-flex max-w-full">
         <div
           role="tablist"
           aria-label="Rubros de aplicación"
@@ -336,6 +337,12 @@ function ApplicationSelector({ items, note, className }: ApplicationSelectorProp
             );
           })}
         </div>
+        {/* Fade lateral derecho (Sprint 01, solo mobile): afordancia de scroll
+            horizontal. Funde el último pill en el bg del bar; oculto desde md. */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-full bg-gradient-to-l from-depth-sunken to-transparent md:hidden"
+        />
       </div>
 
       {/* Split editorial: alto reservado para no saltar al cambiar de rubro */}
