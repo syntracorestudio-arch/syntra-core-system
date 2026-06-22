@@ -149,7 +149,7 @@ function ServiceDemoChat() {
                 ease: EASE_PREMIUM,
               }}
             >
-              <SceneAtmosphere />
+              <SceneAtmosphere tone="warm" />
             </motion.div>
           }
         >

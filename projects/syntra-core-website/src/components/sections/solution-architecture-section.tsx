@@ -36,19 +36,21 @@ const NODE_ROLE: Record<string, "input" | "proceso" | "ia" | "output"> = {
   reporte: "output",
 };
 
-/** Micro-tag de rol (mono, solo desktop). */
+/** Micro-tag de rol (mono, solo desktop). Sprint 01: deja de renderizar en blanco. */
 const ROLE_TAG: Record<string, string> = {
-  input: "",
-  proceso: "",
-  ia: "",
-  output: "",
+  input: "IN",
+  proceso: "PROC",
+  ia: "IA",
+  output: "OUT",
 };
 
-/** Acento del chip de ícono por rol (border + bg + text, sin pelear el loop de borde del nodo). */
+/** Acento del chip de ícono por rol (border + bg + text, sin pelear el loop de borde del nodo).
+    Sprint 01: el nodo IA pasa a violeta (accent-ai = IA/profundidad), diferenciándolo
+    del cyan de sistema; output sigue en electric (acción/resultado). */
 const ICON_CHIP_ROLE: Record<string, string> = {
   input: "border-border-strong bg-surface-2 text-foreground",
   proceso: "border-border-strong bg-surface-2 text-muted-foreground",
-  ia: "border-accent-secondary/40 bg-accent-secondary/10 text-accent-secondary",
+  ia: "border-accent-ai/40 bg-accent-ai/10 text-accent-ai",
   output: "border-accent-primary/40 bg-accent-primary/10 text-accent-primary",
 };
 

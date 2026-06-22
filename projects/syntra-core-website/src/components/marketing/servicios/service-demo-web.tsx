@@ -109,7 +109,7 @@ function ServiceDemoWeb() {
               ease: EASE_PREMIUM,
             }}
           >
-            <SceneAtmosphere />
+            <SceneAtmosphere tone="web" />
           </motion.div>
         }
       >

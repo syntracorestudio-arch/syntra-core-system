@@ -120,7 +120,7 @@ function ServiceDemoAutomation() {
                 ease: EASE_PREMIUM,
               }}
             >
-              <SceneAtmosphere />
+              <SceneAtmosphere tone="ai" />
             </motion.div>
           }
         >

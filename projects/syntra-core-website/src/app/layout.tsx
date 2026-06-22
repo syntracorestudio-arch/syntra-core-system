@@ -97,6 +97,8 @@ export default function RootLayout({
           </>
         ) : null}
         <HashScroll />
+        {/* Grain global sutil (Sprint 01): textura premium, decorativa, fija. */}
+        <div aria-hidden="true" className="syntra-grain" />
         {children}
       </body>
     </html>

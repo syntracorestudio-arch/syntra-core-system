@@ -36,11 +36,17 @@ function Navbar() {
   const [scrolled, setScrolled] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [active, setActive] = React.useState("");
+  // Progreso de scroll 0→1 para el hairline del Header (Sprint 01).
+  const [progress, setProgress] = React.useState(0);
 
   React.useEffect(() => {
     const onScroll = () => {
       const y = window.scrollY;
       setScrolled(y > 64);
+      // Progreso de lectura (0 en el top → invisible; 1 al final).
+      const docH =
+        document.documentElement.scrollHeight - window.innerHeight;
+      setProgress(docH > 0 ? Math.min(1, Math.max(0, y / docH)) : 0);
       // Guard: en el Hero/top no hay sección activa.
       if (y < window.innerHeight * TOP_GUARD) {
         setActive("");
@@ -88,6 +94,15 @@ function Navbar() {
           className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-24 bg-gradient-to-b from-background/70 to-transparent"
         />
       )}
+
+      {/* Scroll-progress hairline (Sprint 01): 1px al pie del header, scaleX =
+          progreso de lectura. En el top progress=0 → invisible (sin ruido).
+          Solo transform/opacity; respeta reduced-motion. */}
+      <span
+        aria-hidden="true"
+        style={{ transform: `scaleX(${progress})` }}
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px origin-left bg-gradient-to-r from-brand-electric/70 via-brand-cyan/70 to-accent-ai/60 transition-transform duration-150 ease-out motion-reduce:transition-none"
+      />
 
       <div className={cn(SHELL, "grid h-16 grid-cols-[1fr_auto_1fr] items-center md:h-[4.5rem]")}>
         {/* Columna 1: logo */}
