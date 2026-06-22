@@ -13,7 +13,15 @@
 | `standards.md` | [OS] | Estándares técnicos. |
 | `systems.md` | [OS] | Arquitectura de sistemas. |
 | `workflows.md` | [OS] | Workflows & automatizaciones (nivel marca). |
-| `ui-direction.md` | [OS] | Dirección visual general. |
+| `ui-direction.md` | [OS] | Dirección visual general (los reference-locks la concretan y mandan). |
+
+## Subdirectorios de `/docs`
+
+| Carpeta | Clase | Notas |
+|---|---|---|
+| `reference-locks/` | [BINDING] | Locks visuales por sección (precondición de visual Cat B/C). Vigentes: `hero.md`, `contacto.md` (`status: approved`). + `_template.md`, `README.md`, `assets/`. |
+| `creative-library/` | [REF] | Biblioteca creativa / referencias visuales. |
+| `visual-reset/` | [ARCHIVED] | Dirección "visual reset / Dirección B" **descartada**; conservar solo como histórico. No usar como contexto activo. |
 
 ## Specs del website reubicadas (CORE-005)
 

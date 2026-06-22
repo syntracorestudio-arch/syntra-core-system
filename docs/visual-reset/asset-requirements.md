@@ -1,11 +1,18 @@
 # SYNTRA — Visual Asset Requirements
 
-> Reglas de calidad para todo asset visual que entre a la web (VISUAL-RESET-004).
-> Complementa `assets-plan.md`. Normativo: ningún asset se integra si no cumple.
+> ⚠️ **CARPETA ARCHIVADA.** La iniciativa "visual reset / Dirección B" fue
+> **descartada** (el Hero actual es image-first, aprobado y en producción). No usar
+> `docs/visual-reset/` como contexto activo. **Estas reglas de calidad de assets
+> siguen siendo válidas** y se conservan acá solo como referencia hasta migrarlas a
+> `docs/reference-locks/` / `agents/governance/visual-quality-gate.md`.
+>
+> Reglas de calidad para todo asset visual que entre a la web. Normativo mientras
+> aplique: ningún asset se integra si no cumple.
 >
 > **Balance:** el asset protagonista debe dominar visualmente la composición y pasar
 > el Composition Balance Gate antes de pedir aprobación del owner
-> (`agents/governance/visual-quality-gate.md` §6.5).
+> (`agents/governance/visual-quality-gate.md`). (Ref. histórica a `assets-plan.md`
+> obsoleta: ese archivo no existe en esta carpeta.)
 
 ## Prohibido
 

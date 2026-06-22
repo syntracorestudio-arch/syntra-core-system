@@ -1,5 +1,11 @@
 # SYNTRA CORE — UI Direction
 
+> **Nota (vinculante).** Este documento es **dirección visual general**. Para cada
+> sección, **los reference-locks aprobados** (`docs/reference-locks/<section>.md`,
+> `status: approved`) y los **tokens de `globals.css`** son la fuente de verdad y
+> **prevalecen** sobre cualquier descripción genérica de acá. Lo descartado (visual
+> reset / hero 3D-R3F / glassmorphism como dirección de marca) **no** se reintroduce.
+
 ## Objetivo
 
 La interfaz de SYNTRA CORE debe sentirse como:
@@ -107,6 +113,11 @@ Preferencia:
 
 # Hero Section
 
+> **Estado actual (vinculante): el Hero es image-first.** Implementado contra el
+> asset aprobado en `docs/reference-locks/hero.md` (`hero-stratos.webp`) + 2.5D hover,
+> ya mergeado y en producción (Home V1 FROZEN). Lo de abajo es la intención original;
+> el reference-lock manda. No reinventar un protagonista visual desde código.
+
 La hero section debe transmitir impacto inmediato.
 
 Debe incluir:
@@ -115,9 +126,8 @@ Debe incluir:
 - subtítulo claro,
 - CTA principal,
 - CTA secundario,
-- visual tecnológico,
-- glow effects suaves,
-- motion elegante.
+- el asset protagonista aprobado (image-first; el código compone y anima, no reinventa),
+- motion elegante y sobrio.
 
 ---
 
