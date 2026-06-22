@@ -17,3 +17,6 @@ coverage
 *.log
 
 .DS_Store
+
+# Casos use-cases: PNG fuente pesados (la web usa solo .webp optimizado)
+projects/syntra-core-website/public/visual-assets/syntra/use-cases/*.png

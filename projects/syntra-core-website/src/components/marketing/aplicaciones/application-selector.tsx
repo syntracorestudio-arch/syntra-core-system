@@ -1,28 +1,29 @@
 "use client";
 
 import * as React from "react";
-import { Activity, Check, FileText, Info, MessageCircle } from "lucide-react";
+import { ArrowRight, Info } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import { EASE_PREMIUM, DURATION } from "@/lib/motion";
+import { UseCaseChatScene, type UseCaseChatSceneConfig } from "./use-case-chat-scene";
 
 export interface ApplicationItem {
   id: string;
-  /** Nombre del rubro (label de la pill + encabezado del panel). */
+  /** Nombre del rubro (label de la pill + del rail editorial). */
   title: string;
   /** Ícono ya renderizado en el Server Component (evita pasar funciones). */
   icon: React.ReactNode;
-  /** Situación típica del rubro (el dolor — gancho de reconocimiento). */
+  /** Situación típica del rubro (el dolor — lead editorial del rail). */
   situacion: string;
   /** Sistema que diseñaríamos (tono condicional). */
   sistema: string;
   /** Capacidades / qué incluiría. */
   capacidades: string[];
-  /** Frase comercial / promesa del rubro — cierre del arco. */
+  /** Frase comercial / promesa del rubro. */
   tagline: string;
-  /** Recorrido vivo: 4 pasos en lenguaje de cliente; el último es el resultado (HECHO). */
+  /** Recorrido en lenguaje de cliente (se conserva como arco slim). */
   flow: string[];
 }
 
@@ -32,32 +33,260 @@ interface ApplicationSelectorProps {
   className?: string;
 }
 
-/** Delay acumulado por paso del recorrido (reusa DURATION.standard, sin número nuevo). */
-const STEP_DELAY = DURATION.standard;
+/** Arco comercial común (entrada → orden → acción → HECHO), conservado como leyenda slim. */
+const ARC = ["Entra", "Se ordena", "Se actúa", "Listo"] as const;
 
 /**
- * Íconos del recorrido por TIPO de paso (entrada → orden → acción), iguales para
- * todos los rubros (el 4º paso, HECHO, usa Check). Lucide, monocromos (muted);
- * el cyan queda reservado al HECHO. MessageCircle reusa el lenguaje del Hero.
+ * Rubros IMAGE-LED (asset premium + chat WhatsApp via UseCaseChatScene). Tener
+ * entrada acá define el layout image-led (split editorial + escena de chat) y
+ * la columna de texto compacta. Los rubros sin entrada usan el fallback CSS.
+ * Contenido ILUSTRATIVO de escena (no config del sitio).
  */
-const STEP_ICONS = [MessageCircle, FileText, Activity] as const;
+const CHAT_SCENES: Record<string, UseCaseChatSceneConfig> = {
+  inmobiliarias: {
+    asset: {
+      src: "/visual-assets/syntra/use-cases/palermo-property.webp",
+      width: 1080,
+      height: 1161,
+      alt: "Departamento de 2 ambientes en venta en Palermo, Buenos Aires, por USD 95.000, con balcón y mucha luz natural.",
+    },
+    client: { name: "Laura F.", avatar: "L" },
+    assistantLabel: "Ana · asistente virtual",
+    messages: [
+      { from: "client", text: "Hola, vi el departamento de Palermo. ¿Sigue disponible?", time: "12:31" },
+      {
+        from: "assistant",
+        text: "Sí, sigue disponible. Es un 2 ambientes con balcón y mucha luz natural. ¿Querés coordinar una visita?",
+        time: "12:31",
+      },
+      { from: "client", text: "Buenísimo. ¿Se puede visitar esta semana?", time: "12:32" },
+      {
+        from: "assistant",
+        text: "Sí. Tengo disponible jueves 18:00 o viernes 11:00. ¿Cuál te sirve más?",
+        time: "12:32",
+      },
+      { from: "client", text: "Jueves 18:00 está bien.", time: "12:33" },
+      {
+        from: "assistant",
+        text: "Perfecto. Te dejo la visita agendada para el jueves a las 18:00.",
+        time: "12:33",
+      },
+    ],
+    badge: "Visita agendada · Jueves 18:00",
+  },
+  legal: {
+    asset: {
+      src: "/visual-assets/syntra/use-cases/estudio-project.webp",
+      width: 1080,
+      height: 1080,
+      alt: "Escritorio de un estudio jurídico con un contrato de alquiler y una consulta registrada en revisión inicial.",
+    },
+    client: { name: "Martín R.", avatar: "M" },
+    assistantLabel: "Clara · asistente virtual",
+    // Asset cuadrado → un poco más de ancho SOLO en xl (≥1280) para igualar
+    // presencia sin apretar el texto en lg/1024. No toca inmobiliarias.
+    assetWidthClass: "max-w-[23.5rem] lg:w-[24.5rem] xl:w-[25.5rem]",
+    messages: [
+      {
+        from: "client",
+        text: "Hola, necesito consultar por un contrato de alquiler. ¿Puedo enviarles el caso?",
+        time: "10:14",
+      },
+      {
+        from: "assistant",
+        text: "Hola Martín, sí. Podés contarme el motivo de la consulta y adjuntar el contrato si lo tenés.",
+        time: "10:14",
+      },
+      { from: "client", text: "Es por una cláusula de renovación que no entiendo.", time: "10:15" },
+      {
+        from: "assistant",
+        text: "Perfecto. Dejé registrada la consulta y la derivé para revisión inicial.",
+        time: "10:15",
+      },
+      { from: "client", text: "Gracias. ¿Me pueden contactar esta semana?", time: "10:16" },
+      { from: "assistant", text: "Sí. Te propongo una llamada el jueves a las 17:30.", time: "10:16" },
+    ],
+    badge: "Consulta registrada · Revisión inicial",
+  },
+  salud: {
+    asset: {
+      src: "/visual-assets/syntra/use-cases/medicina-project.webp",
+      width: 1080,
+      height: 1080,
+      alt: "Recepción de una clínica médica cálida y moderna, con una consulta registrada y un turno confirmado.",
+    },
+    client: { name: "Carolina M.", avatar: "C" },
+    assistantLabel: "Sofía · asistente virtual",
+    // Asset cuadrado → un poco más de ancho SOLO en xl (≥1280), igual que legal.
+    assetWidthClass: "max-w-[23.5rem] lg:w-[24.5rem] xl:w-[25.5rem]",
+    messages: [
+      {
+        from: "client",
+        text: "Hola, quisiera sacar un turno de consulta médica. ¿Tienen disponibilidad esta semana?",
+        time: "09:12",
+      },
+      {
+        from: "assistant",
+        text: "Hola Carolina, sí. Puedo ayudarte. ¿Preferís por la mañana o por la tarde?",
+        time: "09:12",
+      },
+      { from: "client", text: "Por la mañana, si puede ser.", time: "09:13" },
+      {
+        from: "assistant",
+        text: "Tengo disponible martes 10:30 o jueves 9:00. ¿Cuál te sirve más?",
+        time: "09:13",
+      },
+      { from: "client", text: "Martes 10:30 me queda bien.", time: "09:14" },
+      {
+        from: "assistant",
+        text: "Perfecto. Te dejo el turno confirmado para el martes a las 10:30.",
+        time: "09:14",
+      },
+    ],
+    badge: "Turno confirmado · Mar 10:30",
+  },
+  pymes: {
+    asset: {
+      src: "/visual-assets/syntra/use-cases/ropa-project.webp",
+      width: 1080,
+      height: 1080,
+      alt: "Interior de un local de ropa cálido y moderno, con un pedido registrado y confirmado.",
+    },
+    client: { name: "Valentina R.", avatar: "V" },
+    assistantLabel: "Julieta · asistente virtual",
+    // Asset cuadrado → un poco más de ancho SOLO en xl (≥1280), igual que legal/salud.
+    assetWidthClass: "max-w-[23.5rem] lg:w-[24.5rem] xl:w-[25.5rem]",
+    messages: [
+      {
+        from: "client",
+        text: "Hola, vi el conjunto beige en talle M. ¿Lo tienen disponible?",
+        time: "17:42",
+      },
+      {
+        from: "assistant",
+        text: "Hola Valentina, sí. Tenemos stock en talle M. ¿Querés que te comparta el precio y te lo reserve?",
+        time: "17:42",
+      },
+      { from: "client", text: "Sí, por favor.", time: "17:43" },
+      {
+        from: "assistant",
+        text: "Perfecto. El conjunto está a $89.000. Si querés, puedo dejarte el pedido armado para retiro o envío.",
+        time: "17:43",
+      },
+      { from: "client", text: "Lo quiero con envío a Córdoba.", time: "17:44" },
+      {
+        from: "assistant",
+        text: "Listo. Te dejo el pedido confirmado y coordinamos el envío.",
+        time: "17:44",
+      },
+    ],
+    badge: "Pedido confirmado · Envío a Córdoba",
+  },
+};
+
+/** Rubros que usan la escena image-led (presencia en CHAT_SCENES). */
+const IMAGE_LED_RUBROS = new Set(Object.keys(CHAT_SCENES));
+
+/* ===================================================== Escena del rubro (image-led) */
 
 /**
- * ApplicationSelector — "Scenario Rail": segmented control de rubros + escenario
- * que se EJECUTA al seleccionarlo (WEB-011C). Disparo por CLIC: al cambiar de
- * rubro el panel re-monta (key) y el recorrido corre PENDIENTE → ACTIVO → HECHO,
- * un paso por vez (delays acumulados). Cada paso es un NODO con masa (chip), no
- * un punto; el 4º paso es la TARJETA-RESULTADO (cyan + check + "Listo") que
- * persiste como clímax.
+ * Escena del rubro. Los 4 rubros de Casos son image-led (asset premium + chat
+ * WhatsApp + badge HECHO + motion secuencial) via el componente config-driven
+ * compartido `UseCaseChatScene`. Se resuelve por presencia en CHAT_SCENES.
+ */
+function IndustryObjectScene({ id, reduce }: { id: string; reduce: boolean }) {
+  const chat = CHAT_SCENES[id];
+  if (!chat) return null;
+  return <UseCaseChatScene config={chat} reduce={reduce} />;
+}
+
+/* ============================================================ Rail editorial (texto) */
+
+function EditorialRail({
+  item,
+  note,
+  compact,
+}: {
+  item: ApplicationItem;
+  note: string;
+  /** En la escena image-led, la columna se simplifica (la escena ya muestra el valor). */
+  compact?: boolean;
+}) {
+  return (
+    <div className={cn("flex flex-col", compact ? "gap-6 lg:gap-7" : "gap-5")}>
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <span>{item.icon}</span>
+        <span className="font-accent text-xs tracking-widest uppercase">{item.title}</span>
+      </div>
+
+      {/* Dolor: lead editorial, gancho de reconocimiento (<3s) */}
+      <p
+        className={cn(
+          "font-heading text-xl leading-snug font-semibold text-foreground text-balance sm:text-2xl",
+          compact && "lg:text-[1.8rem] lg:leading-[1.18]",
+        )}
+      >
+        {item.situacion}
+      </p>
+
+      {compact ? (
+        /* Escena image-led: párrafo de contexto (densidad editorial, no el arco slim) */
+        <p className="text-base leading-relaxed text-muted-foreground text-pretty lg:text-[1.05rem] lg:leading-[1.65]">
+          {item.sistema}
+        </p>
+      ) : (
+        /* Arco comercial como leyenda slim (no protagonista) */
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] tracking-wide text-muted-foreground/70">
+          {ARC.map((stage, i) => {
+            const last = i === ARC.length - 1;
+            return (
+              <React.Fragment key={stage}>
+                <span className={last ? "font-medium text-brand-cyan" : undefined}>{stage}</span>
+                {!last ? <ArrowRight className="size-3 opacity-60" aria-hidden="true" /> : null}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Promesa del rubro (acento electric) */}
+      <p className="border-l-2 border-accent-primary/60 pl-4 text-base leading-snug font-medium text-foreground text-pretty">
+        {item.tagline}
+      </p>
+
+      {/* Soporte tenue: qué incluiría (se omite en la escena image-led para respirar) */}
+      {compact ? null : (
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          <span className="text-muted-foreground/60">Incluiría: </span>
+          {item.capacidades.join(" · ")}
+        </p>
+      )}
+
+      {/* Honestidad */}
+      <div className="flex items-start gap-2 text-xs text-muted-foreground">
+        <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+        <span>{note}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================ Selector + split */
+
+/**
+ * ApplicationSelector — "Casos por rubro" (VISUAL-RESET, Ruta 2 Editorial Case
+ * Card + franja cálida de Ruta 3). Rail de rubros + split asimétrico: rail
+ * editorial de texto a un lado, FICHA DE PAPEL off-white del rubro flotando con
+ * franja cálida, capas y sello HECHO al otro. Material dominante claro → rompe
+ * con el azul. Sin dashboard, sin tabla, sin card azul, sin browser/chat/nodos.
  *
- * Reglas: el cyan es señal EXCLUSIVA de HECHO (no decora rubro/labels/checks).
- * Solo se anima opacity/transform — nunca width/height/box-shadow/filter.
- * reduced-motion → estado final completo (4 nodos, 4º en HECHO), sin ejecución.
- * Client island mínima: solo el rubro activo. Sin loop/timers/listeners globales.
- * Tokens desde `lib/motion` (EASE_PREMIUM/DURATION), sin easing inline.
+ * Reglas: cyan = señal EXCLUSIVA del sello HECHO. Solo opacity/transform. Al
+ * cambiar de rubro el split re-monta (key) y las capas entran (product-layer
+ * parallax) cerrando con el sello (active-to-done). reduced-motion → escena final
+ * armada, sin float ni reveal. Tokens desde `lib/motion`, sin easing inline.
  */
 function ApplicationSelector({ items, note, className }: ApplicationSelectorProps) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotion() ?? false;
   const [activeId, setActiveId] = React.useState(items[0]?.id);
   const handleSelect = React.useCallback((id: string) => {
     track("application_tab_click", { industry: id });
@@ -65,15 +294,12 @@ function ApplicationSelector({ items, note, className }: ApplicationSelectorProp
   }, []);
 
   const active = items.find((it) => it.id === activeId) ?? items[0];
-
   if (!active) return null;
-
-  const lastIndex = active.flow.length - 1;
 
   return (
     <div className={cn("flex flex-col", className)}>
-      {/* === Rail: segmented control contenido (disparador del recorrido) === */}
-      <div className="flex justify-center">
+      {/* Rail: segmented control de rubros (alineado a la izquierda, editorial) */}
+      <div className="flex">
         <div
           role="tablist"
           aria-label="Rubros de aplicación"
@@ -97,7 +323,6 @@ function ApplicationSelector({ items, note, className }: ApplicationSelectorProp
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {/* Ícono del rubro: neutro (el cyan se reserva para HECHO) */}
                 <span
                   className={cn(
                     "shrink-0 transition-colors duration-200",
@@ -113,166 +338,36 @@ function ApplicationSelector({ items, note, className }: ApplicationSelectorProp
         </div>
       </div>
 
-      {/* === Panel del escenario activo ===
-          Alto reservado en el contenedor PADRE persistente (no en el motion.div que
-          re-monta) → sin colapso ni salto al cambiar de rubro con mode="wait". */}
-      <div className="mt-6 flex min-h-[31rem] flex-col overflow-hidden rounded-2xl border border-border bg-surface-1 sm:min-h-[28rem] lg:min-h-[26rem]">
-        {/* Hairline de acento superior (electric, NO cyan) */}
-        <div
-          aria-hidden="true"
-          className="h-0.5 w-full shrink-0 bg-gradient-to-r from-transparent via-accent-primary/60 to-transparent"
-        />
-
+      {/* Split editorial: alto reservado para no saltar al cambiar de rubro */}
+      <div className="relative mt-8 min-h-[34rem] sm:min-h-[28rem] lg:min-h-[24rem]">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={active.id}
             role="tabpanel"
             id={`casos-panel-${active.id}`}
             aria-labelledby={`casos-tab-${active.id}`}
-            initial={reduce ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduce ? undefined : { opacity: 0, y: -8 }}
+            initial={reduce ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={reduce ? undefined : { opacity: 0 }}
             transition={{ duration: reduce ? 0 : DURATION.micro, ease: EASE_PREMIUM }}
-            className="flex flex-1 flex-col p-6 sm:p-8"
+            className={cn(
+              "grid gap-12 lg:gap-14",
+              IMAGE_LED_RUBROS.has(active.id)
+                ? "items-center lg:grid-cols-[0.88fr_1.12fr]"
+                : "items-center lg:grid-cols-[1.05fr_0.95fr]",
+            )}
           >
-            {/* Header: rubro (ícono neutro) + dolor en la misma unidad */}
-            <div className="flex flex-col gap-4 border-b border-border pb-6">
-              <div className="flex items-center gap-3">
-                <span className="text-muted-foreground">{active.icon}</span>
-                <h3 className="font-heading text-xl font-semibold tracking-tight">
-                  {active.title}
-                </h3>
-              </div>
-              {/* Dolor: gancho de reconocimiento (<3s) */}
-              <p className="text-base leading-relaxed text-foreground text-pretty">
-                {active.situacion}
-              </p>
+            {/* Ficha del rubro (primero en mobile como gancho visual) */}
+            <div className="lg:order-2">
+              <IndustryObjectScene id={active.id} reduce={reduce} />
             </div>
-
-            {/* El recorrido vivo — escena protagonista en plano recesado.
-                clic → cada nodo se enciende uno por vez → 4º nodo = tarjeta HECHO. */}
-            <div className="mt-6 rounded-xl border border-border bg-depth-sunken p-5 sm:p-7">
-              <p className="font-accent text-[10px] tracking-[0.2em] text-muted-foreground/70 uppercase">
-                El recorrido de tu consulta
-              </p>
-
-              <div className="relative mt-7">
-                {/* Track desktop: línea sutil detrás de los nodos, al centro del marcador */}
-                <div
-                  aria-hidden="true"
-                  className="absolute top-6 right-8 left-8 hidden h-px bg-gradient-to-r from-transparent via-border-strong to-transparent lg:block"
-                />
-
-                <div className="flex flex-col gap-0 lg:flex-row lg:items-start lg:gap-3">
-                  {active.flow.map((step, i) => {
-                    const isLast = i === lastIndex;
-                    const delay = reduce ? 0 : i * STEP_DELAY;
-                    const StepIcon = STEP_ICONS[i];
-                    return (
-                      <React.Fragment key={step}>
-                        {/* Paso: entra atenuado (PENDIENTE) y sube a 1 cuando le toca */}
-                        <motion.div
-                          className="relative z-10 flex items-start gap-3 lg:flex-1 lg:flex-col lg:items-center lg:gap-3 lg:text-center"
-                          initial={reduce ? false : { opacity: 0.35 }}
-                          animate={{ opacity: 1 }}
-                          transition={{
-                            duration: reduce ? 0 : DURATION.standard,
-                            delay,
-                            ease: EASE_PREMIUM,
-                          }}
-                        >
-                          {/* Marcador-nodo (chip con masa, no dot) */}
-                          {isLast ? (
-                            <motion.span
-                              className="relative inline-flex size-12 shrink-0 items-center justify-center rounded-2xl border border-brand-cyan/45 bg-brand-cyan/10 text-brand-cyan"
-                              initial={reduce ? false : { opacity: 0, scale: 0.85 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{
-                                duration: reduce ? 0 : DURATION.standard,
-                                delay,
-                                ease: EASE_PREMIUM,
-                              }}
-                            >
-                              <Check className="size-5" aria-hidden="true" />
-                            </motion.span>
-                          ) : (
-                            <span className="relative inline-flex size-12 shrink-0 items-center justify-center rounded-2xl border border-border-strong bg-surface-2">
-                              {/* ACTIVO: pulso electric one-shot (solo opacity), un paso por vez */}
-                              {!reduce ? (
-                                <motion.span
-                                  aria-hidden="true"
-                                  className="absolute inset-0 rounded-2xl border border-brand-electric/60 bg-brand-electric/15"
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: [0, 0.85, 0] }}
-                                  transition={{
-                                    duration: DURATION.standard,
-                                    delay,
-                                    ease: EASE_PREMIUM,
-                                  }}
-                                />
-                              ) : null}
-                              {StepIcon ? (
-                                <StepIcon
-                                  className="size-5 text-muted-foreground"
-                                  aria-hidden="true"
-                                />
-                              ) : (
-                                <span className="font-accent text-xs text-muted-foreground">
-                                  {String(i + 1).padStart(2, "0")}
-                                </span>
-                              )}
-                            </span>
-                          )}
-
-                          {/* Texto del paso: HECHO en tarjeta con masa (contenida al ancho de columna) */}
-                          {isLast ? (
-                            <span className="inline-flex flex-col gap-1 rounded-xl border border-brand-cyan/30 bg-brand-cyan/[0.06] px-3 py-2.5 lg:w-full lg:max-w-[12rem] lg:items-center">
-                              <span className="font-accent text-[10px] tracking-[0.2em] text-brand-cyan uppercase">
-                                Listo
-                              </span>
-                              <span className="text-sm font-medium leading-snug text-foreground text-balance">
-                                {step}
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="pt-2.5 text-sm leading-snug text-muted-foreground text-balance lg:max-w-[12rem] lg:pt-0">
-                              {step}
-                            </span>
-                          )}
-                        </motion.div>
-
-                        {/* Conector mobile (vertical) entre nodos */}
-                        {!isLast ? (
-                          <span
-                            aria-hidden="true"
-                            className="ml-[23px] h-5 w-px shrink-0 bg-border-strong lg:hidden"
-                          />
-                        ) : null}
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Tagline — conclusión editorial del arco (foreground, NO cyan; acento electric) */}
-            <p className="mt-6 border-l-2 border-accent-primary/60 pl-4 text-lg font-medium leading-snug text-foreground text-balance">
-              {active.tagline}
-            </p>
-
-            {/* Soporte tenue: lo que diseñaríamos + qué incluiría como línea de apoyo (no ficha) */}
-            <div className="mt-6 flex flex-col gap-1.5 border-t border-border pt-6 text-sm leading-relaxed text-muted-foreground">
-              <p>{active.sistema}</p>
-              <p className="text-muted-foreground/80">
-                <span className="text-muted-foreground/60">Incluiría: </span>
-                {active.capacidades.join(" · ")}
-              </p>
-            </div>
-
-            {/* Footer de honestidad (último, tenue) */}
-            <div className="mt-auto flex items-start gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
-              <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              <span>{note}</span>
+            {/* Rail editorial de texto */}
+            <div className="lg:order-1">
+              <EditorialRail
+                item={active}
+                note={note}
+                compact={IMAGE_LED_RUBROS.has(active.id)}
+              />
             </div>
           </motion.div>
         </AnimatePresence>
