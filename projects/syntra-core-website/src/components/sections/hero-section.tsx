@@ -76,30 +76,44 @@ function HeroSection() {
       </div>
 
       {/* === Asset protagonista full-bleed (image-first, sin costuras) === */}
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+      <div className="group pointer-events-none absolute inset-0 -z-10 overflow-hidden [perspective:1400px] lg:pointer-events-auto">
         <motion.div
           initial={reduce ? false : { opacity: 0, scale: 1.04 }}
           animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1 }}
           transition={{ duration: reduce ? 0 : DURATION.hero, ease: EASE_PREMIUM }}
           className="absolute inset-0"
         >
-          <motion.div
-            animate={reduce ? undefined : { y: [0, -16, 0], x: [0, 8, 0] }}
-            transition={
-              reduce ? undefined : { duration: 13, repeat: Infinity, ease: "easeInOut" }
-            }
-            className="absolute inset-0"
-          >
-            <Image
-              src={HERO_ASSET}
-              alt={HERO_ASSET_ALT}
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover object-[72%_center]"
-            />
-          </motion.div>
+          {/* Wrapper 2.5D: profundidad del ASSET COMPLETO en hover (no bloques
+              individuales — es imagen plana). Reposo = identidad. */}
+          <div className="absolute inset-0 [transform-style:preserve-3d] transition-transform duration-700 ease-out will-change-transform group-hover:[transform:scale(1.02)_translate3d(10px,-7px,0)_rotateX(0.6deg)_rotateY(-1deg)] motion-reduce:transition-none motion-reduce:group-hover:[transform:none]">
+            <motion.div
+              animate={reduce ? undefined : { y: [0, -16, 0], x: [0, 8, 0] }}
+              transition={
+                reduce ? undefined : { duration: 13, repeat: Infinity, ease: "easeInOut" }
+              }
+              className="absolute inset-0"
+            >
+              <Image
+                src={HERO_ASSET}
+                alt={HERO_ASSET_ALT}
+                fill
+                priority
+                sizes="100vw"
+                className="object-cover object-[72%_center]"
+              />
+            </motion.div>
+          </div>
         </motion.div>
+
+        {/* Light response al hover: sheen diagonal + glow cyan sutil (desktop).
+            Solo opacity → no lava la imagen, sin costura. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 hidden opacity-0 transition-opacity duration-700 ease-out group-hover:opacity-100 motion-reduce:transition-none lg:block"
+        >
+          <div className="absolute inset-0 bg-[linear-gradient(115deg,transparent_45%,rgba(150,195,255,0.10)_60%,transparent_72%)]" />
+          <div className="absolute top-1/2 right-[20%] size-[26rem] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.12),transparent_66%)] blur-3xl" />
+        </div>
 
         {/* Light sweep cinematográfico (desktop, transform/opacity; sin hard-stop,
             sin lavar la imagen). Banda blanca difusa que cruza muy de vez en cuando. */}
@@ -131,9 +145,9 @@ function HeroSection() {
       </div>
 
       {/* === Contenido === */}
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 lg:max-w-7xl lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:px-8 2xl:max-w-[94rem] 2xl:px-12">
+      <div className="pointer-events-none mx-auto grid w-full max-w-6xl items-center gap-10 px-6 lg:max-w-7xl lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:px-8 2xl:max-w-[94rem] 2xl:px-12">
         {/* Columna izquierda: copy / acción / prueba */}
-        <div className="flex flex-col items-center gap-7 text-center lg:items-start lg:text-left">
+        <div className="pointer-events-auto flex flex-col items-center gap-7 text-center lg:items-start lg:text-left">
           <div className="flex flex-col items-center gap-5 lg:items-start">
             <motion.div variants={rise(0)} initial="hidden" animate="show">
               <Badge
