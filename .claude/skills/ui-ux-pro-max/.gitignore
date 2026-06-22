@@ -1,0 +1,4 @@
+# Cache de Python generado al ejecutar los scripts de la skill — no versionar.
+scripts/__pycache__/
+**/__pycache__/
+*.pyc
