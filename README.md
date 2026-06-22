@@ -139,23 +139,28 @@ La tecnología debe simplificar la experiencia, no hacerla más confusa.
 ```txt
 SYNTRA-CORE/
 │
-├── agents/
+├── .claude/                  # runtime Claude Code: agents (wrappers), skills, commands, hooks
+├── agents/                   # biblioteca de roles + governance (fuente de verdad de roles)
 ├── automation/
 ├── clients/
 ├── company/
 ├── components/
 ├── context/
 ├── crm/
+├── docs/                     # OS-level docs + reference-locks
 ├── projects/
+│   └── syntra-core-website/  # la web (Next.js) — código, componentes, tokens
 ├── prompts/
 ├── sops/
 ├── templates/
 ├── assets/
-├── docs/
 │
+├── CLAUDE.md                 # contexto operativo principal de Claude Code
 ├── README.md
 └── .gitignore
-SYNTRA OS
+```
+
+## SYNTRA OS
 
 SYNTRA OS es el sistema operativo interno de SYNTRA CORE.
 
