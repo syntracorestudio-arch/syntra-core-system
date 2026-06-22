@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { AlertCircle, Check, CheckCircle2, Send } from "lucide-react";
 
 import { contactSuccess, projectTypeOptions } from "@/config/site";
@@ -50,14 +49,14 @@ function ContactForm() {
     return (
       <div
         role="status"
-        className="success-reveal relative overflow-hidden rounded-2xl border border-brand-electric/25 bg-brand-electric/5 px-6 py-12 text-center shadow-[0_0_60px_-20px_rgba(37,99,235,0.45)]"
+        className="success-reveal relative overflow-hidden rounded-2xl border border-brand-cyan/30 bg-brand-cyan/[0.05] px-6 py-12 text-center"
       >
-        {/* Hairline de acento superior */}
+        {/* Hairline de cierre (cyan = HECHO; sobrio, sin glow) */}
         <span
           aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-brand-electric/60 to-transparent"
+          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-cyan/50 to-transparent"
         />
-        <span className="success-check mx-auto mb-5 inline-flex size-14 items-center justify-center rounded-full border border-brand-electric/30 bg-brand-electric/10 text-brand-cyan">
+        <span className="success-check mx-auto mb-5 inline-flex size-14 items-center justify-center rounded-full border border-brand-cyan/40 bg-brand-cyan/10 text-brand-cyan">
           <CheckCircle2 className="size-7" aria-hidden="true" />
         </span>
         <p className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">
@@ -69,7 +68,7 @@ function ContactForm() {
         <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-foreground/80">
           {contactSuccess.microcopy}
         </p>
-        <p className="mt-8 inline-flex items-center gap-1.5 rounded-full border border-brand-electric/25 bg-brand-electric/5 px-3 py-1 text-xs font-medium text-brand-cyan">
+        <p className="mt-8 inline-flex items-center gap-1.5 rounded-full border border-brand-cyan/30 bg-surface-2 px-3 py-1 text-xs font-medium text-brand-cyan">
           <Check className="size-3 shrink-0" aria-hidden="true" />
           {contactSuccess.secondary}
         </p>
@@ -138,7 +137,7 @@ function ContactForm() {
           {projectTypeOptions.map((opt) => (
             <label
               key={opt.value}
-              className="cursor-pointer rounded-full border border-border bg-depth-sunken px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground has-[:checked]:border-border-strong has-[:checked]:bg-surface-1 has-[:checked]:text-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-primary/40"
+              className="cursor-pointer rounded-full border border-border bg-surface-1 px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground has-[:checked]:border-border-strong has-[:checked]:bg-surface-2 has-[:checked]:text-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-primary/40"
             >
               <input
                 type="radio"
@@ -153,11 +152,11 @@ function ContactForm() {
       </fieldset>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor={fieldId("message")}>¿Qué necesitás?</Label>
+        <Label htmlFor={fieldId("message")}>Contanos qué necesitás</Label>
         <Textarea
           id={fieldId("message")}
           name="message"
-          placeholder="Contanos brevemente sobre tu proyecto o tu negocio."
+          placeholder="Describí brevemente tu proyecto, problema u objetivo. Cuanto más claro sea el contexto, mejor vamos a poder orientarte."
           aria-invalid={Boolean(state.errors?.message)}
           aria-describedby={
             state.errors?.message ? `${fieldId("message")}-error` : undefined
@@ -189,24 +188,12 @@ function ContactForm() {
         variant="brand"
         size="xl"
         disabled={isPending}
-        className="w-full"
+        className="w-full sm:w-auto sm:self-end"
       >
-        {isPending ? "Enviando..." : "Enviar mensaje"}
+        {isPending ? "Enviando..." : "Enviar consulta"}
         {!isPending && <Send data-icon="inline-end" />}
       </Button>
 
-      {/* Microcopy de confianza + privacidad (sin prometer tiempos) */}
-      <p className="text-xs leading-relaxed text-muted-foreground">
-        Primero entendemos tu caso y te respondemos con una propuesta clara, sin
-        compromiso. Mirá cómo tratamos tus datos en{" "}
-        <Link
-          href="/privacidad"
-          className="text-brand-cyan underline-offset-4 hover:underline"
-        >
-          Privacidad
-        </Link>
-        .
-      </p>
     </form>
   );
 }

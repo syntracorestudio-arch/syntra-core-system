@@ -103,9 +103,9 @@ export const siteConfig: SiteConfig = {
         "Y si te queda alguna duda, escribinos: respondemos claro y sin compromiso.",
     },
     finalCta: {
-      title: "¿Listo para dar el siguiente paso?",
+      title: "Hablemos de tu proyecto",
       subtitle:
-        "Contanos qué necesitás y te mostraremos la mejor forma de llevarlo a cabo, sin compromiso.",
+        "Contanos qué necesitás mejorar y te respondemos con una propuesta clara, viable y sin compromiso.",
     },
   },
 };
@@ -116,10 +116,10 @@ export const footerBrand =
 
 /** Copy del estado de éxito del formulario (momento de marca, content-driven). */
 export const contactSuccess = {
-  title: "Mensaje recibido",
-  body: "Gracias. Ya tenemos tu solicitud y vamos a revisar la mejor forma de ayudarte.",
-  microcopy: "Te contactaremos para entender mejor tu proyecto y definir el próximo paso.",
-  secondary: "Solicitud registrada correctamente.",
+  title: "Consulta recibida",
+  body: "Gracias. Vamos a revisar tu mensaje y te responderemos para definir el próximo paso.",
+  microcopy: "Te escribimos con una orientación clara para avanzar sin compromiso.",
+  secondary: "Mensaje enviado",
 };
 
 /**
