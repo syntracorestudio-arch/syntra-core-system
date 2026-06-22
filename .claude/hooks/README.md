@@ -19,9 +19,25 @@ Bloquea el staging global y obliga a staging explícito por archivo
   `tool_input.command` y, si detecta `git add` con pathspec global, sale con
   `exit 2` (bloquea y muestra el mensaje a Claude). Si no, `exit 0` (permite).
 
+## guard-forbidden-commit.mjs — Hook 2: guard de commit
+Complementa al Hook 1 protegiendo el `git commit` (alineado con `syntra-safe-commit-gate`).
+
+- **Bloquea `git commit -a` / `-am` / `--all`:** estos commitean archivos *tracked
+  modificados* sin staging explícito → riesgo de arrastrar `.claude/settings.json`
+  (que suele estar `M`) u otros. (No matchea `--amend`.)
+- **Bloquea `git commit` si hay PROHIBIDOS staged** (revisa `git diff --cached --name-only`):
+  `.claude/settings.json`, `.visual-review/`, `tools/`, `*.glb`, `*.blend`,
+  `docs/reference-locks/assets/hero-stratos-3d*`. Mensaje incluye el fix:
+  `git restore --staged <archivo>`.
+- **Advierte (no bloquea) si hay deps staged:** `package.json`, `package-lock.json`,
+  `projects/**/package.json|package-lock.json` → recordatorio de aprobación explícita.
+- **Permite:** commits normales con staging explícito y sin prohibidos.
+- **Qué es:** Claude Code hook (`PreToolUse`/`Bash`), no un Git hook global.
+
 ## Activación local (wiring)
-El script ya está versionado, pero el hook **no se activa** hasta cablearlo en
-`.claude/settings.json` (local, no commitear). Pegá la clave `hooks`:
+Los scripts ya están versionados, pero los hooks **no se activan** hasta cablearlos
+en `.claude/settings.json` (local, no commitear). Pegá la clave `hooks` (Hook 1 +
+Hook 2 en la misma cadena Bash, en orden):
 
 ```json
 {
@@ -33,6 +49,10 @@ El script ya está versionado, pero el hook **no se activa** hasta cablearlo en
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-git-add.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-forbidden-commit.mjs\""
           }
         ]
       }
@@ -65,6 +85,24 @@ Validación directa del script (sin depender del wiring):
 ```bash
 echo '{"tool_input":{"command":"git add ."}}' | node .claude/hooks/guard-git-add.mjs ; echo "exit=$?"   # exit=2
 echo '{"tool_input":{"command":"git add ruta.ts"}}' | node .claude/hooks/guard-git-add.mjs ; echo "exit=$?"  # exit=0
+```
+
+**Hook 2** — con el hook activo, desde Claude Code:
+```bash
+git commit -am "x" --dry-run
+```
+**Esperado:** bloqueado (no se ejecuta).
+
+```bash
+git add .claude/settings.json && git commit -m "x" --dry-run   # bloquea por prohibido staged
+git restore --staged .claude/settings.json                      # limpiar
+```
+**Esperado:** bloqueado; luego staging vacío.
+
+Validación directa del script:
+```bash
+echo '{"tool_input":{"command":"git commit -am x"}}' | node .claude/hooks/guard-forbidden-commit.mjs ; echo "exit=$?"  # exit=2
+echo '{"tool_input":{"command":"git commit -m x"}}'  | node .claude/hooks/guard-forbidden-commit.mjs ; echo "exit=$?"  # exit=0 (si no hay prohibidos staged)
 ```
 
 ## Alcance / límites
