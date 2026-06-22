@@ -21,22 +21,23 @@ Antes de proponer o ejecutar cualquier tarea, cargá contexto, revisá el estado
 
 ## Leer contexto obligatorio
 
-La fuente principal de gobernanza SYNTRA en este repo es
-`agents/ROLE-AUTHORITY-MAP.md`. No existe `agents/SYNTRA-OPERATING-SYSTEM.md`
-y no debe crearse ni buscarse.
+La gobernanza SYNTRA se reparte así: `CLAUDE.md` enruta tarea→agente;
+`agents/ROLE-AUTHORITY-MAP.md` define autoridad; `agents/governance/SYNTRA-CONTEXT-ROUTER.md`
+define **modo de operación + Context Receipt + flujo de PR**. No existe
+`agents/SYNTRA-OPERATING-SYSTEM.md` y no debe crearse ni buscarse.
 
 Revisar:
 
 ```text
 CLAUDE.md
+agents/governance/SYNTRA-CONTEXT-ROUTER.md
 agents/ROLE-AUTHORITY-MAP.md
+agents/governance/syntra-knowledge-map.md
 agents/development/web-delivery-pipeline.md
-projects/syntra-core-website/TASKS.md
+projects/syntra-core-website/TASKS.md   (si existe)
+docs/reference-locks/   (locks vigentes por sección)
 docs/creative-library/ si existe
-docs/visual-reset/ si existe
-.claude/skills/ si existe
-.claude/agents/ si existe
-.claude/commands/ si existe
+.claude/skills/ · .claude/agents/ · .claude/commands/ · .claude/hooks/
 ```
 
 ## Confirmar herramientas disponibles
@@ -49,54 +50,47 @@ syntra-visual-gate
 syntra-premium-section-design
 syntra-premium-motion-system
 syntra-safe-commit-gate
-syntra-creative-direction
+syntra-reference-lock
+ui-ux-pro-max
 syntra-daily-bootstrap
 ```
+
+GitHub CLI: instalado pero fuera de PATH → confirmar con
+`"/c/Program Files/GitHub CLI/gh.exe" auth status`.
 
 Si alguna no aparece, reportarlo.
 
 ## Estado esperado reciente
 
-Usar esto solo como referencia inicial.
-La fuente real siempre es Git y los archivos del repo.
+Usar esto solo como referencia inicial. **La fuente real siempre es Git y los
+archivos del repo** (los estados puntuales se derivan de `git log`/`git status`).
 
-Estado conocido:
-
-```text
-Branch esperada:
-visual-reset/hero-redesign
-
-Último checkpoint aprobado:
-fc82612 — feat(web): add image-led use cases section
-
-Casos:
-cerrado, aprobado, commiteado y pusheado en origin/visual-reset/floating-product-scenes.
-
-Hero:
-en rediseño sobre branch visual-reset/hero-redesign.
-Prototipo local posible, pendiente de revisión visual del owner antes de commit.
-
-H1 aprobado del Hero:
-Sistemas digitales que hacen crecer tu negocio
-
-Dirección aprobada del Hero:
-Hero premium de dos columnas:
-izquierda = copy claro + CTA + bullets
-derecha = objeto-firma Digital Arc / Kinetic Ribbon
-background = dark premium con glow, spotlight, mesh, grain y motion sutil.
-
-No usar Spline en esta iteración salvo aprobación explícita.
-No tocar Casos salvo instrucción explícita.
-```
-
-Stashes conocidos:
+Hechos durables (no asumir, verificar):
 
 ```text
-WIP visual reset remaining before hero redesign
-Contacto 013C
+Trabajo principal en main vía PRs (branch → PR → merge manual del owner).
+Branches locales típicas: main + spike/hero-3d-glass (+ branch de trabajo activa).
+
+Home V1 FROZEN (no reabrir Hero/Canvas como composición).
+Hero: image-first (hero-stratos.webp) + 2.5D hover — MERGEADO en main.
+Contacto: 013C (materialidad on-system + copy profesional) — MERGEADO en main.
+Visual Sprint 01 (tokens accent-ai/accent-warm, grain, tonos de Servicios,
+  role tags + IA violeta, hairline de scroll, fade del tablist) — MERGEADO en main.
+UI UX Pro Max: instalada como skill de apoyo — MERGEADA en main.
+
+Dirección visual: live-system ("recorrido de una consulta"), premium no genérico.
+NO reintroducir: visual reset / hero 3D-R3F-glass / scene-kit / Digital Arc / Spline.
 ```
 
-No aplicar ningún stash sin aprobación explícita.
+Stashes:
+
+```text
+Verificar con `git stash list`. Históricamente quedó solo:
+stash@{0} — spike3d blender tools + glb/preview (On spike/hero-3d-glass)
+Los stashes de visual-reset y Contacto 013C YA fueron integrados/descartados.
+```
+
+No aplicar ni borrar ningún stash sin aprobación explícita.
 
 ## Revisar estado del repo
 
@@ -146,29 +140,24 @@ Reportar:
 
 ## Reglas de aprobación
 
-No asumir que se puede seguir trabajando hasta que reportes el estado.
+El bootstrap es **read-only**: primero reportá el estado, después se trabaja. No tocar
+archivos durante el bootstrap.
 
-No interpretar:
-
-```text
-continuar
-dale
-ok
-perfecto
-seguí
-```
-
-como autorización para commitear.
-
-No commitear sin frase explícita del owner:
+Una vez reportado, el trabajo se rige por los **modos** del Context Router
+(`agents/governance/SYNTRA-CONTEXT-ROUTER.md`):
 
 ```text
-Aprobado para commit.
+- Autopilot (técnico/bugfix, docs/governance, visual Cat A): Claude puede
+  branch → implementar → QA → commit (staging explícito) → push → abrir PR.
+  El owner mergea manualmente.
+- Checkpoint (visual Cat B/C, cambios riesgosos): frena en gates de aprobación.
+- Manual: solo propone.
 ```
 
-No pushear sin autorización explícita.
-
-No tocar código ni documentación hasta recibir instrucción posterior al reporte.
+Siempre requieren OK explícito del owner: **merge/push a main**, **commit visual
+Cat B/C** (necesita reference-lock + visual gate), `.claude/settings.json`,
+`package.json`/deps, migraciones/datos/env, aplicar/borrar stashes. Para trabajo
+visual, "dale/ok/seguí" no es autorización de commit: el commit visual va por el gate.
 
 ## Responder con
 

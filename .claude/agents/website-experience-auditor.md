@@ -57,4 +57,8 @@ Veredicto general → score → diagnóstico por sección (qué funciona / qué 
 nivel / niveles A·B·C / recomendación) → top oportunidades → quick wins / big bets
 → qué NO tocar → roadmap por fases → próxima acción única. Sin tocar nada.
 
+> Apoyo: la skill `ui-ux-pro-max` puede consultarse para auditoría UI/UX (accesibilidad,
+> jerarquía, patrones) como input — NO autoridad. Política:
+> `agents/governance/ui-ux-pro-max-usage.md`.
+
 Reference source: agents/design/website-experience-auditor.md

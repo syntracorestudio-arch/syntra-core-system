@@ -16,14 +16,17 @@ git status            # know exactly what changed
 git diff --check      # no whitespace/merge conflict markers
 ```
 
-## Never commit
+## Never commit (enforced by the active git hook `guard-forbidden-commit.mjs`)
 - `.claude/settings.json` (harness allowlist; discard with `git checkout -- .claude/settings.json` before staging).
 - `.visual-review/` and any screenshots / `crop_*.png` (gitignored local artifacts).
-- `test-results/`, `playwright-report/`, `playwright/.cache/`.
+- `tools/`, `*.glb`, `*.blend`, `docs/reference-locks/assets/hero-stratos-3d*` (3D-spike artifacts; hard-blocked by the hook).
+- `package.json` / `package-lock.json` → the hook WARNS (not blocks); only stage with explicit owner approval.
+- `test-results/`, `playwright-report/`, `playwright/.cache/` (gitignored).
 - Any file you did not intend.
 
 ## Staging
-- **Never `git add .`** — stage explicit paths only.
+- **Never `git add .` / `-A` / `--all`** — blocked by the hook `guard-git-add.mjs`. Stage explicit paths only.
+- **Never `git commit -a` / `-am` / `--all`** — blocked by `guard-forbidden-commit.mjs` (would drag tracked-modified files like settings.json). `--amend` is allowed.
 - Stage just the files for THIS atomic change.
 
 ## Atomic commit
@@ -37,9 +40,16 @@ git diff --check      # no whitespace/merge conflict markers
 
 ## Push + verify
 ```bash
-git push
-git status            # confirm clean working tree (settings.json may remain, unstaged)
+git push -u origin <branch>   # never push to main
+git status                    # confirm clean working tree (settings.json may remain, unstaged)
 ```
+
+## Open PR (Autopilot — owner merges manually)
+`gh` is installed but NOT on PATH → call by full path. Claude may open PRs automatically:
+```bash
+"/c/Program Files/GitHub CLI/gh.exe" pr create --base main --head <branch> --title "…" --body "…"
+```
+The **owner merges manually**. See `agents/governance/SYNTRA-CONTEXT-ROUTER.md` §6.
 
 ## Authorization
 - Commit/push only when the user has asked, or the task explicitly authorizes it.

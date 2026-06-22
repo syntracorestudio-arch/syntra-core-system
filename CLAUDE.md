@@ -259,9 +259,18 @@ Ante cualquier tarea no trivial:
 
 1. Ante una tarea no trivial, identificar el dominio y seleccionar los subagents antes de actuar.
 2. Separar siempre diagnóstico, plan, implementación y QA en fases distintas.
-3. No modificar archivos sin aprobación explícita cuando la tarea afecte código, diseño, configuración, datos o automatizaciones.
-4. `frontend-engineer` y `backend-engineer` solo implementan trabajo ya aprobado
-   (TASK ID + OK explícito); ante ambigüedad, frenan y derivan.
+3. **Modo de operación (ver `agents/governance/SYNTRA-CONTEXT-ROUTER.md`).** En
+   **Autopilot** (default para trabajo técnico/bugfix, docs/governance y visual Cat A)
+   Claude puede ejecutar el ciclo completo sin aprobación paso a paso:
+   `branch → implementar → QA → commit (staging explícito) → push → abrir PR`; **el
+   owner mantiene el merge manual**. **Checkpoint** (default visual Cat B/C y cambios
+   riesgosos) frena en gates de aprobación. **Manual** solo propone. Lo que SIEMPRE
+   requiere aprobación: merge/push a main, commit visual Cat B/C sin reference-lock +
+   visual gate, `.claude/settings.json`, `package.json`/lockfiles/deps, migraciones/
+   datos/env/Supabase, aplicar/borrar stashes, borrar branches no mergeadas.
+4. `frontend-engineer` y `backend-engineer` implementan trabajo dentro del modo
+   declarado: en Autopilot, cambios técnicos/Cat A dentro de alcance; el trabajo
+   visual Cat B/C sigue exigiendo reference-lock aprobado. Ante ambigüedad, frenan.
 5. `qa-performance-guard` valida antes de cerrar cualquier trabajo web.
 6. Los agentes de diseño, producto, auditoría y arquitectura trabajan siempre read-only: nunca implementan.
 7. Para automatizaciones, seguir la secuencia:
@@ -288,6 +297,60 @@ Ante cualquier tarea no trivial:
     reference-lock aprobado (`docs/reference-locks/<section>.md`, `status: approved`)
     antes de implementar. Flujo: `syntra-premium-section-design` →
     `syntra-reference-lock` → `syntra-visual-gate`. Cat A / code-first no lo requiere.
+
+---
+
+# Modo de Operación, Context Receipt y Flujo de PR
+
+> Detalle completo: **`agents/governance/SYNTRA-CONTEXT-ROUTER.md`**. Resumen operativo:
+
+## Context Receipt
+Ante cualquier tarea no trivial, antes de actuar, emitir un **Context Receipt** corto
+(tarea · tipo · modo · contexto cargado · qué hago sin permiso · qué requiere aprobación
+· guardas). Las tareas triviales (lookup, pregunta, corrección de una línea ya pedida)
+no lo requieren.
+
+## Modos
+- **Autopilot (autonomía guiada)** — default para técnico/bugfix, docs/governance y
+  visual Cat A: Claude hace branch → implementa → QA → commit (staging explícito) →
+  push → **abre PR**; el owner **mergea manualmente**.
+- **Checkpoint** — default visual Cat B/C y cambios riesgosos: autónomo pero frena en
+  gates (reference-lock, visual gate, migraciones) para OK del owner.
+- **Manual** — solo propone.
+
+## GitHub CLI / PR automation
+`gh` está **instalado pero NO en PATH** → invocar por ruta completa:
+`"/c/Program Files/GitHub CLI/gh.exe"` (Bash) · `& "C:\Program Files\GitHub CLI\gh.exe"`
+(PowerShell). Cuenta `syntracorestudio-arch`. Claude **puede crear PRs automáticamente**
+(`gh pr create --base main --head <branch> …`); el **merge es manual del owner**. Nunca
+push a main.
+
+## Hooks de seguridad activos
+Claude Code `PreToolUse/Bash` (ver `.claude/hooks/README.md`): `guard-git-add.mjs`
+(bloquea `git add .`/`-A`/`--all`) y `guard-forbidden-commit.mjs` (bloquea
+`git commit -a/-am/--all` y el commit con archivos prohibidos staged). Scripts
+versionados; **wiring** en `.claude/settings.json` (local, **no se commitea**).
+
+## UI UX Pro Max (skill de apoyo)
+`.claude/skills/ui-ux-pro-max` — research/auditoría/inspiración UI/UX, **nunca**
+autoridad. Política: `agents/governance/ui-ux-pro-max-usage.md`. Los reference-locks y
+los tokens de `globals.css` mandan; toda recomendación pasa por Creative Director +
+Design System Guardian; prohibido derivar en genérico/glass excesivo.
+
+## Rutas correctas
+- Web: `projects/syntra-core-website/` (componentes en `src/components/**`, incl.
+  `marketing/servicios/`, `marketing/aplicaciones/`, `marketing/hero/`).
+- Tokens: `projects/syntra-core-website/src/app/globals.css`.
+- Reference-locks: `docs/reference-locks/<section>.md` (vigentes: `hero.md`, `contacto.md`).
+
+## QA mínimo (trabajo web)
+`npx tsc --noEmit` · `npm run lint` · `npm run build` · `npm run visual:shots` (no existe
+`npm run lighthouse` → medir Lighthouse manual si se necesita). Sin errores de consola;
+objetivo Lighthouse +95.
+
+## Copy
+Tono profesional, claro y humano (sin informal/corporativo frío). Web 100% español, sin
+i18n. Diseño premium, no genérico (sin SaaS/crypto/gamer/dashboard/glass excesivo).
 
 ---
 

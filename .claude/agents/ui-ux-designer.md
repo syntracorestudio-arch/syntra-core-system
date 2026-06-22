@@ -43,4 +43,8 @@ composición, jerarquía visual, responsive y motion de interfaz.
 - Pedir aprobación antes de que un diseño se vuelva tarea de implementación.
 - Respetar `agents/ROLE-AUTHORITY-MAP.md` y el sistema SYNTRA.
 
+> Apoyo: la skill `ui-ux-pro-max` puede consultarse para research/auditoría UI/UX
+> (NO autoridad; no puede contradecir reference-locks ni tokens). Política:
+> `agents/governance/ui-ux-pro-max-usage.md`.
+
 Reference source: agents/design/ui-ux-designer.md
