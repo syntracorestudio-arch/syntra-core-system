@@ -71,15 +71,21 @@ Hechos durables (no asumir, verificar):
 Trabajo principal en main vía PRs (branch → PR → merge manual del owner).
 Branches locales típicas: main + spike/hero-3d-glass (+ branch de trabajo activa).
 
-Home V1 FROZEN (no reabrir Hero/Canvas como composición).
+Home V1: Hero y Header FROZEN (no se tocan en el pivot vivo). Sistema y Nosotros
+  DESCONGELADOS para rediseño vivo (ver living-web-doctrine.md §7).
 Hero: image-first (hero-stratos.webp) + 2.5D hover — MERGEADO en main.
 Contacto: 013C (materialidad on-system + copy profesional) — MERGEADO en main.
 Visual Sprint 01 (tokens accent-ai/accent-warm, grain, tonos de Servicios,
   role tags + IA violeta, hairline de scroll, fade del tablist) — MERGEADO en main.
 UI UX Pro Max: instalada como skill de apoyo — MERGEADA en main.
 
-Dirección visual: live-system ("recorrido de una consulta"), premium no genérico.
-NO reintroducir: visual reset / hero 3D-R3F-glass / scene-kit / Digital Arc / Spline.
+Dirección visual VIGENTE (2026-06-23): **WEB VIVA** —
+  `docs/creative-library/living-web-doctrine.md`. Permite 3D real (three/R3F lazy),
+  fondos vivos por sección y motion ligado al scroll, con techo de perf (~90+ mobile,
+  CLS 0) y bajo gate visual. Piloto: Servicios.
+Sigue prohibido: efecto/3D SIN concepto, scroll-jacking, glass excesivo, SaaS/crypto/
+  gamer genérico, animar layout (rompe CLS). El Hero 3D-R3F-glass anterior sigue
+  descartado COMO COMPOSICIÓN del Hero (el Hero no se toca); el veto era al Hero, no al 3D.
 ```
 
 Stashes:

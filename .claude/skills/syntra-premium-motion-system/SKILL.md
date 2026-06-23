@@ -1,11 +1,18 @@
 ---
 name: syntra-premium-motion-system
-description: Use for any motion/animation work on the SYNTRA web (live-system sections, reveals, transitions, the PENDIENTE→ACTIVO→HECHO pattern). Enforces purpose-first motion, the canonical states, the EASE_PREMIUM/DURATION tokens, reduced-motion final state, CLS 0, opacity/transform only, no unnecessary loops, and no decorative motion.
+description: Use for any motion/animation work on the SYNTRA web (live-system sections, reveals, transitions, the PENDIENTE→ACTIVO→HECHO pattern). Enforces purpose-first motion, canonical states, EASE_PREMIUM/DURATION tokens, reduced-motion final state and CLS 0. Under the living-web doctrine (2026-06-23) it ALSO permits 3D (R3F lazy), per-section living backgrounds and scroll-linked motion under the technical north; purpose still required, decorative-only motion still rejected.
 ---
 
 # SYNTRA Premium Motion System
 
-**Normative skill.** One movement "seal" for the whole site. Components consume tokens; they do not invent timing. Motion exists to show the system working, never to decorate.
+> **Dirección vigente: `docs/creative-library/living-web-doctrine.md` (2026-06-23).**
+> Esta skill se mantiene como base de *purpose-first* + tokens + reduced-motion + CLS 0,
+> pero **ya NO es "solo opacity/transform" ni "1 motion-firma por viewport"**: bajo la
+> doctrina se permiten 3D real (R3F lazy), fondos vivos por sección y motion ligado al
+> scroll (norte técnico §3). Ante conflicto, manda la doctrina. (Será extendida/
+> reemplazada por `syntra-living-motion` en la Fase 2 del pivot.)
+
+**Normative skill (base).** One movement "seal" for the whole site. Components consume tokens; they do not invent timing. Motion exists to show the system working or to give **purposeful life/depth** — never to decorate emptily.
 
 ## When this applies
 Any task that adds or changes animation/transition on the SYNTRA web. Pairs with `syntra-visual-gate` (commit) and `syntra-premium-section-design` (concept).
@@ -29,8 +36,12 @@ Consume from `projects/syntra-core-website/src/lib/motion.ts`:
 - `staggerContainer`/`staggerItem`, `VIEWPORT_ONCE` where they fit.
 Any new timing constant lives in `lib/motion.ts`, nowhere else.
 
-## 4. Only opacity / transform
-Animate ONLY `opacity` and `transform` (scale/translate). **Never** animate `width`, `height`, `box-shadow`, `filter`, `color`, `background` or layout properties. State changes (e.g. HECHO check) conmutan nodos preexistentes por opacity/color — never insert/remove DOM (that causes reflow).
+## 4. Prefer GPU-friendly props (no layout animation)
+Default a `opacity` y `transform` (scale/translate) para UI motion. Bajo la doctrina se
+permiten además **3D (R3F/WebGL), shaders y `filter` puntual** cuando no rompan CLS ni
+perf y cumplan el norte técnico §3. **Nunca** animar layout (`width`, `height`, `top`,
+`left`) ni provocar reflow. State changes (e.g. HECHO check) conmutan nodos preexistentes
+por opacity/color — never insert/remove DOM en el camino que afecte layout.
 
 ## 5. reduced-motion
 With `prefers-reduced-motion: reduce`: render the **complete final state** directly — all steps visible, the last in HECHO (cyan + check), no execution, no stagger, no delays. Use `useReducedMotion()` with an explicit branch.
@@ -38,8 +49,12 @@ With `prefers-reduced-motion: reduce`: render the **complete final state** direc
 ## 6. CLS = 0
 Reserve height in the PERSISTENT parent container (not in a `motion.div` that re-mounts via `key` + `AnimatePresence mode="wait"`). The gesture must not push or insert layout. Validate corto→largo and largo→corto at desktop/tablet/mobile.
 
-## 7. No unnecessary loops
-Default is one-shot per viewport (or per click). Max 1 loop-zone per viewport, and loops must pause off-viewport. A perpetual loop reads as a decorative GIF — avoid unless justified and approved.
+## 7. Loops y fondos vivos
+UI/escenas one-shot por viewport (o por click) por defecto. **Fondos vivos** (Canvas/
+WebGL/3D) y derivas ambientales **pueden ser continuos** si: aportan profundidad con
+propósito, **pausan fuera de viewport** (`IntersectionObserver`/`frameloop="demand"`),
+tienen fallback mobile y respetan reduced-motion (frame estático). Un loop perpetuo que
+no pausa o que solo decora reads como GIF — evitar.
 
 ## 8. Accessibility
 HECHO must not depend on color alone — pair with a check icon + text. Preserve `tablist`/`tab`/`tabpanel`, `aria-controls`, `aria-labelledby`. Avoid `aria-live` unless strongly justified.
