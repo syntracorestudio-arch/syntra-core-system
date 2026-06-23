@@ -258,6 +258,7 @@ Ante cualquier tarea no trivial:
 | Layout, jerarquía visual, grids, composición, responsive, motion de interfaz, accesibilidad visual | `ui-ux-designer` | read-only |
 | Auditoría de experiencia web sección por sección (premium vs genérico, conversión, confianza, mobile) | `website-experience-auditor` | read-only |
 | Implementar UI ya aprobada en React/Next/TypeScript/Tailwind, componentes, integración del design system, refactors controlados | `frontend-engineer` | edita (solo si aprobado) |
+| Implementar motion vivo aprobado: 3D (three/R3F/drei), fondos vivos por sección, escenas-firma, animación ligada al scroll, sistema `<LivingBackground>` (web viva) | `motion-3d-engineer` | edita (solo si aprobado) |
 | Implementar backend ya aprobado: Supabase (modelo de datos, migraciones SQL), server actions, APIs/route handlers, auth/session, validaciones server-side, rate limiting, seguridad de webhooks (HMAC) | `backend-engineer` | edita (solo si aprobado) |
 | Validar TypeScript, lint, build, responsive, accesibilidad, performance y regresiones antes de cerrar/deploy | `qa-performance-guard` | read + valida |
 | Aprobar/vetar visualmente tareas que afecten composición, layout visual, percepción premium, jerarquía, Hero, Servicios, Casos, Proceso, Contacto, motion visible, responsive visual o uso del espacio | `visual-quality-director` | read-only / veto de commit visual |

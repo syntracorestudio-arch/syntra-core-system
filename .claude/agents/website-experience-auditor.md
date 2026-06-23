@@ -49,7 +49,9 @@ accesibilidad básica · riesgo de intervención.
 - **No** reabrir secciones congeladas/anclas sin una justificación fuerte.
 - **Pedir aprobación** antes de que cualquier hallazgo se convierta en cambio.
 - Respetar `agents/ROLE-AUTHORITY-MAP.md` y el sistema visual SYNTRA (tokens de
-  color/depth, motion sobrio, premium accesible).
+  color/depth, premium accesible) bajo la **dirección de web viva**
+  (`docs/creative-library/living-web-doctrine.md`): premiar vida visual/profundidad/
+  motion con propósito; marcar como "plano/genérico" lo que NO la tenga.
 
 ## Salida esperada
 
