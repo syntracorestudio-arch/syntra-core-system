@@ -48,7 +48,7 @@ function Arc({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObjec
       {/* Roll → elipse en diagonal ↗ marcada (perfecta hacia la derecha). */}
       <group rotation={[0, 0, 0.5]}>
         <group ref={tilt}>
-          <mesh ref={ring} scale={mobile ? 1.3 : 1.7}>
+          <mesh ref={ring} scale={mobile ? 0.82 : 1.0}>
             <torusGeometry args={[2.2, 0.075, 96, 360]} />
             <meshStandardMaterial
               color="#c2cad6"
@@ -65,11 +65,11 @@ function Arc({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObjec
 
 /** Haces de luz: la textura haz-luz.png en un shader con flujo + shimmer (additive). */
 function Beams() {
-  const tex = useTexture("/visual-assets/haz-luz.png");
+  // colorSpace se fija en el onLoad del loader (no mutar el resultado del hook en un effect).
+  const tex = useTexture("/visual-assets/haz-luz.png", (t) => {
+    t.colorSpace = THREE.SRGBColorSpace;
+  });
   const mat = React.useRef<THREE.ShaderMaterial>(null);
-  React.useEffect(() => {
-    tex.colorSpace = THREE.SRGBColorSpace;
-  }, [tex]);
   const uniforms = React.useMemo(
     () => ({ uMap: { value: tex }, uTime: { value: 0 }, uOpacity: { value: 0.9 } }),
     [tex],
@@ -123,7 +123,9 @@ function Scene({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObj
         <Lightformer intensity={1.3} position={[7, 0, 3]} scale={[5, 11, 1]} color="#e6e9ef" />
       </Environment>
       {!mobile && (
-        <EffectComposer multisampling={8}>
+        // multisampling 4 (no 8): el aro es cromo difuso con bloom, no precisa MSAA alto;
+        // baja mucho el costo por frame → más FPS, motion fluido. SMAA limpia el resto.
+        <EffectComposer multisampling={4}>
           <Bloom intensity={0.4} luminanceThreshold={0.45} luminanceSmoothing={0.3} mipmapBlur />
           <SMAA />
         </EffectComposer>
@@ -148,32 +150,25 @@ function Poster() {
   );
 }
 
-/** Capa de haces de luz (textura Spline) — fiel a la imagen; blend screen; los rayos
- * se deslizan animando SOLO la posición del fondo (sin transform → no desencaja). */
-function LightTexture({ reduce }: { reduce: boolean }) {
-  return (
-    <motion.div
-      aria-hidden="true"
-      className="absolute inset-0"
-      style={{
-        backgroundImage: "url('/visual-assets/haz-luz.png')",
-        backgroundSize: "cover",
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "50% 50%",
-        mixBlendMode: "screen",
-        opacity: 0.62,
-      }}
-      animate={
-        reduce
-          ? undefined
-          : {
-              backgroundPosition: ["38% 62%", "62% 36%", "38% 62%"],
-              opacity: [0.5, 0.72, 0.5],
-            }
-      }
-      transition={reduce ? undefined : { duration: 8, repeat: Infinity, ease: "easeInOut" }}
-    />
-  );
+/**
+ * Error boundary del WebGL: si el 3D falla (p. ej. el `Environment`/postprocessing se
+ * re-inicializan mal en Fast Refresh/HMR, o no hay WebGL), degrada al póster oscuro en
+ * vez de dejar la sección rota/blanca. Progressive enhancement (la sección vive sin 3D).
+ */
+class CanvasBoundary extends React.Component<
+  { children: React.ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch() {
+    // Silencioso: el <Poster /> de base queda como fallback.
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
 }
 
 /** Media query reactiva sin setState-in-effect (subscribe a matchMedia). */
@@ -231,15 +226,20 @@ function LivingBackground({ className }: LivingBackgroundProps) {
         />
       )}
       {!reduce && (
-        <Canvas
-          frameloop="always"
-          dpr={mobile ? [1, 1.5] : [1, 2]}
-          camera={{ position: [0, 0, 9], fov: 45 }}
-          gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-          style={{ position: "absolute", inset: 0 }}
-        >
-          <Scene mobile={mobile} scrollRef={scrollRef} />
-        </Canvas>
+        <CanvasBoundary>
+          <Canvas
+            frameloop="always"
+            // dpr capado: el canvas cubre TODA la sección (alta) → a dpr 2 era un buffer
+            // enorme por frame. 1.5 desktop / 1.25 mobile baja el costo sin que se note
+            // en un fondo cromo difuso. antialias del framebuffer off (lo hace el composer).
+            dpr={mobile ? [1, 1.25] : [1, 1.5]}
+            camera={{ position: [0, 0, 9], fov: 45 }}
+            gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
+            style={{ position: "absolute", inset: 0 }}
+          >
+            <Scene mobile={mobile} scrollRef={scrollRef} />
+          </Canvas>
+        </CanvasBoundary>
       )}
     </div>
   );
