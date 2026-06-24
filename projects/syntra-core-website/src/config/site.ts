@@ -67,10 +67,10 @@ export const siteConfig: SiteConfig = {
   },
   sections: {
     services: {
-      eyebrow: "Qué entregamos",
-      title: "Tres cosas que tu negocio se lleva funcionando",
+      eyebrow: "Servicios modulares",
+      title: "Elegí por dónde empezar",
       subtitle:
-        "Web, automatización e IA que trabajan juntas: atraen consultas, las ordenan solas y responden por vos cuando no estás.",
+        "Podés lanzar una web premium, automatizar tareas, sumar un chatbot con IA o conectar todo en un sistema completo cuando tu negocio lo necesite.",
     },
     useCases: {
       eyebrow: "Dónde aplica",
@@ -145,9 +145,9 @@ export const services: ServiceItem[] = [
     id: "web",
     icon: "LayoutTemplate",
     tag: "web",
-    title: "Una web que convierte visitas en consultas",
+    title: "Webs premium",
     description:
-      "Una web clara, rápida y profesional: tus clientes entienden qué ofrecés y te dejan su consulta sin vueltas.",
+      "Para negocios que necesitan verse profesionales y convertir visitas en consultas.",
     features: [
       "Landing pages y sitios corporativos",
       "Aplicaciones web a medida",
@@ -159,9 +159,9 @@ export const services: ServiceItem[] = [
     id: "automation",
     icon: "Workflow",
     tag: "automatización",
-    title: "Menos tareas a mano, más tiempo para vender",
+    title: "Automatizaciones",
     description:
-      "Automatizamos tareas repetitivas para que cada consulta quede ordenada y tu equipo responda más rápido.",
+      "Para ordenar tareas repetitivas, consultas, avisos y seguimientos —y que tu equipo gane tiempo.",
     features: [
       "Conexión automática entre tus herramientas",
       "Integraciones entre tus apps",
@@ -173,9 +173,9 @@ export const services: ServiceItem[] = [
     id: "ia",
     icon: "Sparkles",
     tag: "ia",
-    title: "Una atención que responde cuando vos no podés",
+    title: "Chatbots con IA",
     description:
-      "Un asistente que conoce tu negocio: responde las preguntas frecuentes y encamina cada consulta a tu equipo.",
+      "Para responder mejor, filtrar consultas y asistir a tus clientes cuando no estás.",
     features: [
       "Chatbots y asistentes inteligentes",
       "Derivación de consultas a tu equipo",
@@ -184,6 +184,12 @@ export const services: ServiceItem[] = [
     ],
   },
 ];
+
+/** Cierre de Servicios (WEB) — refuerza la modularidad (empezar por una, conectar todo). */
+export const servicesConnector = {
+  title: "Empezá por una. Cuando quieras, las conectamos todas.",
+  body: "No tenés que contratar todo de entrada: sumás el resto el día que tu negocio lo necesite.",
+};
 
 export const useCases: UseCaseItem[] = [
   {

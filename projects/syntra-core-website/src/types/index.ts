@@ -49,6 +49,16 @@ export interface ServiceItem {
   title: string;
   description: string;
   features: string[];
+  /**
+   * Visual protagonista (image-led). Opcional: si falta, la sección usa un
+   * placeholder premium CSS/SVG. Listo para reemplazar por WebP final.
+   */
+  image?: {
+    src: string;
+    width: number;
+    height: number;
+    alt: string;
+  };
 }
 
 export interface WorkflowStep {
