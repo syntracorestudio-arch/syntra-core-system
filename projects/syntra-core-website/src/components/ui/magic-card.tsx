@@ -1,6 +1,12 @@
 "use client"
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from "react"
 import {
   motion,
   useMotionTemplate,
@@ -54,6 +60,16 @@ function isOrbMode(props: MagicCardProps): props is MagicCardOrbProps {
   return props.mode === "orb"
 }
 
+/** Hidratación SSR-safe sin setState-in-effect: false en SSR/primer paint, true tras montar. */
+const subscribeNoop = () => () => {}
+function useMounted() {
+  return useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false
+  )
+}
+
 export function MagicCard(props: MagicCardProps) {
   const {
     children,
@@ -73,9 +89,7 @@ export function MagicCard(props: MagicCardProps) {
   const glowBlur = isOrbMode(props) ? (props.glowBlur ?? 60) : 60
   const glowOpacity = isOrbMode(props) ? (props.glowOpacity ?? 0.9) : 0.9
   const { theme, systemTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => setMounted(true), [])
+  const mounted = useMounted()
 
   const isDarkTheme = useMemo(() => {
     if (!mounted) return true
