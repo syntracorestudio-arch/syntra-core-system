@@ -5,7 +5,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import dynamic from "next/dynamic";
 
-import { services, servicesConnector, siteConfig } from "@/config/site";
+import { services, siteConfig } from "@/config/site";
 import { getIcon } from "@/lib/icons";
 import { EASE_PREMIUM, DURATION } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,9 @@ import { SectionHeading } from "@/components/shared/section-heading";
 import { BlurReveal } from "@/components/animations/blur-reveal";
 import { MagicCard } from "@/components/ui/magic-card";
 import { BorderBeam } from "@/components/ui/border-beam";
+import { ServiceModulesTabs } from "@/components/marketing/servicios/service-modules-tabs";
+import { ServicesConnectionFlow } from "@/components/marketing/servicios/services-connection-flow";
+import { ServicesDecide } from "@/components/marketing/servicios/services-decide";
 
 // PROTOTIPO web viva: fondo 3D ambiental, lazy (sin SSR, no bloquea LCP).
 const LivingBackground = dynamic(
@@ -97,7 +100,11 @@ function ServicesSection() {
   };
 
   return (
-    <Section id="servicios" contained={false} className="relative overflow-hidden">
+    <Section
+      id="servicios"
+      contained={false}
+      className="relative overflow-hidden py-16 sm:py-24 lg:py-28"
+    >
       {/* === Fondo full-bleed: base gris ahumado + arco 3D vivo (debajo del contenido) === */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
         <div
@@ -124,6 +131,17 @@ function ServicesSection() {
         }}
       />
 
+      {/* Vignette en bordes (foco/profundidad) + fundido sup/inf (cose con vecinas). */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-[6]"
+        style={{
+          background:
+            "radial-gradient(125% 95% at 50% 45%, transparent 55%, rgba(6,7,9,0.55) 100%)," +
+            "linear-gradient(to bottom, rgba(6,7,9,0.92) 0%, transparent 13%, transparent 87%, rgba(6,7,9,0.95) 100%)",
+        }}
+      />
+
       <Container className="relative z-10">
         <BlurReveal>
           <SectionHeading eyebrow={eyebrow} title={title} subtitle={subtitle} align="left" />
@@ -135,7 +153,7 @@ function ServicesSection() {
         initial="hidden"
         whileInView="show"
         viewport={{ once: true, amount: 0.2 }}
-        className="mx-auto mt-14 grid max-w-5xl gap-5 lg:mt-20 lg:grid-cols-3 lg:gap-6"
+        className="mx-auto mt-12 grid max-w-5xl gap-5 lg:mt-16 lg:grid-cols-3 lg:gap-6"
       >
         {services.map((service) => {
           const Icon = getIcon(service.icon);
@@ -145,9 +163,11 @@ function ServicesSection() {
             <motion.div
               key={service.id}
               variants={card}
-              whileHover={reduce ? undefined : { y: -6 }}
+              whileHover={
+                reduce ? undefined : { y: -6, boxShadow: `0 16px 48px -16px ${role.hex}66` }
+              }
               transition={{ duration: 0.3, ease: EASE_PREMIUM }}
-              className="h-full"
+              className="h-full rounded-2xl"
             >
               <MagicCard
                 gradientColor={role.hex}
@@ -232,17 +252,14 @@ function ServicesSection() {
         })}
       </motion.div>
 
-      {/* === Cierre: modularidad (empezá por una, conectá todo) === */}
-      <BlurReveal>
-        <div className="mt-16 flex flex-col items-start gap-3 border-t border-border/60 pt-8 lg:mt-20 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-          <p className="max-w-2xl font-heading text-xl font-semibold tracking-tight text-balance sm:text-2xl">
-            {servicesConnector.title}
-          </p>
-          <p className="max-w-md text-sm leading-relaxed text-pretty text-muted-foreground">
-            {servicesConnector.body}
-          </p>
-        </div>
-      </BlurReveal>
+      {/* === Bloque 2: qué podés construir con cada módulo (tabs) === */}
+      <ServiceModulesTabs />
+
+      {/* === Bloque 3: una solución puede crecer con la otra (flujo) === */}
+      <ServicesConnectionFlow />
+
+      {/* === Bloques 4 + 5: por dónde empezar + CTA consultivo === */}
+      <ServicesDecide />
       </Container>
     </Section>
   );

@@ -3,6 +3,9 @@ import type {
   FaqItem,
   NavItem,
   ServiceItem,
+  ServicesConnection,
+  ServicesConsultCta,
+  ServicesStartOption,
   SiteConfig,
   SolutionNode,
   StackItem,
@@ -147,12 +150,23 @@ export const services: ServiceItem[] = [
     tag: "web",
     title: "Webs premium",
     description:
-      "Para negocios que necesitan verse profesionales y convertir visitas en consultas.",
+      "Una presencia profesional que genera confianza y convierte visitas en consultas.",
     features: [
-      "Landing pages y sitios corporativos",
-      "Aplicaciones web a medida",
-      "Paneles para ver tu negocio de un vistazo",
-      "Velocidad de carga y mejor posición en Google",
+      "Más consultas desde tu sitio",
+      "Mejor presencia y posición en Google",
+      "Se ve perfecto en celular y escritorio",
+      "Listo para sumar automatización después",
+    ],
+    moduleIntro:
+      "Creamos una presencia digital clara, profesional y preparada para convertir visitas en consultas reales.",
+    includes: [
+      "Página institucional o landing page",
+      "Un mensaje claro sobre lo que ofrecés",
+      "Diseño adaptable a celular y escritorio",
+      "Formularios listos para recibir consultas",
+      "Textos pensados para generar oportunidades",
+      "Un sitio rápido, ordenado y fácil de navegar",
+      "Base preparada para sumar automatizaciones",
     ],
   },
   {
@@ -161,12 +175,23 @@ export const services: ServiceItem[] = [
     tag: "automatización",
     title: "Automatizaciones",
     description:
-      "Para ordenar tareas repetitivas, consultas, avisos y seguimientos —y que tu equipo gane tiempo.",
+      "Menos tareas manuales y mejor seguimiento para responder más rápido y perder menos oportunidades.",
     features: [
-      "Conexión automática entre tus herramientas",
-      "Integraciones entre tus apps",
-      "Automatización comercial y operativa",
-      "Notificaciones y reportes automáticos",
+      "Menos carga manual para tu equipo",
+      "Seguimiento más ordenado de cada consulta",
+      "Avisos y reportes automáticos",
+      "Conecta las herramientas que ya usás",
+    ],
+    moduleIntro:
+      "Ordenamos las tareas repetitivas para que tu negocio responda más rápido, pierda menos oportunidades y dependa menos de procesos manuales.",
+    includes: [
+      "Registro automático de consultas",
+      "Avisos internos para tu equipo",
+      "Seguimientos más ordenados",
+      "Menos carga manual de información",
+      "Reportes simples para ver qué está pasando",
+      "Conexión entre las herramientas que usás",
+      "Validaciones para reducir errores o duplicados",
     ],
   },
   {
@@ -175,20 +200,78 @@ export const services: ServiceItem[] = [
     tag: "ia",
     title: "Chatbots con IA",
     description:
-      "Para responder mejor, filtrar consultas y asistir a tus clientes cuando no estás.",
+      "Respuestas más rápidas y consultas mejor ordenadas, con el tono de tu marca, incluso fuera de horario.",
     features: [
-      "Chatbots y asistentes inteligentes",
-      "Derivación de consultas a tu equipo",
-      "Organización automática de tu información",
-      "Respuestas con el tono de tu marca",
+      "Respuestas rápidas, incluso fuera de horario",
+      "Filtra y deriva lo importante a tu equipo",
+      "Información de cada consulta ordenada",
+      "Atención con el tono de tu marca",
+    ],
+    moduleIntro:
+      "Creamos asistentes que ayudan a responder, filtrar y ordenar consultas con el tono de tu negocio.",
+    includes: [
+      "Respuestas rápidas a preguntas frecuentes",
+      "Atención inicial fuera de horario",
+      "Filtro de consultas antes de derivarlas",
+      "Captura de los datos importantes",
+      "Organización de las conversaciones",
+      "Respuestas alineadas a tu marca",
+      "Derivación a una persona cuando haga falta",
     ],
   },
 ];
 
-/** Cierre de Servicios (WEB) — refuerza la modularidad (empezar por una, conectar todo). */
-export const servicesConnector = {
-  title: "Empezá por una. Cuando quieras, las conectamos todas.",
-  body: "No tenés que contratar todo de entrada: sumás el resto el día que tu negocio lo necesite.",
+/** Bloque 2 — encabezado de "Qué podés construir con cada módulo". */
+export const servicesModulesMeta = {
+  title: "Qué podés construir con cada módulo",
+  subtitle:
+    "Cada servicio puede funcionar como un primer paso independiente o conectarse más adelante con el resto del sistema.",
+};
+
+/** Bloque 3 — "Una solución puede crecer con la otra" (narrativa + flujo). */
+export const servicesConnection: ServicesConnection = {
+  title: "Una solución puede crecer con la otra",
+  body: "Podés empezar con una web, una automatización o un asistente con IA. Lo importante es que cada pieza quede preparada para conectarse después, para que tu negocio no tenga soluciones aisladas, sino un sistema más ordenado y fácil de escalar.",
+  flow: [
+    { label: "Web recibe la consulta", role: "web" },
+    { label: "Automatización la ordena", role: "automation" },
+    { label: "IA responde o filtra", role: "ia" },
+    { label: "Tu equipo recibe una oportunidad más clara", role: "team" },
+  ],
+};
+
+/** Bloque 4 — "Por dónde te conviene empezar" (ayuda a decidir el primer paso). */
+export const servicesStart: { title: string; options: ServicesStartOption[] } = {
+  title: "Por dónde te conviene empezar",
+  options: [
+    {
+      id: "presence",
+      title: "Necesito verme más profesional",
+      body: "Empezá por una web premium que explique mejor tu negocio y convierta visitas en consultas.",
+      serviceId: "web",
+    },
+    {
+      id: "tasks",
+      title: "Pierdo tiempo en tareas repetitivas",
+      body: "Empezá por una automatización que ordene consultas, avisos, seguimientos o reportes.",
+      serviceId: "automation",
+    },
+    {
+      id: "questions",
+      title: "Recibo muchas preguntas parecidas",
+      body: "Empezá por un asistente con IA para responder, filtrar y derivar consultas de forma más clara.",
+      serviceId: "ia",
+    },
+  ],
+};
+
+/** Bloque 5 — CTA consultivo del cierre de Servicios. */
+export const servicesConsultCta: ServicesConsultCta = {
+  question: "¿No sabés por dónde empezar?",
+  microcopy:
+    "Te ayudamos a detectar qué solución puede generar más impacto primero, sin venderte algo que todavía no necesitás.",
+  button: "Quiero que me recomienden el mejor módulo",
+  href: "#contacto",
 };
 
 export const useCases: UseCaseItem[] = [
