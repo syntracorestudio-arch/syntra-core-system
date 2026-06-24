@@ -144,19 +144,24 @@ Obligatorio:
 
 # Motion Rules
 
-Permitido:
+> **Dirección vigente: "web viva" (`docs/creative-library/living-web-doctrine.md`,
+> 2026-06-23).** Ante conflicto sobre motion/3D/fondos/scroll, manda esa doctrina.
 
-- fade-in
-- blur reveal
-- subtle glow
-- smooth hover
-- elegant transitions
+Permitido (con intención y bajo el norte técnico de la doctrina §3):
+
+- fade-in / blur reveal / smooth hover / elegant transitions
+- subtle glow, aurora y derivas con propósito de profundidad
+- **fondos vivos por sección** (Canvas/WebGL **lazy**, pausados fuera de viewport)
+- **3D real** (three/R3F) como escena-firma o fondo de profundidad, lazy + reduced-motion safe
+- **animación ligada al scroll** (reveals por progreso, parallax controlado, capas)
 
 Evitar:
 
-- animaciones exageradas
-- efectos caricaturescos
-- motion distractivo
+- efecto/3D/partículas **sin concepto ni función** (wow vacío)
+- scroll-jacking que secuestre el control del usuario
+- animar layout (width/height/top/left) o cualquier cosa que rompa CLS 0
+- loops perpetuos que no pausan fuera de viewport
+- clichés genéricos (SaaS template, crypto/gamer, glass excesivo, nodos universales)
 
 ---
 
@@ -164,11 +169,13 @@ Evitar:
 
 Objetivos mínimos:
 
-- Lighthouse +95
+- Lighthouse **~90+ mobile** (techo ajustado por la web viva; ver
+  `docs/creative-library/living-web-doctrine.md` §2-3). Desktop apuntar a +95.
+- **CLS 0 (duro, sin excepción)** y LCP no bloqueado por 3D (lazy)
 - SEO técnico completo
-- WCAG AA
+- WCAG AA · reduced-motion safe (frame final estático)
 - Sin errores consola
-- Excelente performance mobile
+- Excelente performance mobile (3D con calidad reducida / fallback)
 
 ---
 
@@ -251,6 +258,7 @@ Ante cualquier tarea no trivial:
 | Layout, jerarquía visual, grids, composición, responsive, motion de interfaz, accesibilidad visual | `ui-ux-designer` | read-only |
 | Auditoría de experiencia web sección por sección (premium vs genérico, conversión, confianza, mobile) | `website-experience-auditor` | read-only |
 | Implementar UI ya aprobada en React/Next/TypeScript/Tailwind, componentes, integración del design system, refactors controlados | `frontend-engineer` | edita (solo si aprobado) |
+| Implementar motion vivo aprobado: 3D (three/R3F/drei), fondos vivos por sección, escenas-firma, animación ligada al scroll, sistema `<LivingBackground>` (web viva) | `motion-3d-engineer` | edita (solo si aprobado) |
 | Implementar backend ya aprobado: Supabase (modelo de datos, migraciones SQL), server actions, APIs/route handlers, auth/session, validaciones server-side, rate limiting, seguridad de webhooks (HMAC) | `backend-engineer` | edita (solo si aprobado) |
 | Validar TypeScript, lint, build, responsive, accesibilidad, performance y regresiones antes de cerrar/deploy | `qa-performance-guard` | read + valida |
 | Aprobar/vetar visualmente tareas que afecten composición, layout visual, percepción premium, jerarquía, Hero, Servicios, Casos, Proceso, Contacto, motion visible, responsive visual o uso del espacio | `visual-quality-director` | read-only / veto de commit visual |

@@ -43,6 +43,11 @@ reutilizables, spacing, patrones y reglas del design system.
 - Pedir aprobación antes de que un hallazgo se vuelva cambio.
 - Respetar `agents/ROLE-AUTHORITY-MAP.md` y el sistema SYNTRA.
 
+> **Web viva (`docs/creative-library/living-web-doctrine.md`).** El 3D/fondos vivos/
+> scroll-motion están permitidos, pero **siguen usando los tokens de marca**
+> (`globals.css`, `lib/motion.ts`): vigilá que la vida visual no derive en drift, azul
+> fuera de la regla 90/10, ni componentes/efectos fuera del sistema.
+
 > Apoyo: el Design System Guardian es quien **filtra** las recomendaciones de la skill
 > `ui-ux-pro-max` (consultiva, no autoridad); puede vetarlas si generan drift. Política:
 > `agents/governance/ui-ux-pro-max-usage.md`.

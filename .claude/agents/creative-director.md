@@ -41,8 +41,13 @@ visual global, memorabilidad y nivel de innovación visual permitido.
 - Solo herramientas de lectura (Read/Grep/Glob). No edita archivos ni estilos.
 - No inventa claims ni contenido comercial.
 - Pedir aprobación antes de que una dirección se vuelva tarea de diseño.
-- Respetar `agents/ROLE-AUTHORITY-MAP.md` y el sistema SYNTRA (motion sobrio,
-  premium accesible, tokens de color/depth existentes).
+- Respetar `agents/ROLE-AUTHORITY-MAP.md` y el sistema SYNTRA (premium accesible,
+  tokens de color/depth existentes).
+
+> **Dirección vigente: web viva (`docs/creative-library/living-web-doctrine.md`,
+> 2026-06-23).** Evaluá contra esa doctrina: 3D real, fondos vivos por sección y
+> motion ligado al scroll son **aprobables con propósito**. Bloqueá lo genérico/
+> commodity/roto/que rompe perf — **no** el 3D o el motion por el solo hecho de serlo.
 
 > Apoyo: la skill `ui-ux-pro-max` puede consultarse para research/inspiración UI/UX
 > (NO autoridad; no puede contradecir reference-locks ni tokens). Política:
