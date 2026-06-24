@@ -20,7 +20,7 @@
 
 import * as React from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Environment, Lightformer } from "@react-three/drei";
+import { Environment, Lightformer, useTexture } from "@react-three/drei";
 import { EffectComposer, Bloom, SMAA } from "@react-three/postprocessing";
 import { motion, useReducedMotion, useScroll, useMotionValueEvent } from "framer-motion";
 import * as THREE from "three";
@@ -33,32 +33,28 @@ function Arc({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObjec
   useFrame((state) => {
     const rt = root.current;
     const tg = tilt.current;
-    const rg = ring.current;
-    if (!rt || !tg || !rg) return;
+    if (!rt || !tg) return;
     const t = state.clock.elapsedTime;
-    const s = Math.sin(t * 0.5);
-    // Giro LATERAL puro (yaw sobre el eje vertical del mundo) → izq ↔ der, sin subir/bajar.
-    rt.rotation.y = s * 0.35; // turn lateral horizontal (más notorio)
-    tg.rotation.x = 1.05; // inclinación fija
-    rg.rotation.z = s * 0.28; // giro sobre su eje (vida del destello)
-    // Posición: centrado en la sección + parallax de scroll muy acotado.
-    const targetY = -0.65 + (0.5 - scrollRef.current) * 0.2;
+    // Movimiento del video: la elipse se abre/cierra + gira de izquierda a derecha (yaw).
+    tg.rotation.x = 1.0 + Math.sin(t * 0.2) * 0.2;
+    rt.rotation.y = Math.sin(t * 0.28) * 0.32;
+    // Centrado en la sección + parallax de scroll muy leve.
+    const targetY = -0.6 + (0.5 - scrollRef.current) * 0.15;
     rt.position.y += (targetY - rt.position.y) * 0.05;
   });
 
   return (
-    <group ref={root}>
-      {/* Roll en el plano de pantalla → deja el aro inclinado en diagonal ↗ a la derecha. */}
-      <group rotation={[0, 0, 0.55]}>
-        {/* Inclinación base que aplana la elipse en diagonal. */}
+    <group ref={root} position={[0, 0, 0]}>
+      {/* Roll → elipse en diagonal ↗ marcada (perfecta hacia la derecha). */}
+      <group rotation={[0, 0, 0.5]}>
         <group ref={tilt}>
           <mesh ref={ring} scale={mobile ? 1.3 : 1.7}>
             <torusGeometry args={[2.2, 0.075, 96, 360]} />
             <meshStandardMaterial
-              color="#6b7280"
-              metalness={0.88}
-              roughness={0.2}
-              envMapIntensity={2.1}
+              color="#c2cad6"
+              metalness={0.9}
+              roughness={0.3}
+              envMapIntensity={2.4}
             />
           </mesh>
         </group>
@@ -67,19 +63,64 @@ function Arc({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObjec
   );
 }
 
+/** Haces de luz: la textura haz-luz.png en un shader con flujo + shimmer (additive). */
+function Beams() {
+  const tex = useTexture("/visual-assets/haz-luz.png");
+  const mat = React.useRef<THREE.ShaderMaterial>(null);
+  React.useEffect(() => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+  }, [tex]);
+  const uniforms = React.useMemo(
+    () => ({ uMap: { value: tex }, uTime: { value: 0 }, uOpacity: { value: 0.9 } }),
+    [tex],
+  );
+  useFrame((s) => {
+    if (mat.current) mat.current.uniforms.uTime.value = s.clock.elapsedTime;
+  });
+  return (
+    <mesh position={[0, 0.6, -1.5]} scale={[22, 13, 1]}>
+      <planeGeometry />
+      <shaderMaterial
+        ref={mat}
+        transparent
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+        uniforms={uniforms}
+        vertexShader={
+          "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }"
+        }
+        fragmentShader={
+          "uniform sampler2D uMap; uniform float uTime; uniform float uOpacity; varying vec2 vUv;" +
+          "void main(){" +
+          "  vec2 uv = vUv;" +
+          "  uv.x += sin(uv.y * 6.0 + uTime * 0.5) * 0.006;" +
+          "  uv.y += sin(uv.x * 4.0 + uTime * 0.35) * 0.004;" +
+          "  vec3 c = texture2D(uMap, uv).rgb;" +
+          "  float sweep = 0.6 + 0.4 * sin(uv.x * 3.5 + uv.y * 2.0 - uTime * 1.3);" +
+          "  gl_FragColor = vec4(c * sweep * uOpacity, 1.0);" +
+          "}"
+        }
+      />
+    </mesh>
+  );
+}
+
 function Scene({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObject<number> }) {
   return (
     <>
-      <ambientLight intensity={0.75} />
-      {/* Key blanca fuerte = destello plateado sobre el metal plata (look "Eternal Arc"). */}
-      <directionalLight position={[3, 6, 5]} intensity={3} />
+      <ambientLight intensity={0.85} />
+      <React.Suspense fallback={null}>
+        <Beams />
+      </React.Suspense>
       <Arc mobile={mobile} scrollRef={scrollRef} />
-      {/* Entorno neutro (plata/grafito) con apenas un susurro de marca. */}
+      {/* Entorno PAREJO (suave arriba/abajo/lados) → cromo uniforme, sin hotspot que "corte". */}
+      {/* Luz envolvente (arriba/abajo/lados) → el aro refleja parejo todo alrededor,
+          sin corte oscuro en la parte de abajo. */}
       <Environment resolution={mobile ? 256 : 512}>
-        <Lightformer intensity={2.8} position={[2, 3, 4]} scale={[10, 3, 1]} color="#ffffff" />
-        <Lightformer intensity={1.4} position={[-6, -2, 2]} scale={[6, 4, 1]} color="#dfe3ea" />
-        <Lightformer intensity={0.4} position={[-4, 1, 2]} scale={[4, 3, 1]} color="#6d5dfb" />
-        <Lightformer intensity={0.4} position={[5, -1, 2]} scale={[4, 3, 1]} color="#38bdf8" />
+        <Lightformer intensity={2.4} position={[2, 4, 4]} scale={[10, 5, 1]} color="#ffffff" />
+        <Lightformer intensity={1.8} position={[-1, -5, 4]} scale={[11, 5, 1]} color="#dfe3ea" />
+        <Lightformer intensity={1.3} position={[-7, 0, 3]} scale={[5, 11, 1]} color="#e6e9ef" />
+        <Lightformer intensity={1.3} position={[7, 0, 3]} scale={[5, 11, 1]} color="#e6e9ef" />
       </Environment>
       {!mobile && (
         <EffectComposer multisampling={8}>
@@ -175,8 +216,6 @@ function LivingBackground({ className }: LivingBackgroundProps) {
       className={"pointer-events-none absolute inset-0 " + (className ?? "")}
     >
       <Poster />
-      {/* Haces de luz: temporalmente desactivados para validar el arco solo (se reactiva con el video/escena Spline). */}
-      {/* <LightTexture reduce={reduce} /> */}
       {/* Aurora que respira (deriva lenta de glows de rol sobre el gris). */}
       {!reduce && (
         <motion.div

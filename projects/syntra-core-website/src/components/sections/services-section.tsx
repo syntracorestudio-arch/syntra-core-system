@@ -112,6 +112,18 @@ function ServicesSection() {
         <div className="sys-canvas-grid absolute inset-0 opacity-20" />
       </div>
 
+      {/* Scrim de legibilidad: oscurece la izquierda (texto) + vignette inferior,
+          por encima del arco/haces pero debajo del contenido. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-[5]"
+        style={{
+          background:
+            "linear-gradient(to right, rgba(8,9,12,0.62) 0%, rgba(8,9,12,0.28) 42%, transparent 68%)," +
+            "linear-gradient(to bottom, transparent 55%, rgba(8,9,12,0.45) 100%)",
+        }}
+      />
+
       <Container className="relative z-10">
         <BlurReveal>
           <SectionHeading eyebrow={eyebrow} title={title} subtitle={subtitle} align="left" />
