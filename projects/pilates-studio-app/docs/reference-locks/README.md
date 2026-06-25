@@ -22,6 +22,9 @@ draft-for-owner-review  →  candidate-for-owner-review  →  (owner aprueba)  �
 > `## Visual Reference Direction` (dirección visual concreta + patrones de referencia,
 > fundamentada con `ui-ux-pro-max` como apoyo). **Pendiente del owner:** revisar, ajustar y,
 > recién entonces, pasar a `approved`. No se generaron imágenes (solo dirección en Markdown).
+>
+> 📋 **Propuesta visual consolidada por pantalla:** [concept-boards.md](concept-boards.md)
+> (boards textuales para revisión del owner; previo a adjuntar referencia visual y aprobar).
 
 - **No se diseña el visual final en Fase 0.** Estos locks definen objetivo, información
   principal, jerarquía, componentes esperados, riesgos UX y criterios de aprobación.
