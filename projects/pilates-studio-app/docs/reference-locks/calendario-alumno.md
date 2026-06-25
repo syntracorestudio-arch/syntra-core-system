@@ -1,8 +1,9 @@
 ---
 section: "calendario-alumno"
-status: candidate-for-owner-review
-approved_by: ""
-date: ""
+status: approved
+approved_by: owner
+approved_date: 2026-06-25
+date: 2026-06-25
 decision: code-first
 ---
 
@@ -172,7 +173,8 @@ estética fitness "tech"/gamer · neón IA · glass excesivo · depender solo de
 cupo.
 
 ## Owner approval
-Estado: candidate-for-owner-review
+Estado: approved · approved_by: owner · 2026-06-25
 
-<!-- Owner: revisar la Visual Reference Direction y, si OK, pasar a 'approved'. Mientras no
-     esté 'approved', no se toca código (Cat B/C). -->
+<!-- Lock APROBADO por el owner (2026-06-25). Habilita implementar esta pantalla en Fase 1
+     bajo el visual gate (qa-performance-guard + visual-quality-director + OK del owner). -->
+Referencia visual aprobada: [assets/calendario-alumno-wireframe.svg](assets/calendario-alumno-wireframe.svg)

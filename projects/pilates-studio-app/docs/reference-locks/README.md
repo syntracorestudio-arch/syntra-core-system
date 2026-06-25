@@ -8,9 +8,9 @@
 
 | Pantalla | Archivo | Estado |
 | --- | --- | --- |
-| Dashboard financiero (admin) | [dashboard-financiero.md](dashboard-financiero.md) | `candidate-for-owner-review` |
-| Calendario del alumno | [calendario-alumno.md](calendario-alumno.md) | `candidate-for-owner-review` |
-| Ficha de alumno (admin) | [ficha-alumno.md](ficha-alumno.md) | `candidate-for-owner-review` |
+| Dashboard financiero (admin) | [dashboard-financiero.md](dashboard-financiero.md) | `approved` (owner · 2026-06-25) |
+| Calendario del alumno | [calendario-alumno.md](calendario-alumno.md) | `approved` (owner · 2026-06-25) |
+| Ficha de alumno (admin) | [ficha-alumno.md](ficha-alumno.md) | `approved` (owner · 2026-06-25) |
 
 ## Flujo
 
@@ -18,10 +18,11 @@
 draft-for-owner-review  →  candidate-for-owner-review  →  (owner aprueba)  →  approved  →  recién ahí se implementa
 ```
 
-> Estado actual: **candidate-for-owner-review**. Cada lock incorporó una
-> `## Visual Reference Direction` (dirección visual concreta + patrones de referencia,
-> fundamentada con `ui-ux-pro-max` como apoyo) **y un wireframe SVG propio low-fi** en
-> `assets/`. **Pendiente del owner:** revisar, ajustar y, recién entonces, pasar a `approved`.
+> Estado actual: **`approved`** (owner · 2026-06-25). Los 3 locks tienen
+> `## Visual Reference Direction` (fundamentada con `ui-ux-pro-max` como apoyo) **y un
+> wireframe SVG propio low-fi** en `assets/`, revisados y aprobados por el owner. Quedan
+> **habilitados para implementar en Fase 1** bajo el visual gate (qa-performance-guard +
+> visual-quality-director + OK del owner sobre el resultado en navegador).
 >
 > 📋 **Propuesta visual consolidada por pantalla:** [concept-boards.md](concept-boards.md)
 > (boards textuales para revisión del owner).
