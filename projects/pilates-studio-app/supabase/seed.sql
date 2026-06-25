@@ -113,6 +113,12 @@ insert into public.class_reservations (id, studio_id, occurrence_id, member_id, 
    'd1111111-0000-0000-0000-000000000004','booked', true, '90000000-0000-0000-0000-000000000009');
 update public.class_occurrences set booked_count = booked_count + 1 where id = '01111111-0000-0000-0000-000000000002';
 
+-- ---------- Código de alta demo para Estudio Reforma (Fase 1D-1B) ----------
+-- Texto plano: REFORMA-DEMO  ·  se guarda SOLO el hash (sha256 del código normalizado).
+insert into public.studio_join_codes (studio_id, code_hash, label, is_active, max_uses) values
+  ('11111111-1111-1111-1111-111111111111',
+   encode(digest('REFORMA-DEMO','sha256'),'hex'), 'Código demo', true, null);
+
 -- =============================================================================
 -- Validaciones sugeridas (correr como cada usuario tras el seed):
 --  1) Sofía reserve_class(occ#1)  → OK, descuenta 1 crédito (queda 7).
