@@ -28,8 +28,60 @@ import {
   useInView,
 } from "framer-motion";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
-export type LivingVariant = "servicios" | "proceso";
+export type LivingVariant = "servicios" | "proceso" | "casos";
+
+/* ──────────────────── Journey store: UNA luz continua Casos→Proceso ────────────────────
+ *
+ * Casos y Proceso son secciones ADYACENTES y cada <LivingBackground> tiene su PROPIO
+ * useScroll (uno por sección). Para que la cresta de luz sea UNA SOLA que viaja de los
+ * tubos de Casos → nodo (boca) → cable de Proceso, ambas secciones comparten un valor
+ * de "viaje" global `journey ∈ [0,1]`:
+ *   journey ∈ [0, SPLIT)  → la cresta recorre los tubos de Casos (along 0→1, llega al nodo)
+ *   journey ∈ [SPLIT, 1]  → la cresta recorre el cable de Proceso (along 0→1)
+ *
+ * Mecánica (sin listeners nuevos, sin tocar React en render):
+ *  - Es un objeto plano module-level `{ value }`, mutado FUERA de React desde el callback
+ *    de useMotionValueEvent de cada sección, y LEÍDO en useFrame (cumple react-hooks/refs
+ *    e immutability: nunca se lee/muta un ref de React en render).
+ *  - Cada sección mapea su progreso LOCAL (useScroll por sección) al sub-rango global que
+ *    le toca. Casos escribe [0, SPLIT]; Proceso escribe [SPLIT, 1]. Last-writer-wins por
+ *    sección visible: como los rangos no se solapan, en la unión la entrega es continua
+ *    (Casos llega a SPLIT con la cresta en el nodo; Proceso arranca en SPLIT en su top).
+ *  - El shader de Casos sólo enciende su cresta mientras journey ≤ SPLIT (después la deja
+ *    "consumida" en el nodo); el de Proceso sólo mientras journey ≥ SPLIT (resuelve que la
+ *    banda del top del cable apareciera antes de tiempo). Así NUNCA hay dos crestas.
+ */
+const SPLIT = 0.5;
+const journeyStore = { value: 0 };
+
+/** smoothstep en JS (mismo perfil que GLSL) — para los gates en useFrame. */
+function smoothstep(edge0: number, edge1: number, x: number) {
+  const t = Math.min(Math.max((x - edge0) / (edge1 - edge0), 0), 1);
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Mapea el progreso local [0..1] de una sección a su tramo del viaje global.
+ *
+ * Con offset ["start center","end center"] cada sección queda CLAMPEADA en su endpoint
+ * inactivo cuando no le toca (Casos en 1 cuando ya pasó; Proceso en 0 cuando aún no llega).
+ * Para que NO se pisen, cada sección escribe SÓLO mientras está realmente viajando:
+ *  - Casos escribe mientras v < 1 (recorriendo los tubos hacia el nodo); al llegar a 1 deja
+ *    el viaje en SPLIT y suelta el control → Proceso toma desde ahí.
+ *  - Proceso escribe sólo cuando v > 0 (ya cruzó la unión); antes no toca el store, así no
+ *    sobre-escribe el tramo de Casos con SPLIT.
+ * En la unión ambos valen SPLIT → el handoff es exacto y continuo.
+ */
+function writeJourney(variant: LivingVariant, localProgress: number) {
+  if (variant === "casos") {
+    if (localProgress < 1) journeyStore.value = localProgress * SPLIT;
+    else journeyStore.value = SPLIT;
+  } else if (variant === "proceso") {
+    if (localProgress > 0) journeyStore.value = SPLIT + localProgress * (1 - SPLIT);
+  }
+}
 
 /* ───────────────────────── Servicios: arco cromado ───────────────────────── */
 
@@ -120,7 +172,7 @@ function Beams() {
  * material real, no neón) + un halo aditivo con una CRESTA de luz que viaja según el
  * scroll y "llena" el camino; el final vira a cyan (HECHO). uv.x recorre el largo del tubo.
  */
-function Conduit({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObject<number> }) {
+function Conduit({ mobile }: { mobile: boolean }) {
   const glow = React.useRef<THREE.ShaderMaterial>(null);
 
   // Curva vertical suave (leve vaivén, no un "cable" recto), de arriba (idea) a abajo (sistema).
@@ -129,7 +181,7 @@ function Conduit({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefO
       // Vaivén ESTRECHO, centrado en el canal del medio (alineado con los nodos) → no
       // cruza las columnas de texto, así el brillo no pisa la lectura.
       new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-0.1, 3.7, 0),
+        new THREE.Vector3(0.0, 3.95, 0),
         new THREE.Vector3(0.16, 1.7, 0.18),
         new THREE.Vector3(-0.14, -0.3, -0.18),
         new THREE.Vector3(0.14, -2.1, 0.1),
@@ -138,16 +190,25 @@ function Conduit({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefO
     [],
   );
 
+  // uActive: 0..1 → enciende la cresta de Proceso SÓLO en su tramo del viaje (journey ≥ SPLIT).
+  // Antes de eso queda apagada (resuelve la "banda en el top del cable" antes de tiempo).
   const uniforms = React.useMemo(
-    () => ({ uProgress: { value: 0 }, uTime: { value: 0 } }),
+    () => ({ uProgress: { value: 0 }, uTime: { value: 0 }, uActive: { value: 0 } }),
     [],
   );
 
   useFrame((s) => {
-    // Cresta = progreso de scroll, suavizado (sin saltos). Mutar vía el ref del material.
+    // Cresta derivada del VIAJE global compartido (Casos→Proceso = UNA sola luz).
+    // journey ∈ [SPLIT, 1] es el tramo de Proceso → remapeo a crest local 0..1 del cable.
     const m = glow.current;
     if (!m) return;
-    m.uniforms.uProgress.value += (scrollRef.current - m.uniforms.uProgress.value) * 0.08;
+    const journey = journeyStore.value;
+    const localCrest = (journey - SPLIT) / (1 - SPLIT); // <0 antes del tramo, 0..1 en él
+    const targetCrest = Math.min(Math.max(localCrest, 0), 1);
+    // Gate: encendida sólo en su tramo, con borde suave en la unión (sin "pop").
+    const targetActive = smoothstep(SPLIT - 0.02, SPLIT + 0.04, journey);
+    m.uniforms.uProgress.value += (targetCrest - m.uniforms.uProgress.value) * 0.2;
+    m.uniforms.uActive.value += (targetActive - m.uniforms.uActive.value) * 0.12;
     m.uniforms.uTime.value = s.clock.elapsedTime;
   });
 
@@ -177,7 +238,7 @@ function Conduit({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefO
             "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }"
           }
           fragmentShader={
-            "uniform float uProgress; uniform float uTime; varying vec2 vUv;" +
+            "uniform float uProgress; uniform float uTime; uniform float uActive; varying vec2 vUv;" +
             "void main(){" +
             "  float along = vUv.x;" + // uv.x = a lo largo del tubo (0 arriba → 1 abajo)
             "  float filled = smoothstep(uProgress + 0.015, uProgress - 0.015, along);" +
@@ -186,10 +247,187 @@ function Conduit({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefO
             "  vec3 electric = vec3(0.145, 0.388, 0.922);" +
             "  vec3 cyan = vec3(0.30, 0.78, 0.97);" +
             "  vec3 col = mix(electric, cyan, smoothstep(0.45, 1.0, along));" +
-            "  float intensity = (filled * 0.26 + crest * 0.72) * shimmer;" +
+            // uActive: el cable sólo se enciende cuando el viaje entra en su tramo (journey≥SPLIT)
+            // → antes de eso NO hay cresta en el top del cable; la luz sigue siendo UNA sola.
+            "  float intensity = (filled * 0.26 + crest * 0.72) * shimmer * uActive;" +
             "  gl_FragColor = vec4(col * intensity, intensity);" +
             "}"
           }
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/* ───────────────────────── Casos: campo de señales (geometría real) ───────────────────────── */
+
+/**
+ * SignalField — campo vivo de Casos, GEOMÉTRICO (no fullscreen quad). Tubos finos
+ * (tubeGeometry sobre CatmullRomCurve3) en ESPACIO-MUNDO proyectado por la cámara → el
+ * borde lo antialiasa el MSAA/SMAA = nítido, sin banding de gradiente de pantalla.
+ *
+ * MISMA construcción de DOS MALLAS que el Conduit de Proceso (para que los tubos tengan
+ * VOLUMEN y REFLEJO, no cintas planas):
+ *  - CORE metálico por tubo: meshStandardMaterial con los MISMOS params del Conduit
+ *    (#4a5466, metalness 0.92, roughness 0.3, envMapIntensity 1.8) sobre un tubeGeometry
+ *    fino (radio ~0.05) → refleja el Environment = redondez/dimensión real.
+ *  - HALO aditivo por tubo: tubeGeometry de radio mayor (~0.11) con el shader de la "gota".
+ *
+ * Concepto: las "consultas" caen repartidas ARRIBA y CONVERGEN a un nodo común
+ * abajo-centro (≈0,-3.6) — embudo invertido — que es la "boca" por donde entran al cable
+ * de Proceso (curve top en (0, 3.95)). Cuerpo CÁLIDO (accent-warm) que vira a ELECTRIC
+ * cerca de la convergencia. Cyan NO se usa aquí (reservado a HECHO en Proceso).
+ *
+ * Un pulso de luz ("gota") CAE por cada tubo hacia la convergencia (uTime + uScroll leve).
+ * Un único ShaderMaterial compartido por los halos (vía ref + uniforms compartidos):
+ * mutamos sus .uniforms en useFrame sin recrear el objeto — react-hooks/immutability.
+ */
+const CASOS_CONVERGENCE = new THREE.Vector3(0, -3.6, 0);
+
+// Shaders del tubo (módulo → identidad estable). along = vUv.x recorre el largo del tubo:
+// 0 arriba → 1 en la convergencia (abajo). Cuerpo cálido → electric cerca de la boca.
+const CASOS_TUBE_VERT =
+  "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }";
+const CASOS_TUBE_FRAG =
+  "uniform float uTime; uniform float uProgress; uniform float uActive; varying vec2 vUv;" +
+  "void main(){" +
+  "  float along = vUv.x;" + // 0 arriba → 1 en la convergencia (abajo)
+  // Cresta + estela ligadas al VIAJE global (Casos→Proceso = UNA sola luz): la cresta viaja
+  // de arriba hacia la boca y llega al nodo justo cuando arranca el cable de Proceso.
+  "  float filled = smoothstep(uProgress + 0.02, uProgress - 0.02, along);" + // estela detrás
+  "  float crest = smoothstep(0.07, 0.0, abs(along - uProgress));" + // cresta que viaja con el scroll
+  "  float shimmer = 0.85 + 0.15 * sin(along * 40.0 - uTime * 2.0);" +
+  "  float headFade = smoothstep(0.0, 0.1, along);" + // entra suave arriba
+  "  float toMouth = 0.4 + 0.6 * smoothstep(0.4, 1.0, along);" + // concentra cerca de la boca
+  "  vec3 col = vec3(0.145, 0.388, 0.922);" + // electric de Proceso (azul del cable)
+  // uActive: la CRESTA viajera de Casos sólo está encendida en su tramo (journey ≤ SPLIT);
+  // pasada la unión la cresta se apaga (ya entregó la luz al cable). La ESTELA (filled) queda
+  // tenue como rastro "consumido" hacia la boca, sin competir con la cresta de Proceso.
+  "  float crestEnergy = crest * 0.95 * uActive;" +
+  "  float trailEnergy = filled * 0.18;" +
+  "  float intensity = (crestEnergy + trailEnergy) * shimmer * toMouth * headFade;" +
+  "  gl_FragColor = vec4(col * intensity, intensity);" +
+  "}";
+
+function SignalField() {
+  const mobile = useMediaQuery("(max-width: 768px)");
+  // Menos detalle en mobile: geometría liviana sin disparar costo.
+  // 6 tubos × 2 mallas (core + halo) = 12 tubeGeometries → bajamos segmentos en mobile.
+  const tubularSegments = mobile ? 72 : 120;
+  const radialSegments = mobile ? 8 : 14;
+  // Un poco más gruesos que el Conduit base: core (refleja el Environment) + halo.
+  const coreRadius = mobile ? 0.055 : 0.066;
+  const haloRadius = mobile ? 0.12 : 0.14;
+
+  // Tubos = embudo invertido: repartidos arriba (x ∈ [-2.2..2.2], y ≈ +3.5) y
+  // convergiendo todos a CASOS_CONVERGENCE (0,-3.6,0). Un leve punto de control intermedio
+  // por tubo da una caída orgánica (no recta) sin cruzar el centro de la lectura.
+  const curves = React.useMemo(() => {
+    const N = 6;
+    return Array.from({ length: N }, (_, i) => {
+      const f = i / (N - 1); // 0..1
+      const topX = (f - 0.5) * 7.6; // -3.8 .. 3.8 → abren más, abarcan más pantalla
+      const topY = 3.6 + Math.sin(f * 6.2831) * 0.2; // leve variación de altura
+      const topZ = (f - 0.5) * 1.2; // ligera profundidad → no quedan coplanares
+      // Punto medio que arrastra hacia el centro con una curva suave (embudo).
+      const midX = topX * 0.4;
+      const midY = 0.1;
+      const midZ = topZ * 0.5 + Math.sin(f * 9.42) * 0.18;
+      return new THREE.CatmullRomCurve3([
+        new THREE.Vector3(topX, topY, topZ),
+        new THREE.Vector3(midX, midY, midZ),
+        new THREE.Vector3(topX * 0.12, -2.2, topZ * 0.2),
+        CASOS_CONVERGENCE.clone(),
+      ]);
+    });
+  }, []);
+
+  // Geometrías FUSIONADAS: los 6 tubos del core en UNA malla y los 6 halos en OTRA. Así hay
+  // UN solo material de halo (con ref) cuyo uniform anima TODOS los tubos a la vez (compartir
+  // un objeto uniforms entre N <shaderMaterial> NO funciona: three lo separa por material).
+  const coreGeometry = React.useMemo(() => {
+    const geos = curves.map(
+      (c) => new THREE.TubeGeometry(c, tubularSegments, coreRadius, radialSegments, false),
+    );
+    const merged = mergeGeometries(geos);
+    geos.forEach((g) => g.dispose());
+    return merged;
+  }, [curves, tubularSegments, coreRadius, radialSegments]);
+
+  const haloGeometry = React.useMemo(() => {
+    const geos = curves.map(
+      (c) => new THREE.TubeGeometry(c, tubularSegments, haloRadius, radialSegments, false),
+    );
+    const merged = mergeGeometries(geos);
+    geos.forEach((g) => g.dispose());
+    return merged;
+  }, [curves, tubularSegments, haloRadius, radialSegments]);
+
+  React.useEffect(
+    () => () => {
+      coreGeometry?.dispose();
+      haloGeometry?.dispose();
+    },
+    [coreGeometry, haloGeometry],
+  );
+
+  // Material del halo con ref (patrón Conduit): mutamos sus .uniforms en useFrame.
+  const glow = React.useRef<THREE.ShaderMaterial>(null);
+  const uniforms = React.useMemo(
+    () => ({ uTime: { value: 0 }, uProgress: { value: 0 }, uActive: { value: 1 } }),
+    [],
+  );
+  useFrame((s) => {
+    const m = glow.current;
+    if (!m) return;
+    m.uniforms.uTime.value = s.clock.elapsedTime;
+    // Cresta derivada del VIAJE global compartido (Casos→Proceso = UNA sola luz).
+    // journey ∈ [0, SPLIT] es el tramo de Casos → remapeo a crest local 0..1 de los tubos.
+    const journey = journeyStore.value;
+    const targetCrest = Math.min(Math.max(journey / SPLIT, 0), 1);
+    // Gate: la cresta viajera se apaga al cruzar la unión (journey > SPLIT) → ya entregó la
+    // luz al cable de Proceso; nunca hay dos crestas a la vez.
+    const targetActive = 1 - smoothstep(SPLIT - 0.02, SPLIT + 0.04, journey);
+    m.uniforms.uProgress.value += (targetCrest - m.uniforms.uProgress.value) * 0.2;
+    m.uniforms.uActive.value += (targetActive - m.uniforms.uActive.value) * 0.12;
+  });
+
+  return (
+    <group>
+      {/* Core metálico de TODOS los tubos (1 malla) → MISMOS params que el Conduit. */}
+      {coreGeometry ? (
+        <mesh geometry={coreGeometry}>
+          <meshStandardMaterial color="#4a5466" metalness={0.92} roughness={0.3} envMapIntensity={1.8} />
+        </mesh>
+      ) : null}
+      {/* Halo aditivo de TODOS los tubos (1 malla, 1 material con ref → 1 pulso anima todo). */}
+      {haloGeometry ? (
+        <mesh geometry={haloGeometry}>
+          <shaderMaterial
+            ref={glow}
+            transparent
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
+            uniforms={uniforms}
+            vertexShader={CASOS_TUBE_VERT}
+            fragmentShader={CASOS_TUBE_FRAG}
+          />
+        </mesh>
+      ) : null}
+      {/* Nodo de convergencia: pequeña esfera emisiva en la "boca" que entra al cable. */}
+      <mesh position={CASOS_CONVERGENCE}>
+        <sphereGeometry args={[0.12, 24, 24]} />
+        <meshBasicMaterial color="#2f63e8" transparent opacity={0.85} toneMapped={false} />
+      </mesh>
+      <mesh position={CASOS_CONVERGENCE}>
+        <sphereGeometry args={[0.26, 24, 24]} />
+        <meshBasicMaterial
+          color="#2f63e8"
+          transparent
+          opacity={0.28}
+          toneMapped={false}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
         />
       </mesh>
     </group>
@@ -210,17 +448,20 @@ function Scene({
   return (
     <>
       <ambientLight intensity={variant === "proceso" ? 0.7 : 0.85} />
-      {variant === "servicios" ? (
+      {variant === "servicios" && (
         <>
           <React.Suspense fallback={null}>
             <Beams />
           </React.Suspense>
           <Arc mobile={mobile} scrollRef={scrollRef} />
         </>
-      ) : (
-        <Conduit mobile={mobile} scrollRef={scrollRef} />
       )}
-      {/* Entorno PAREJO (suave arriba/abajo/lados) → metal uniforme, sin hotspot que "corte". */}
+      {variant === "proceso" && <Conduit mobile={mobile} />}
+      {variant === "casos" && <SignalField />}
+      {/* Environment para TODAS las variantes: arco y conducto reflejan su core metálico,
+          y ahora los tubos de Casos también tienen core metálico (meshStandardMaterial)
+          que necesita el Environment para reflejar — sin esto el metal queda negro/plano.
+          Mismo bloque de Lightformers + misma resolution (256 mobile / 512 desktop). */}
       <Environment resolution={mobile ? 256 : 512}>
         <Lightformer intensity={2.4} position={[2, 4, 4]} scale={[10, 5, 1]} color="#ffffff" />
         <Lightformer intensity={1.8} position={[-1, -5, 4]} scale={[11, 5, 1]} color="#dfe3ea" />
@@ -228,7 +469,11 @@ function Scene({
         <Lightformer intensity={1.3} position={[7, 0, 3]} scale={[5, 11, 1]} color="#e6e9ef" />
       </Environment>
       {!mobile && (
-        // multisampling 4 (no 8): fondo difuso con bloom, no precisa MSAA alto → más FPS.
+        // Pipeline ESTÁNDAR para todas las variantes. Casos ahora es geometría real
+        // (tubos finos) → el antialiasing lo hacen MSAA (multisampling) + SMAA; no precisa
+        // el render target HalfFloat / ToneMapping NEUTRAL / dpr 2 que metimos contra el
+        // banding del shader fullscreen (ya removido). multisampling 4 alcanza para tubos
+        // finos sobre fondo difuso.
         <EffectComposer multisampling={4}>
           <Bloom intensity={0.4} luminanceThreshold={0.45} luminanceSmoothing={0.3} mipmapBlur />
           <SMAA />
@@ -246,9 +491,13 @@ function Poster({ variant }: { variant: LivingVariant }) {
         "radial-gradient(26% 55% at 50% 24%, rgba(37,99,235,0.14), transparent 70%)," +
         "radial-gradient(30% 45% at 50% 82%, rgba(56,189,248,0.13), transparent 72%)," +
         "linear-gradient(180deg, transparent 30%, rgba(56,189,248,0.05) 100%)"
-      : "radial-gradient(40% 30% at 28% 22%, rgba(109,93,251,0.14), transparent 70%)," +
-        "radial-gradient(42% 32% at 74% 62%, rgba(56,189,248,0.12), transparent 72%)," +
-        "radial-gradient(50% 40% at 60% 50%, rgba(37,99,235,0.08), transparent 75%)";
+      : variant === "casos"
+        ? // Campo de señales: cuerpo cálido arriba que converge y se enfría a electric abajo.
+          "radial-gradient(55% 45% at 50% 12%, rgba(231,200,160,0.12), transparent 70%)," +
+          "radial-gradient(38% 38% at 50% 100%, rgba(37,99,235,0.14), transparent 72%)"
+        : "radial-gradient(40% 30% at 28% 22%, rgba(109,93,251,0.14), transparent 70%)," +
+          "radial-gradient(42% 32% at 74% 62%, rgba(56,189,248,0.12), transparent 72%)," +
+          "radial-gradient(50% 40% at 60% 50%, rgba(37,99,235,0.08), transparent 75%)";
   return <div aria-hidden="true" className="absolute inset-0" style={{ background }} />;
 }
 
@@ -258,8 +507,11 @@ function Aurora({ variant }: { variant: LivingVariant }) {
     variant === "proceso"
       ? "radial-gradient(30% 40% at 50% 22%, rgba(37,99,235,0.09), transparent 70%)," +
         "radial-gradient(34% 44% at 50% 80%, rgba(56,189,248,0.09), transparent 72%)"
-      : "radial-gradient(38% 28% at 28% 18%, rgba(109,93,251,0.10), transparent 70%)," +
-        "radial-gradient(40% 30% at 76% 64%, rgba(56,189,248,0.10), transparent 72%)";
+      : variant === "casos"
+        ? "radial-gradient(36% 34% at 42% 22%, rgba(231,200,160,0.10), transparent 70%)," +
+          "radial-gradient(34% 38% at 58% 92%, rgba(37,99,235,0.08), transparent 72%)"
+        : "radial-gradient(38% 28% at 28% 18%, rgba(109,93,251,0.10), transparent 70%)," +
+          "radial-gradient(40% 30% at 76% 64%, rgba(56,189,248,0.10), transparent 72%)";
   return (
     <motion.div
       aria-hidden="true"
@@ -321,9 +573,21 @@ function LivingBackground({ variant = "servicios", className }: LivingBackground
   // Pausa fuera de viewport (doctrina §3): el loop 3D no corre si la sección no se ve.
   const inView = useInView(ref, { margin: "200px" });
 
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
+  // Offset variant-aware. servicios mantiene su ventana original (parallax suave del arco).
+  // casos/proceso usan ["start center","end center"]: la ventana de cada uno EMPIEZA y TERMINA
+  // cuando sus bordes cruzan el CENTRO del viewport. Como Casos.bottom == Proceso.top (adyacentes),
+  // ese borde cruza el centro en la MISMA posición de scroll → Casos llega a progress=1 (cresta en
+  // el nodo) justo cuando Proceso arranca en progress=0 (cresta en su top). Entrega continua.
+  const offset: ["start end" | "start center", "end start" | "end center"] =
+    variant === "servicios"
+      ? ["start end", "end start"]
+      : ["start center", "end center"];
+  const { scrollYProgress } = useScroll({ target: ref, offset });
   useMotionValueEvent(scrollYProgress, "change", (v) => {
+    // servicios usa scrollRef para su parallax (sin cambios). casos/proceso alimentan el
+    // VIAJE global compartido → la cresta es UNA sola luz continua entre ambas secciones.
     scrollRef.current = v;
+    writeJourney(variant, v);
   });
 
   return (
@@ -339,9 +603,9 @@ function LivingBackground({ variant = "servicios", className }: LivingBackground
           <Canvas
             // Pausa fuera de viewport: "never" cuando la sección no se ve → 0 trabajo de GPU.
             frameloop={inView ? "always" : "never"}
-            // dpr capado: el canvas cubre TODA la sección (alta). 1.5 desktop / 1.25 mobile
-            // baja el costo por frame sin que se note en un fondo difuso. antialias off
-            // (lo hace el composer).
+            // dpr capado e IGUAL para todas las variantes: ahora Casos es geometría (tubos
+            // finos antialiaseados por MSAA/SMAA del composer), no precisa dpr 2 como el
+            // shader fullscreen. antialias off (lo hace el composer).
             dpr={mobile ? [1, 1.25] : [1, 1.5]}
             camera={{ position: [0, 0, 9], fov: 45 }}
             gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
