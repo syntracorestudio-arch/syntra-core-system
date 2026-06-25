@@ -1,0 +1,95 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   StudioFlow — Design Tokens (Fase 1A, base mínima)
+   Dirección: premium cálido · wellness boutique · white-label.
+   Estilo "Soft UI Evolution": lienzo neutro cálido + acento del
+   estudio (configurable) + colores semánticos consistentes.
+   Ref: docs/reference-locks/README.md (baseline visual).
+   El acento (--primary) es el placeholder white-label que cada
+   estudio reemplaza por su color de marca.
+   ============================================================ */
+
+:root {
+  --radius: 0.9rem;
+
+  /* Lienzo cálido + texto */
+  --background: #fbf7f2; /* arena */
+  --foreground: #3f3a34; /* gris cálido oscuro */
+  --card: #ffffff;
+  --card-foreground: #3f3a34;
+  --popover: #ffffff;
+  --popover-foreground: #3f3a34;
+
+  /* Acento del estudio (white-label, default terracota) */
+  --primary: #c8775a;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f0e9e0;
+  --secondary-foreground: #3f3a34;
+  --muted: #f0e9e0;
+  --muted-foreground: #8a8178;
+  --accent: #f0e4d8;
+  --accent-foreground: #3f3a34;
+
+  /* Semánticos consistentes (independientes del acento) */
+  --success: #5e8b6a; /* al día / con cupo */
+  --warning: #c99a3b; /* por vencer / pocos lugares */
+  --destructive: #c2675f; /* deuda / lleno (rojo suave, no alarmante) */
+
+  --border: #e7ded3;
+  --input: #e7ded3;
+  --ring: #c8775a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-sans);
+}
