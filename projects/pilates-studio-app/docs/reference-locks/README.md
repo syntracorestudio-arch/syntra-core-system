@@ -20,11 +20,16 @@ draft-for-owner-review  →  candidate-for-owner-review  →  (owner aprueba)  �
 
 > Estado actual: **candidate-for-owner-review**. Cada lock incorporó una
 > `## Visual Reference Direction` (dirección visual concreta + patrones de referencia,
-> fundamentada con `ui-ux-pro-max` como apoyo). **Pendiente del owner:** revisar, ajustar y,
-> recién entonces, pasar a `approved`. No se generaron imágenes (solo dirección en Markdown).
+> fundamentada con `ui-ux-pro-max` como apoyo) **y un wireframe SVG propio low-fi** en
+> `assets/`. **Pendiente del owner:** revisar, ajustar y, recién entonces, pasar a `approved`.
 >
 > 📋 **Propuesta visual consolidada por pantalla:** [concept-boards.md](concept-boards.md)
-> (boards textuales para revisión del owner; previo a adjuntar referencia visual y aprobar).
+> (boards textuales para revisión del owner).
+>
+> 🖼️ **Wireframes de referencia (propios, low-fi, sin imágenes externas):**
+> [dashboard](assets/dashboard-financiero-wireframe.svg) ·
+> [calendario](assets/calendario-alumno-wireframe.svg) ·
+> [ficha](assets/ficha-alumno-wireframe.svg).
 
 - **No se diseña el visual final en Fase 0.** Estos locks definen objetivo, información
   principal, jerarquía, componentes esperados, riesgos UX y criterios de aprobación.

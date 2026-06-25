@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="860" viewBox="0 0 420 860" font-family="'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif">
+  <!-- StudioFlow · Calendario del alumno — wireframe low-fi, mobile-first, boutique -->
+  <!-- arena #FBF7F2 · card #FFF · borde #E7DED3 · texto #3F3A34 / muted #8A8178 -->
+  <!-- acento #C8775A · verde #5E8B6A (con lugar) · ámbar #C99A3B (pocos) · rojo suave #C2675F (lleno) -->
+  <defs>
+    <style>
+      .t{fill:#3F3A34}.m{fill:#8A8178}.w{fill:#fff}.card{fill:#fff;stroke:#E7DED3}
+      .lbl{font-size:12px}.sm{font-size:11px}.big{font-weight:700}
+    </style>
+  </defs>
+
+  <rect x="6" y="6" width="408" height="848" rx="34" fill="#FBF7F2" stroke="#E7DED3" stroke-width="2"/>
+  <rect x="160" y="20" width="100" height="8" rx="4" fill="#EDE4D8"/>
+
+  <!-- header: saldo / membresía -->
+  <text x="32" y="64" class="t big" font-size="17">Hola, Sofía</text>
+  <rect x="240" y="46" width="148" height="34" rx="17" fill="#FBEFE9" stroke="#E6CDBF"/>
+  <text x="314" y="68" text-anchor="middle" fill="#A85B40" class="sm big">Te quedan 5 clases</text>
+
+  <!-- selector de día -->
+  <g>
+    <rect x="24" y="96" width="50" height="58" rx="14" fill="#C8775A"/>
+    <text x="49" y="118" text-anchor="middle" class="w sm">Hoy</text>
+    <text x="49" y="140" text-anchor="middle" class="w big" font-size="16">24</text>
+    <rect x="82" y="96" width="50" height="58" rx="14" class="card"/>
+    <text x="107" y="118" text-anchor="middle" class="m sm">Mié</text>
+    <text x="107" y="140" text-anchor="middle" class="t big" font-size="16">25</text>
+    <rect x="140" y="96" width="50" height="58" rx="14" class="card"/>
+    <text x="165" y="118" text-anchor="middle" class="m sm">Jue</text>
+    <text x="165" y="140" text-anchor="middle" class="t big" font-size="16">26</text>
+    <rect x="198" y="96" width="50" height="58" rx="14" class="card"/>
+    <text x="223" y="118" text-anchor="middle" class="m sm">Vie</text>
+    <text x="223" y="140" text-anchor="middle" class="t big" font-size="16">27</text>
+    <rect x="256" y="96" width="50" height="58" rx="14" class="card"/>
+    <text x="281" y="118" text-anchor="middle" class="m sm">Sáb</text>
+    <text x="281" y="140" text-anchor="middle" class="t big" font-size="16">28</text>
+    <rect x="314" y="96" width="50" height="58" rx="14" class="card"/>
+    <text x="339" y="118" text-anchor="middle" class="m sm">Dom</text>
+    <text x="339" y="140" text-anchor="middle" class="t big" font-size="16">29</text>
+  </g>
+  <text x="32" y="186" class="t big" font-size="14">Martes 24 · clases</text>
+
+  <!-- tarjeta clase 1: con lugar -->
+  <rect x="24" y="200" width="372" height="92" rx="16" class="card"/>
+  <text x="44" y="232" class="t big" font-size="20">08:00</text>
+  <text x="44" y="252" class="m sm">60 min</text>
+  <text x="116" y="228" class="t lbl big">Reformer</text>
+  <text x="116" y="248" class="m sm">con Caro</text>
+  <rect x="116" y="258" width="80" height="20" rx="10" fill="#EAF1EB"/>
+  <text x="156" y="272" text-anchor="middle" fill="#5E8B6A" font-size="10">6/8 lugares</text>
+  <rect x="296" y="226" width="84" height="40" rx="12" fill="#C8775A"/>
+  <text x="338" y="251" text-anchor="middle" class="w sm big">Reservar</text>
+
+  <!-- tarjeta clase 2: pocos lugares -->
+  <rect x="24" y="304" width="372" height="92" rx="16" class="card"/>
+  <text x="44" y="336" class="t big" font-size="20">10:00</text>
+  <text x="44" y="356" class="m sm">50 min</text>
+  <text x="116" y="332" class="t lbl big">Mat</text>
+  <text x="116" y="352" class="m sm">con Meli</text>
+  <rect x="116" y="362" width="92" height="20" rx="10" fill="#FAF1DD"/>
+  <text x="162" y="376" text-anchor="middle" fill="#C99A3B" font-size="10">Quedan 2</text>
+  <rect x="296" y="330" width="84" height="40" rx="12" fill="#C8775A"/>
+  <text x="338" y="355" text-anchor="middle" class="w sm big">Reservar</text>
+
+  <!-- tarjeta clase 3: llena -> lista de espera -->
+  <rect x="24" y="408" width="372" height="92" rx="16" fill="#FAF6F0" stroke="#E7DED3"/>
+  <text x="44" y="440" fill="#9A938A" class="big" font-size="20">18:00</text>
+  <text x="44" y="460" class="m sm">60 min</text>
+  <text x="116" y="436" fill="#9A938A" class="lbl big">Reformer</text>
+  <text x="116" y="456" class="m sm">con Flor</text>
+  <rect x="116" y="466" width="64" height="20" rx="10" fill="#F6E7E5"/>
+  <text x="148" y="480" text-anchor="middle" fill="#C2675F" font-size="10">Lleno</text>
+  <rect x="270" y="434" width="110" height="40" rx="12" fill="#fff" stroke="#C8775A"/>
+  <text x="325" y="459" text-anchor="middle" fill="#C8775A" class="sm big">Lista de espera</text>
+
+  <!-- tarjeta clase 4 -->
+  <rect x="24" y="512" width="372" height="92" rx="16" class="card"/>
+  <text x="44" y="544" class="t big" font-size="20">19:30</text>
+  <text x="44" y="564" class="m sm">50 min</text>
+  <text x="116" y="540" class="t lbl big">Mat</text>
+  <text x="116" y="560" class="m sm">con Caro</text>
+  <rect x="116" y="570" width="80" height="20" rx="10" fill="#EAF1EB"/>
+  <text x="156" y="584" text-anchor="middle" fill="#5E8B6A" font-size="10">4/8 lugares</text>
+  <rect x="296" y="538" width="84" height="40" rx="12" fill="#C8775A"/>
+  <text x="338" y="563" text-anchor="middle" class="w sm big">Reservar</text>
+
+  <!-- nota estado vacío / confirmación -->
+  <rect x="24" y="624" width="372" height="64" rx="14" fill="#FBEFE9" stroke="#E6CDBF"/>
+  <text x="44" y="650" fill="#A85B40" class="sm big">Confirmar reserva</text>
+  <text x="44" y="670" class="m sm">Reformer · 08:00 · usa 1 clase de tu pack</text>
+
+  <!-- barra inferior (saldo siempre visible) -->
+  <rect x="24" y="724" width="372" height="56" rx="16" class="card"/>
+  <text x="44" y="748" class="m sm">Tu pack</text>
+  <text x="44" y="768" class="t sm big">5 de 8 clases · vence 12 jul</text>
+  <rect x="300" y="738" width="80" height="30" rx="15" fill="#F0E9E0"/>
+  <text x="340" y="757" text-anchor="middle" class="t sm">Mi saldo</text>
+
+  <text x="210" y="820" text-anchor="middle" class="m" font-size="9">wireframe low-fi · no es diseño final · status candidate-for-owner-review</text>
+</svg>
