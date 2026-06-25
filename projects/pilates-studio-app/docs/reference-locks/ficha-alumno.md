@@ -1,6 +1,6 @@
 ---
 section: "ficha-alumno"
-status: draft-for-owner-review
+status: candidate-for-owner-review
 approved_by: ""
 date: ""
 decision: code-first
@@ -101,7 +101,74 @@ profesional, pensado para un dueño que atiende personas, no para un operador de
   asientos de ledger en una transacción; nunca insert directo del cliente.
 - Carga rápida; sin errores de consola.
 
-## Owner approval
-Estado: draft-for-owner-review
+## Visual Reference Direction
 
-<!-- Solo el owner pasa a 'approved'. Mientras esté en draft, no se toca código (Cat B/C). -->
+> Hereda la **baseline compartida** de [README.md](README.md) (Soft UI Evolution · lienzo
+> neutro cálido + acento del estudio + colores semánticos · Plus Jakarta Sans · Lucide ·
+> motion 150–300ms). Acá, su aplicación a esta pantalla. Debe sentirse **CRM liviano**.
+
+**Referencias / patrones sugeridos** (conceptuales, a traducir — no copiar literal):
+- *CRM livianos* (perfil de cliente tipo Pipedrive/Notion-CRM): cabecera de identidad +
+  estado + secciones, **sin** la densidad de un ERP.
+- *Tarjetas de estado de suscripción / saldo de créditos* de apps de membresía/fitness.
+- *Member profile* de apps wellness: foco en "cómo está esta persona" + acción.
+
+**Principios visuales:** identidad + estado financiero arriba; saldo y membresía como datos
+diferenciados; la acción de cobrar siempre a mano; historial en secciones, no en una tabla
+gigante.
+
+**Layout recomendado:**
+- *Mobile:* header (nombre + **badge de estado financiero**) → bloque **saldo + membresía**
+  → **acciones rápidas** ("Registrar pago", "Asignar pack") → secciones colapsables (Pagos ·
+  Packs/Membresías · Reservas).
+- *Desktop:* 2 columnas — izquierda resumen (identidad, estado, saldo, acciones), derecha
+  secciones con historial más extenso y filtros.
+
+**Jerarquía de información:** estado financiero → saldo de créditos / membresía (con
+vencimiento) → acción (registrar pago / asignar pack) → pagos recientes → reservas (próximas
++ no-shows) → notas administrativas → contacto.
+
+**Componentes clave:** badge de estado (verde al día / ámbar por vencer / rojo suave deuda);
+**tarjeta de saldo de créditos** y **tarjeta de membresía** (diferenciadas, con vencimiento);
+botón/modal "Registrar pago" (concepto + monto + método, con resumen y confirmación);
+botón/modal "Asignar pack/membresía"; listas livianas de pagos y reservas; bloque de notas.
+
+**Tono visual:** ficha **humana y resolutiva** — "cómo está el alumno y qué hago", no una
+planilla. Cálido, claro, ordenado.
+
+**Interacción principal:** ver estado → registrar pago / asignar pack sin salir de la ficha →
+ver saldo/estado actualizarse al instante.
+
+**Mobile-first:** uso en mostrador con el alumno enfrente: estado + saldo + "Registrar pago"
+accesibles sin scroll; modales simples con resumen antes de confirmar.
+
+**Desktop:** vista de gestión completa (2 columnas), historial extenso, búsqueda/filtros de
+pagos y reservas.
+
+**Estados vacíos:** alumno nuevo sin pagos/packs → CTA primario "Registrar primer pago /
+asignar pack", sin tablas vacías. Sin reservas → "Aún no reservó clases". Sin membresía →
+"Sin pack activo" + CTA.
+
+**Estados de error:** falla al registrar pago → no aplicar el beneficio a medias (transacción
+todo-o-nada) + reintentar; estado financiero no disponible → "no se pudo calcular", nunca un
+estado falso; concurrencia → resolver server-side e informar resultado.
+
+**Criterios de aprobación visual:**
+- [ ] El estado financiero se entiende al abrir la ficha (color **+** texto).
+- [ ] Saldo de créditos y membresía (con vencimiento) claros y **diferenciados**.
+- [ ] Registrar pago / asignar pack se hacen sin salir de la ficha, con confirmación.
+- [ ] Tras registrar, saldo/estado se actualizan visiblemente.
+- [ ] Historial de pagos y reservas legible; estados de reserva claros.
+- [ ] Se siente CRM liviano y humano, no ERP/tabla pesada.
+
+**Riesgos visuales:** densidad tipo ERP; confundir crédito (pack) con membresía; acción de
+cobrar perdida entre datos; deuda mostrada de forma punitiva (debe ser informativa).
+
+**Anti-patrones:** CRM corporativo denso · tablas extensas · panel fintech frío · glass
+excesivo · neón IA · look cripto · pantalla saturada donde "Registrar pago" se pierde.
+
+## Owner approval
+Estado: candidate-for-owner-review
+
+<!-- Owner: revisar la Visual Reference Direction y, si OK, pasar a 'approved'. Mientras no
+     esté 'approved', no se toca código (Cat B/C). -->

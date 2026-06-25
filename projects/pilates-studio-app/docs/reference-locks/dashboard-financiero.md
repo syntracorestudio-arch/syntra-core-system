@@ -1,6 +1,6 @@
 ---
 section: "dashboard-financiero"
-status: draft-for-owner-review
+status: candidate-for-owner-review
 approved_by: ""
 date: ""
 decision: code-first
@@ -98,7 +98,73 @@ Claridad y control. "En 5 segundos sé cómo va mi mes." Premium, cálido, profe
 - Cálculo de ingresos/deuda **server-side** y consistente con `credit_ledger`/`payments`.
 - Carga rápida en mobile; sin errores de consola.
 
-## Owner approval
-Estado: draft-for-owner-review
+## Visual Reference Direction
 
-<!-- Solo el owner pasa a 'approved'. Mientras esté en draft, no se toca código (Cat B/C). -->
+> Hereda la **baseline compartida** de [README.md](README.md) (Soft UI Evolution · lienzo
+> neutro cálido + acento del estudio + colores semánticos · Plus Jakarta Sans · Lucide ·
+> motion 150–300ms). Acá, su aplicación a esta pantalla.
+
+**Referencias / patrones sugeridos** (conceptuales, a traducir — no copiar literal):
+- *Small-business / wellness dashboards*: foco en 4–5 números que le importan al dueño, no
+  en gráficos densos.
+- *Stripe Dashboard* (solo por claridad de KPIs y jerarquía), pero **más cálido** y con menos
+  densidad.
+- *Apps de gestión de estudios fitness*: tarjetas de resumen + lista de "hoy".
+
+**Principios visuales:** claridad sobre completitud; un dato dominante por tarjeta; aire
+generoso; color semántico para estado (verde/ámbar/rojo suave), acento del estudio solo en
+acciones/énfasis.
+
+**Layout recomendado:**
+- *Mobile:* scroll vertical. Orden: (1) tarjeta-héroe **Ingresos del mes**, (2) fila de 2
+  KPIs (al día / con deuda), (3) **acciones rápidas**, (4) ocupación semanal, (5) por vencer,
+  (6) clases de hoy.
+- *Desktop:* grilla 12-col; fila superior de 3–4 KPIs (ingresos destacado), banda de alertas
+  (deuda / por vencer), bloque "hoy + ocupación" a 2 columnas.
+
+**Jerarquía de información:** Ingresos del mes (nº 1) → deuda/al día → ocupación → packs/
+membresías → clases de hoy → acciones rápidas (siempre accesibles).
+
+**Componentes clave:** KPI card (valor grande + label + delta opcional), stat con badge de
+estado, mini-barra de ocupación semanal (no gráfico pesado), lista "alumnos con deuda"
+(avatar/inicial + nombre + monto + CTA), lista "clases de hoy", botones de acción rápida
+("Registrar pago", "Nueva clase").
+
+**Tono visual:** panel de negocio **tranquilo y confiable**, no centro de control financiero.
+Cálido, ordenado, con foco.
+
+**Interacción principal:** lectura de un vistazo + saltar a la acción (tocar deuda → ficha de
+alumno; acción rápida → registrar pago / crear clase).
+
+**Mobile-first:** Ingresos del mes + estado de deuda visibles sin scroll. Tarjetas tocables,
+targets ≥ 44px.
+
+**Desktop:** misma información, más contexto lateral (tendencia del mes, listas más largas,
+filtro de período).
+
+**Estados vacíos:** estudio nuevo → onboarding cálido ("Cargá tus clases y registrá un pago
+para ver tu negocio acá") con CTA, no KPIs en cero. Sin deuda → mensaje positivo ("Todos al
+día"). Sin clases hoy → acceso a la agenda.
+
+**Estados de error:** falla de métricas → mensaje + reintentar; nunca números a medias que
+parezcan reales. Skeleton durante la carga.
+
+**Criterios de aprobación visual:**
+- [ ] Ingresos del mes es el elemento dominante, sin scroll (mobile incluido).
+- [ ] Estado (al día / deuda / por vencer) se lee por color **+** texto/ícono.
+- [ ] Se siente cálido y tranquilo (no fintech/cripto/denso).
+- [ ] Acento = color del estudio; base = neutro cálido; semánticos consistentes.
+- [ ] Estados vacíos y de carga resueltos.
+- [ ] Acciones rápidas siempre accesibles.
+
+**Riesgos visuales:** caer en "panel de trading"; saturar de widgets/gráficos; usar gris
+azulado frío; depender solo de color para el estado.
+
+**Anti-patrones:** dashboard fintech denso · tablas extensas · glassmorphism · neón IA ·
+look cripto · KPIs en cero fríos en estudios nuevos · jerga técnica ("transacciones/usuarios").
+
+## Owner approval
+Estado: candidate-for-owner-review
+
+<!-- Owner: revisar la Visual Reference Direction y, si OK, pasar a 'approved'. Mientras no
+     esté 'approved', no se toca código (Cat B/C). -->
