@@ -107,6 +107,12 @@ profesional, pensado para un dueño que atiende personas, no para un operador de
 > neutro cálido + acento del estudio + colores semánticos · Plus Jakarta Sans · Lucide ·
 > motion 150–300ms). Acá, su aplicación a esta pantalla. Debe sentirse **CRM liviano**.
 
+**Wireframe de referencia (propio, low-fi):**
+[![Wireframe — ficha de alumno](assets/ficha-alumno-wireframe.svg)](assets/ficha-alumno-wireframe.svg)
+
+> SVG low-fi, no es diseño final: fija composición CRM-liviano, jerarquía y diferenciación
+> crédito-pack vs membresía + estado financiero, no píxeles. `assets/ficha-alumno-wireframe.svg`.
+
 **Referencias / patrones sugeridos** (conceptuales, a traducir — no copiar literal):
 - *CRM livianos* (perfil de cliente tipo Pipedrive/Notion-CRM): cabecera de identidad +
   estado + secciones, **sin** la densidad de un ERP.

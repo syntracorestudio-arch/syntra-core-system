@@ -107,6 +107,12 @@ Confianza: el cupo que veo es real.
 > neutro cálido + acento del estudio + colores semánticos · Plus Jakarta Sans · Lucide ·
 > motion 150–300ms). Acá, su aplicación a esta pantalla. Es la pantalla **mobile** estrella.
 
+**Wireframe de referencia (propio, low-fi):**
+[![Wireframe — calendario del alumno](assets/calendario-alumno-wireframe.svg)](assets/calendario-alumno-wireframe.svg)
+
+> SVG low-fi, no es diseño final: fija composición mobile, jerarquía y semántica de cupo
+> (verde/ámbar/rojo + texto), no píxeles. `assets/calendario-alumno-wireframe.svg`.
+
 **Referencias / patrones sugeridos** (conceptuales, a traducir — no copiar literal):
 - *Apps de booking fitness/wellness* (ClassPass, Mindbody, apps de estudios): agenda por día,
   cupo visible, reserva en pocos toques — tomamos la **claridad**, no la densidad.

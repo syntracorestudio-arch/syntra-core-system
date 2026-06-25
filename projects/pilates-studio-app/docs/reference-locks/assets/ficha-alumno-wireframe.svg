@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="860" viewBox="0 0 420 860" font-family="'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif">
+  <!-- StudioFlow · Ficha de alumno (admin) — wireframe low-fi, CRM liviano, mobile -->
+  <!-- arena #FBF7F2 · card #FFF · borde #E7DED3 · texto #3F3A34 / muted #8A8178 -->
+  <!-- acento #C8775A · verde #5E8B6A (al día) · ámbar #C99A3B (por vencer) · rojo suave #C2675F (deuda) -->
+  <defs>
+    <style>
+      .t{fill:#3F3A34}.m{fill:#8A8178}.w{fill:#fff}.card{fill:#fff;stroke:#E7DED3}
+      .lbl{font-size:12px}.sm{font-size:11px}.big{font-weight:700}
+    </style>
+  </defs>
+
+  <rect x="6" y="6" width="408" height="848" rx="34" fill="#FBF7F2" stroke="#E7DED3" stroke-width="2"/>
+  <rect x="160" y="20" width="100" height="8" rx="4" fill="#EDE4D8"/>
+
+  <!-- header: identidad + estado financiero -->
+  <text x="32" y="56" class="m sm">‹ Alumnos</text>
+  <circle cx="58" cy="92" r="24" fill="#F0E4D8"/>
+  <text x="58" y="98" text-anchor="middle" fill="#A85B40" class="big" font-size="18">LP</text>
+  <text x="96" y="86" class="t big" font-size="18">Lucía Pérez</text>
+  <text x="96" y="106" class="m sm">+54 9 11 5555 1234</text>
+  <rect x="280" y="76" width="108" height="28" rx="14" fill="#EAF1EB"/>
+  <circle cx="300" cy="90" r="5" fill="#5E8B6A"/>
+  <text x="314" y="94" fill="#5E8B6A" class="sm big">Al día</text>
+
+  <!-- saldo + membresía (cards diferenciadas) -->
+  <rect x="24" y="128" width="180" height="96" rx="14" class="card"/>
+  <text x="44" y="154" class="m sm">Saldo de clases</text>
+  <text x="44" y="190" class="t big" font-size="30">5</text>
+  <text x="78" y="190" class="m sm">de 8</text>
+  <text x="44" y="210" class="m" font-size="10">Pack · vence 12 jul</text>
+
+  <rect x="216" y="128" width="180" height="96" rx="14" class="card"/>
+  <rect x="216" y="128" width="6" height="96" rx="3" fill="#C99A3B"/>
+  <text x="236" y="154" class="m sm">Membresía</text>
+  <text x="236" y="184" class="t lbl big">Mensual activa</text>
+  <rect x="236" y="196" width="120" height="20" rx="10" fill="#FAF1DD"/>
+  <text x="296" y="210" text-anchor="middle" fill="#C99A3B" font-size="10">Vence en 3 días</text>
+
+  <!-- acciones rápidas -->
+  <rect x="24" y="240" width="180" height="46" rx="12" fill="#C8775A"/>
+  <text x="114" y="268" text-anchor="middle" class="w lbl big">Registrar pago</text>
+  <rect x="216" y="240" width="180" height="46" rx="12" fill="#fff" stroke="#C8775A"/>
+  <text x="306" y="268" text-anchor="middle" fill="#C8775A" class="lbl big">Asignar pack</text>
+
+  <!-- pestañas -->
+  <text x="44" y="318" fill="#C8775A" class="lbl big">Pagos</text>
+  <line x1="40" y1="326" x2="84" y2="326" stroke="#C8775A" stroke-width="2"/>
+  <text x="140" y="318" class="m lbl">Packs</text>
+  <text x="220" y="318" class="m lbl">Reservas</text>
+  <text x="320" y="318" class="m lbl">Notas</text>
+
+  <!-- pagos recientes -->
+  <rect x="24" y="338" width="372" height="150" rx="14" class="card"/>
+  <text x="44" y="366" class="t lbl big">Pagos recientes</text>
+  <line x1="24" y1="380" x2="396" y2="380" stroke="#F0E9E0"/>
+  <text x="44" y="404" class="t sm">Pack 8 clases</text>
+  <text x="44" y="420" class="m" font-size="10">Efectivo · 02 jun</text>
+  <text x="372" y="410" text-anchor="end" class="t sm big">$ 32.000</text>
+  <line x1="24" y1="432" x2="396" y2="432" stroke="#F6F0E8"/>
+  <text x="44" y="454" class="t sm">Membresía mensual</text>
+  <text x="44" y="470" class="m" font-size="10">Transferencia · 01 jun</text>
+  <text x="372" y="460" text-anchor="end" class="t sm big">$ 28.000</text>
+
+  <!-- próximas reservas -->
+  <rect x="24" y="504" width="372" height="150" rx="14" class="card"/>
+  <text x="44" y="532" class="t lbl big">Próximas reservas</text>
+  <line x1="24" y1="546" x2="396" y2="546" stroke="#F0E9E0"/>
+  <text x="44" y="570" class="t sm">Mar 24 · 08:00 · Reformer</text>
+  <rect x="300" y="558" width="72" height="20" rx="10" fill="#EAF1EB"/>
+  <text x="336" y="572" text-anchor="middle" fill="#5E8B6A" font-size="10">Reservada</text>
+  <text x="44" y="602" class="t sm">Jue 26 · 19:30 · Mat</text>
+  <rect x="300" y="590" width="72" height="20" rx="10" fill="#EAF1EB"/>
+  <text x="336" y="604" text-anchor="middle" fill="#5E8B6A" font-size="10">Reservada</text>
+  <text x="44" y="634" class="m sm">Vie 20 · 10:00 · Mat</text>
+  <rect x="306" y="622" width="66" height="20" rx="10" fill="#F6E7E5"/>
+  <text x="339" y="636" text-anchor="middle" fill="#C2675F" font-size="10">No-show</text>
+
+  <!-- notas admin -->
+  <rect x="24" y="670" width="372" height="92" rx="14" class="card"/>
+  <text x="44" y="696" class="t lbl big">Notas del estudio</text>
+  <line x1="24" y1="710" x2="396" y2="710" stroke="#F0E9E0"/>
+  <text x="44" y="734" class="m sm">Prefiere clases de mañana. Lesión de</text>
+  <text x="44" y="750" class="m sm">rodilla — evitar saltos.</text>
+
+  <text x="210" y="800" text-anchor="middle" class="m" font-size="9">wireframe low-fi · no es diseño final · status candidate-for-owner-review</text>
+</svg>

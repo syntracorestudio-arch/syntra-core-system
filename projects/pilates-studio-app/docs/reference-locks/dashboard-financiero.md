@@ -104,6 +104,12 @@ Claridad y control. "En 5 segundos sé cómo va mi mes." Premium, cálido, profe
 > neutro cálido + acento del estudio + colores semánticos · Plus Jakarta Sans · Lucide ·
 > motion 150–300ms). Acá, su aplicación a esta pantalla.
 
+**Wireframe de referencia (propio, low-fi):**
+[![Wireframe — dashboard financiero](assets/dashboard-financiero-wireframe.svg)](assets/dashboard-financiero-wireframe.svg)
+
+> SVG low-fi, no es diseño final: fija composición, jerarquía y uso del color (acento del
+> estudio + semánticos), no píxeles. `assets/dashboard-financiero-wireframe.svg`.
+
 **Referencias / patrones sugeridos** (conceptuales, a traducir — no copiar literal):
 - *Small-business / wellness dashboards*: foco en 4–5 números que le importan al dueño, no
   en gráficos densos.
