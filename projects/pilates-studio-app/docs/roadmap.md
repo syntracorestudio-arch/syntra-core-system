@@ -28,7 +28,9 @@
   + `credit_ledger`; pago manual + asignar pack/membresía; saldo del alumno; deuda
   (`require_credit_or_membership` default); dashboard básico (ingresos mes/total, al día/
   deuda, membresías vencidas, ocupación); waitlist básica (anotarse + orden + promoción
-  manual); historial.
+  manual); historial. Recurrencias: materializar **8 semanas** por adelantado (parámetro
+  extensible a 12); UX cliente asume **1 estudio principal**; instructor como **dato
+  informativo** de la clase; notificaciones **solo in-app**.
 - **Módulos:** `src/features/{reservations,classes,credits,payments,members,metrics}`,
   `src/server/{actions,rpc}` (reserva atómica con crédito), `supabase/migrations` (schema +
   RLS + RPC + índices), `src/lib/time`.

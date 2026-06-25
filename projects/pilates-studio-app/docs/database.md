@@ -53,17 +53,25 @@
 | **instructors** | Datos del profe (bio, agenda) | 1.1/2 |
 | **cancellation_logs / no_show_logs** | Auditoría dedicada (opcional) | Pro |
 
-### Sobre-ingeniería evitada (decisión)
-- **No** crear `charges` / `invoices` todavía: sin facturación legal en MVP; `payments`
-  alcanza. Sumar `invoices` solo si un estudio exige comprobante fiscal.
+### Sobre-ingeniería evitada (decisión Fase 0B)
+- **No** crear `charges` / `invoices` en el MVP: sin facturación legal; `payments` alcanza
+  para el **control interno** (ingresos, deuda, conceptos). Sumar `invoices` **solo si** un
+  estudio exige comprobante fiscal más adelante.
 - `member_financial_status` es **vista**, no tabla.
 - `cancellation_logs` / `no_show_logs`: en MVP se cubren con `reservation.status` +
   `credit_ledger.reason`. Tablas de auditoría dedicadas solo si hace falta reporting fino.
 
+### Catálogo por estudio (decisión Fase 0B)
+- `passes` y `memberships` son **por `studio_id`**: cada estudio define **libremente**
+  precios, nombres, vigencia (duración) y cantidad de créditos. StudioFlow no impone
+  catálogos ni precios.
+
 ## 4. Relaciones principales
 
 ```text
-studios 1—N members N—1 profiles        (un usuario puede ser miembro de varios estudios)
+studios 1—N members N—1 profiles        (la BD soporta N:N: un usuario puede ser miembro
+                                          de varios estudios. UX del MVP: asume 1 estudio
+                                          principal por alumno para simplificar — ver §4.1)
 classes 1—N class_schedules             (recurrencias)
 classes 1—N class_occurrences           (instancias)
 class_occurrences 1—N class_reservations
@@ -75,6 +83,19 @@ class_reservations 1—1 attendance
 studios 1—1 studio_settings
 studios 1—1 studio_payment_providers          (Fase 3)
 ```
+
+### 4.1 Multi-estudio del alumno (decisión Fase 0B)
+- **La base de datos soporta N:N** (un `profile` con varios `members` en distintos
+  `studios`). No se simplifica el esquema.
+- **La UX del MVP asume 1 estudio principal por alumno** para reducir complejidad (no hay
+  selector de estudio ni vistas cross-estudio en el cliente). Si en el futuro un alumno
+  pertenece a varios estudios, el modelo ya lo soporta sin migración; solo se agrega UX de
+  selección de estudio.
+
+### 4.2 Instructores en el MVP (decisión Fase 0B)
+- En el MVP, **instructor es un campo informativo/opcional** de la clase
+  (`classes.instructor_id?` o un nombre simple). No hay login de instructor.
+- La tabla `instructors` y el **login/rol de instructor** quedan para **Fase 1.1 / Fase 2**.
 
 ## 5. RLS (Row Level Security)
 
@@ -146,7 +167,10 @@ studios 1—1 studio_payment_providers          (Fase 3)
 4. **Credenciales MP por estudio (crítico, Fase 3)** → cifrado/bóveda, service-role-only,
    nunca al cliente, refresh server-side; una fuga compromete la cuenta de cobro del estudio.
 5. **Zonas horarias / DST** → UTC en DB; `timezone` por estudio; tests de borde.
-6. **Recurrencias** → materialización con ventana móvil + idempotencia `(class_id, starts_at)`.
+6. **Recurrencias** → materialización con ventana hacia adelante + idempotencia
+   `(class_id, starts_at)`. **Fase 0B:** MVP materializa **8 semanas**; debe poder
+   **extenderse a 12** vía parámetro (sin cambiar arquitectura); **rolling window** futura
+   (proceso que mantiene siempre N semanas visibles).
 7. **Borrado de clases con reservas** → soft-delete + estado `cancelled`, nunca hard delete.
 8. **Migraciones** → sensibles; requieren aprobación del owner antes de aplicar.
 

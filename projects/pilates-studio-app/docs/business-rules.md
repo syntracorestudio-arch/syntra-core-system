@@ -132,7 +132,11 @@ Default del owner:
 - Una clase puede tener una **regla de recurrencia** (`class_schedules`): día de la semana +
   hora + cupo + vigencia (`valid_from` / `valid_to`).
 - A partir de la regla se **materializan ocurrencias** (`class_occurrences`) en una **ventana
-  móvil** hacia adelante (sugerido 8–12 semanas; a confirmar).
+  hacia adelante**. **Decisión (Fase 0B):** el **MVP materializa 8 semanas** por adelantado;
+  la ventana debe poder **extenderse a 12 semanas sin cambiar la arquitectura** (es un
+  parámetro, no un rediseño). Se prevé **lógica futura de rolling window** (un proceso que
+  va materializando nuevas semanas a medida que avanza el tiempo, manteniendo siempre N
+  semanas visibles).
 - **Idempotencia:** no se duplican ocurrencias para el mismo `(class_id, starts_at)`.
 - Editar/cancelar una clase con reservas: **soft-delete** + estado `cancelled` + aviso a los
   anotados (in-app en MVP). Nunca hard delete con reservas asociadas.
@@ -145,9 +149,17 @@ Default del owner:
 - Un pago confirmado **aplica el beneficio**: genera `member_passes` (pack) o `memberships`
   (membresía/abono) y los asientos de `credit_ledger` correspondientes.
 - **Ingresos** = suma de `payments` confirmados, por mes y totales.
+- **Precios y productos los define cada estudio (Fase 0B):** cada estudio fija libremente
+  los **precios, nombres, duración (vigencia) y cantidad de créditos** de sus packs y
+  membresías (`passes` / `memberships` por `studio_id`). StudioFlow no impone catálogos ni
+  precios; solo los registra y aplica.
+- **Facturación legal / comprobantes: fuera del MVP (Fase 0B).** La tabla `payments` alcanza
+  para el **control interno** (ingresos, deuda, conceptos). Se evalúa una capa de `invoices`
+  **solo si** un estudio lo exige más adelante.
 - **Modelo unificado:** manual y (futuro) online comparten la misma tabla `payments` y la
   misma lógica de aplicación; MercadoPago (Fase 3) solo agrega `method = mercadopago` +
-  intentos + webhooks. Detalle en [database.md](database.md) §MercadoPago.
+  intentos + webhooks; **cada estudio cobra en su propia cuenta de MercadoPago y SYNTRA no
+  intermedia fondos.** Detalle en [database.md](database.md) §MercadoPago.
 
 ## 13. Reglas configurables por estudio (resumen)
 
