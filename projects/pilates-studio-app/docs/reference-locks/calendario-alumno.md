@@ -1,6 +1,6 @@
 ---
 section: "calendario-alumno"
-status: draft-for-owner-review
+status: candidate-for-owner-review
 approved_by: ""
 date: ""
 decision: code-first
@@ -101,7 +101,72 @@ Confianza: el cupo que veo es real.
 - Carga rápida de la semana; limitar a la ventana visible.
 - Reduced-motion safe; sin errores de consola.
 
-## Owner approval
-Estado: draft-for-owner-review
+## Visual Reference Direction
 
-<!-- Solo el owner pasa a 'approved'. Mientras esté en draft, no se toca código (Cat B/C). -->
+> Hereda la **baseline compartida** de [README.md](README.md) (Soft UI Evolution · lienzo
+> neutro cálido + acento del estudio + colores semánticos · Plus Jakarta Sans · Lucide ·
+> motion 150–300ms). Acá, su aplicación a esta pantalla. Es la pantalla **mobile** estrella.
+
+**Referencias / patrones sugeridos** (conceptuales, a traducir — no copiar literal):
+- *Apps de booking fitness/wellness* (ClassPass, Mindbody, apps de estudios): agenda por día,
+  cupo visible, reserva en pocos toques — tomamos la **claridad**, no la densidad.
+- *Agendas premium / wellness*: calma, espacio, foco en una clase a la vez.
+- *Listas tipo "tarjeta por clase"* con estado de cupo claro.
+
+**Principios visuales:** un día a la vez; una clase = una tarjeta legible; cupo inequívoco;
+saldo siempre presente sin estorbar; CTA primario evidente.
+
+**Layout recomendado:**
+- *Mobile (prioridad):* header con **saldo/membresía** compacto → **selector de día**
+  (tabs/scroll horizontal, hoy por defecto) → lista vertical de tarjetas de clase del día.
+- *Desktop:* misma lógica en ancho mayor; opcional vista semana (7 columnas) sin perder
+  la legibilidad de cupo.
+
+**Jerarquía de información:** hora + nombre de clase → estado de cupo → instructor (dato
+secundario) → CTA (Reservar / Lista de espera). El saldo vive en el header.
+
+**Componentes clave:** chip/tab de día; **tarjeta de clase** (hora destacada · nombre ·
+instructor · badge de cupo · CTA); **badge de cupo** (verde "con lugar" / ámbar "pocos" /
+neutro "lleno"); botón Reservar; botón "Unirme a lista de espera"; indicador de saldo/
+membresía; hoja/modal de confirmación ligera ("Usa 1 clase").
+
+**Tono visual:** agenda boutique cálida y liviana, no calendario corporativo. Espaciosa,
+amable, rápida.
+
+**Interacción principal:** elegir día → tocar Reservar (≤ 2 toques). Si está llena → "Lista
+de espera". Confirmación breve mostrando el costo en créditos.
+
+**Mobile-first:** targets ≥ 44px; cupo legible sin texto fino; saldo a la vista; nada de
+tablas horizontales.
+
+**Desktop:** vista semanal opcional; las tarjetas mantienen el mismo lenguaje.
+
+**Estados vacíos:** día sin clases → mensaje cálido + ir a otro día. Estudio sin clases
+publicadas → "Tu estudio todavía no publicó clases". Alumno sin saldo → agenda visible, el
+bloqueo aparece al intentar reservar (ver errores).
+
+**Estados de error:** sin cupo al confirmar (carrera) → "Se llenó recién" + ofrecer waitlist;
+sin crédito/deuda (`require_credit_or_membership`) → bloqueo explicado + siguiente paso;
+cancelación tardía → aviso de que no se devuelve el crédito (según config); falla de red →
+reintentar, sin dejar duda de si reservó.
+
+**Criterios de aprobación visual:**
+- [ ] Reservar una clase con lugar = ≤ 2 toques desde la agenda.
+- [ ] Cupo (con lugar / pocos / lleno) se entiende por color **+** texto, sin leer fino.
+- [ ] Camino a lista de espera obvio cuando está llena.
+- [ ] Saldo/membresía visible sin salir del flujo.
+- [ ] Motivo de bloqueo (deuda/sin saldo) + siguiente paso claros.
+- [ ] Se siente liviano y boutique en mobile (360–390 px).
+
+**Riesgos visuales:** densidad de calendario tipo Outlook; cupo ambiguo; tarjeta sobrecargada
+de datos; acento del estudio inundando la pantalla.
+
+**Anti-patrones:** grilla de calendario corporativa densa · tabla de horarios apretada ·
+estética fitness "tech"/gamer · neón IA · glass excesivo · depender solo del color para el
+cupo.
+
+## Owner approval
+Estado: candidate-for-owner-review
+
+<!-- Owner: revisar la Visual Reference Direction y, si OK, pasar a 'approved'. Mientras no
+     esté 'approved', no se toca código (Cat B/C). -->
