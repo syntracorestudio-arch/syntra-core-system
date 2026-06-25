@@ -1,29 +1,37 @@
 "use client";
 
 /**
- * LivingBackground — PROTOTIPO (web viva, piloto Servicios).
+ * LivingBackground — sistema de fondo vivo (web viva), parametrizado por sección.
  *
- * Fondo: ESCENA-FIRMA "arco que gira" recreada en R3F (referencia Spline "Eternal Arc"),
- * objeto 3D metálico glossy con rim de rol (violeta/cyan) sobre base gris. Bloom para el
- * glow de los reflejos. Es fondo, NO protagonista; el contenido va al frente y legible.
+ * variant="servicios" → ESCENA-FIRMA "arco que gira" (torus cromado glossy, ref Spline).
+ * variant="proceso"   → "La Línea Viva": conducto 3D vertical (tubo metálico) con una
+ *                        CRESTA DE LUZ que viaja con el scroll y "llena" el camino;
+ *                        culmina en cyan (HECHO). Reusa el MISMO motor (Environment/Bloom/
+ *                        Poster/perf) con geometría y movimiento distintos (doctrina §3/§4).
  *
  * Norte técnico (living-web-doctrine §3 / skill syntra-living-motion):
  *  - LAZY (dynamic ssr:false desde el consumidor), no bloquea LCP.
- *  - pausa fuera de viewport (frameloop demand ↔ always por IntersectionObserver).
+ *  - reduced-motion → poster estático (sin loop ni Canvas).
  *  - dpr capado · bloom solo desktop · mobile calidad reducida.
- *  - reduced-motion → poster estático (sin loop).
- *  - parallax ligado al scroll (sin hijack) + pointer-parallax sutil (desktop).
- *  - CLS 0 (absolute inset-0 detrás del contenido).
- *
- * Estado: prototipo para aprobar el objetivo visual del lock. No commitear hasta OK owner.
+ *  - motion ligado al scroll (sin hijack) · CLS 0 (absolute inset-0 detrás del contenido).
  */
 
 import * as React from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Environment, Lightformer, useTexture } from "@react-three/drei";
 import { EffectComposer, Bloom, SMAA } from "@react-three/postprocessing";
-import { motion, useReducedMotion, useScroll, useMotionValueEvent } from "framer-motion";
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useMotionValueEvent,
+  useInView,
+} from "framer-motion";
 import * as THREE from "three";
+
+export type LivingVariant = "servicios" | "proceso";
+
+/* ───────────────────────── Servicios: arco cromado ───────────────────────── */
 
 function Arc({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObject<number> }) {
   const root = React.useRef<THREE.Group>(null); // parallax de posición
@@ -63,7 +71,7 @@ function Arc({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObjec
   );
 }
 
-/** Haces de luz: la textura haz-luz.png en un shader con flujo + shimmer (additive). */
+/** Haces de luz (solo Servicios): textura haz-luz.png en un shader con flujo + shimmer. */
 function Beams() {
   // colorSpace se fija en el onLoad del loader (no mutar el resultado del hook en un effect).
   const tex = useTexture("/visual-assets/haz-luz.png", (t) => {
@@ -105,17 +113,114 @@ function Beams() {
   );
 }
 
-function Scene({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObject<number> }) {
+/* ───────────────────────── Proceso: la línea viva ───────────────────────── */
+
+/**
+ * Conduit — conducto vertical 3D ("camino"). Cuerpo metálico (refleja el Environment →
+ * material real, no neón) + un halo aditivo con una CRESTA de luz que viaja según el
+ * scroll y "llena" el camino; el final vira a cyan (HECHO). uv.x recorre el largo del tubo.
+ */
+function Conduit({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObject<number> }) {
+  const glow = React.useRef<THREE.ShaderMaterial>(null);
+
+  // Curva vertical suave (leve vaivén, no un "cable" recto), de arriba (idea) a abajo (sistema).
+  const curve = React.useMemo(
+    () =>
+      // Vaivén ESTRECHO, centrado en el canal del medio (alineado con los nodos) → no
+      // cruza las columnas de texto, así el brillo no pisa la lectura.
+      new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.1, 3.7, 0),
+        new THREE.Vector3(0.16, 1.7, 0.18),
+        new THREE.Vector3(-0.14, -0.3, -0.18),
+        new THREE.Vector3(0.14, -2.1, 0.1),
+        new THREE.Vector3(-0.05, -3.8, 0),
+      ]),
+    [],
+  );
+
+  const uniforms = React.useMemo(
+    () => ({ uProgress: { value: 0 }, uTime: { value: 0 } }),
+    [],
+  );
+
+  useFrame((s) => {
+    // Cresta = progreso de scroll, suavizado (sin saltos). Mutar vía el ref del material.
+    const m = glow.current;
+    if (!m) return;
+    m.uniforms.uProgress.value += (scrollRef.current - m.uniforms.uProgress.value) * 0.08;
+    m.uniforms.uTime.value = s.clock.elapsedTime;
+  });
+
+  return (
+    <group scale={mobile ? 0.86 : 1}>
+      {/* Cuerpo metálico del conducto (refleja el Environment) */}
+      <mesh>
+        <tubeGeometry args={[curve, 240, 0.05, 20, false]} />
+        <meshStandardMaterial
+          color="#4a5466"
+          metalness={0.92}
+          roughness={0.3}
+          envMapIntensity={1.8}
+        />
+      </mesh>
+      {/* Halo de luz viajera (additive): se llena hasta la cresta; cyan hacia el final.
+          Halo más fino + intensidad moderada → presencia sin pisar la lectura del texto. */}
+      <mesh>
+        <tubeGeometry args={[curve, 240, 0.12, 20, false]} />
+        <shaderMaterial
+          ref={glow}
+          transparent
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          uniforms={uniforms}
+          vertexShader={
+            "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }"
+          }
+          fragmentShader={
+            "uniform float uProgress; uniform float uTime; varying vec2 vUv;" +
+            "void main(){" +
+            "  float along = vUv.x;" + // uv.x = a lo largo del tubo (0 arriba → 1 abajo)
+            "  float filled = smoothstep(uProgress + 0.015, uProgress - 0.015, along);" +
+            "  float crest = smoothstep(0.08, 0.0, abs(along - uProgress));" +
+            "  float shimmer = 0.85 + 0.15 * sin(along * 42.0 - uTime * 2.0);" +
+            "  vec3 electric = vec3(0.145, 0.388, 0.922);" +
+            "  vec3 cyan = vec3(0.30, 0.78, 0.97);" +
+            "  vec3 col = mix(electric, cyan, smoothstep(0.45, 1.0, along));" +
+            "  float intensity = (filled * 0.26 + crest * 0.72) * shimmer;" +
+            "  gl_FragColor = vec4(col * intensity, intensity);" +
+            "}"
+          }
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/* ───────────────────────── Escena + entorno compartidos ───────────────────────── */
+
+function Scene({
+  variant,
+  mobile,
+  scrollRef,
+}: {
+  variant: LivingVariant;
+  mobile: boolean;
+  scrollRef: React.RefObject<number>;
+}) {
   return (
     <>
-      <ambientLight intensity={0.85} />
-      <React.Suspense fallback={null}>
-        <Beams />
-      </React.Suspense>
-      <Arc mobile={mobile} scrollRef={scrollRef} />
-      {/* Entorno PAREJO (suave arriba/abajo/lados) → cromo uniforme, sin hotspot que "corte". */}
-      {/* Luz envolvente (arriba/abajo/lados) → el aro refleja parejo todo alrededor,
-          sin corte oscuro en la parte de abajo. */}
+      <ambientLight intensity={variant === "proceso" ? 0.7 : 0.85} />
+      {variant === "servicios" ? (
+        <>
+          <React.Suspense fallback={null}>
+            <Beams />
+          </React.Suspense>
+          <Arc mobile={mobile} scrollRef={scrollRef} />
+        </>
+      ) : (
+        <Conduit mobile={mobile} scrollRef={scrollRef} />
+      )}
+      {/* Entorno PAREJO (suave arriba/abajo/lados) → metal uniforme, sin hotspot que "corte". */}
       <Environment resolution={mobile ? 256 : 512}>
         <Lightformer intensity={2.4} position={[2, 4, 4]} scale={[10, 5, 1]} color="#ffffff" />
         <Lightformer intensity={1.8} position={[-1, -5, 4]} scale={[11, 5, 1]} color="#dfe3ea" />
@@ -123,8 +228,7 @@ function Scene({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObj
         <Lightformer intensity={1.3} position={[7, 0, 3]} scale={[5, 11, 1]} color="#e6e9ef" />
       </Environment>
       {!mobile && (
-        // multisampling 4 (no 8): el aro es cromo difuso con bloom, no precisa MSAA alto;
-        // baja mucho el costo por frame → más FPS, motion fluido. SMAA limpia el resto.
+        // multisampling 4 (no 8): fondo difuso con bloom, no precisa MSAA alto → más FPS.
         <EffectComposer multisampling={4}>
           <Bloom intensity={0.4} luminanceThreshold={0.45} luminanceSmoothing={0.3} mipmapBlur />
           <SMAA />
@@ -134,26 +238,42 @@ function Scene({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObj
   );
 }
 
-function Poster() {
-  // Estado final estático (reduced-motion / sin WebGL): gris con glows de rol + hint de arco.
+/** Estado final estático (reduced-motion / sin WebGL): gradientes que evocan la escena. */
+function Poster({ variant }: { variant: LivingVariant }) {
+  const background =
+    variant === "proceso"
+      ? // Conducto vertical: hilo electric arriba que culmina en cyan (HECHO) abajo.
+        "radial-gradient(26% 55% at 50% 24%, rgba(37,99,235,0.14), transparent 70%)," +
+        "radial-gradient(30% 45% at 50% 82%, rgba(56,189,248,0.13), transparent 72%)," +
+        "linear-gradient(180deg, transparent 30%, rgba(56,189,248,0.05) 100%)"
+      : "radial-gradient(40% 30% at 28% 22%, rgba(109,93,251,0.14), transparent 70%)," +
+        "radial-gradient(42% 32% at 74% 62%, rgba(56,189,248,0.12), transparent 72%)," +
+        "radial-gradient(50% 40% at 60% 50%, rgba(37,99,235,0.08), transparent 75%)";
+  return <div aria-hidden="true" className="absolute inset-0" style={{ background }} />;
+}
+
+/** Aurora que respira (deriva lenta de glows sobre el gris), distinta por variante. */
+function Aurora({ variant }: { variant: LivingVariant }) {
+  const background =
+    variant === "proceso"
+      ? "radial-gradient(30% 40% at 50% 22%, rgba(37,99,235,0.09), transparent 70%)," +
+        "radial-gradient(34% 44% at 50% 80%, rgba(56,189,248,0.09), transparent 72%)"
+      : "radial-gradient(38% 28% at 28% 18%, rgba(109,93,251,0.10), transparent 70%)," +
+        "radial-gradient(40% 30% at 76% 64%, rgba(56,189,248,0.10), transparent 72%)";
   return (
-    <div
+    <motion.div
       aria-hidden="true"
       className="absolute inset-0"
-      style={{
-        background:
-          "radial-gradient(40% 30% at 28% 22%, rgba(109,93,251,0.14), transparent 70%)," +
-          "radial-gradient(42% 32% at 74% 62%, rgba(56,189,248,0.12), transparent 72%)," +
-          "radial-gradient(50% 40% at 60% 50%, rgba(37,99,235,0.08), transparent 75%)",
-      }}
+      style={{ background }}
+      animate={{ opacity: [0.55, 1, 0.55], scale: [1, 1.05, 1] }}
+      transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
     />
   );
 }
 
 /**
- * Error boundary del WebGL: si el 3D falla (p. ej. el `Environment`/postprocessing se
- * re-inicializan mal en Fast Refresh/HMR, o no hay WebGL), degrada al póster oscuro en
- * vez de dejar la sección rota/blanca. Progressive enhancement (la sección vive sin 3D).
+ * Error boundary del WebGL: si el 3D falla (HMR/Fast Refresh, o no hay WebGL), degrada al
+ * póster en vez de dejar la sección rota/blanca. Progressive enhancement.
  */
 class CanvasBoundary extends React.Component<
   { children: React.ReactNode },
@@ -189,15 +309,17 @@ function useMediaQuery(query: string) {
 }
 
 type LivingBackgroundProps = {
-  variant?: "servicios";
+  variant?: LivingVariant;
   className?: string;
 };
 
-function LivingBackground({ className }: LivingBackgroundProps) {
+function LivingBackground({ variant = "servicios", className }: LivingBackgroundProps) {
   const reduce = useReducedMotion() ?? false;
   const ref = React.useRef<HTMLDivElement>(null);
   const mobile = useMediaQuery("(max-width: 768px)");
   const scrollRef = React.useRef(0);
+  // Pausa fuera de viewport (doctrina §3): el loop 3D no corre si la sección no se ve.
+  const inView = useInView(ref, { margin: "200px" });
 
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   useMotionValueEvent(scrollYProgress, "change", (v) => {
@@ -210,34 +332,22 @@ function LivingBackground({ className }: LivingBackgroundProps) {
       aria-hidden="true"
       className={"pointer-events-none absolute inset-0 " + (className ?? "")}
     >
-      <Poster />
-      {/* Aurora que respira (deriva lenta de glows de rol sobre el gris). */}
-      {!reduce && (
-        <motion.div
-          aria-hidden="true"
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(38% 28% at 28% 18%, rgba(109,93,251,0.10), transparent 70%)," +
-              "radial-gradient(40% 30% at 76% 64%, rgba(56,189,248,0.10), transparent 72%)",
-          }}
-          animate={{ opacity: [0.55, 1, 0.55], scale: [1, 1.05, 1] }}
-          transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-        />
-      )}
+      <Poster variant={variant} />
+      {!reduce && <Aurora variant={variant} />}
       {!reduce && (
         <CanvasBoundary>
           <Canvas
-            frameloop="always"
-            // dpr capado: el canvas cubre TODA la sección (alta) → a dpr 2 era un buffer
-            // enorme por frame. 1.5 desktop / 1.25 mobile baja el costo sin que se note
-            // en un fondo cromo difuso. antialias del framebuffer off (lo hace el composer).
+            // Pausa fuera de viewport: "never" cuando la sección no se ve → 0 trabajo de GPU.
+            frameloop={inView ? "always" : "never"}
+            // dpr capado: el canvas cubre TODA la sección (alta). 1.5 desktop / 1.25 mobile
+            // baja el costo por frame sin que se note en un fondo difuso. antialias off
+            // (lo hace el composer).
             dpr={mobile ? [1, 1.25] : [1, 1.5]}
             camera={{ position: [0, 0, 9], fov: 45 }}
             gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
             style={{ position: "absolute", inset: 0 }}
           >
-            <Scene mobile={mobile} scrollRef={scrollRef} />
+            <Scene variant={variant} mobile={mobile} scrollRef={scrollRef} />
           </Canvas>
         </CanvasBoundary>
       )}

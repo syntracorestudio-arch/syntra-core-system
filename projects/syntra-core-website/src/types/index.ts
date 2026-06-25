@@ -98,6 +98,18 @@ export interface WorkflowStep {
   description: string;
   /** Entregable de la etapa — label del estado HECHO */
   result: string;
+  /** Qué se necesita del cliente en esta etapa (dimensión colaborativa). Opcional. */
+  needFromYou?: string;
+  /** Micro-tranquilizadora anti-ansiedad de la etapa (distinta del result). Opcional. */
+  reassure?: string;
+}
+
+/** CTA de cierre del Proceso: relacional ("demos el primer paso"), no consultivo. */
+export interface WorkflowCta {
+  lead: string;
+  body: string;
+  button: string;
+  href: string;
 }
 
 /** Encabezado reutilizable de sección (eyebrow + título + subtítulo) */

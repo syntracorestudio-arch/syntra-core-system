@@ -1,6 +1,8 @@
 import {
   Bot,
   Building2,
+  Cpu,
+  DraftingCompass,
   Gem,
   Layers,
   LayoutTemplate,
@@ -13,6 +15,8 @@ import {
   Sparkles,
   Stethoscope,
   Store,
+  Telescope,
+  TrendingUp,
   Workflow,
   Zap,
   type LucideIcon,
@@ -25,6 +29,8 @@ import {
 const iconMap = {
   Bot,
   Building2,
+  Cpu,
+  DraftingCompass,
   Gem,
   Layers,
   LayoutTemplate,
@@ -37,6 +43,8 @@ const iconMap = {
   Sparkles,
   Stethoscope,
   Store,
+  Telescope,
+  TrendingUp,
   Workflow,
   Zap,
 } satisfies Record<string, LucideIcon>;

@@ -11,6 +11,7 @@ import type {
   StackItem,
   UseCaseItem,
   WorkflowStep,
+  WorkflowCta,
 } from "@/types";
 import type { ProjectType } from "@/lib/validations/lead";
 
@@ -453,37 +454,57 @@ export const faqs: FaqItem[] = [
 export const workflow: WorkflowStep[] = [
   {
     step: 1,
-    icon: "Search",
+    icon: "Telescope",
     title: "Entendemos tu negocio",
     description:
-      "Analizamos tus objetivos, tus procesos y dónde estás perdiendo tiempo o ventas. Antes de proponer, escuchamos.",
+      "Analizamos tus objetivos, tus procesos y dónde estás perdiendo tiempo o ventas. Antes de proponer, escuchamos. El primer paso es sin compromiso.",
     result: "Diagnóstico claro",
+    needFromYou: "Una charla y que nos cuentes cómo trabajás hoy.",
+    reassure: "Sin compromiso: si no te sirve, te lo decimos.",
   },
   {
     step: 2,
-    icon: "PenTool",
+    icon: "DraftingCompass",
     title: "Diseñamos el sistema",
     description:
       "Definimos cómo va a funcionar todo: diseño, estructura y las tareas que se van a automatizar. Nada de plantillas, todo pensado para tu caso.",
-    result: "Plan a medida",
+    result: "Propuesta para aprobar",
+    needFromYou: "Revisás la propuesta y nos das el OK antes de construir nada.",
+    reassure: "No empezamos a desarrollar hasta que estés de acuerdo.",
   },
   {
     step: 3,
-    icon: "Workflow",
+    icon: "Cpu",
     title: "Construimos y automatizamos",
     description:
       "Desarrollamos con tecnología moderna y conectamos tus herramientas para que el trabajo repetitivo se haga solo.",
     result: "Sistema funcionando",
+    needFromYou: "Casi nada de tu lado: nos das accesos puntuales y seguís con lo tuyo.",
+    reassure: "Te vamos mostrando avances; no es una caja negra.",
   },
   {
     step: 4,
-    icon: "Rocket",
+    icon: "TrendingUp",
     title: "Lanzamos y acompañamos",
     description:
       "Publicamos, medimos resultados reales y hacemos crecer el sistema a medida que crece tu negocio.",
     result: "En marcha y con soporte",
+    needFromYou: "Usás el sistema; nosotros estamos atrás para lo que surja.",
+    reassure: "No te dejamos solo después de lanzar.",
   },
 ];
+
+/** Micro-promesa de método (bajo el heading): enmarca los 4 pasos y da coherencia. */
+export const workflowMethodPromise =
+  "Trabajamos en 4 pasos claros. Te mostramos cada avance y no avanzamos sin tu OK.";
+
+/** Cierre del Proceso — CTA relacional (arrancar por el paso 1, sin compromiso). */
+export const workflowCta: WorkflowCta = {
+  lead: "El primer paso es entender tu negocio.",
+  body: "Sin compromiso: charlamos, escuchamos y te decimos con claridad si podemos ayudarte y cómo.",
+  button: "Empecemos por entender tu negocio",
+  href: "#contacto",
+};
 
 /**
  * Diagrama de arquitectura de solución (prueba honesta — TASK-003).
