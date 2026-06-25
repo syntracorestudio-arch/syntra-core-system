@@ -23,14 +23,30 @@ estudio la usa con su propia marca.
   no intermedia fondos).
 - Landing pública y PWA en **Fase 1.1**.
 
+### Decisiones cerradas (Fase 0B, 2026-06-25)
+- **Recurrencias:** MVP materializa **8 semanas** por adelantado; extensible a **12** sin
+  cambiar arquitectura; **rolling window** como lógica futura.
+- **Multi-estudio del alumno:** la BD soporta N:N; la **UX del MVP asume 1 estudio
+  principal** por alumno.
+- **Instructores:** en MVP es **campo informativo/opcional** de la clase; login de
+  instructor en Fase 1.1/2.
+- **Recepción:** **no entra en MVP**; rol preparado para Fase 2.
+- **Notificaciones:** MVP **solo confirmación in-app**; email/WhatsApp/n8n en Fase 4.
+- **Facturación / invoices:** fuera del MVP; `payments` alcanza para control interno;
+  `invoices` solo si un estudio lo exige.
+- **Precios de packs/membresías:** **cada estudio los define libremente** (precio, nombre,
+  duración, créditos).
+- **MercadoPago:** Fase 3; **cada estudio cobra en su propia cuenta**; SYNTRA no intermedia
+  fondos.
+
 ## 2. Usuarios
 
 | Usuario | Descripción | En MVP |
 | --- | --- | --- |
-| **Alumno (client)** | Cliente del estudio que reserva clases | Sí |
+| **Alumno (client)** | Cliente del estudio que reserva clases (UX MVP: 1 estudio principal) | Sí |
 | **Dueño / Admin** | Gestiona clases, alumnos, cupos, pagos, deuda, métricas | Sí |
-| **Recepción** | Operación diaria sin acceso a config sensible | Rol previsto, activo Fase 2 |
-| **Instructor** | Da la clase; ve sus asistentes; check-in | Rol previsto, activo Fase 1.1/2 |
+| **Recepción** | Operación diaria sin acceso a config sensible | No en MVP; rol preparado, activo Fase 2 |
+| **Instructor** | En MVP: solo dato informativo de la clase. Login/asistentes/check-in después | Campo en MVP; login Fase 1.1/2 |
 | **Superadmin (SYNTRA)** | Alta/baja de estudios, soporte, billing | Fase 5 |
 
 ## 3. Propuesta de valor
