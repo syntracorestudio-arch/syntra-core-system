@@ -30,7 +30,8 @@ export default function Home() {
         <ServicesSection />
         <SectionBridge>{homeBridges.servicesToUseCases}</SectionBridge>
         <UseCasesSection />
-        <SectionBridge>{homeBridges.useCasesToWorkflow}</SectionBridge>
+        {/* Sin SectionBridge entre Casos y Proceso: el campo de señales converge al nodo
+            y entra directo al cable de Proceso (continuidad visual resultado→método). */}
         <WorkflowSection />
         <SectionBridge>{homeBridges.workflowToSolution}</SectionBridge>
         <SolutionArchitectureSection />
