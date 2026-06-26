@@ -213,6 +213,7 @@ TASK-024  (diferida)
 | WEB-013B | Contacto — `projectType` full-stack (Zod → action → tipo → persistencia → n8n → panel + pills accesibles + migración `0004`) — commit `f5dbd3d` | DONE |
 | WEB-013C | Contacto — elevar materialidad + copy de cierre + success eco-neutro, bajo Visual Gate | TODO *(próxima)* |
 | WEB-HERO-FUTURE | **Hero — rediseñar como una sola escena integrada** (ver detalle) | FROZEN / DEFERRED |
+| WEB-PERF-A | **Lighthouse mobile secciones vivas:** Hero H1 SSR + code-split 3D + font-display optional — PRs #33/#35 (ver detalle) | DONE (con deuda de perf) |
 | — | Canvas / Sistema + Nosotros (motion + estructura) | FROZEN (requiere descongelamiento) |
 
 ### WEB-HERO-FUTURE — Rediseñar Hero como una sola escena integrada — FROZEN / DEFERRED
@@ -231,6 +232,32 @@ la sección `solutionArchitecture` (mismo lenguaje de nodos).
   decisión explícita del owner. Pre-requisitos: descongelamiento nominal acotado +
   criterio de aprobación escrito + ancla premium + **1 ciclo del Visual Quality Gate**
   (`agents/governance/visual-quality-gate.md`).
+
+### WEB-PERF-A — Lighthouse mobile de las secciones vivas — DONE (con deuda)
+
+Auditoría `qa-performance-guard` (§6.7) sobre prod (`syntra-core-system.vercel.app`).
+Baseline mobile: Perf **67**, LCP **~7s**, CLS 0. Tres fixes (Cat A, PRs **#33** + **#35**, merged):
+
+1. **Hero H1 estático visible en SSR** — sacó el `opacity:0` gating del `motion.h1` →
+   eliminó el render-delay de ~2340ms sobre el elemento LCP.
+2. **Code-split del 3D** — `optimizePackageImports` (drei/postprocessing) +
+   `DeferredLivingBackground` (gate de montaje por viewport, `margin 700px` que preserva la
+   luz única Casos→Proceso) → el chunk three/R3F/drei salió del **first-load**.
+3. **`font-display:"optional"`** en Sora (font-heading = H1) + Space Grotesk `preload:false`
+   → el H1 pinta inmediato con fallback size-matched **sin swap**; **CLS vuelve a 0**.
+
+**Resultado prod (mobile):** LCP 7s → **3.45s** · CLS → **0 duro** · H1 render-delay **0**
+(FCP===LCP) · font-display perfecto. **Perf score 67 → 70–74** (no alcanzó el techo ~90).
+
+**Deuda de perf abierta (no perder):**
+- **[ALTA] FCP/LCP mobile ~3.45s = main-thread pre-paint.** TTFB ~230ms; el resto es
+  parse/exec de JS (sitio 100% client components + framer-motion above-the-fold) + 1 CSS
+  render-blocker (~300ms). Pasar de ~72 → ~90 exige optimización **arquitectónica**
+  (Server Components donde se pueda, recortar framer-motion above-the-fold, CSS crítico
+  inline/split). Es su propia iniciativa, no un tweak.
+- **[MEDIA] Desktop sin número limpio.** Lighthouse local da TBT fantasma (~28s) por
+  contención de CPU del entorno; medir por **PageSpeed Insights** (LCP 1.5 / SI 2.2 / CLS 0
+  reales sugieren +95).
 
 **Próxima acción:** `WEB-013C` (Contacto) — elevar materialidad, copy de cierre y success state
 bajo el Visual Gate. **No tocar lógica salvo bug.** Contacto: `013A` (audit) + `013B` (`projectType`
