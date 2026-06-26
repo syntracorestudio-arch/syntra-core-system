@@ -259,6 +259,15 @@ La animación debe reforzar experiencia.
 
 Nunca convertirse en ruido.
 
+**Web viva (`docs/creative-library/living-web-doctrine.md`).** Para 3D real, fondos vivos por
+sección y animación ligada al scroll, la autoridad técnica de implementación es
+`motion-3d-engineer`; su norte técnico §3 es **vinculante**: R3F lazy (`dynamic ssr:false`, no
+bloquea LCP), `frameloop="demand"`/pausa fuera de viewport, `prefers-reduced-motion` → frame
+estático, CLS 0, fallback mobile responsive. La doctrina **amplió** lo aprobable en motion (3D,
+fondos vivos por sección, scroll-motion) manteniendo el techo de perf: el criterio ya no es
+"motion mínimo" sino **"motion con propósito bajo el norte técnico"** — sigue prohibido el
+efecto sin concepto (wow vacío).
+
 ---
 
 # 8. SISTEMA DE BLOQUEO (CRÍTICO)
