@@ -38,6 +38,54 @@ fricción + percepción de confianza/seriedad. Esta intervención **no cambia es
 el fondo al nivel de la web viva y convierte la interacción en **metáfora de conversión**
 ("el sistema te registra y responde cuando te acercás").
 
+## Ampliación v2 (2026-06-26) — Rail enriquecido + núcleo SC + depuración del form
+
+> El fondo vivo (abajo) **se mantiene**. Esta v2 amplía el lock al **contenido del rail y
+> al formulario**, a partir de un **mockup del owner** evaluado por `creative-director` +
+> `motion-3d-engineer`. El mockup se aprueba **depurado** (gana por sustracción): se toma lo
+> on-brand, se descarta lo genérico. Decisiones del owner: **núcleo SC sutil sin WebGL** +
+> **reaseguro sin promesa de tiempo**. Supersede la cláusula previa de "el formulario no
+> cambia": ahora el form recibe mejoras acotadas (no se toca su lógica server-side).
+
+**Se TOMA del mockup (on-brand):**
+- **Rail: lista de 3 capacidades** ("Webs modernas y escalables" · "Automatización de
+  procesos" · "IA e integraciones inteligentes") con **íconos line tenues** (no cuadrados
+  rellenos). Content-driven (`site.ts`). Llena el espacio muerto con contenido útil.
+- **Núcleo SC** como pieza-firma del rail, **sutil, CSS/SVG (sin WebGL)**: esfera con
+  profundidad por `radial-gradient` + **borde de luz electric (fresnel-fake)** + el **logo
+  SC** (`/logo.png`) nítido al centro + halo de profundidad detrás. Opcional: **un** arco
+  fino incompleto en rotación lentísima. Reduced-motion → estático. Reemplaza el "espacio
+  muerto" por un ancla de marca.
+- **Chip de tipo de proyecto seleccionado con fill electric + check** (mejora el actual).
+- **Contador de caracteres del textarea CONDICIONAL** (aparece sólo cerca del límite,
+  `maxLength 1000`; no "0/1000" permanente).
+- **Bloque de reaseguro** cerca del botón (con ícono escudo tenue), **SIN número de tiempo**:
+  copy honesto tipo "Sin compromiso. Te respondemos personalmente."
+
+**Se DESCARTA (genérico / choca §5 / honestidad):**
+- ❌ Anillos orbitales + base/plataforma glowing del orbe (cliché sci-fi/crypto).
+- ❌ Crystal-ball con `transmission` real (genérico + caro); el vidrio es fresnel-fake.
+- ❌ Íconos en cada label del form ("form-builder", resta premium).
+- ❌ Borde azul glowing perimetral de la card (se mantiene el hairline + acento puntual).
+- ❌ **"Te respondemos en menos de 24hs"** — promesa de tiempo que el form evita a propósito;
+  el reaseguro va **sin número** (decisión del owner).
+
+**Norte del núcleo SC (no negociable):** subordinado al form (el form es el protagonista) y
+al CTA (el azul de acción es el botón, 90/10). Costo ~nulo (CSS/SVG), **CLS 0** (alto
+reservado en el rail), reduced-motion → sin rotación, mobile sin jank. Nunca más brillante
+que el botón "Enviar consulta". No usa cyan (reservado al éxito del envío).
+
+**Criterios binarios v2:**
+- [ ] Rail con lista de capacidades (íconos line tenues) + núcleo SC sutil → el espacio
+      muerto desaparece como contenido/marca, no como relleno.
+- [ ] Núcleo SC **CSS/SVG**, sin anillos/base, logo nítido, borde electric, halo; reduced-
+      motion → estático; CLS 0.
+- [ ] Form depurado: chip con fill+check, contador condicional, reaseguro **sin tiempo**;
+      **sin** íconos por label; **sin** borde glow perimetral.
+- [ ] Lógica server-side, validación, honeypot, success state: **intactos**.
+- [ ] El núcleo y el rail **no compiten** con el form ni con el fondo vivo; el botón sigue
+      siendo el único azul de acción (90/10).
+
 ## Dirección visual elegida — A: "El campo se inclina hacia vos"
 
 **Campo de profundidad reactivo, NO una constelación de nodos.** Capas de partículas /
