@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { siteConfig } from "@/config/site";
 import { Section } from "@/components/layout/section";
-import { SceneAtmosphere } from "@/components/marketing/servicios/scene-frame";
+import { Container } from "@/components/layout/container";
+import { ContactoBackdrop } from "@/components/marketing/aplicaciones/contacto-backdrop";
 import { BlurReveal } from "@/components/animations/blur-reveal";
 import { TrackedLink } from "@/components/shared/tracked-link";
 import { ContactForm } from "@/components/sections/contact-form";
@@ -12,64 +13,68 @@ import { ContactForm } from "@/components/sections/contact-form";
  * Formulario real (Server Action + Zod + Supabase). Sin lógica en el cliente
  * más allá de la UX del form. Content-driven.
  *
- * Materialidad on-system (WEB-013C): chasis `bg-depth-sunken` + `SceneAtmosphere`
- * + hairline, igual que Casos/Proceso/Sistema. El card ocupa el ancho de la
- * sección (como el resto, sin margen extra); el rail izquierdo lleva el cierre
- * narrativo + la confianza (privacidad), y el form —más ancho— es protagonista.
+ * Fondo vivo "El campo se inclina hacia vos" (reference-lock contacto.md): el campo
+ * interactivo vive a nivel SECCIÓN, por FUERA de la card; la card (opaca) aísla el
+ * formulario y el campo respira en el espacio negativo alrededor (arriba/abajo/costados).
+ * El rail izquierdo lleva el cierre narrativo + la confianza; el form —más ancho— es
+ * protagonista.
  */
 function FinalCtaSection() {
   const { finalCta } = siteConfig.sections;
 
   return (
-    <Section id="contacto" className="pb-14 sm:pb-20 lg:pb-16">
-      <BlurReveal>
-        <div className="relative overflow-hidden rounded-3xl border border-border bg-depth-sunken px-6 py-12 sm:px-10 sm:py-14">
-          {/* Atmósfera compartida (mesh azul/cyan por opacidad + grilla) */}
-          <SceneAtmosphere />
-          {/* Hairline de acento superior (estructural, como el panel de Casos) */}
-          <span
-            aria-hidden="true"
-            className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-primary/60 to-transparent"
-          />
+    <Section id="contacto" contained={false} className="relative pb-14 sm:pb-20 lg:pb-16">
+      {/* Fondo vivo interactivo a nivel SECCIÓN: por fuera de la card, respira alrededor */}
+      <ContactoBackdrop />
 
-          <div className="relative z-10 grid items-start gap-10 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)] lg:gap-14">
-            {/* Rail izquierdo: cierre narrativo + confianza */}
-            <div className="flex flex-col gap-4 text-center lg:text-left">
-              <h2 className="font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
-                {finalCta.title}
-              </h2>
-              <p className="text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg">
-                {finalCta.subtitle}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                También podés escribirnos a{" "}
-                <TrackedLink
-                  href={`mailto:${siteConfig.email}`}
-                  className="text-brand-cyan underline-offset-4 hover:underline"
-                  trackProps={{ location: "final_cta", target: "mailto" }}
-                >
-                  {siteConfig.email}
-                </TrackedLink>
-              </p>
-              {/* Confianza + privacidad (sin prometer tiempos) — equilibra el rail */}
-              <p className="mt-1 border-t border-border/60 pt-5 text-xs leading-relaxed text-muted-foreground">
-                Usamos tus datos solo para responder esta consulta. Podés ver
-                cómo los tratamos en nuestra{" "}
-                <Link
-                  href="/privacidad"
-                  className="text-brand-cyan underline-offset-4 hover:underline"
-                >
-                  Política de privacidad
-                </Link>
-                .
-              </p>
+      <Container className="relative z-10">
+        <BlurReveal>
+          <div className="relative overflow-hidden rounded-3xl border border-border bg-depth-sunken px-6 py-12 sm:px-10 sm:py-14">
+            {/* Hairline de acento superior (estructural, como el panel de Casos) */}
+            <span
+              aria-hidden="true"
+              className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-primary/60 to-transparent"
+            />
+
+            <div className="relative z-10 grid items-start gap-10 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)] lg:gap-14">
+              {/* Rail izquierdo: cierre narrativo + confianza */}
+              <div className="flex flex-col gap-4 text-center lg:text-left">
+                <h2 className="font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
+                  {finalCta.title}
+                </h2>
+                <p className="text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg">
+                  {finalCta.subtitle}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  También podés escribirnos a{" "}
+                  <TrackedLink
+                    href={`mailto:${siteConfig.email}`}
+                    className="text-brand-cyan underline-offset-4 hover:underline"
+                    trackProps={{ location: "final_cta", target: "mailto" }}
+                  >
+                    {siteConfig.email}
+                  </TrackedLink>
+                </p>
+                {/* Confianza + privacidad (sin prometer tiempos) — equilibra el rail */}
+                <p className="mt-1 border-t border-border/60 pt-5 text-xs leading-relaxed text-muted-foreground">
+                  Usamos tus datos solo para responder esta consulta. Podés ver
+                  cómo los tratamos en nuestra{" "}
+                  <Link
+                    href="/privacidad"
+                    className="text-brand-cyan underline-offset-4 hover:underline"
+                  >
+                    Política de privacidad
+                  </Link>
+                  .
+                </p>
+              </div>
+
+              {/* Formulario (protagonista) */}
+              <ContactForm />
             </div>
-
-            {/* Formulario (protagonista) */}
-            <ContactForm />
           </div>
-        </div>
-      </BlurReveal>
+        </BlurReveal>
+      </Container>
     </Section>
   );
 }
