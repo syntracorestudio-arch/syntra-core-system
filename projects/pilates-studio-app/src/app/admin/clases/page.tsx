@@ -3,6 +3,7 @@ import { LogOut, Plus, Pencil, LayoutGrid } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { ClassForm, type ClassFormInitial } from "@/components/admin/class-form";
 import { AdminClassCard, type AdminClassData } from "@/components/admin/admin-class-card";
+import { AdminTabs } from "@/components/admin/admin-tabs";
 
 export const metadata = { title: "Clases — Panel" };
 export const dynamic = "force-dynamic";
@@ -189,6 +190,8 @@ export default async function AdminClasesPage({
           Salir
         </a>
       </header>
+
+      <AdminTabs active="clases" />
 
       {/* avisos */}
       {notice ? (
