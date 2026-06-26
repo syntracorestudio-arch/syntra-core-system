@@ -211,7 +211,7 @@ TASK-024  (diferida)
 | VISUAL-WORKFLOW-003 | Mejorar `visual:shots`: pase de scroll antes del `fullPage` para reveals debajo del fold (whileInView/FadeIn) — commit `e60e21e` | DONE |
 | WEB-013A | Contacto — concept + logic audit (backend production-safe; decisión: agregar `projectType`) | DONE |
 | WEB-013B | Contacto — `projectType` full-stack (Zod → action → tipo → persistencia → n8n → panel + pills accesibles + migración `0004`) — commit `f5dbd3d` | DONE |
-| WEB-013C | Contacto — elevar materialidad + copy de cierre + success eco-neutro, bajo Visual Gate | TODO *(próxima)* |
+| WEB-013C | Contacto — elevar materialidad + copy de cierre + success eco-neutro, bajo Visual Gate | DONE (ya en producción: chasis on-system + grid asimétrico rail/form + copy de cierre + success cyan=HECHO). ⚠️ Usa materialidad **pre-pivot** (`SceneAtmosphere`); quedó **desfasada** vs web viva — cohesión futura diferida por decisión del owner (2026-06-26). |
 | WEB-HERO-FUTURE | **Hero — rediseñar como una sola escena integrada** (ver detalle) | FROZEN / DEFERRED |
 | — | Canvas / Sistema + Nosotros (motion + estructura) | FROZEN (requiere descongelamiento) |
 
@@ -232,10 +232,16 @@ la sección `solutionArchitecture` (mismo lenguaje de nodos).
   criterio de aprobación escrito + ancla premium + **1 ciclo del Visual Quality Gate**
   (`agents/governance/visual-quality-gate.md`).
 
-**Próxima acción:** `WEB-013C` (Contacto) — elevar materialidad, copy de cierre y success state
-bajo el Visual Gate. **No tocar lógica salvo bug.** Contacto: `013A` (audit) + `013B` (`projectType`
-full-stack, commit `f5dbd3d`) cerrados. Transiciones (`WEB-012A/B`, `9304c3b`) y Casos
-(`WEB-011A→D`) cerrados. El Hero queda diferido (`WEB-HERO-FUTURE`); Canvas-motion / Nosotros FROZEN.
+**Estado (2026-06-26):** **web viva mergeada** en Servicios, Casos y Proceso (3D R3F + luz
+ligada al scroll + responsive mobile). Contacto (`013A/B/C`) cerrado y en producción, pero con
+materialidad **pre-pivot** → **desfasada** vs web viva (cohesión diferida por decisión del owner).
+Transiciones (`WEB-012A/B`) y Casos (`WEB-011A→D`) cerrados. El Hero queda diferido
+(`WEB-HERO-FUTURE`); Sistema / Nosotros **FROZEN** (descongelables para rediseño vivo por la doctrina).
+
+**Próxima acción:** a definir con el owner. Candidatos: cohesión web-viva de Contacto (diferida) ·
+descongelar **Sistema** o **Nosotros** para rediseño vivo · **Lighthouse mobile** de las secciones
+vivas (estrena el checklist §6.7 del QA-Guard) · Hero (`WEB-HERO-FUTURE`, diferido). **No tocar
+lógica salvo bug.**
 
 > ⚠️ **Deploy:** aplicar `supabase/migrations/0004_lead_project_type.sql` en Supabase **antes** del
 > próximo deploy productivo (o de que producción use este código), o los `select` con
