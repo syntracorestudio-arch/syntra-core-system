@@ -49,20 +49,6 @@ function HeroSection() {
     },
   });
 
-  // H1: entrada rápida sin blur (para no penalizar el LCP del elemento clave).
-  const riseH1: Variants = {
-    hidden: reduce ? { opacity: 1 } : { opacity: 0, y: 12 },
-    show: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: reduce ? 0 : DURATION.section,
-        delay: reduce ? 0 : 0.12,
-        ease: EASE_PREMIUM,
-      },
-    },
-  };
-
   return (
     <Section
       id="inicio"
@@ -160,19 +146,15 @@ function HeroSection() {
               </Badge>
             </motion.div>
 
-            {/* H1: entrada rápida (sin blur) → ritmo de 3 líneas en desktop, LCP ok */}
-            <motion.h1
-              variants={riseH1}
-              initial="hidden"
-              animate="show"
-              className="font-heading text-4xl leading-[1.08] font-bold tracking-tight text-balance sm:text-5xl xl:text-6xl"
-            >
+            {/* H1: estático, visible desde el SSR (sin gating de hidratación) →
+                es el elemento LCP, debe pintarse instantáneo. */}
+            <h1 className="font-heading text-4xl leading-[1.08] font-bold tracking-tight text-balance sm:text-5xl xl:text-6xl">
               <span className="lg:block">{hero.titleLead}</span>{" "}
               <span className="lg:block">
                 que <span className="text-gradient-brand">{hero.titleHighlight}</span>
               </span>{" "}
               <span className="lg:block">{hero.titleTail}</span>
-            </motion.h1>
+            </h1>
 
             <motion.p
               variants={rise(2)}
