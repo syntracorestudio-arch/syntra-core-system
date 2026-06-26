@@ -17,7 +17,7 @@
  */
 
 import * as React from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, Lightformer, useTexture } from "@react-three/drei";
 import { EffectComposer, Bloom, SMAA } from "@react-three/postprocessing";
 import {
@@ -83,6 +83,56 @@ function writeJourney(variant: LivingVariant, localProgress: number) {
   }
 }
 
+/* ──────────────────── Cámara responsive al aspect (entra completo en angosto) ────────────────────
+ *
+ * La cámara base (z=9, fov=45) está calibrada para el aspect DESKTOP. En portrait/angosto el
+ * ancho de mundo visible cae proporcional al aspect → los objetos anchos (arco, abanico de
+ * Casos, vaivén del cable) se salen por los costados. Solución: ALEJAR la cámara (z mayor) en
+ * proporción a cuánto cae el aspect respecto de un aspect de referencia, de modo que el ANCHO
+ * de mundo visible se mantenga ≈ constante (zoom-out). Desktop queda IDÉNTICO: por encima del
+ * aspect de referencia el factor es 1 (no se toca z).
+ *
+ * worldWidth(d) = 2·d·tan(fov/2)·aspect  → para fijar worldWidth cuando aspect<ref:
+ *   d = baseZ · (refAspect / aspect)     (clamp para no alejar infinito en súper angosto)
+ *
+ * Cada variante define su PROPIO refAspect y su tope de zoom-out, porque el arco (cuadrado)
+ * tolera menos alejamiento que los fondos verticales (cable, abanico).
+ */
+type CamTune = { baseZ: number; refAspect: number; maxZoom: number };
+const CAM_TUNE: Record<LivingVariant, CamTune> = {
+  // Arco (≈cuadrado, torus radio 2.2): refAspect 1.0; en portrait alejamos hasta 1.7× para que
+  // el anillo entre completo. Más allá no hace falta (el scale extra del Arc cierra el resto).
+  servicios: { baseZ: 9, refAspect: 1.0, maxZoom: 1.7 },
+  // Cable vertical: refAspect 0.9. Subimos el tope de zoom-out a 2.1× porque en mobile angosto
+  // (sección ~3000px → aspect ~0.15–0.48) el cap viejo (1.35) dejaba el cable demasiado grueso y
+  // cortado/pegado al borde. Con 2.1× + el centrado-X firme (scale.x→~0.2) entra completo y se ve
+  // como una línea central limpia hasta 320px. Desktop intacto (factor 1 por encima del refAspect).
+  proceso: { baseZ: 9, refAspect: 0.9, maxZoom: 2.1 },
+  // Abanico: refAspect 1.15 (empieza a adaptar antes, ya en tablet-portrait) y zoom-out generoso
+  // (1.85×) que acompaña a la reducción de N de tubos para que entren prolijos.
+  casos: { baseZ: 9, refAspect: 1.15, maxZoom: 1.85 },
+};
+
+function ResponsiveCamera({ variant }: { variant: LivingVariant }) {
+  const tune = CAM_TUNE[variant];
+  // Lee state.size + state.camera en useFrame (objetos three de R3F) y muta z + matriz de
+  // proyección. No toca objetos de useMemo → cumple react-hooks/immutability; no lee refs en
+  // render → cumple react-hooks/refs.
+  useFrame((state) => {
+    const cam = state.camera as THREE.PerspectiveCamera;
+    const aspect = state.size.width / Math.max(state.size.height, 1);
+    // factor 1 cuando aspect ≥ refAspect (desktop intacto); crece al angostarse, con tope.
+    const zoom = Math.min(Math.max(tune.refAspect / aspect, 1), tune.maxZoom);
+    const targetZ = tune.baseZ * zoom;
+    // Si el salto es grande (primer encuadre tras entrar en viewport / cambio brusco), ajustamos
+    // de una para no mostrar un flash con el objeto cortado; si es chico (resize fino), lerp suave.
+    const dz = targetZ - cam.position.z;
+    cam.position.z += Math.abs(dz) > 0.6 ? dz : dz * 0.18;
+    cam.updateProjectionMatrix();
+  });
+  return null;
+}
+
 /* ───────────────────────── Servicios: arco cromado ───────────────────────── */
 
 function Arc({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObject<number> }) {
@@ -93,7 +143,8 @@ function Arc({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObjec
   useFrame((state) => {
     const rt = root.current;
     const tg = tilt.current;
-    if (!rt || !tg) return;
+    const rg = ring.current;
+    if (!rt || !tg || !rg) return;
     const t = state.clock.elapsedTime;
     // Movimiento del video: la elipse se abre/cierra + gira de izquierda a derecha (yaw).
     tg.rotation.x = 1.0 + Math.sin(t * 0.2) * 0.2;
@@ -101,6 +152,15 @@ function Arc({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObjec
     // Centrado en la sección + parallax de scroll muy leve.
     const targetY = -0.6 + (0.5 - scrollRef.current) * 0.15;
     rt.position.y += (targetY - rt.position.y) * 0.05;
+    // Scale responsive al ASPECT (no al media query): el zoom-out de cámara entra el grueso del
+    // anillo; este scale extra solo se activa en portrait marcado (aspect<0.85) para cerrar el
+    // resto y garantizar que el torus quede DENTRO. Desktop (aspect alto) → base 1.0 intacto.
+    const aspect = state.size.width / Math.max(state.size.height, 1);
+    const base = mobile ? 0.82 : 1.0;
+    const extra = aspect < 0.85 ? THREE.MathUtils.lerp(0.84, 1, (aspect - 0.45) / 0.4) : 1;
+    const targetScale = base * Math.min(Math.max(extra, 0.84), 1);
+    const s = rg.scale.x + (targetScale - rg.scale.x) * 0.12;
+    rg.scale.setScalar(s);
   });
 
   return (
@@ -108,7 +168,7 @@ function Arc({ mobile, scrollRef }: { mobile: boolean; scrollRef: React.RefObjec
       {/* Roll → elipse en diagonal ↗ marcada (perfecta hacia la derecha). */}
       <group rotation={[0, 0, 0.5]}>
         <group ref={tilt}>
-          <mesh ref={ring} scale={mobile ? 0.82 : 1.0}>
+          <mesh ref={ring}>
             <torusGeometry args={[2.2, 0.075, 96, 360]} />
             <meshStandardMaterial
               color="#c2cad6"
@@ -174,6 +234,7 @@ function Beams() {
  */
 function Conduit({ mobile }: { mobile: boolean }) {
   const glow = React.useRef<THREE.ShaderMaterial>(null);
+  const root = React.useRef<THREE.Group>(null); // contenedor: comprime el vaivén X en angosto
 
   // Curva vertical suave (leve vaivén, no un "cable" recto), de arriba (idea) a abajo (sistema).
   const curve = React.useMemo(
@@ -198,6 +259,22 @@ function Conduit({ mobile }: { mobile: boolean }) {
   );
 
   useFrame((s) => {
+    // Centrado responsive: en portrait/angosto comprimimos el vaivén HORIZONTAL del cable hacia el
+    // eje (scale.x) para que quede FIRME en la columna central, no corrido a un borde ni cortado.
+    // La altura NO se toca (scale.y=1) → entra completo por el zoom-out de cámara (CAM_TUNE.proceso).
+    // Mapeo del factor según aspect (ancho/alto del canvas):
+    //   aspect ≥ 0.9 (desktop/tablet)        → 1.0  : cable IDÉNTICO al aprobado (vaivén pleno).
+    //   aspect ≈ 0.9 → ~0.45 (mobile medio)   → 1.0 → ~0.2 lerp suave (se va aplanando al centro).
+    //   aspect ≤ 0.45 (mobile muy angosto)    → ~0.2 : prácticamente una línea recta centrada.
+    // Sin floor 0.55 (el viejo dejaba el vaivén demasiado abierto y rozando el borde en portrait).
+    const rg = root.current;
+    if (rg) {
+      const aspect = s.size.width / Math.max(s.size.height, 1);
+      // t: 0 en aspect 0.45 (más angosto) → 1 en aspect 0.9 (desktop). Fuera de rango, clamp.
+      const t = Math.min(Math.max((aspect - 0.45) / (0.9 - 0.45), 0), 1);
+      const targetX = THREE.MathUtils.lerp(0.2, 1, t);
+      rg.scale.x += (targetX - rg.scale.x) * 0.12;
+    }
     // Cresta derivada del VIAJE global compartido (Casos→Proceso = UNA sola luz).
     // journey ∈ [SPLIT, 1] es el tramo de Proceso → remapeo a crest local 0..1 del cable.
     const m = glow.current;
@@ -213,7 +290,7 @@ function Conduit({ mobile }: { mobile: boolean }) {
   });
 
   return (
-    <group scale={mobile ? 0.86 : 1}>
+    <group ref={root} scale={mobile ? 0.86 : 1}>
       {/* Cuerpo metálico del conducto (refleja el Environment) */}
       <mesh>
         <tubeGeometry args={[curve, 240, 0.05, 20, false]} />
@@ -284,6 +361,30 @@ function Conduit({ mobile }: { mobile: boolean }) {
  */
 const CASOS_CONVERGENCE = new THREE.Vector3(0, -3.6, 0);
 
+/**
+ * Abanico responsive: cuántos tubos (N) y cuánto abren (openX = ±world X de los tops) según el
+ * ANCHO del canvas. Idea del owner: bajar la CANTIDAD al angostarse para que entren prolijos y
+ * no quede ralo el centro. Desktop/tablet mantiene los 6 tubos y la apertura aprobada (±3.8).
+ *
+ * Breakpoints (ancho de canvas en px):
+ *   ≥ 1024  → 6 tubos, openX 3.8   (desktop/tablet-landscape: look aprobado, intacto)
+ *   ≥ 768   → 5 tubos, openX 3.2   (tablet-portrait: una pizca menos ancho)
+ *   ≥ 480   → 4 tubos, openX 2.6   (phone grande / landscape chico)
+ *   ≥ 380   → 4 tubos, openX 2.3   (phone medio: mismos 4 pero más cerrado)
+ *   <  380  → 3 tubos, openX 1.9   (phone angosto 320–375: 3 trazas limpias al nodo)
+ *
+ * La combinación con el zoom-out de cámara (CAM_TUNE.casos) hace que en 320–414 el abanico
+ * entre completo y centrado. N variable NO rompe el merge (geos se recalcula con `curves`) ni
+ * el shader (along=vUv.x es por-tubo, independiente de N).
+ */
+function casosFan(width: number): { N: number; openX: number } {
+  if (width >= 1024) return { N: 6, openX: 3.8 };
+  if (width >= 768) return { N: 5, openX: 3.2 };
+  if (width >= 480) return { N: 4, openX: 2.6 };
+  if (width >= 380) return { N: 4, openX: 2.3 };
+  return { N: 3, openX: 1.9 };
+}
+
 // Shaders del tubo (módulo → identidad estable). along = vUv.x recorre el largo del tubo:
 // 0 arriba → 1 en la convergencia (abajo). Cuerpo cálido → electric cerca de la boca.
 const CASOS_TUBE_VERT =
@@ -311,22 +412,25 @@ const CASOS_TUBE_FRAG =
 
 function SignalField() {
   const mobile = useMediaQuery("(max-width: 768px)");
+  // Ancho del canvas (reactivo a resize/rotación vía useThree → válido para react-hooks/refs).
+  // Deriva cuántos tubos y cuánto abren: en angosto MENOS tubos y MENOS apertura → entran prolijos.
+  const width = useThree((state) => state.size.width);
+  const { N, openX } = casosFan(width);
   // Menos detalle en mobile: geometría liviana sin disparar costo.
-  // 6 tubos × 2 mallas (core + halo) = 12 tubeGeometries → bajamos segmentos en mobile.
+  // N tubos × 2 mallas (core + halo) → bajamos segmentos en mobile (y N ya es menor en angosto).
   const tubularSegments = mobile ? 72 : 120;
   const radialSegments = mobile ? 8 : 14;
   // Un poco más gruesos que el Conduit base: core (refleja el Environment) + halo.
   const coreRadius = mobile ? 0.055 : 0.066;
   const haloRadius = mobile ? 0.12 : 0.14;
 
-  // Tubos = embudo invertido: repartidos arriba (x ∈ [-2.2..2.2], y ≈ +3.5) y
-  // convergiendo todos a CASOS_CONVERGENCE (0,-3.6,0). Un leve punto de control intermedio
-  // por tubo da una caída orgánica (no recta) sin cruzar el centro de la lectura.
+  // Tubos = embudo invertido: repartidos arriba (x ∈ ±openX, y ≈ +3.5) y convergiendo todos a
+  // CASOS_CONVERGENCE (0,-3.6,0). Un leve punto de control intermedio por tubo da una caída
+  // orgánica (no recta) sin cruzar el centro de la lectura. N y openX dependen del ancho.
   const curves = React.useMemo(() => {
-    const N = 6;
     return Array.from({ length: N }, (_, i) => {
-      const f = i / (N - 1); // 0..1
-      const topX = (f - 0.5) * 7.6; // -3.8 .. 3.8 → abren más, abarcan más pantalla
+      const f = N === 1 ? 0.5 : i / (N - 1); // 0..1 (guard por si N=1)
+      const topX = (f - 0.5) * (openX * 2); // -openX .. +openX
       const topY = 3.6 + Math.sin(f * 6.2831) * 0.2; // leve variación de altura
       const topZ = (f - 0.5) * 1.2; // ligera profundidad → no quedan coplanares
       // Punto medio que arrastra hacia el centro con una curva suave (embudo).
@@ -340,7 +444,7 @@ function SignalField() {
         CASOS_CONVERGENCE.clone(),
       ]);
     });
-  }, []);
+  }, [N, openX]);
 
   // Geometrías FUSIONADAS: los 6 tubos del core en UNA malla y los 6 halos en OTRA. Así hay
   // UN solo material de halo (con ref) cuyo uniform anima TODOS los tubos a la vez (compartir
@@ -447,6 +551,9 @@ function Scene({
 }) {
   return (
     <>
+      {/* Cámara responsive al aspect: en portrait/angosto aleja la cámara (zoom-out) para que el
+          objeto entre completo. Desktop intacto (factor 1 por encima del refAspect). */}
+      <ResponsiveCamera variant={variant} />
       <ambientLight intensity={variant === "proceso" ? 0.7 : 0.85} />
       {variant === "servicios" && (
         <>
@@ -569,6 +676,14 @@ function LivingBackground({ variant = "servicios", className }: LivingBackground
   const reduce = useReducedMotion() ?? false;
   const ref = React.useRef<HTMLDivElement>(null);
   const mobile = useMediaQuery("(max-width: 768px)");
+  // Gate de mobile angosto para el ARCO de Servicios: la sección mide ~3000px de alto, así
+  // que el canvas es SIEMPRE muy portrait (aspect ~0.15–0.48) y el zoom-out de cámara topa en
+  // su cap → el anillo ancho queda una mota flotante. Doctrina "mobile = fallback estático":
+  // por debajo de 860px de ancho NO montamos el Canvas/Arc de Servicios, sólo el <Poster>
+  // (el degradado que ya existe como fallback de reduced-motion). Tablet/desktop (≥860) intacto.
+  // Sólo aplica a "servicios"; proceso (cable centrado) y casos (N reducido) sí siguen en 3D.
+  const tinyForArc = useMediaQuery("(max-width: 859px)");
+  const arcFallbackOnly = variant === "servicios" && tinyForArc;
   const scrollRef = React.useRef(0);
   // Pausa fuera de viewport (doctrina §3): el loop 3D no corre si la sección no se ve.
   const inView = useInView(ref, { margin: "200px" });
@@ -597,8 +712,10 @@ function LivingBackground({ variant = "servicios", className }: LivingBackground
       className={"pointer-events-none absolute inset-0 " + (className ?? "")}
     >
       <Poster variant={variant} />
-      {!reduce && <Aurora variant={variant} />}
-      {!reduce && (
+      {/* arcFallbackOnly: en mobile angosto el Arco de Servicios cae a SOLO el Poster (sin
+          Aurora ni Canvas) — mejor perf y CLS 0, sin la "mota flotante". */}
+      {!reduce && !arcFallbackOnly && <Aurora variant={variant} />}
+      {!reduce && !arcFallbackOnly && (
         <CanvasBoundary>
           <Canvas
             // Pausa fuera de viewport: "never" cuando la sección no se ve → 0 trabajo de GPU.

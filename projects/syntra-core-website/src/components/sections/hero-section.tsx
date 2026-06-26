@@ -99,7 +99,9 @@ function HeroSection() {
                 fill
                 priority
                 sizes="100vw"
-                className="object-cover object-[72%_center]"
+                // Mobile: foco al CUERPO del vidrio (no al borde derecho, que se ve cortado
+                // en aspect angosto). Desktop conserva el encuadre aprobado (72%).
+                className="object-cover object-[54%_center] lg:object-[72%_center]"
               />
             </motion.div>
           </div>
