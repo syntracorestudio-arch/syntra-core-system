@@ -15,16 +15,23 @@ const inter = Inter({
   display: "swap",
 });
 
+// Sora = font-heading (incluye el <h1> del Hero = elemento LCP). `display: "optional"`
+// → el navegador da un bloqueo mínimo (~100ms) y, si la woff2 no llegó, pinta con el
+// fallback size-matched SIN swap posterior. Saca la font del camino crítico del LCP y
+// no introduce layout shift (CLS). En visitas con la font cacheada, Sora aparece normal.
 const sora = Sora({
   variable: "--font-sora",
   subsets: ["latin"],
-  display: "swap",
+  display: "optional",
 });
 
+// Space Grotesk = font-accent, no va above-the-fold. `preload: false` → no compite con
+// las fonts críticas (Inter/Sora) por banda en el first-load.
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
   subsets: ["latin"],
   display: "swap",
+  preload: false,
 });
 
 const siteUrl = "https://syntracore.dev";
