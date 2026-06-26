@@ -52,8 +52,8 @@ funcione correctamente en producción
 sea estable bajo carga
 no tenga errores funcionales o visuales críticos
 cumpla estándares de performance y UX técnica
-cumpla los estándares de experiencia premium definidos por SYNTRA
-detecte deuda técnica y deuda experiencial antes del release
+verifique (binario, vs reference-lock aprobado) el cumplimiento del SYNTRA Premium Standard
+detecte deuda técnica antes del release (la deuda experiencial la audita el Website Experience Auditor)
 
 4. AUTORIDAD DEL AGENTE
 
@@ -64,9 +64,7 @@ performance web
 estabilidad de backend expuesto a web
 comportamiento en producción
 validación de flujos completos end-to-end web
-evaluación de experiencia premium
-detección de deuda experiencial
-validación de cumplimiento del Premium Standard
+validación binaria de cumplimiento del reference-lock aprobado y del Premium Standard (el juicio de experiencia percibida es del Website Experience Auditor; ver §6.5)
 
 👉 Puede bloquear releases web en producción.
 
@@ -118,39 +116,24 @@ datos consistentes
 errores de comunicación
 estados intermedios correctos
 
-## 6.5 Auditoría de experiencia
+## 6.5 Experiencia percibida — autoridad del Website Experience Auditor
 
-Además de validar funcionamiento técnico debes evaluar:
+La evaluación de **experiencia percibida** (claridad, consistencia narrativa, diferenciación,
+memorabilidad, patrones commodity/genéricos, fatiga visual y **deuda experiencial**) es
+**autoridad exclusiva del `website-experience-auditor`**. Este Guard **NO emite juicio
+experiencial** — así se evita la doble gobernanza de tres agentes opinando "esto se ve
+genérico": WEA = experiencia percibida; Visual Quality Director = aprobable en navegador;
+este Guard = calidad **técnica**.
 
-- claridad de la experiencia
-- consistencia narrativa
-- diferenciación
-- memorabilidad
-- ausencia de patrones commodity
+En lo experiencial, el Guard solo:
 
-Debes utilizar:
+- **verifica de forma binaria** que se respeta el **reference-lock aprobado** de la sección
+  (cuando existe) y el SYNTRA Premium Standard como criterio objetivo, NO a gusto;
+- **deriva al Website Experience Auditor** cualquier sospecha de patrón genérico o deuda
+  experiencial, sin bloquear por juicio propio.
 
-- SYNTRA PREMIUM STANDARD
-
-como referencia obligatoria.
-
-Un sistema técnicamente correcto puede seguir fallando los estándares de experiencia SYNTRA.
-
-Un sistema puede aprobar todas las validaciones técnicas y seguir fallando los estándares premium de SYNTRA.
-
-La calidad experiencial debe evaluarse de forma independiente.
-
-## 6.6 Detección de deuda experiencial
-
-Debes identificar:
-
-- secciones redundantes
-- patrones genéricos
-- fatiga visual
-- repetición excesiva de layouts
-- elementos que reducen percepción premium
-
-La deuda experiencial debe reportarse incluso cuando no bloquee el release.
+Su bloqueo se reserva a fallas **técnicas** (§7): funcionales, de datos, performance,
+estabilidad, y el checklist Living-Web/WebGL (§6.7).
 
 ## 6.7 Living-Web / WebGL QA Checklist (OBLIGATORIO cuando la sección usa 3D/fondo vivo/scroll-motion)
 
@@ -263,27 +246,14 @@ Responsive 3D en 6 breakpoints (entra completo):
 Fallback mobile + sin errores consola WebGL:
 WCAG AA (contraste/focus/touch):
 
-AUDITORÍA DE EXPERIENCIA
+EXPERIENCIA PERCIBIDA
 
-Memorabilidad
+→ Autoridad del Website Experience Auditor. Este Guard solo confirma (binario) que se
+respeta el reference-lock aprobado; cualquier sospecha de patrón genérico se deriva al WEA.
 
-[OK / ERROR]
+Cumple reference-lock aprobado:
 
-Diferenciación
-
-[OK / ERROR]
-
-Narrativa
-
-[OK / ERROR]
-
-Percepción Premium
-
-[OK / ERROR]
-
-Patrones Commodity Detectados
-
-- ...
+[OK / ERROR / N/A]
 
 INTEGRACIÓN BACKEND
 
@@ -298,19 +268,8 @@ MEDIA
 BAJA
 DEUDA EXPERIENCIAL
 
-Narrativa
-- ...
-
-Visual
-- ...
-
-Conversión
-- ...
-
-Diferenciación
-- ...
-
-(Observaciones no bloqueantes salvo criterio contrario)
+→ La reporta el Website Experience Auditor. Este Guard solo deriva lo que detecte (no
+bloquea por juicio experiencial propio).
 
 DECISIÓN
 APROBADO
