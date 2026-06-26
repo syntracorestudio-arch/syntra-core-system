@@ -152,6 +152,42 @@ Debes identificar:
 
 La deuda experiencial debe reportarse incluso cuando no bloquee el release.
 
+## 6.7 Living-Web / WebGL QA Checklist (OBLIGATORIO cuando la sección usa 3D/fondo vivo/scroll-motion)
+
+Desde el pivot a **web viva** (`docs/creative-library/living-web-doctrine.md`), las secciones
+usan 3D real (three/R3F), shaders, cámara responsive y motion ligado al scroll. Toda sección
+con `<LivingBackground>`/Canvas/WebGL/escena-firma/animación de scroll DEBE pasar esta grilla
+objetiva antes de aprobar. El norte técnico es la **doctrina §3** (vinculante).
+
+Verificar (cada ítem = OK / ERROR / N/A):
+
+- **Lighthouse mobile ~90+** (techo de la doctrina §2; ya NO el +95 duro) y **desktop +95**.
+  Correr y reportar el número real, no asumir. Es el ítem que más se omite — no aprobar sin él.
+- **CLS 0 (duro)**: el 3D es fondo/acento, `absolute inset-0`, con alto reservado; jamás empuja
+  layout ni anima `width/height/top/left`.
+- **LCP no bloqueado por el 3D**: el Canvas entra `dynamic(() => …, { ssr:false })` (lazy); la
+  sección lee y convierte SIN el 3D (progressive enhancement).
+- **Pausa fuera de viewport**: `frameloop="demand"` o `useInView` → el loop NO corre con la
+  sección fuera de pantalla. No hay loops perpetuos.
+- **`prefers-reduced-motion` → frame final estático** (Poster), sin montar el Canvas ni loops.
+- **Responsive de canvas/cámara en los 6 breakpoints** (360 · 390 · 768 · 1024 · 1440 · 1920):
+  el objeto 3D **entra completo, no cortado**, en cada uno. En portrait/angosto, verificar
+  cámara responsive (zoom-out) o reducción de detalle. Si un objeto no entra a cierto ancho,
+  debe haber fallback (Poster/quitarlo), no quedar cortado.
+- **Fallback mobile**: calidad reducida (dpr capado, menos segmentos/partículas) o estático;
+  sin jank ni sobrecalentar. Sin errores de consola WebGL/R3F.
+- **Presupuesto de bundle**: cada dep/efecto 3D se justifica; medir peso antes/después con
+  `npm run visual:shots` + Lighthouse. Sin texturas/modelos pesados que rompan el techo de perf.
+- **WCAG AA** (cierra accesibilidad técnica): contraste de texto ≥ 4.5:1 sobre el fondo vivo
+  (con scrim si hace falta), focus visible en interactivos, touch targets ≥ 44px.
+- **Tokens de marca respetados** sobre el 3D (sin drift; cyan reservado a HECHO/resultado).
+
+Si algún ítem falla, clasificar severidad (§7). **CLS ≠ 0, LCP bloqueado por 3D, loop perpetuo
+sin pausa, o reduced-motion roto = CRÍTICA** (bloquea). Lighthouse mobile por debajo del techo
+o 3D cortado en un breakpoint = ALTA. La división de trabajo: `motion-3d-engineer` implementa y
+corre su self-QA; este Guard **valida de forma independiente** contra esta grilla y puede
+bloquear aunque el build esté verde.
+
 7. SISTEMA DE BLOQUEO
 
 Debes detener el release si detectas:
@@ -214,6 +250,18 @@ Estabilidad:
 CONSISTENCIA VISUAL
 
 [OK / ERROR]
+
+LIVING-WEB / WEBGL (si la sección usa 3D/fondo vivo/scroll-motion; ver §6.7)
+
+Lighthouse mobile (nº real / ~90+):
+Lighthouse desktop (nº real / +95):
+CLS (0 duro):
+LCP no bloqueado por 3D (lazy ssr:false):
+Pausa fuera de viewport (frameloop/useInView):
+reduced-motion → frame estático:
+Responsive 3D en 6 breakpoints (entra completo):
+Fallback mobile + sin errores consola WebGL:
+WCAG AA (contraste/focus/touch):
 
 AUDITORÍA DE EXPERIENCIA
 
