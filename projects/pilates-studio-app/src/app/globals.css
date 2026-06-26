@@ -93,3 +93,11 @@ h3,
 h4 {
   font-family: var(--font-sans);
 }
+
+/* Scroll horizontal sin barra visible (selector de días en mobile). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
