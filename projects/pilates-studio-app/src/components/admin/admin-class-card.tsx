@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { User2, CalendarDays, Repeat, Users, Archive, Pencil } from "lucide-react";
 import { cancelClass } from "@/app/admin/clases/actions";
 
@@ -95,8 +96,15 @@ export function AdminClassCard({ data, editing = false }: { data: AdminClassData
           </div>
         </div>
 
-        {/* acciones: editar (rellena el panel) + archivar (soft-delete reversible) */}
+        {/* acciones: anotados (detalle) + editar (rellena el panel) + archivar */}
         <div className="flex gap-2 sm:w-40 sm:shrink-0 sm:flex-col">
+          <Link
+            href={`/admin/clases/${data.classId}`}
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+          >
+            <Users className="size-4" aria-hidden />
+            Anotados
+          </Link>
           <a
             href={`/admin/clases?edit=${data.classId}#nueva-clase`}
             className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"

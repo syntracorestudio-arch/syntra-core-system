@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { CalendarDays, Repeat, Minus, Plus } from "lucide-react";
@@ -206,12 +207,12 @@ export function ClassForm({ initial = null }: { initial?: ClassFormInitial | nul
       <div className="mt-1 flex gap-2">
         <SubmitButton editing={editing} />
         {editing ? (
-          <a
+          <Link
             href="/admin/clases"
             className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
           >
             Cancelar
-          </a>
+          </Link>
         ) : null}
       </div>
     </form>
