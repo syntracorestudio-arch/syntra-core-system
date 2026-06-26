@@ -119,6 +119,30 @@ insert into public.studio_join_codes (studio_id, code_hash, label, is_active, ma
   ('11111111-1111-1111-1111-111111111111',
    encode(digest('REFORMA-DEMO','sha256'),'hex'), 'Código demo', true, null);
 
+-- ---------- Semana de clases demo (Fase 1E) ----------
+-- Una agenda realista para ver el calendario lleno y los estados de cupo
+-- (Disponible / Últimos lugares / Lleno). Clase "Mat" + ocurrencias single
+-- (schedule_id null) generadas para los próximos 7 días en varias franjas.
+-- booked_count es demo (sin reservas reales); la RPC sigue mandando.
+insert into public.classes (id, studio_id, name, type, default_capacity, duration_min, instructor_name) values
+  ('c2222222-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Mat','mat',10,50,'Meli');
+
+insert into public.class_occurrences (studio_id, class_id, starts_at, ends_at, capacity, booked_count, status)
+select '11111111-1111-1111-1111-111111111111', s.class_id,
+       t.ts, t.ts + make_interval(mins => s.dur), s.cap, least(s.fill, s.cap), 'scheduled'
+from generate_series(0, 6) as g(d)
+cross join (values
+  ('c1111111-0000-0000-0000-000000000001'::uuid,  9, 60,  8, 2),  -- Reformer 09:00 → Disponible
+  ('c2222222-0000-0000-0000-000000000001'::uuid, 11, 50, 10, 9),  -- Mat 11:00 → Últimos lugares
+  ('c1111111-0000-0000-0000-000000000001'::uuid, 17, 60,  6, 6),  -- Reformer 17:00 → Lleno
+  ('c2222222-0000-0000-0000-000000000001'::uuid, 20, 50, 12, 4)   -- Mat 20:00 → Disponible
+) as s(class_id, hr, dur, cap, fill)
+cross join lateral (
+  select (date_trunc('day', timezone('America/Argentina/Buenos_Aires', now()))
+          + make_interval(days => g.d, hours => s.hr)) at time zone 'America/Argentina/Buenos_Aires' as ts
+) t
+on conflict (class_id, starts_at) do nothing;
+
 -- =============================================================================
 -- Validaciones sugeridas (correr como cada usuario tras el seed):
 --  1) Sofía reserve_class(occ#1)  → OK, descuenta 1 crédito (queda 7).
