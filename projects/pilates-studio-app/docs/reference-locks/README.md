@@ -11,6 +11,7 @@
 | Dashboard financiero (admin) | [dashboard-financiero.md](dashboard-financiero.md) | `approved` (owner · 2026-06-25) |
 | Calendario del alumno | [calendario-alumno.md](calendario-alumno.md) | `approved` (owner · 2026-06-25) |
 | Ficha de alumno (admin) | [ficha-alumno.md](ficha-alumno.md) | `approved` (owner · 2026-06-25) |
+| Crear / gestionar clases (admin) | [crear-gestionar-clases.md](crear-gestionar-clases.md) | `approved` (owner · 2026-06-26) |
 
 ## Flujo
 
