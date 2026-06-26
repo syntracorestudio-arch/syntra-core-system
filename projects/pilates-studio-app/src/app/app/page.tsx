@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { LogOut, CalendarDays } from "lucide-react";
+import { LogOut, CalendarDays, LayoutGrid } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { ClassCard, type ClassCardData } from "@/components/calendar/class-card";
 
@@ -61,6 +61,7 @@ export default async function AppPage({
   const studioRel = (member?.studios ?? null) as StudioRel | StudioRel[] | null;
   const studio = Array.isArray(studioRel) ? studioRel[0] : studioRel;
   const tz = studio?.timezone || DEFAULT_TZ;
+  const isStaff = member?.role === "admin" || member?.role === "reception";
 
   const now = new Date();
   const nowIso = now.toISOString();
@@ -167,14 +168,25 @@ export default async function AppPage({
             {studio?.name ?? "Tu estudio"}
           </h1>
         </div>
-        <a
-          href="/logout"
-          aria-label="Cerrar sesión"
-          className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
-        >
-          <LogOut className="size-3.5" aria-hidden />
-          Salir
-        </a>
+        <div className="flex items-center gap-2">
+          {isStaff ? (
+            <a
+              href="/admin/clases"
+              className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+            >
+              <LayoutGrid className="size-3.5" aria-hidden />
+              Panel
+            </a>
+          ) : null}
+          <a
+            href="/logout"
+            aria-label="Cerrar sesión"
+            className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
+          >
+            <LogOut className="size-3.5" aria-hidden />
+            Salir
+          </a>
+        </div>
       </header>
 
       {/* avisos */}
