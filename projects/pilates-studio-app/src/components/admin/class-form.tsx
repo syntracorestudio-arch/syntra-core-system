@@ -3,7 +3,21 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { CalendarDays, Repeat, Minus, Plus } from "lucide-react";
-import { createClass } from "@/app/admin/clases/actions";
+import { createClass, updateClass } from "@/app/admin/clases/actions";
+
+export type ClassFormInitial = {
+  classId: string;
+  name: string;
+  instructor: string;
+  capacity: number;
+  duration: number;
+  kind: "once" | "recurring";
+  date: string; // única (YYYY-MM-DD)
+  time: string; // HH:MM
+  weekdays: number[]; // recurrente
+  validFrom: string;
+  validTo: string;
+};
 
 const DAYS: { wd: number; label: string }[] = [
   { wd: 1, label: "L" },
@@ -20,7 +34,7 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function SubmitButton() {
+function SubmitButton({ editing }: { editing: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -28,36 +42,41 @@ function SubmitButton() {
       disabled={pending}
       className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:opacity-90 disabled:opacity-60"
     >
-      {pending ? "Creando…" : "Crear clase"}
+      {pending ? "Guardando…" : editing ? "Guardar cambios" : "Crear clase"}
     </button>
   );
 }
 
-export function ClassForm() {
-  const [type, setType] = useState<"once" | "recurring">("once");
-  const [days, setDays] = useState<number[]>([]);
-  const [capacity, setCapacity] = useState(8);
+export function ClassForm({ initial = null }: { initial?: ClassFormInitial | null }) {
+  const editing = initial !== null;
+  const [type, setType] = useState<"once" | "recurring">(initial?.kind ?? "once");
+  const [days, setDays] = useState<number[]>(initial?.weekdays ?? []);
+  const [capacity, setCapacity] = useState(initial?.capacity ?? 8);
 
   const toggleDay = (wd: number) =>
     setDays((d) => (d.includes(wd) ? d.filter((x) => x !== wd) : [...d, wd]));
 
   return (
-    <form action={createClass} className="grid gap-4">
+    <form action={editing ? updateClass : createClass} className="grid gap-4">
       <input type="hidden" name="type" value={type} />
+      {editing ? <input type="hidden" name="classId" value={initial!.classId} /> : null}
 
-      {/* toggle Única / Recurrente */}
+      {/* toggle Única / Recurrente (bloqueado en edición: no se cambia el tipo) */}
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1">
         {(["once", "recurring"] as const).map((t) => {
           const active = type === t;
           const Icon = t === "once" ? CalendarDays : Repeat;
+          const locked = editing && !active;
           return (
             <button
               key={t}
               type="button"
-              onClick={() => setType(t)}
+              onClick={() => !editing && setType(t)}
+              disabled={locked}
+              aria-disabled={locked}
               className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
+              } ${locked ? "cursor-not-allowed opacity-40" : ""}`}
             >
               <Icon className="size-4" aria-hidden />
               {t === "once" ? "Única" : "Recurrente"}
@@ -67,10 +86,10 @@ export function ClassForm() {
       </div>
 
       <Field label="Nombre">
-        <input name="name" required maxLength={80} className={inputCls} />
+        <input name="name" required maxLength={80} defaultValue={initial?.name ?? ""} className={inputCls} />
       </Field>
       <Field label="Instructor">
-        <input name="instructor" maxLength={80} className={inputCls} />
+        <input name="instructor" maxLength={80} defaultValue={initial?.instructor ?? ""} className={inputCls} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
@@ -105,17 +124,30 @@ export function ClassForm() {
           </div>
         </div>
         <Field label="Duración (min)">
-          <input name="duration" type="number" min={10} max={240} defaultValue={60} className={inputCls} />
+          <input
+            name="duration"
+            type="number"
+            min={10}
+            max={240}
+            defaultValue={initial?.duration ?? 60}
+            className={inputCls}
+          />
         </Field>
       </div>
 
       {type === "once" ? (
         <div className="grid grid-cols-2 gap-3">
           <Field label="Fecha">
-            <input name="date" type="date" required defaultValue={todayStr()} className={inputCls} />
+            <input
+              name="date"
+              type="date"
+              required
+              defaultValue={initial?.date || todayStr()}
+              className={inputCls}
+            />
           </Field>
           <Field label="Hora">
-            <input name="time" type="time" required defaultValue="18:00" className={inputCls} />
+            <input name="time" type="time" required defaultValue={initial?.time || "18:00"} className={inputCls} />
           </Field>
         </div>
       ) : (
@@ -148,23 +180,39 @@ export function ClassForm() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Hora">
-              <input name="time" type="time" required defaultValue="18:00" className={inputCls} />
+              <input name="time" type="time" required defaultValue={initial?.time || "18:00"} className={inputCls} />
             </Field>
             <Field label="Desde">
-              <input name="valid_from" type="date" required defaultValue={todayStr()} className={inputCls} />
+              <input
+                name="valid_from"
+                type="date"
+                required
+                defaultValue={initial?.validFrom || todayStr()}
+                className={inputCls}
+              />
             </Field>
           </div>
           <Field label="Hasta (opcional)">
-            <input name="valid_to" type="date" className={inputCls} />
+            <input name="valid_to" type="date" defaultValue={initial?.validTo || ""} className={inputCls} />
           </Field>
           <p className="text-xs text-muted-foreground">
-            Se crea una clase cada semana en los días elegidos, por las próximas 8 semanas.
+            {editing
+              ? "Se regeneran las clases futuras sin reservas. Las que ya tienen alumnos anotados no se modifican."
+              : "Se crea una clase cada semana en los días elegidos, por las próximas 8 semanas."}
           </p>
         </>
       )}
 
       <div className="mt-1 flex gap-2">
-        <SubmitButton />
+        <SubmitButton editing={editing} />
+        {editing ? (
+          <a
+            href="/admin/clases"
+            className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+          >
+            Cancelar
+          </a>
+        ) : null}
       </div>
     </form>
   );

@@ -1,4 +1,4 @@
-import { User2, CalendarDays, Repeat, Users, Archive } from "lucide-react";
+import { User2, CalendarDays, Repeat, Users, Archive, Pencil } from "lucide-react";
 import { cancelClass } from "@/app/admin/clases/actions";
 
 export type AdminClassData = {
@@ -22,13 +22,17 @@ export type AdminClassData = {
 const WD_LABEL = ["D", "L", "M", "M", "J", "V", "S"]; // index = Postgres dow (0=Dom)
 const WD_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
-export function AdminClassCard({ data }: { data: AdminClassData }) {
+export function AdminClassCard({ data, editing = false }: { data: AdminClassData; editing?: boolean }) {
   const recurring = data.kind === "recurring";
   const Icon = recurring ? Repeat : CalendarDays;
   const days = WD_ORDER.filter((wd) => data.weekdays.includes(wd));
 
   return (
-    <article className="rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5">
+    <article
+      className={`rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5 ${
+        editing ? "border-primary ring-2 ring-primary/30" : "border-border"
+      }`}
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div className="flex flex-1 items-start gap-4">
           {/* hora destacada (ancla, igual que la card del alumno) */}
@@ -91,9 +95,16 @@ export function AdminClassCard({ data }: { data: AdminClassData }) {
           </div>
         </div>
 
-        {/* archivar (soft-delete reversible → tratamiento neutral) */}
-        <div className="sm:w-40 sm:shrink-0">
-          <form action={cancelClass}>
+        {/* acciones: editar (rellena el panel) + archivar (soft-delete reversible) */}
+        <div className="flex gap-2 sm:w-40 sm:shrink-0 sm:flex-col">
+          <a
+            href={`/admin/clases?edit=${data.classId}#nueva-clase`}
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+          >
+            <Pencil className="size-4" aria-hidden />
+            Editar
+          </a>
+          <form action={cancelClass} className="flex-1">
             <input type="hidden" name="class" value={data.classId} />
             <button
               type="submit"

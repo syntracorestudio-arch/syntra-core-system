@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { LogOut, Plus, LayoutGrid } from "lucide-react";
+import { LogOut, Plus, Pencil, LayoutGrid } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { ClassForm } from "@/components/admin/class-form";
+import { ClassForm, type ClassFormInitial } from "@/components/admin/class-form";
 import { AdminClassCard, type AdminClassData } from "@/components/admin/admin-class-card";
 
 export const metadata = { title: "Clases — Panel" };
@@ -37,8 +37,18 @@ function localTime(iso: string, tz: string) {
   return `${p.hour}:${p.minute}`;
 }
 
+/** Fecha YYYY-MM-DD local del estudio (para prefill de inputs date en edición). */
+function localDate(iso: string, tz: string) {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(new Date(iso))
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
 type StudioRel = { name: string; timezone: string | null };
-type Schedule = { weekday: number; start_time: string };
+type Schedule = { weekday: number; start_time: string; valid_from: string; valid_to: string | null };
 type Occurrence = { id: string; starts_at: string; status: string };
 type ClassRow = {
   id: string;
@@ -53,9 +63,9 @@ type ClassRow = {
 export default async function AdminClasesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ notice?: string; error?: string }>;
+  searchParams: Promise<{ notice?: string; error?: string; edit?: string }>;
 }) {
-  const { notice, error } = await searchParams;
+  const { notice, error, edit } = await searchParams;
   const supabase = await createSupabaseServer();
 
   const {
@@ -81,7 +91,7 @@ export default async function AdminClasesPage({
     .from("classes")
     .select(
       "id, name, instructor_name, default_capacity, duration_min, " +
-        "class_schedules(weekday, start_time), class_occurrences(id, starts_at, status)",
+        "class_schedules(weekday, start_time, valid_from, valid_to), class_occurrences(id, starts_at, status)",
     )
     .eq("status", "active")
     .order("created_at", { ascending: false });
@@ -122,6 +132,45 @@ export default async function AdminClasesPage({
       upcoming,
     };
   });
+
+  // Modo edición: ?edit=<classId> sobre una clase activa → prefill del panel.
+  const editId = edit && classes.some((c) => c.classId === edit) ? edit : null;
+  let initial: ClassFormInitial | null = null;
+  if (editId) {
+    const row = ((rows ?? []) as unknown as ClassRow[]).find((r) => r.id === editId)!;
+    const schedules = row.class_schedules ?? [];
+    const base = {
+      classId: row.id,
+      name: row.name,
+      instructor: row.instructor_name ?? "",
+      capacity: row.default_capacity,
+      duration: row.duration_min ?? 60,
+    };
+    if (schedules.length > 0) {
+      initial = {
+        ...base,
+        kind: "recurring",
+        date: "",
+        time: schedules[0].start_time.slice(0, 5),
+        weekdays: [...new Set(schedules.map((s) => s.weekday))],
+        validFrom: schedules[0].valid_from,
+        validTo: schedules[0].valid_to ?? "",
+      };
+    } else {
+      const next = (row.class_occurrences ?? [])
+        .filter((o) => o.status === "scheduled")
+        .sort((a, b) => a.starts_at.localeCompare(b.starts_at))[0];
+      initial = {
+        ...base,
+        kind: "once",
+        date: next ? localDate(next.starts_at, tz) : "",
+        time: next ? localTime(next.starts_at, tz) : "18:00",
+        weekdays: [],
+        validFrom: "",
+        validTo: "",
+      };
+    }
+  }
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
@@ -173,7 +222,9 @@ export default async function AdminClasesPage({
           </div>
           <div className="mt-3 grid gap-3">
             {classes.length > 0 ? (
-              classes.map((c) => <AdminClassCard key={c.classId} data={c} />)
+              classes.map((c) => (
+                <AdminClassCard key={c.classId} data={c} editing={c.classId === editId} />
+              ))
             ) : (
               <div className="rounded-2xl border border-dashed border-border bg-card/60 px-6 py-12 text-center">
                 <LayoutGrid className="mx-auto size-6 text-muted-foreground" aria-hidden />
@@ -190,11 +241,13 @@ export default async function AdminClasesPage({
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Plus className="size-4" aria-hidden />
+                {initial ? <Pencil className="size-4" aria-hidden /> : <Plus className="size-4" aria-hidden />}
               </span>
-              <h2 className="text-base font-semibold text-foreground">Nueva clase</h2>
+              <h2 className="text-base font-semibold text-foreground">
+                {initial ? "Editar clase" : "Nueva clase"}
+              </h2>
             </div>
-            <ClassForm />
+            <ClassForm key={initial?.classId ?? "new"} initial={initial} />
           </div>
         </aside>
       </div>

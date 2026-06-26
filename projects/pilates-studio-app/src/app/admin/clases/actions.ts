@@ -134,6 +134,68 @@ export async function createClass(formData: FormData) {
   back({ notice: `Clase recurrente creada · ${total} clases generadas.` });
 }
 
+export async function updateClass(formData: FormData) {
+  const supabase = await createSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: member } = await supabase.from("members").select("role").limit(1).maybeSingle();
+  if (!member || !ADMIN_ROLES.includes(member.role)) back({ error: "No autorizado." });
+
+  const classId = String(formData.get("classId") ?? "");
+  if (!classId) back({ error: "Falta la clase a editar." });
+
+  const common = Common.safeParse({
+    name: formData.get("name"),
+    instructor: formData.get("instructor"),
+    capacity: formData.get("capacity"),
+    duration: formData.get("duration"),
+  });
+  if (!common.success) back({ error: "Revisá los datos del formulario." });
+  const c = common.data;
+  const isRecurring = String(formData.get("type") ?? "once") === "recurring";
+
+  let params: Record<string, unknown> = {
+    p_class_id: classId,
+    p_name: c.name,
+    p_instructor: c.instructor || "",
+    p_capacity: c.capacity,
+    p_duration: c.duration,
+    p_is_recurring: isRecurring,
+    p_weeks: 8,
+  };
+
+  if (isRecurring) {
+    const days = formData
+      .getAll("days")
+      .map((d) => Number(d))
+      .filter((n) => n >= 0 && n <= 6);
+    const time = String(formData.get("time") ?? "");
+    const validFrom = String(formData.get("valid_from") ?? "");
+    const validTo = String(formData.get("valid_to") ?? "") || null;
+    if (days.length === 0 || !time || !validFrom) back({ error: "Elegí días, hora y fecha de inicio." });
+    params = { ...params, p_weekdays: days, p_start_time: time, p_valid_from: validFrom, p_valid_to: validTo };
+  } else {
+    const date = String(formData.get("date") ?? "");
+    const time = String(formData.get("time") ?? "");
+    if (!date || !time) back({ error: "Indicá fecha y hora." });
+    params = { ...params, p_date: date, p_time: time };
+  }
+
+  const { error } = await supabase.rpc("update_class", params);
+  if (error) {
+    const msg = error.message.includes("datetime_in_past")
+      ? "La fecha/hora ya pasó."
+      : error.message.includes("kind_change_not_supported")
+        ? "No se puede cambiar el tipo de clase."
+        : "No se pudieron guardar los cambios.";
+    back({ error: msg });
+  }
+  back({ notice: "Cambios guardados." });
+}
+
 export async function cancelOccurrence(formData: FormData) {
   const supabase = await createSupabaseServer();
   const { error } = await supabase.rpc("cancel_class_occurrence", {
