@@ -171,7 +171,7 @@ export default async function AppPage({
         <div className="flex items-center gap-2">
           {isStaff ? (
             <a
-              href="/admin/clases"
+              href="/admin"
               className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
             >
               <LayoutGrid className="size-3.5" aria-hidden />
