@@ -7,7 +7,6 @@ import type {
   ServicesConsultCta,
   ServicesStartOption,
   SiteConfig,
-  SolutionNode,
   StackItem,
   UseCaseItem,
   WorkflowStep,
@@ -93,12 +92,6 @@ export const siteConfig: SiteConfig = {
       title: "De tu idea a un sistema funcionando",
       subtitle:
         "Un proceso claro, sin vueltas. Sabés en todo momento qué estamos haciendo y por qué.",
-    },
-    solutionArchitecture: {
-      eyebrow: "Cómo se ve",
-      title: "Así se ve un sistema SYNTRA por dentro",
-      subtitle:
-        "No entregamos páginas sueltas: conectamos web, datos, automatización e IA en un sistema que trabaja solo. Este es el tipo de arquitectura que diseñamos para cada negocio.",
     },
     faq: {
       eyebrow: "Preguntas frecuentes",
@@ -384,7 +377,6 @@ export const aboutStatement = "La forma SYNTRA de construir.";
 export const homeBridges = {
   servicesToUseCases: "Esto mismo, puesto a trabajar:",
   useCasesToWorkflow: "Y así lo construimos, paso a paso:",
-  workflowToSolution: "Y todo esto vive en un solo lugar:",
 } as const;
 
 export const aboutPillars: AboutPillar[] = [
@@ -505,37 +497,6 @@ export const workflowCta: WorkflowCta = {
   button: "Empecemos por entender tu negocio",
   href: "#contacto",
 };
-
-/**
- * Diagrama de arquitectura de solución (prueba honesta — TASK-003).
- * Ejemplo conceptual de cómo SYNTRA conecta las capas de un sistema.
- * NO es un caso real ni un cliente: es ilustrativo (ver `solutionArchitectureNote`).
- */
-export const solutionNodes: SolutionNode[] = [
-  { id: "cliente", icon: "Users", label: "Cliente", caption: "Llega" },
-  { id: "web", icon: "LayoutTemplate", label: "Web", caption: "Capta" },
-  { id: "crm", icon: "Database", label: "Tus clientes", caption: "Ordena" },
-  { id: "automatizacion", icon: "Workflow", label: "Automatización", caption: "Automatiza" },
-  { id: "ia", icon: "Sparkles", label: "IA", caption: "Responde" },
-  { id: "reporte", icon: "BarChart3", label: "Reporte", caption: "Reporta" },
-];
-
-export const solutionArchitectureNote =
-  "Es un ejemplo de cómo lo armamos — cada negocio es distinto.";
-
-/** Label del header del canvas (tipo barra de sistema). */
-export const solutionCanvasLabel = "Tu negocio, funcionando";
-
-/** Strings de la barra inferior de sistema del canvas (status bar). */
-export const solutionCanvasStatus = {
-  sync: "Todo al día",
-  pipeline: "Trabajando ahora",
-  meta: "Todo conectado",
-  coords: "",
-};
-
-/** Cue de resultado del nodo final (Reporte). Enciende al cierre del flujo. */
-export const solutionOutputLabel = "Reporte listo";
 
 export const stack: StackItem[] = [
   { name: "Next.js", category: "Frontend" },

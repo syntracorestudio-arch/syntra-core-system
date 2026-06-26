@@ -156,16 +156,6 @@ export interface AboutPillar {
   description: string;
 }
 
-/** Capa del diagrama de arquitectura de solución (prueba honesta). */
-export interface SolutionNode {
-  id: string;
-  icon: string;
-  /** Nombre de la capa (ej. "Web") */
-  label: string;
-  /** Micro-leyenda de valor en lenguaje de negocio (ej. "Capta") */
-  caption: string;
-}
-
 export interface HeroContent {
   badge: string;
   /** Título dividido en partes para resaltar el centro con gradiente de marca */
@@ -200,7 +190,6 @@ export interface SiteConfig {
     useCases: SectionMeta;
     about: SectionMeta;
     workflow: SectionMeta;
-    solutionArchitecture: SectionMeta;
     faq: SectionMeta;
     finalCta: {
       title: string;
