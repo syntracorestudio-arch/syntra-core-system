@@ -1,6 +1,6 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import { DeferredLivingBackground } from "@/components/marketing/living/deferred-living-background";
 
 /**
  * CasosBackdrop — fondo vivo de Casos ("Campo de señales", reference-lock casos.md).
@@ -8,14 +8,6 @@ import dynamic from "next/dynamic";
  * Component. Base cálida que se enfría hacia abajo + campo de señales 3D + scrim de
  * legibilidad. El selector y las escenas de chat van al frente (z-10), intactos.
  */
-const LivingBackground = dynamic(
-  () =>
-    import("@/components/marketing/living/living-background").then(
-      (m) => m.LivingBackground,
-    ),
-  { ssr: false },
-);
-
 export function CasosBackdrop() {
   return (
     <>
@@ -29,7 +21,7 @@ export function CasosBackdrop() {
               "linear-gradient(180deg, #15140f 0%, #100f0d 55%, #0d0e12 100%)",
           }}
         />
-        <LivingBackground variant="casos" />
+        <DeferredLivingBackground variant="casos" />
         <div className="sys-canvas-grid absolute inset-0 opacity-[0.10]" />
       </div>
 

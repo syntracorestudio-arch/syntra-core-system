@@ -3,7 +3,6 @@
 import * as React from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
-import dynamic from "next/dynamic";
 
 import { services, siteConfig } from "@/config/site";
 import { getIcon } from "@/lib/icons";
@@ -18,15 +17,7 @@ import { BorderBeam } from "@/components/ui/border-beam";
 import { ServiceModulesTabs } from "@/components/marketing/servicios/service-modules-tabs";
 import { ServicesConnectionFlow } from "@/components/marketing/servicios/services-connection-flow";
 import { ServicesDecide } from "@/components/marketing/servicios/services-decide";
-
-// PROTOTIPO web viva: fondo 3D ambiental, lazy (sin SSR, no bloquea LCP).
-const LivingBackground = dynamic(
-  () =>
-    import("@/components/marketing/living/living-background").then(
-      (m) => m.LivingBackground,
-    ),
-  { ssr: false },
-);
+import { DeferredLivingBackground } from "@/components/marketing/living/deferred-living-background";
 
 /**
  * ServicesSection — PROTOTIPO web viva (piloto).
@@ -115,7 +106,7 @@ function ServicesSection() {
               "linear-gradient(180deg, #1b1d22 0%, #121317 60%, #0e0f12 100%)",
           }}
         />
-        <LivingBackground />
+        <DeferredLivingBackground variant="servicios" />
         <div className="sys-canvas-grid absolute inset-0 opacity-20" />
       </div>
 

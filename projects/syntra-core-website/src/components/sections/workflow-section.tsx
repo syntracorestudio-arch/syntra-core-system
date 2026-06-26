@@ -9,7 +9,6 @@ import {
   useTransform,
   type MotionValue,
 } from "framer-motion";
-import dynamic from "next/dynamic";
 
 import { siteConfig, workflow, workflowCta, workflowMethodPromise } from "@/config/site";
 import { getIcon } from "@/lib/icons";
@@ -18,6 +17,7 @@ import { Section } from "@/components/layout/section";
 import { Container } from "@/components/layout/container";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { BlurReveal } from "@/components/animations/blur-reveal";
+import { DeferredLivingBackground } from "@/components/marketing/living/deferred-living-background";
 
 /**
  * WorkflowSection — "La Línea Viva" (reference-lock proceso.md, web viva).
@@ -30,14 +30,6 @@ import { BlurReveal } from "@/components/animations/blur-reveal";
  * con CTA relacional. Sin scroll-hijack. reduced-motion → estado final. Solo opacity/
  * transform → CLS 0.
  */
-
-const LivingBackground = dynamic(
-  () =>
-    import("@/components/marketing/living/living-background").then(
-      (m) => m.LivingBackground,
-    ),
-  { ssr: false },
-);
 
 function ProcessStep({
   item,
@@ -221,7 +213,7 @@ function WorkflowSection() {
               "linear-gradient(180deg, #15171c 0%, #101216 60%, #0d0e12 100%)",
           }}
         />
-        <LivingBackground variant="proceso" />
+        <DeferredLivingBackground variant="proceso" />
         <div className="sys-canvas-grid absolute inset-0 opacity-[0.12]" />
       </div>
 
