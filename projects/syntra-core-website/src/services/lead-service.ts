@@ -36,7 +36,9 @@ export async function createLead(
     name: input.name,
     email: input.email,
     company: input.company?.length ? input.company : null,
-    project_type: input.projectType ?? null,
+    // MULTI (0005): array de tipos o null si ausente/vacío. La columna single
+    // `project_type` ya no existe tras la migración 0005.
+    project_types: input.projectTypes?.length ? input.projectTypes : null,
     message: input.message,
     source: meta.source ?? "website",
     // Eje de notificación (TASK-020): todo lead nace pendiente de notificar.
@@ -98,7 +100,7 @@ interface ListLeadsOptions {
 }
 
 const LEAD_COLUMNS =
-  "id,name,email,company,project_type,message,source,status,created_at,notification_status,notified_at,notification_attempts,last_notification_error_code";
+  "id,name,email,company,project_types,message,source,status,created_at,notification_status,notified_at,notification_attempts,last_notification_error_code";
 
 export async function listLeads(
   opts: ListLeadsOptions = {},

@@ -70,7 +70,7 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
           <Field label="Empresa" value={lead.company ?? "—"} />
           <Field
             label="Tipo de proyecto"
-            value={projectTypeLabel(lead.project_type)}
+            value={projectTypeLabel(lead.project_types)}
           />
           <Field label="Origen" value={lead.source} />
           <Field label="Recibido" value={formatDateTime(lead.created_at)} />

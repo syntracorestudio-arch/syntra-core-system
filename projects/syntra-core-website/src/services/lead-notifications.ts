@@ -57,7 +57,10 @@ function buildPayload(lead: Lead) {
       name: lead.name,
       email: lead.email,
       company: lead.company,
-      project_type: lead.project_type,
+      // MULTI (0005): array de tipos (o []). Se incluye también una versión
+      // legible unida con ", " por si el flujo n8n/email espera un string.
+      project_types: lead.project_types ?? [],
+      project_types_label: (lead.project_types ?? []).join(", "),
       message: lead.message,
       source: lead.source,
       status: lead.status,

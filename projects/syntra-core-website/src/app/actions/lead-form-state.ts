@@ -9,7 +9,7 @@ export interface LeadFormState {
   message?: string;
   /** Errores por campo (primer mensaje de cada uno) */
   errors?: Partial<
-    Record<"name" | "email" | "company" | "projectType" | "message", string>
+    Record<"name" | "email" | "company" | "projectTypes" | "message", string>
   >;
 }
 

@@ -41,7 +41,7 @@ function LeadCard({
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">Tipo</dt>
-          <dd className="text-right">{projectTypeLabel(lead.project_type)}</dd>
+          <dd className="text-right">{projectTypeLabel(lead.project_types)}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">Origen</dt>
