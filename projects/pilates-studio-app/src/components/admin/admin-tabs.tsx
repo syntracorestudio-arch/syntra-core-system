@@ -1,13 +1,14 @@
-import { LayoutGrid, CalendarDays, Users } from "lucide-react";
+import { LayoutGrid, CalendarDays, Users, Settings } from "lucide-react";
 
 const TABS = [
   { key: "resumen", href: "/admin", label: "Resumen", icon: LayoutGrid },
   { key: "clases", href: "/admin/clases", label: "Clases", icon: CalendarDays },
   { key: "alumnos", href: "/admin/alumnos", label: "Alumnos", icon: Users },
+  { key: "configuracion", href: "/admin/configuracion", label: "Ajustes", icon: Settings },
 ] as const;
 
-/** Navegación del panel admin. `active` = "resumen" | "clases" | "alumnos". */
-export function AdminTabs({ active }: { active: "resumen" | "clases" | "alumnos" }) {
+/** Navegación del panel admin. `active` = "resumen" | "clases" | "alumnos" | "configuracion". */
+export function AdminTabs({ active }: { active: "resumen" | "clases" | "alumnos" | "configuracion" }) {
   return (
     <nav className="mt-5 flex gap-1 rounded-xl bg-secondary p-1">
       {TABS.map((t) => {
