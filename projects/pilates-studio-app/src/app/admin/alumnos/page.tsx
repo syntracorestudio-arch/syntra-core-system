@@ -114,11 +114,12 @@ export default async function AlumnosPage({
 
       <div className="mt-3 grid gap-2">
         {alumnos.length > 0 ? (
-          alumnos.map((a) => (
+          alumnos.map((a, i) => (
             <a
               key={a.id}
               href={`/admin/alumnos/${a.id}`}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5"
+              style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-base hover:-translate-y-px hover:shadow-md sm:p-5 animate-in fade-in slide-in-from-bottom-2 duration-500 [animation-fill-mode:backwards]"
             >
               <div className="min-w-0">
                 <p className="truncate font-semibold text-foreground">{a.name}</p>

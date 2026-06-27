@@ -43,6 +43,12 @@
   --border: #e7ded3;
   --input: #e7ded3;
   --ring: #c8775a;
+
+  /* Pase de elevation: superficie hundida + motion */
+  --surface-sunken: #f6f1ea; /* entre arena y secondary (zonas internas/resúmenes) */
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-slow: 300ms;
 }
 
 @theme inline {
@@ -72,6 +78,22 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  /* Elevación cálida — sombra teñida con el --foreground (nunca negro puro),
+     para no enfriar el lienzo boutique. Sobrescribe las utilidades shadow-sm/md/lg
+     (que ya usa la app) → todas las superficies ganan profundidad cálida sin tocar
+     archivo por archivo. `--shadow-raised` es el nivel extra para el KPI héroe. */
+  --shadow-sm: 0 1px 3px 0 rgb(63 58 52 / 0.06), 0 1px 2px -1px rgb(63 58 52 / 0.05);
+  --shadow-md: 0 4px 12px -2px rgb(63 58 52 / 0.08), 0 2px 6px -2px rgb(63 58 52 / 0.05);
+  --shadow-lg: 0 12px 28px -6px rgb(63 58 52 / 0.12);
+  --shadow-raised: 0 6px 18px -4px rgb(63 58 52 / 0.1), 0 2px 6px -2px rgb(63 58 52 / 0.06);
+
+  /* Superficie hundida → habilita utilidades bg-surface-sunken */
+  --color-surface-sunken: var(--surface-sunken);
+
+  /* Easing premium (ease-out-quint) */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
 }
@@ -99,5 +121,24 @@ h4 {
   scrollbar-width: none;
   &::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* Transición estándar del pase de elevation (color · sombra · transform · opacity). */
+@utility transition-base {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-timing-function: var(--ease-out);
+  transition-duration: var(--dur-base);
+}
+
+/* Accesibilidad: prefers-reduced-motion → todo a frame final estático. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

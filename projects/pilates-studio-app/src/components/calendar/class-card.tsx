@@ -48,7 +48,7 @@ export function ClassCard({
   const available = Math.max(data.capacity - data.booked, 0);
 
   return (
-    <article className="rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5">
+    <article className="rounded-2xl border border-border bg-card p-4 shadow-sm transition-base hover:-translate-y-px hover:shadow-md sm:p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
         {/* info */}
         <div className="flex items-start gap-4">

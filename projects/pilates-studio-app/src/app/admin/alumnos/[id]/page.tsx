@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, Wallet, CreditCard, Ticket, CalendarClock, Phone, Mail } from "lucide-react";
+import { ArrowLeft, Wallet, CreditCard, Ticket, CalendarClock, Phone, Mail, CheckCircle2 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
 import { PaymentForm, type PassOption } from "@/components/admin/payment-form";
@@ -171,7 +171,10 @@ export default async function FichaAlumnoPage({
       )}
 
       {notice ? (
-        <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">{notice}</p>
+        <p className="mt-5 flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success duration-300 animate-in fade-in slide-in-from-top-1">
+          <CheckCircle2 className="size-4 shrink-0 duration-500 animate-in zoom-in-50" aria-hidden />
+          {notice}
+        </p>
       ) : null}
       {error ? (
         <p className="mt-5 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
