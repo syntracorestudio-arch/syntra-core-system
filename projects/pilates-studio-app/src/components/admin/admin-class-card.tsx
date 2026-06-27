@@ -30,7 +30,7 @@ export function AdminClassCard({ data, editing = false }: { data: AdminClassData
 
   return (
     <article
-      className={`rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5 ${
+      className={`rounded-2xl border bg-card p-4 shadow-sm transition-base hover:-translate-y-px hover:shadow-md sm:p-5 ${
         editing ? "border-primary ring-2 ring-primary/30" : "border-border"
       }`}
     >

@@ -225,8 +225,14 @@ export default async function AdminClasesPage({
           </div>
           <div className="mt-3 grid gap-3">
             {classes.length > 0 ? (
-              classes.map((c) => (
-                <AdminClassCard key={c.classId} data={c} editing={c.classId === editId} />
+              classes.map((c, i) => (
+                <div
+                  key={c.classId}
+                  style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+                  className="animate-in fade-in slide-in-from-bottom-2 duration-500 [animation-fill-mode:backwards]"
+                >
+                  <AdminClassCard data={c} editing={c.classId === editId} />
+                </div>
               ))
             ) : (
               <div className="rounded-2xl border border-dashed border-border bg-card/60 px-6 py-12 text-center">
