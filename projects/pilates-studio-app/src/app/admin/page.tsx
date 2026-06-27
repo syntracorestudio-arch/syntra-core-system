@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { AdminTabs } from "@/components/admin/admin-tabs";
+import { Sparkline } from "@/components/admin/sparkline";
+import { CountUp } from "@/components/admin/count-up";
 
 export const metadata = { title: "Resumen — Panel" };
 export const dynamic = "force-dynamic";
@@ -143,6 +145,35 @@ export default async function AdminDashboardPage() {
       return { time: timeOf(o.starts_at, tz), name: cls?.name ?? "Clase", booked: o.booked_count, capacity: o.capacity };
     });
 
+  // ingresos por mes (sparkline, últimos 6 meses)
+  const incomeByMonth = new Map<string, number>();
+  for (const p of payments) {
+    const k = p.paid_at.slice(0, 7);
+    incomeByMonth.set(k, (incomeByMonth.get(k) ?? 0) + Number(p.amount));
+  }
+  const ref = new Date(nowIso);
+  const monthlyIncome = Array.from({ length: 6 }, (_, i) => {
+    const dt = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth() - (5 - i), 1));
+    return incomeByMonth.get(dt.toISOString().slice(0, 7)) ?? 0;
+  });
+
+  // ocupación por día (próximos 7 días) → mini-barras
+  const perDay = Array.from({ length: 7 }, (_, i) => {
+    const dk = addDays(todayLocal, i);
+    let cap = 0;
+    let booked = 0;
+    for (const o of occs) {
+      if (tzDate(o.starts_at, tz) === dk) {
+        cap += o.capacity;
+        booked += o.booked_count;
+      }
+    }
+    const label = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "narrow" }).format(
+      new Date(`${dk}T12:00:00Z`),
+    );
+    return { label, pct: cap > 0 ? Math.round((booked / cap) * 100) : 0, today: i === 0 };
+  });
+
   const monthLabel = new Intl.DateTimeFormat("es-AR", { timeZone: tz, month: "long" }).format(new Date(nowIso));
   const isEmpty = payments.length === 0 && occs.length === 0;
 
@@ -191,40 +222,49 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
       ) : (
-        <div className="mt-6 grid gap-4">
+        <div className="mt-6 grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
           {/* KPIs */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/* ingresos del mes (héroe) */}
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:col-span-2">
-              <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <TrendingUp className="size-3.5" aria-hidden />
+            {/* ingresos del mes (héroe con degradé cálido + sparkline) */}
+            <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-5 shadow-raised sm:col-span-2">
+              <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <TrendingUp className="size-3.5 text-primary" aria-hidden />
                 Ingresos de <span className="capitalize">{monthLabel}</span>
               </p>
-              <p className="mt-1 text-4xl font-bold tracking-tight text-foreground">{money(ingresosMes)}</p>
+              <CountUp
+                value={ingresosMes}
+                prefix="$"
+                className="mt-1 block text-4xl font-bold tracking-tight text-foreground tabular-nums"
+              />
               <p className="mt-1 text-xs text-muted-foreground">
                 {packsMes} {packsMes === 1 ? "pack" : "packs"} · {sueltasMes}{" "}
-                {sueltasMes === 1 ? "suelta" : "sueltas"} · total histórico {money(ingresosTotal)}
+                {sueltasMes === 1 ? "suelta" : "sueltas"} · total {money(ingresosTotal)}
               </p>
+              <div className="mt-3 text-primary">
+                <Sparkline data={monthlyIncome} className="h-12 w-full" />
+              </div>
             </div>
             {/* al día */}
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CheckCircle2 className="size-3.5 text-success" aria-hidden />
-                Al día
-              </p>
-              <p className="mt-1 text-3xl font-bold text-foreground">{alDia}</p>
-              <p className="text-xs text-muted-foreground">{alDia === 1 ? "alumno" : "alumnos"}</p>
+              <span className="flex size-9 items-center justify-center rounded-full bg-success/15 text-success">
+                <CheckCircle2 className="size-5" aria-hidden />
+              </span>
+              <p className="mt-3 text-3xl font-bold text-foreground">{alDia}</p>
+              <p className="text-xs text-muted-foreground">al día</p>
             </div>
-            {/* con deuda */}
+            {/* con pago pendiente */}
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <AlertCircle className={`size-3.5 ${debtors.length > 0 ? "text-destructive" : "text-muted-foreground"}`} aria-hidden />
-                Con pago pendiente
-              </p>
-              <p className={`mt-1 text-3xl font-bold ${debtors.length > 0 ? "text-destructive" : "text-foreground"}`}>
+              <span
+                className={`flex size-9 items-center justify-center rounded-full ${
+                  debtors.length > 0 ? "bg-destructive/15 text-destructive" : "bg-secondary text-muted-foreground"
+                }`}
+              >
+                <AlertCircle className="size-5" aria-hidden />
+              </span>
+              <p className={`mt-3 text-3xl font-bold ${debtors.length > 0 ? "text-destructive" : "text-foreground"}`}>
                 {debtors.length}
               </p>
-              <p className="text-xs text-muted-foreground">{debtors.length === 1 ? "alumno" : "alumnos"}</p>
+              <p className="text-xs text-muted-foreground">con pago pendiente</p>
             </div>
           </div>
 
@@ -308,8 +348,21 @@ export default async function AdminDashboardPage() {
                   <h2 className="text-base font-semibold text-foreground">Ocupación de la semana</h2>
                   <span className="text-sm font-semibold text-foreground">{weekOcc}%</span>
                 </div>
-                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${weekOcc}%` }} aria-hidden />
+                <div className="mt-4 flex h-16 items-end justify-between gap-2">
+                  {perDay.map((d, i) => (
+                    <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
+                      <div className="flex w-full flex-1 items-end overflow-hidden rounded-md bg-secondary">
+                        <div
+                          className={`w-full rounded-md transition-base ${d.today ? "bg-primary" : "bg-primary/60"}`}
+                          style={{ height: `${Math.max(d.pct, 4)}%` }}
+                          aria-hidden
+                        />
+                      </div>
+                      <span className={`text-[10px] uppercase ${d.today ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                        {d.label}
+                      </span>
+                    </div>
+                  ))}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {weekBooked} de {weekCap} lugares reservados (próximos 7 días).
