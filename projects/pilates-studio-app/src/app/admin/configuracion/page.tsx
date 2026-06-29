@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, Ticket, ChevronRight } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 import { SettingsForm, type SettingsInitial } from "@/components/admin/settings-form";
@@ -94,6 +95,22 @@ export default async function ConfiguracionPage({
       <div className="mt-6">
         <SettingsForm initial={initial} />
       </div>
+
+      <Link
+        href="/admin/packs"
+        className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm transition-base hover:-translate-y-px hover:shadow-md"
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Ticket className="size-5" aria-hidden />
+          </span>
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Packs y precios</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">Definí los packs que vendés y sus precios.</p>
+          </div>
+        </div>
+        <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
+      </Link>
     </main>
   );
 }
