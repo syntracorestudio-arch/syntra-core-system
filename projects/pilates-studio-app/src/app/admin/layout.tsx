@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { accentForeground } from "@/lib/accent";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     branding && typeof branding === "object" && "accent" in branding ? String(branding.accent) : null;
 
   const style = accent
-    ? ({ "--color-primary": accent, "--color-ring": accent } as CSSProperties)
+    ? ({
+        "--color-primary": accent,
+        "--color-ring": accent,
+        "--color-primary-foreground": accentForeground(accent),
+      } as CSSProperties)
     : undefined;
 
   return <div style={style}>{children}</div>;
