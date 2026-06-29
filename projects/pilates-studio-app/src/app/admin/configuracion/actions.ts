@@ -22,6 +22,11 @@ const Schema = z.object({
   grace_n: z.coerce.number().int().min(0).max(20),
   default_capacity: z.coerce.number().int().min(1).max(200),
   expiry_warning_days: z.coerce.number().int().min(0).max(90),
+  // landing pública (branding)
+  subtitle: z.string().trim().max(120).optional().default(""),
+  whatsapp: z.string().trim().max(30).optional().default(""),
+  address: z.string().trim().max(160).optional().default(""),
+  instagram: z.string().trim().max(80).optional().default(""),
 });
 
 export async function updateSettings(formData: FormData) {
@@ -48,6 +53,10 @@ export async function updateSettings(formData: FormData) {
     grace_n: formData.get("grace_n") || 0,
     default_capacity: formData.get("default_capacity"),
     expiry_warning_days: formData.get("expiry_warning_days"),
+    subtitle: formData.get("subtitle") ?? "",
+    whatsapp: formData.get("whatsapp") ?? "",
+    address: formData.get("address") ?? "",
+    instagram: formData.get("instagram") ?? "",
   });
   if (!parsed.success) back({ error: "Revisá los datos de la configuración." });
   const s = parsed.data;
@@ -59,7 +68,18 @@ export async function updateSettings(formData: FormData) {
 
   const { error: e1 } = await supabase
     .from("studios")
-    .update({ name: s.name, timezone: s.timezone, branding: { ...branding, accent: s.accent } })
+    .update({
+      name: s.name,
+      timezone: s.timezone,
+      branding: {
+        ...branding,
+        accent: s.accent,
+        subtitle: s.subtitle,
+        whatsapp: s.whatsapp,
+        address: s.address,
+        instagram: s.instagram,
+      },
+    })
     .eq("id", member!.studio_id);
   const { error: e2 } = await supabase
     .from("studio_settings")

@@ -16,6 +16,11 @@ export type SettingsInitial = {
   defaultCapacity: number;
   waitlistEnabled: boolean;
   expiryWarningDays: number;
+  // landing pública (branding)
+  subtitle: string;
+  whatsapp: string;
+  address: string;
+  instagram: string;
 };
 
 const TIMEZONES = [
@@ -193,6 +198,28 @@ export function SettingsForm({ initial }: { initial: SettingsInitial }) {
             label="Habilitar lista de espera"
             hint="Los alumnos pueden anotarse cuando una clase está llena."
           />
+        </div>
+      </section>
+
+      {/* Landing pública */}
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <h2 className="text-base font-semibold text-foreground">Landing pública</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Datos que se muestran en la página pública de tu estudio (<code>/{"{slug}"}</code>).
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Field label="Frase / subtítulo" hint='Ej. "Pilates reformer en Palermo · grupos reducidos".'>
+            <input name="subtitle" maxLength={120} defaultValue={initial.subtitle} className={inputCls} />
+          </Field>
+          <Field label="WhatsApp" hint="Número con código de país. Es el CTA principal de la landing.">
+            <input name="whatsapp" maxLength={30} defaultValue={initial.whatsapp} placeholder="+54 9 11 …" className={inputCls} />
+          </Field>
+          <Field label="Dirección">
+            <input name="address" maxLength={160} defaultValue={initial.address} className={inputCls} />
+          </Field>
+          <Field label="Instagram" hint="Usuario o link.">
+            <input name="instagram" maxLength={80} defaultValue={initial.instagram} placeholder="@tuestudio" className={inputCls} />
+          </Field>
         </div>
       </section>
 
