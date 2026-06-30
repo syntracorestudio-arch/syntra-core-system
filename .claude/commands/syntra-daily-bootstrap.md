@@ -45,14 +45,22 @@ docs/creative-library/ si existe
 Confirmar si están disponibles/invocables:
 
 ```text
-visual-quality-director
-syntra-visual-gate
-syntra-premium-section-design
-syntra-premium-motion-system
-syntra-safe-commit-gate
-syntra-reference-lock
-ui-ux-pro-max
-syntra-daily-bootstrap
+# Agentes / skills SYNTRA
+visual-quality-director · creative-director · ui-ux-designer · product-experience-designer
+design-system-guardian · website-experience-auditor · motion-3d-engineer
+frontend-engineer · backend-engineer · qa-performance-guard
+technical-product-owner · project-manager
+syntra-premium-section-design · syntra-reference-lock · syntra-visual-gate
+syntra-premium-motion-system · syntra-living-motion · syntra-copy-system
+syntra-safe-commit-gate · ui-ux-pro-max · syntra-daily-bootstrap
+
+# MCP + loop visual  (revisar .mcp.json)
+shadcn (componentes) · playwright (loop visual: navegar + screenshots con GPU)
+npm run visual:shots (full · --mode=section)
+
+# Plugin externo (subordinado a la gobernanza SYNTRA)
+superpowers — usar selectivo: verification-before-completion, systematic-debugging,
+writing-skills/plans, TDD solo backend; lo visual va por los gates SYNTRA
 ```
 
 GitHub CLI: instalado pero fuera de PATH → confirmar con
@@ -67,33 +75,12 @@ archivos del repo** (los estados puntuales se derivan de `git log`/`git status`)
 
 Hechos durables (no asumir, verificar):
 
-```text
-Trabajo principal en main vía PRs (branch → PR → merge manual del owner).
-Branches locales típicas: main + spike/hero-3d-glass (+ branch de trabajo activa).
-
-Home V1: Hero y Header FROZEN (no se tocan en el pivot vivo). Sistema y Nosotros
-  DESCONGELADOS para rediseño vivo (ver living-web-doctrine.md §7).
-Hero: image-first (hero-stratos.webp) + 2.5D hover — MERGEADO en main.
-Contacto: 013C (materialidad on-system + copy profesional) — MERGEADO en main.
-Visual Sprint 01 (tokens accent-ai/accent-warm, grain, tonos de Servicios,
-  role tags + IA violeta, hairline de scroll, fade del tablist) — MERGEADO en main.
-UI UX Pro Max: instalada como skill de apoyo — MERGEADA en main.
-
-Dirección visual VIGENTE (2026-06-23): **WEB VIVA** —
-  `docs/creative-library/living-web-doctrine.md`. Permite 3D real (three/R3F lazy),
-  fondos vivos por sección y motion ligado al scroll, con techo de perf (~90+ mobile,
-  CLS 0) y bajo gate visual. Piloto: Servicios.
-Sigue prohibido: efecto/3D SIN concepto, scroll-jacking, glass excesivo, SaaS/crypto/
-  gamer genérico, animar layout (rompe CLS). El Hero 3D-R3F-glass anterior sigue
-  descartado COMO COMPOSICIÓN del Hero (el Hero no se toca); el veto era al Hero, no al 3D.
-```
 
 Stashes:
 
 ```text
-Verificar con `git stash list`. Históricamente quedó solo:
-stash@{0} — spike3d blender tools + glb/preview (On spike/hero-3d-glass)
-Los stashes de visual-reset y Contacto 013C YA fueron integrados/descartados.
+Verificar con `git stash list`. Normalmente NO debería haber stashes (el spike3d y los de
+Contacto/visual-reset ya fueron integrados o descartados). Si aparece alguno, reportarlo.
 ```
 
 No aplicar ni borrar ningún stash sin aprobación explícita.
@@ -164,6 +151,14 @@ Siempre requieren OK explícito del owner: **merge/push a main**, **commit visua
 Cat B/C** (necesita reference-lock + visual gate), `.claude/settings.json`,
 `package.json`/deps, migraciones/datos/env, aplicar/borrar stashes. Para trabajo
 visual, "dale/ok/seguí" no es autorización de commit: el commit visual va por el gate.
+
+## Recordatorio de estructura (post-bootstrap)
+
+Terminado el bootstrap, en CADA prompt no trivial: usar la **estructura SYNTRA completa**
+(agents · skills · MCP `shadcn`/`playwright` · `superpowers` selectivo) según el routing de
+`CLAUDE.md`, y **reportar el tooling usado** en el output. Evidencia antes de cantar "listo"
+(`verification-before-completion`). Esto vive en `CLAUDE.md` (cada turno); el bootstrap solo
+lo reactiva.
 
 ## Responder con
 

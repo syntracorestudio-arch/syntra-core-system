@@ -12,6 +12,29 @@ SYNTRA CORE es una Software Factory AI-Native especializada en:
 
 ---
 
+# Uso Obligatorio de la Estructura SYNTRA (cada tarea)
+
+Ante CUALQUIER tarea no trivial, usar la estructura completa de SYNTRA antes y durante la
+ejecución — no improvisar:
+
+- **Agents** (routing tarea→agente, abajo): diagnóstico, dirección y QA con el subagent correcto.
+- **Skills** SYNTRA: `syntra-premium-section-design`, `syntra-reference-lock`,
+  `syntra-visual-gate`, `syntra-safe-commit-gate`, `syntra-living-motion`,
+  `syntra-premium-motion-system`, `syntra-copy-system`, `ui-ux-pro-max`.
+- **MCP**: `shadcn` (componentes) y `playwright` (loop visual — ver "Herramientas / MCP").
+- **Plugins**: `superpowers` de forma SELECTIVA y subordinada (ver "Plugins / superpowers").
+
+**Reportar en cada output el tooling usado** (qué agent/skill/MCP/plugin) — es la auditoría
+que permite al owner verificar y corregir el drift. Si el prompt es vago, marcarlo y
+devolver una versión más afilada. Cuestionar los pedidos cuando convenga; no asumir que
+todo pedido está bien planteado.
+
+> Vive en CLAUDE.md (se carga cada turno); el `syntra-daily-bootstrap` lo reactiva al
+> inicio del día. Ningún setup vuelve esto 100% automático → el reporte de tooling + el
+> control del owner son parte del diseño, no un extra.
+
+---
+
 # Filosofía
 
 SYNTRA CORE no funciona como una agencia tradicional.
@@ -345,16 +368,45 @@ autoridad. Política: `agents/governance/ui-ux-pro-max-usage.md`. Los reference-
 los tokens de `globals.css` mandan; toda recomendación pasa por Creative Director +
 Design System Guardian; prohibido derivar en genérico/glass excesivo.
 
+## Herramientas / MCP (loop visual)
+- **shadcn MCP** (`.mcp.json`): buscar/traer componentes (shadcn + registries premium
+  Magic UI / Aceternity / React Bits) como base, siempre sobre tokens de marca.
+- **Playwright MCP** (`.mcp.json`, `--isolated`): **loop visual**. Claude navega el sitio,
+  usa snapshot a11y (texto, barato) para navegar/inspeccionar y **screenshots on-demand**
+  (navegador con GPU → captura el 3D) para juzgar lo visual. Disciplina de tokens: a11y
+  para navegar; screenshot **solo** para juicio visual, de a una sección/viewport.
+- **`npm run visual:shots`**: capturas batch. Modo `full` (Home completa) y `--mode=section`
+  (element screenshot por sección, nítido). Claude **lee los PNG con visión**.
+- Ya no dependemos solo del ojo del owner: usar el loop visual para revisar antes de cerrar
+  trabajo visual.
+
+## Plugins / superpowers (subordinado, selectivo)
+Plugin oficial `superpowers` instalado: metodología **genérica** y **subordinada a esta
+gobernanza** (su propio meta defiere a CLAUDE.md). Adopción **selectiva** para no duplicar gates:
+- **Usar:** `verification-before-completion` (evidencia antes de cantar "listo/verde"),
+  `systematic-debugging`, `writing-skills` (al crear/editar skills SYNTRA),
+  `writing-plans`/`executing-plans` (técnico multi-paso), `test-driven-development`
+  **solo backend/lógica** (no para lo visual).
+- **No en lo visual:** `brainstorming` y `finishing-a-development-branch` **duplican**
+  nuestros gates → mandan `syntra-premium-section-design`/`reference-lock`/`visual-gate` y
+  `syntra-safe-commit-gate`. `brainstorming` solo para features NO-visuales sin gate propio.
+- Conflicto superpowers ↔ gobernanza SYNTRA → **manda SYNTRA**.
+
 ## Rutas correctas
 - Web: `projects/syntra-core-website/` (componentes en `src/components/**`, incl.
   `marketing/servicios/`, `marketing/aplicaciones/`, `marketing/hero/`).
 - Tokens: `projects/syntra-core-website/src/app/globals.css`.
-- Reference-locks: `docs/reference-locks/<section>.md` (vigentes: `hero.md`, `contacto.md`).
+- Reference-locks: `docs/reference-locks/<section>.md` — **approved**: `hero`, `casos`,
+  `proceso`, `contacto` (Contacto v2 = **campo vivo + núcleo SC**); `servicios` en **draft**.
+  La sección **"Sistema" fue eliminada** (ya no existe `#sistema`).
 
 ## QA mínimo (trabajo web)
-`npx tsc --noEmit` · `npm run lint` · `npm run build` · `npm run visual:shots` (no existe
-`npm run lighthouse` → medir Lighthouse manual si se necesita). Sin errores de consola;
-objetivo Lighthouse +95.
+`npx tsc --noEmit` · `npm run lint` · `npm run build` · `npm run visual:shots`
+(`--mode=section` para detalle) + **review en el loop visual** (Playwright MCP / leer los
+PNG) antes de cerrar trabajo visual. No existe `npm run lighthouse` → medir Lighthouse
+manual. Sin errores de consola; objetivo **Lighthouse ~90+ mobile / +95 desktop**.
+**Evidencia antes de cantar "listo"** (`verification-before-completion`): correr el comando
+y leer la salida; no asumir.
 
 ## Copy
 Tono profesional, claro y humano (sin informal/corporativo frío). Web 100% español, sin
