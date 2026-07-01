@@ -32,8 +32,13 @@ export const leadSchema = z.object({
     .trim()
     .max(120, "El nombre de empresa es demasiado largo")
     .optional(),
-  // Calificación opcional (WEB-013B): ausente = válido. Solo valores controlados.
-  projectType: projectTypeSchema.optional(),
+  // Calificación opcional MULTI (0005): ausente = válido; el lead puede marcar
+  // varios tipos. Solo valores controlados. Se deduplica para no persistir
+  // repetidos (el front podría mandar el mismo value dos veces).
+  projectTypes: z
+    .array(projectTypeSchema)
+    .transform((values) => Array.from(new Set(values)))
+    .optional(),
   message: z
     .string()
     .trim()

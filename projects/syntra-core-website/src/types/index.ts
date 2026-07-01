@@ -26,8 +26,8 @@ export interface Lead {
   name: string;
   email: string;
   company: string | null;
-  /** Tipo de proyecto (calificación opcional — WEB-013B). null si no se eligió. */
-  project_type: string | null;
+  /** Tipo(s) de proyecto (calificación opcional MULTI — 0005). null si no se eligió. */
+  project_types: string[] | null;
   message: string;
   source: string;
   status: LeadStatus;
@@ -192,8 +192,14 @@ export interface SiteConfig {
     workflow: SectionMeta;
     faq: SectionMeta;
     finalCta: {
+      /** Eyebrow sobre el título (uppercase, accent). */
+      eyebrow: string;
       title: string;
       subtitle: string;
+      /** Helper bajo el textarea: baja la barrera de entrada (content-driven). */
+      messageHelper: string;
+      /** Capacidades del rail: íconos line tenues + label (content-driven). */
+      capabilities: ReadonlyArray<{ icon: string; label: string }>;
     };
   };
 }

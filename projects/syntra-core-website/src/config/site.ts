@@ -100,9 +100,17 @@ export const siteConfig: SiteConfig = {
         "Y si te queda alguna duda, escribinos: respondemos claro y sin compromiso.",
     },
     finalCta: {
+      eyebrow: "Empecemos",
       title: "Hablemos de tu proyecto",
       subtitle:
         "Contanos qué necesitás mejorar y te respondemos con una propuesta clara, viable y sin compromiso.",
+      messageHelper:
+        "No hace falta que tengas todo definido — con el contexto que tengas, te orientamos.",
+      capabilities: [
+        { icon: "LayoutTemplate", label: "Webs modernas y escalables" },
+        { icon: "Workflow", label: "Automatización de procesos" },
+        { icon: "Sparkles", label: "IA e integraciones inteligentes" },
+      ],
     },
   },
 };
@@ -130,9 +138,16 @@ export const projectTypeOptions: { value: ProjectType; label: string }[] = [
   { value: "unsure", label: "Todavía no lo tengo claro" },
 ];
 
-/** Label legible de un projectType (para el panel). null/desconocido → "—". */
-export function projectTypeLabel(value: string | null): string {
-  return projectTypeOptions.find((o) => o.value === value)?.label ?? "—";
+/**
+ * Labels legibles de los projectTypes (para el panel). MULTI (0005): mapea cada
+ * value a su label y los une con " · ". null/vacío/sin matches → "—".
+ */
+export function projectTypeLabel(values: string[] | null): string {
+  if (!values?.length) return "—";
+  const labels = values
+    .map((value) => projectTypeOptions.find((o) => o.value === value)?.label)
+    .filter((label): label is string => Boolean(label));
+  return labels.length ? labels.join(" · ") : "—";
 }
 
 export const mainNav: NavItem[] = siteConfig.nav;

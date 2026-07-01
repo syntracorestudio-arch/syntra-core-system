@@ -41,11 +41,18 @@ export async function submitLead(
     };
   }
 
+  // Checkboxes MULTI (0005): el form envía 0..N valores con name="projectType".
+  // Leemos todos, normalizamos a string y descartamos vacíos. Ausente = undefined.
+  const projectTypes = formData
+    .getAll("projectType")
+    .map(String)
+    .filter(Boolean);
+
   const parsed = leadSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
     company: formData.get("company") || undefined,
-    projectType: formData.get("projectType") || undefined,
+    projectTypes: projectTypes.length ? projectTypes : undefined,
     message: formData.get("message"),
   });
 
@@ -56,7 +63,7 @@ export async function submitLead(
       "name",
       "email",
       "company",
-      "projectType",
+      "projectTypes",
       "message",
     ] as const) {
       const msg = fieldErrors[key]?.[0];
