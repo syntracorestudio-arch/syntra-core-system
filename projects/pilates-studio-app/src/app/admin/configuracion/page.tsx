@@ -44,10 +44,10 @@ export default async function ConfiguracionPage({
     .eq("studio_id", member.studio_id)
     .maybeSingle();
 
-  const accent =
-    (studio?.branding && typeof studio.branding === "object" && "accent" in studio.branding
-      ? String((studio.branding as Record<string, unknown>).accent)
-      : "") || DEFAULT_ACCENT;
+  const b =
+    studio?.branding && typeof studio.branding === "object" ? (studio.branding as Record<string, unknown>) : {};
+  const bstr = (k: string) => (typeof b[k] === "string" ? (b[k] as string) : "");
+  const accent = bstr("accent") || DEFAULT_ACCENT;
 
   const initial: SettingsInitial = {
     name: studio?.name ?? "",
@@ -60,6 +60,10 @@ export default async function ConfiguracionPage({
     defaultCapacity: settings?.default_capacity ?? 8,
     waitlistEnabled: settings?.waitlist_enabled ?? true,
     expiryWarningDays: settings?.expiry_warning_days ?? 7,
+    subtitle: bstr("subtitle"),
+    whatsapp: bstr("whatsapp"),
+    address: bstr("address"),
+    instagram: bstr("instagram"),
   };
 
   return (
