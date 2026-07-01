@@ -7,10 +7,11 @@ date: 2026-06-27
 decision: code-first
 ---
 
-# Reference Lock — Landing pública por estudio `/[slug]`
+# Reference Lock — Landing pública por estudio `/e/[slug]`
 
 Página **pública** (sin login) que es "la cara" del estudio en internet (ej.
-`/estudio-reforma`). Informado por `creative-director` (dirección) + `product-experience-designer`
+`/e/estudio-reforma`; ruta prefijada `/e/` para no ensombrecer rutas raíz reservadas como
+`/admin`, `/login`). Informado por `creative-director` (dirección) + `product-experience-designer`
 (journey), read-only. Hereda el lenguaje de la app (tokens cálidos, primitivos, pase de
 elevation). **NO** aplica la doctrina web-viva/3D de la web de SYNTRA: es app utilitaria
 premium cálida, liviana, SEO-friendly, mobile-first.

@@ -205,7 +205,7 @@ export function SettingsForm({ initial }: { initial: SettingsInitial }) {
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <h2 className="text-base font-semibold text-foreground">Landing pública</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Datos que se muestran en la página pública de tu estudio (<code>/{"{slug}"}</code>).
+          Datos que se muestran en la página pública de tu estudio (<code>/e/{"{slug}"}</code>).
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Frase / subtítulo" hint='Ej. "Pilates reformer en Palermo · grupos reducidos".'>
