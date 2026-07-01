@@ -22,9 +22,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   const style = accent
     ? ({
-        "--color-primary": accent,
-        "--color-ring": accent,
-        "--color-primary-foreground": accentForeground(accent),
+        "--primary": accent,
+        "--ring": accent,
+        "--primary-foreground": accentForeground(accent),
       } as CSSProperties)
     : undefined;
 
