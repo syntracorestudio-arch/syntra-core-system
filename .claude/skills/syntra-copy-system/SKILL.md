@@ -35,9 +35,13 @@ sin vueltas. Premium-accesible: calidad de redacción nivel Linear/Vercel/Stripe
 **entendible para un dueño de PyME no técnico**. Habla de **resultados de negocio**, no de
 tecnología. **Honesta**: si algo es condicional, se dice en condicional.
 
-**No es:** ni informal/canchera ni corporativa fría. Sin jerga técnica para el lector no
+**No es:** ni informal/canchera ni corporativa fría. **Registro parejo: ni demasiado técnico
+ni vulgar** — profesional y humano. **Que NO parezca escrito por IA**: concreto y con sustancia
+real, sin pulido genérico, sin frases hechas ni relleno. Sin jerga técnica para el lector no
 técnico (nada de "stack", "pipeline", "deploy", "endpoint" en copy visible). Sin clichés de
 SaaS template / crypto / gamer / "revolucioná tu negocio" / "potenciá con IA" vacío.
+**Evitar latiguillos/coloquialismos** tipo "vender humo" / "sin humo" / "sin vueltas" y
+similares (suenan a muletilla, no a marca).
 
 **Reglas de estilo:**
 - **Beneficio antes que feature.** "Más consultas desde tu sitio" > "formulario optimizado".

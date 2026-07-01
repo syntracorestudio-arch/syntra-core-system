@@ -409,8 +409,11 @@ manual. Sin errores de consola; objetivo **Lighthouse ~90+ mobile / +95 desktop*
 y leer la salida; no asumir.
 
 ## Copy
-Tono profesional, claro y humano (sin informal/corporativo frío). Web 100% español, sin
-i18n. Diseño premium, no genérico (sin SaaS/crypto/gamer/dashboard/glass excesivo).
+Tono profesional, claro y humano (sin informal/corporativo frío). **Registro parejo: ni
+demasiado técnico ni vulgar; que NO parezca escrito por IA** (concreto, con sustancia, sin
+frases hechas ni relleno). Evitar latiguillos tipo "vender humo" / "sin humo" / "sin vueltas".
+Web 100% español, sin i18n. Diseño premium, no genérico (sin SaaS/crypto/gamer/dashboard/glass
+excesivo). Detalle y voz completa: `syntra-copy-system`.
 
 ---
 
