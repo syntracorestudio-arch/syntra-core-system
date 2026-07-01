@@ -144,6 +144,53 @@ visual gate. **Máx. 2 iteraciones** de código; en la 3ª se vuelve a este lock
 - **Dependencia de copy:** el eje de los principios (Product Strategist) impacta la composición
   → resolver antes del prototipo.
 
+## Spec de composición + motion (MAXIMIZADO — ui-ux-designer + product-experience-designer + ui-ux-pro-max)
+
+**Composición desktop (1440):** 3 bandas centradas (una sola columna, no 2):
+- **A — Ancla (arriba):** eyebrow + título + subtítulo, centrado, `max-w-2xl`.
+- **B — Campo radial (protagonista):** contenedor `aspect-[4/3] max-w-4xl`. Núcleo al centro
+  óptico (~200–224px). Los 4 principios en **ROMBO IRREGULAR** (posiciones ~1/5/7/11 en reloj,
+  radios distintos 260–300px — NO cruz ortogonal, NO equidistante) para evitar "grafo
+  geométrico". **Líneas emanantes** SVG del núcleo a cada principio (`border-strong`, 0.75–1px,
+  **no cyan**). Cada principio = índice `text-sm` (minimizado) + título `text-base` + **1 línea**
+  de desc + **SIN ícono** (la línea reemplaza al ícono).
+- **C — Firma-ancla (abajo):** *"La forma SYNTRA de construir."* aislada, centrada,
+  `text-2xl→4xl` = manifiesto de cierre (sube 2 escalones vs. el pie de párrafo actual).
+- **Aire muerto resuelto:** el centro gana masa (núcleo), el ancho se usa como campo radial
+  (896px), las líneas convierten gaps en relaciones; el aire enmarca un centro fuerte.
+
+**Composición mobile (390):** espina vertical con **núcleo-cabeza** arriba → una línea baja del
+núcleo → conectores cortos a cada principio (1 línea c/u). Diferenciado de Proceso por
+**semántica de emanación** (no camino secuencial), **sin estados PENDIENTE/ACTIVO/HECHO**, sin
+columnas acción/entregable. Nada sticky.
+
+**Jerarquía:** firma-ancla ≈ núcleo > título/subtítulo statement > títulos de principios >
+índices/descripciones. Jerarquía por tipografía + `smoke-2`/`muted-foreground`, NO por color.
+
+**Motion (coreografía, GSAP/ScrollTrigger, dispara una vez al ~30% en viewport):** reveal
+**centro→afuera** (diferencia dura de Proceso, que baja): (1) statement (blur-reveal) → (2)
+núcleo aparece + "prende" (scale 0.92→1) → (3) las 4 **líneas se dibujan** hacia afuera
+(`stroke-dashoffset`, casi-simultáneas, micro-stagger ~60–120ms) → (4) **cada principio aparece
+cuando su línea lo alcanza** (la línea es la causa, el label la consecuencia) → (5) firma-ancla.
+`EASE_PREMIUM`/`DURATION` de `lib/motion.ts`. **NO scroll-scrub** paso a paso (el scroll dispara,
+no gobierna). **Deriva ambiente = latido de glow ±6% ~8s** (SIN órbita, SIN reacción al mouse),
+pausado fuera de viewport. **Hover** de principio: su línea/nodo se realza (electric permitido
+**solo** en hover/focus interactivo). **reduced-motion → frame final** (todo dibujado, núcleo
+quieto). **CLS 0** (solo opacity/transform/dashoffset/filter; alto reservado).
+
+**Materialidad del núcleo (identidad ESTABLE ≠ energía de Contacto):** hereda el lenguaje de
+`contacto-core.tsx` (esfera CSS/SVG + logo SC), pero **diferenciado**: glow interno **cálido**
+(`accent-warm` ~0.10–0.14 halo, no fill), más denso/asentado (sombras internas, menos specular),
+**sin órbita, sin mouse**, un pelo mayor (centro de gravedad). Esfera-marca con logo SC, **no**
+nodo abstracto.
+
+**Energía gravitacional (PED):** Nosotros es el **valle cálido** entre Proceso (cyan) y Contacto
+(electric) — "cero caída de energía" se cumple **cambiando el registro** (gravitacional vs
+cinético), no bajándola. Coreografía de temperatura del recorrido: cyan → warm → electric.
+
+**Bloqueante antes del prototipo:** cerrar el copy de los 4 principios (Product Strategist) —
+el largo de "1 línea afilada" condiciona el ancho de los bloques y el radio del rombo.
+
 ## Owner approval
 
 Estado: **approved** — Matias / SYNTRA CORE (owner), 2026-07-01. Pipeline: definir copy de los
