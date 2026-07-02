@@ -4,6 +4,7 @@ import { LogOut, Ticket, ChevronRight } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 import { SettingsForm, type SettingsInitial } from "@/components/admin/settings-form";
+import { LogoUploader } from "@/components/admin/logo-uploader";
 
 export const metadata = { title: "Configuración — Panel" };
 export const dynamic = "force-dynamic";
@@ -98,6 +99,10 @@ export default async function ConfiguracionPage({
 
       <div className="mt-6">
         <SettingsForm initial={initial} />
+      </div>
+
+      <div className="mt-4">
+        <LogoUploader logoUrl={bstr("logo_url") || null} />
       </div>
 
       <Link

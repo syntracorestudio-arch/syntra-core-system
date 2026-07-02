@@ -3,9 +3,75 @@
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 function back(params: Record<string, string>): never {
   redirect(`/admin/configuracion?${new URLSearchParams(params).toString()}`);
+}
+
+const LOGO_TYPES: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/svg+xml": "svg",
+  "image/webp": "webp",
+};
+const LOGO_MAX = 2_097_152; // 2 MB
+
+async function adminStudioBranding() {
+  const supabase = await createSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data: member } = await supabase
+    .from("members")
+    .select("role, studio_id, studios(branding)")
+    .limit(1)
+    .maybeSingle();
+  if (!member || member.role !== "admin") back({ error: "Solo el dueño puede editar la configuración." });
+  const rel = member!.studios as { branding: Record<string, unknown> | null } | { branding: Record<string, unknown> | null }[] | null;
+  const branding = (Array.isArray(rel) ? rel[0] : rel)?.branding ?? {};
+  return { supabase, studioId: member!.studio_id as string, branding };
+}
+
+export async function uploadLogo(formData: FormData) {
+  const { supabase, studioId, branding } = await adminStudioBranding();
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size === 0) back({ error: "Elegí un archivo de logo." });
+  const f = file as File;
+  const ext = LOGO_TYPES[f.type];
+  if (!ext) back({ error: "Formato no permitido. Usá PNG, JPG, SVG o WEBP." });
+  if (f.size > LOGO_MAX) back({ error: "El logo debe pesar menos de 2 MB." });
+
+  const path = `${studioId}.${ext}`;
+  const admin = createAdminClient();
+  const { error: upErr } = await admin.storage
+    .from("studio-logos")
+    .upload(path, f, { upsert: true, contentType: f.type });
+  if (upErr) back({ error: "No se pudo subir el logo." });
+
+  const { data: pub } = admin.storage.from("studio-logos").getPublicUrl(path);
+  const logoUrl = `${pub.publicUrl}?v=${Date.now()}`; // cache-bust al reemplazar
+  const { error: dbErr } = await supabase
+    .from("studios")
+    .update({ branding: { ...branding, logo_url: logoUrl, logo_path: path } })
+    .eq("id", studioId);
+  if (dbErr) back({ error: "No se pudo guardar el logo." });
+  back({ notice: "Logo actualizado." });
+}
+
+export async function removeLogo() {
+  const { supabase, studioId, branding } = await adminStudioBranding();
+  const path = typeof branding.logo_path === "string" ? branding.logo_path : null;
+  if (path) {
+    const admin = createAdminClient();
+    await admin.storage.from("studio-logos").remove([path]);
+  }
+  const next = { ...branding };
+  delete next.logo_url;
+  delete next.logo_path;
+  const { error } = await supabase.from("studios").update({ branding: next }).eq("id", studioId);
+  back(error ? { error: "No se pudo quitar el logo." } : { notice: "Logo quitado." });
 }
 
 const Schema = z.object({
