@@ -148,12 +148,29 @@ export interface FaqItem {
   answer: string;
 }
 
-/** Pilar de "Quiénes somos" (card, mismo lenguaje que Servicios). */
+/** Principio de identidad de "Nosotros" (cards premium "Brasa", lock v3). */
 export interface AboutPillar {
   id: string;
-  icon: string;
+  /** Palabra-índice del principio (POSTURA/CRITERIO/…): label del icon-tile. */
+  ghost?: string;
   title: string;
   description: string;
+}
+
+/**
+ * Microcopy de los ARTEFACTOS VISUALES de las cards de Nosotros (mini-UIs
+ * ilustrativas: módulos, recomendación, chat, ruta). Decorativos (aria-hidden)
+ * pero content-driven: el texto vive acá, no en el componente.
+ */
+export interface AboutPillarVisuals {
+  /** postura: módulos del sistema (ícono lucide + nombre). */
+  postura: { modules: { icon: string; label: string }[] };
+  /** criterio: opciones de recomendación; la elegida lleva picked. */
+  criterio: { options: { label: string; tag: string; picked?: boolean }[] };
+  /** cercania: conversación (pregunta del cliente + typing de SC). */
+  cercania: { question: string; typingLabel: string; avatar: string };
+  /** compromiso: etiquetas de la ruta (nodo medio y chip final). */
+  compromiso: { midLabel: string; endLabel: string };
 }
 
 export interface HeroContent {

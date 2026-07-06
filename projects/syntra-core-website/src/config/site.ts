@@ -1,5 +1,6 @@
 import type {
   AboutPillar,
+  AboutPillarVisuals,
   FaqItem,
   NavItem,
   ServiceItem,
@@ -396,34 +397,65 @@ export const homeBridges = {
 
 export const aboutPillars: AboutPillar[] = [
   {
-    id: "ia",
-    icon: "Sparkles",
-    title: "Proceso impulsado por IA",
+    id: "postura",
+    ghost: "POSTURA",
+    title: "Estudio, no agencia",
     description:
-      "Usamos inteligencia artificial y automatización en todo nuestro proceso para entregar más rápido y con mejor calidad.",
+      "Construimos sistemas que tu negocio usa todos los días, no solo una web que se ve bien.",
   },
   {
-    id: "premium",
-    icon: "Gem",
-    title: "Diseño de nivel premium",
+    id: "criterio",
+    ghost: "CRITERIO",
+    title: "Te recomendamos lo que sirve",
     description:
-      "No entregamos solo una página linda: construimos sistemas con un diseño cuidado al detalle, del tipo que tu cliente asocia con una empresa seria.",
+      "Te decimos qué necesitás y qué no, aunque a veces sea menos trabajo para nosotros.",
   },
   {
-    id: "segura",
-    icon: "ShieldCheck",
-    title: "Tecnología moderna y segura",
+    id: "cercania",
+    ghost: "CERCANÍA",
+    title: "Hablás con quien construye",
     description:
-      "Trabajamos con tecnología actual y prácticas seguras para que tu negocio funcione mejor, sin complejidad de tu lado.",
+      "Del otro lado hay una persona real que te responde y te acompaña en cada etapa.",
   },
   {
-    id: "soporte",
-    icon: "LifeBuoy",
-    title: "Acompañamiento real",
+    id: "compromiso",
+    ghost: "COMPROMISO",
+    title: "No te dejamos solo después de lanzar",
     description:
-      "Te acompañamos antes, durante y después del lanzamiento para que la solución siga generando valor.",
+      "Seguimos con vos después del lanzamiento para que la solución siga dando resultados.",
   },
 ];
+
+/**
+ * Microcopy de los artefactos visuales de las cards de Nosotros (lock v3
+ * "Brasa"). Ilustrativos y honestos: la recomendación de `criterio` es un
+ * ejemplo de cómo asesoramos (decir qué NO comprar), no un caso real.
+ */
+export const aboutPillarVisuals: AboutPillarVisuals = {
+  postura: {
+    modules: [
+      { icon: "Globe", label: "web" },
+      { icon: "Workflow", label: "sistema" },
+      { icon: "Database", label: "datos" },
+    ],
+  },
+  criterio: {
+    options: [
+      { label: "Web con turnos online", tag: "te sirve hoy", picked: true },
+      { label: "App a medida", tag: "de más, por ahora" },
+      { label: "E-commerce completo", tag: "todavía no" },
+    ],
+  },
+  cercania: {
+    question: "¿Esto se puede automatizar?",
+    typingLabel: "quien construye, escribiendo…",
+    avatar: "SC",
+  },
+  compromiso: {
+    midLabel: "lanzamiento",
+    endLabel: "seguimos con vos",
+  },
+};
 
 export const faqs: FaqItem[] = [
   {

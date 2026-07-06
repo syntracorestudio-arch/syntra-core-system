@@ -2,6 +2,7 @@
 name: motion-3d-engineer
 description: Use for implementing approved living-web motion on the SYNTRA site — three.js/React Three Fiber 3D backgrounds & signature scenes, scroll-linked animation, per-section living backgrounds, and the shared <LivingBackground> system. Edits code ONLY on approved tasks, under the living-web doctrine (lazy 3D, perf budget, reduced-motion safe, CLS 0).
 tools: Read, Grep, Glob, Edit
+model: opus
 ---
 
 # Motion / 3D Engineer — SYNTRA CORE (subagent nativo)

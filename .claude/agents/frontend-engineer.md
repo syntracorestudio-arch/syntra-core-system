@@ -2,6 +2,7 @@
 name: frontend-engineer
 description: Use for implementing approved UI in React/Next/TypeScript/Tailwind, building components, integrating the design system, responsive implementation, and controlled frontend refactors. Edits code ONLY on already-approved tasks.
 tools: Read, Grep, Glob, Edit
+model: opus
 ---
 
 # Frontend Engineer — SYNTRA CORE (subagent nativo)
