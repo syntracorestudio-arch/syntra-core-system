@@ -4,14 +4,25 @@ import * as React from "react";
 import { useReducedMotion } from "framer-motion";
 
 /**
- * EmberParticles — polvo cálido en deriva lenta (Nosotros v4).
+ * EmberParticles — polvo cálido en deriva lenta (Nosotros v4 · reutilizado en
+ * FAQ "Puente térmico" vía props).
  * Canvas 2D liviano: brasas `accent-warm` que suben con vaivén y titilan.
  * DIFERENCIADO del campo de Contacto (azul, gravitacional, interactivo):
  * acá es ámbar, ascendente y NO reacciona al mouse (identidad, no invitación).
+ * `thermal`: interpola el color por altura (warm arriba → electric abajo).
+ * `densityDivisor`: mayor = menos partículas (default = Nosotros).
  * Pausa fuera de viewport (IntersectionObserver) · reduced-motion → nada
  * (el fondo estático ya da la atmósfera). Capa absoluta → CLS 0.
  */
-function EmberParticles({ className = "" }: { className?: string }) {
+function EmberParticles({
+  className = "",
+  thermal = false,
+  densityDivisor = 26000,
+}: {
+  className?: string;
+  thermal?: boolean;
+  densityDivisor?: number;
+}) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const reduce = useReducedMotion() ?? false;
 
@@ -54,7 +65,7 @@ function EmberParticles({ className = "" }: { className?: string }) {
       canvas.width = w * dpr;
       canvas.height = h * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const target = Math.round((w * h) / 26000); // densidad baja
+      const target = Math.round((w * h) / densityDivisor); // densidad baja
       parts = Array.from({ length: target }, () => spawn(w, h));
     };
 
@@ -75,9 +86,18 @@ function EmberParticles({ className = "" }: { className?: string }) {
         const twinkle = 0.7 + 0.3 * Math.sin(t * 1.4 + p.phase);
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = p.warm
-          ? `rgba(231,200,160,${(p.alpha * twinkle).toFixed(3)})`
-          : `rgba(148,163,184,${(p.alpha * twinkle * 0.5).toFixed(3)})`;
+        if (thermal) {
+          // Puente térmico (FAQ): warm arriba → electric abajo, por altura.
+          const k = Math.min(Math.max(p.y / h, 0), 1);
+          const cr = Math.round(231 + (37 - 231) * k);
+          const cg = Math.round(200 + (99 - 200) * k);
+          const cb = Math.round(160 + (235 - 160) * k);
+          ctx.fillStyle = `rgba(${cr},${cg},${cb},${(p.alpha * twinkle * 0.9).toFixed(3)})`;
+        } else {
+          ctx.fillStyle = p.warm
+            ? `rgba(231,200,160,${(p.alpha * twinkle).toFixed(3)})`
+            : `rgba(148,163,184,${(p.alpha * twinkle * 0.5).toFixed(3)})`;
+        }
         ctx.fill();
       }
       raf = requestAnimationFrame(tick);
@@ -105,7 +125,7 @@ function EmberParticles({ className = "" }: { className?: string }) {
       io.disconnect();
       window.removeEventListener("resize", resize);
     };
-  }, [reduce]);
+  }, [reduce, thermal, densityDivisor]);
 
   if (reduce) return null;
   return (

@@ -40,6 +40,9 @@ export function ContactoBackdrop() {
         }}
       />
       {inView ? <ContactFieldBackground /> : null}
+      {/* Fade de ENTRADA (costura con FAQ): el campo no arranca en seco — los
+          primeros px continúan el aterrizaje del puente térmico. */}
+      <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-[#070a11] via-[#070a11]/55 to-transparent" />
     </div>
   );
 }

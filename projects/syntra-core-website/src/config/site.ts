@@ -98,7 +98,7 @@ export const siteConfig: SiteConfig = {
       eyebrow: "Preguntas frecuentes",
       title: "Lo que solés preguntarte antes de empezar",
       subtitle:
-        "Y si te queda alguna duda, escribinos: respondemos claro y sin compromiso.",
+        "Respuestas directas a las dudas que más escuchamos.",
     },
     finalCta: {
       eyebrow: "Empecemos",
@@ -457,38 +457,57 @@ export const aboutPillarVisuals: AboutPillarVisuals = {
   },
 };
 
+/**
+ * FAQ (rediseño "Puente térmico", 2026-07-06): 7 objeciones ordenadas de la
+ * más bloqueante a la menor (auditoría product-experience-designer). Se
+ * eliminó "¿Puedo automatizar…?" (Servicios ya lo responde) y la pregunta de
+ * pago quedó fuera por decisión del owner. Cada respuesta: 2-4 frases.
+ */
 export const faqs: FaqItem[] = [
   {
     question: "¿Cuánto cuesta un proyecto?",
     answer:
-      "Cada proyecto es diferente. Analizamos tus necesidades y te presentamos una propuesta clara, transparente y sin costos ocultos.",
+      "Depende del alcance: no es lo mismo una landing que un sistema con automatizaciones, y por eso no publicamos precios genéricos. Escuchamos qué necesitás y te presentamos una propuesta con precio cerrado antes de empezar. Sin costos ocultos ni sorpresas a mitad de camino.",
   },
   {
     question: "¿Cuánto tiempo tarda?",
     answer:
-      "Varía según el proyecto. Una landing puede estar lista en pocas semanas; un sistema con automatizaciones lleva más. En la propuesta te damos un plazo claro antes de empezar.",
+      "Varía según el proyecto: una web puede estar lista en pocas semanas; un sistema con automatizaciones lleva más. En la propuesta te damos un plazo concreto, y durante el desarrollo vas viendo avances reales.",
+  },
+  {
+    question: "¿Tengo que saber de tecnología?",
+    answer:
+      "No. Vos nos contás cómo trabaja tu negocio y de lo técnico nos ocupamos nosotros. Te explicamos cada decisión en lenguaje claro y no avanzamos hasta que tengas claro qué estamos construyendo y por qué.",
   },
   {
     question: "¿Sirve para mi tipo de negocio?",
     answer:
-      "Trabajamos con PyMEs, inmobiliarias, estudios jurídicos, clínicas y profesionales de servicios. Si tu negocio atiende clientes y tiene tareas repetitivas, podemos ayudarte.",
+      "Trabajamos con PyMEs, inmobiliarias, estudios jurídicos, clínicas y empresas de servicios. Si tu negocio atiende consultas y tiene tareas repetitivas, es muy probable que haya procesos para mejorar. Y si creemos que no te conviene, te lo decimos.",
   },
   {
-    question: "¿Necesito saber de tecnología?",
+    question: "¿Qué necesito tener listo para empezar?",
     answer:
-      "No. De la parte técnica nos encargamos nosotros. Vos contás qué necesitás y te explicamos todo en lenguaje claro, sin tecnicismos.",
+      "No necesitás tener nada preparado: ni logo, ni textos, ni una idea cerrada. Alcanza con que nos cuentes cómo trabajás hoy; en la primera reunión te ayudamos a ordenar prioridades y definir por dónde empezar.",
+  },
+  {
+    question: "¿Y si no me gusta el resultado?",
+    answer:
+      "Antes de construir te mostramos cómo va a funcionar cada parte, y no comenzamos sin tu aprobación. Durante el desarrollo vas viendo avances en cada etapa, así que el resultado final nunca es una sorpresa: lo aprobaste paso a paso.",
   },
   {
     question: "¿Qué pasa después de lanzar?",
     answer:
-      "Te acompañamos. Hacemos soporte, ajustes y mejoras, y el sistema puede crecer con tu negocio sin tener que empezar de cero.",
-  },
-  {
-    question: "¿Puedo automatizar tareas de mi empresa?",
-    answer:
-      "Sí. Conectamos tus herramientas y automatizamos procesos como respuestas, seguimiento de clientes, turnos o reportes, con o sin inteligencia artificial.",
+      "Seguimos trabajando con vos después del lanzamiento: soporte, ajustes y mejoras, con un sistema preparado para crecer sin empezar de cero. Si más adelante querés sumar automatización o IA, se integra sobre lo que ya construimos.",
   },
 ];
+
+/** Rail de la FAQ: microcopy de confianza + micro-CTA hacia Contacto. */
+export const faqRail = {
+  microcopy: "Lo que respondemos acá, lo sostenemos en la propuesta.",
+  ctaQuestion: "¿Tenés otra pregunta?",
+  ctaButton: "Escribinos",
+  ctaHref: "/#contacto",
+} as const;
 
 export const workflow: WorkflowStep[] = [
   {
