@@ -2,6 +2,7 @@
 name: backend-engineer
 description: Use for implementing approved backend in the website — Supabase data model and migrations, server actions, API/route handlers, auth/session, server-side validations, rate limiting, and webhook security (HMAC). Edits code ONLY on already-approved tasks.
 tools: Read, Grep, Glob, Edit
+model: opus
 ---
 
 # Backend Engineer — SYNTRA CORE (subagent nativo)

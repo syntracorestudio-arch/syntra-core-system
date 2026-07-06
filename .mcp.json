@@ -7,6 +7,10 @@
     "playwright": {
       "command": "npx",
       "args": ["-y", "@playwright/mcp@latest", "--isolated"]
+    },
+    "pollinations": {
+      "command": "npx",
+      "args": ["-y", "@pinkpixel/mcpollinations"]
     }
   }
 }
