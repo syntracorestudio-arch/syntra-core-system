@@ -2,197 +2,91 @@
 section: nosotros
 status: approved
 approved_by: "Matias / SYNTRA CORE (owner)"
-date: 2026-07-01
-decision: code-first + gate de render de prototipo (anti-rework)
+date: 2026-07-06
+decision: code-first con workflow de VARIANTES VIVAS (aprobación en navegador, en movimiento)
+supersedes: "v1 'Núcleo de Principios' (radial+orbe, rechazada 2026-07-02) · v2 'Manifiesto en Voz Alta' (tipográfica, rechazada 2026-07-06 en render real: espacio muerto, escala, apagado, colisiones de ghost words)"
 ---
 
-# Reference Lock — Nosotros ("El Núcleo de Principios")
+# Reference Lock — Nosotros v3 ("Brasa") — APROBADA E IMPLEMENTADA
 
-> Bajo `docs/creative-library/living-web-doctrine.md` (web viva). Concepto aprobado por el
-> owner vía `syntra-premium-section-design` (2026-07-01): Dirección A. Análisis read-only por
-> `creative-director` + `website-experience-auditor` + `design-system-guardian`.
-> **Este lock NO autoriza código hasta `status: approved`.**
+> Dirección elegida por el owner en el navegador (variantes vivas A/B en
+> `/dev/nosotros`, 2026-07-06) e iterada EN VIVO con su feedback hasta el
+> "ahora sí me gustó". Este lock documenta la dirección final construida.
 
-## Objetivo comercial / rol en la landing
+## Lecciones que gobiernan este lock (de 2 rechazos previos)
 
-Nosotros es el beat de **confianza/identidad** entre Proceso (método) y Contacto (cierre):
-responde *"¿quiénes son estos y puedo confiarles mi negocio?"*. **Emoción objetivo:** "a esta
-gente la entiendo y me da confianza" (cercanía + criterio), no admiración fría. **KPI:**
-confianza en <3s + **cero caída de energía** vs las secciones vivas vecinas + llegar a
-Contacto con la guardia baja.
+1. **El gusto del owner = riqueza visible** (animaciones, 3D, imágenes, cards
+   premium — registro Raycast/Aceternity), NO minimalismo editorial. Memoria:
+   `owner-taste-vida-rich-visuals`.
+2. **Los gates visuales juzgan prototipos VIVOS en navegador**, nunca solo PNG.
+3. **Workflow variantes-vivas:** construir 2+ variantes reales con motion desde
+   el minuto uno → el owner elige viendo → se itera en vivo → el lock se firma
+   DESPUÉS documentando lo aprobado. (Reemplaza a "lock desde prosa".)
+4. Verificar SIEMPRE a 1920 además de 1440/390 (el owner ve 1920).
 
-**Diagnóstico raíz (por qué se rediseña):** el problema es de CONCEPTO, no de layout. Los 4
-principios actuales resuelven el job de **método/capacidad** (ya cubierto por Servicios/
-Proceso) en vez del de **identidad/carácter**; la gramática (número + ícono cyan + hairline)
-**clona a Proceso**; es el único bache plano del recorrido; la frase-firma está enterrada; y
-hay **drift de cyan** decorativo.
+## Dirección final — "Brasa" (vida por capas)
 
-## Dirección visual elegida — A: "El Núcleo de Principios"
+- **Capa 1 — Atmósfera generada:** imagen AI (Pollinations/Flux) de nebulosa
+  cálida sobre navy (`public/backgrounds/nosotros-atmosphere.jpg`, 25KB),
+  opacity 0.75 + máscara radial. La sección es **la cálida** de la Home.
+- **Capa 2 — Brasas:** canvas de partículas ámbar en deriva ascendente lenta
+  (NO interactivas — diferenciadas del campo azul gravitacional de Contacto).
+  Pausa por IntersectionObserver; reduced-motion → sin canvas.
+- **Capa 3 — Cards premium** (anatomía Raycast/Resend, refs en
+  `assets/nosotros-v2/ref-raycast-features.jpeg` y `ref-resend-cards2.jpeg`):
+  borde gradiente cenital (p-px) · cuerpo gradiente TRASLÚCIDO + backdrop-blur
+  (la atmósfera se filtra) · campo de color propio al pie · icon-tile tintado ·
+  spotlight de hover que sigue el cursor EN EL COLOR de la card · lift+sombra.
+- **Artefactos visuales por principio** (contenido REAL, no skeletons —
+  microcopy content-driven en `site.ts#aboutPillarVisuals`):
+  · POSTURA → módulos con ícono+nombre (web·sistema·datos), central flotando
+  · CRITERIO → recomendación legible: "Web con turnos online — te sirve hoy" ✓
+    vs "App a medida — de más, por ahora" / "E-commerce — todavía no"
+  · CERCANÍA → chat real: pregunta del cliente + avatar SC + typing latiendo
+  · COMPROMISO → ruta neón: se dibuja → nodo "lanzamiento" → pulso que SIGUE
+    viajando → chip "seguimos con vos"
+- **Layout:** header editorial izquierda · cards 2×2 con **columnas
+  escalonadas** (derecha baja medio paso → costuras diagonales muestran la
+  atmósfera) · statement clímax con "SYNTRA" en gradiente warm + subrayado que
+  se dibuja.
+- **Motion:** reveals escalonados (blur+y, `EASE_PREMIUM`, once) + loops suaves
+  gated por `useInView` (flotación, shimmer, typing, pulso). NO scroll-scrub.
 
-**Campo radial/convergente.** Un **núcleo vivo central** del que **emanan** los 4 principios
-(líneas finas que se dibujan hacia afuera con el scroll). La forma dice literal el copy:
-*"La forma SYNTRA de construir"* = el centro; los 4 principios = sus emanaciones. Gramática
-**radial/simultánea** — deliberadamente distinta de la **vertical/secuencial** de Proceso.
-El statement pasa a ser **ancla/manifiesto** (no pie de párrafo).
+## Paleta — excepción declarada (per-card, con semántica de tokens)
 
-## Referencias concretas (≥1, no adjetivos)
+Cada card usa SU token de marca con significado literal:
+- POSTURA = **electric** #3b82f6 (construcción/web) · CRITERIO = **warm**
+  #e7c8a0 (criterio humano) · CERCANÍA = **accent-ai** #6d5dfb (conversación
+  viva) · COMPROMISO = **cyan** #38bdf8 (**HECHO/resultado** — "que siga dando
+  resultados" es semántica de resultado, uso justificado del token reservado).
+Límites: color solo en glows/bordes/artefactos de su card; texto de cuerpo
+muted; base slate intacta. Aprobado por el owner en render vivo.
 
-**Ref-1 — Wireframe radial (target de composición, a firmar por el owner):**
-```
-NOSOTROS · El Núcleo de Principios
+## Archivos
 
-                 [ 01 · principio ]
-                        \
-   [ 04 · principio ] — ( NÚCLEO SC ) — [ 02 · principio ]
-                        /       \
-                 [ 03 · principio ]
+- `src/components/sections/about-section.tsx` (wrapper del contrato de la Home)
+- `src/components/marketing/aplicaciones/nosotros/nosotros-section.tsx`
+- `.../nosotros/{spotlight-card,pillar-visual,ember-particles,statement-text}.tsx`
+- `src/config/site.ts` → `aboutPillars` (+ ghost) · `aboutPillarVisuals`
+- `public/backgrounds/nosotros-atmosphere.jpg`
 
-  arriba: statement/manifiesto centrado ("La forma SYNTRA de construir" = ancla)
-  las 4 líneas se DIBUJAN del centro hacia cada principio al scroll (GSAP)
-  mobile: núcleo arriba → 4 principios en columna, línea baja del núcleo a c/u
-```
+## Criterios binarios (verificados en render vivo 1920 + QA)
 
-**Ref-2 — Núcleo SC live (material/tratamiento):** `contacto-core.tsx` (el núcleo de Contacto)
-como referencia de **lenguaje de materia** — MISMO lenguaje de marca, **lectura DIFERENCIADA**:
-en Nosotros = **identidad estable/sólida** (el centro del que todo emana); en Contacto =
-energía/invitación reactiva. Capturable con el loop visual on-demand.
-
-**Ref-3 — Anti-referencia (qué NO ser):** `workflow-section.tsx` (Proceso "La Línea Viva",
-vertical/secuencial) y el estado ACTUAL de Nosotros (feature-list). Nosotros NO puede leerse
-como ninguno de los dos.
-
-## Qué se toma / qué se transforma / qué se reemplaza
-
-- **Sobrevive (sustancia):** el statement (eyebrow + título + subtítulo + "La forma SYNTRA de
-  construir") — es la tesis; el copy no se toca acá.
-- **Sobrevive pero se transforma:** los 4 conceptos de principios — dejan de ser feature-list;
-  pasan a ser las emanaciones radiales del núcleo.
-- **Se reemplaza:** el layout 2-columnas sticky + divisor vertical + hairline-por-ítem; el
-  **cyan decorativo** (íconos/números); los **íconos cliché** (Sparkles/Gem/ShieldCheck/LifeBuoy);
-  la frase-firma como pie → pasa a ancla.
-
-## Contenido (marcado, autoridad de otro rol)
-
-Eje de los 4 principios a **girar** de *"qué entregamos"* (IA/premium/seguridad/soporte, que
-pisan Servicios/Proceso) → *"quiénes somos / qué defendemos"* (postura · criterio · cercanía ·
-honestidad). Es cambio de **copy** → autoridad **Product Strategist / copy-system**, NO se
-decide en este lock. Además: condensar cada descripción a ~1 línea afilada para el tratamiento
-radial. **Marcado como dependencia**: el lock puede aprobarse visualmente, pero el copy final
-de los principios se define con el Product Strategist antes del prototipo.
-
-## Núcleo SC — diferenciación de Contacto (decisión del owner)
-
-Mismo lenguaje de marca, **tratamiento distinto**: Nosotros = **identidad estable** (núcleo
-sólido, centro de gravedad, deriva mínima); Contacto = energía/invitación (reacción al mouse).
-NUNCA idénticos 1:1. La reacción al mouse fuerte queda para Contacto; acá el núcleo es reposo.
-
-## Signature Palette Exception
-
-**¿Aplica?** NO. Nosotros es sección común → paleta estándar **90/10**. Guardrails (DSG):
-- Base neutra (`bg-depth-raised` + `surface-*` + hairlines `border-*`); jerarquía por
-  tipografía + `smoke-2`/`muted-foreground`, no por color.
-- **Cero cyan decorativo** (quitar el drift actual). Cyan solo si un elemento representa
-  HECHO/resultado real (por default, no se usa acá).
-- Acento diferenciador (si hace falta): **`accent-warm`** (humano/confianza) como **halo/filo a
-  baja opacidad**, nunca fill ni texto de alto contraste. **Electric** solo en interactivos
-  reales (CTA/link).
-- Referencia: `docs/creative-library/signature-palette-exception.md`.
-
-## Decisión asset-first / code-first
-
-**code-first + GATE DE RENDER DE PROTOTIPO.** No hay herramienta de mockup (Figma descartado),
-pero el protagonista (núcleo + composición radial) es **generativo** (SVG/Canvas-lite/CSS), no
-un asset estático → como Casos/Proceso, se construye en código. **Anti-rework:** antes de
-invertir en motion, se arma un **prototipo ESTÁTICO** de la composición radial, se **captura con
-el loop visual** (Playwright/section shots, 1440 + 390) y **el owner aprueba ese render** como
-target visual firmado. Recién con el render aprobado se agrega el motion (GSAP) y se pasa al
-visual gate. **Máx. 2 iteraciones** de código; en la 3ª se vuelve a este lock.
-
-**¿Protagonista visual principal?** sí (núcleo + composición radial).
-
-## Norte técnico (perf, no negociable)
-
-- Disciplina de perf de B: resolver núcleo + líneas con **SVG animado / Canvas-lite** antes que
-  R3F pesado; **3D real solo si el núcleo lo justifica** + fallback mobile.
-- **CLS 0** (composición en capa detrás/absoluta donde aplique; no animar dimensiones del grid).
-- **Lighthouse ~90+ mobile**; sin errores de consola.
-- **reduced-motion → frame final estático** (núcleo quieto, líneas ya dibujadas).
-- **Scrim/máscara de luminancia** si entra fondo vivo → AA sobre TODO el texto (peor caso).
-- Motion pausado fuera de viewport. GSAP/Lenis permitidos (Fase 2), con propósito.
-
-## Criterios binarios de aprobación
-
-- [ ] Gramática **radial/convergente** (el centro irradia), **distinta** de la vertical de Proceso.
-- [ ] El **statement es ancla/manifiesto** (no pie de párrafo).
-- [ ] Los 4 principios **NO** se leen como feature-list (4 ítems iguales con ícono).
-- [ ] **Cero cyan decorativo**; acentos neutros/`accent-warm` halo; electric solo interactivo.
-- [ ] **Motion con propósito** (emana del centro / refuerza el copy), no wow vacío ni clon de
-      Proceso; reduced-motion → frame final.
-- [ ] **CLS 0** · **Lighthouse ~90+ mobile** · sin errores de consola · scrim si hay fondo vivo (AA).
-- [ ] Comunica **identidad/carácter** (diferenciada de Servicios/Proceso).
-- [ ] **Honestidad intacta:** sin clientes/métricas/testimonios inventados.
-- [ ] Mobile: colapso claro (núcleo arriba + principios en columna), sin aire muerto.
-- [ ] Núcleo **diferenciado** del de Contacto (identidad estable ≠ energía/invitación).
-
-## Riesgos
-
-- **Nodos abstractos universales** (§5): se blinda con centro único + exactamente 4 emanaciones
-  con texto real; jamás grafo de puntos random.
-- **Clon de Proceso:** prohibido motion vertical-secuencial + números-íconos; gramática radial.
-- **Feature-list maquillada:** el rediseño debe cambiar el patrón cognitivo, no solo el estilo.
-- **3D sin concepto / perf mobile:** priorizar SVG/Canvas-lite; 3D solo justificado + fallback.
-- **Dependencia de copy:** el eje de los principios (Product Strategist) impacta la composición
-  → resolver antes del prototipo.
-
-## Spec de composición + motion (MAXIMIZADO — ui-ux-designer + product-experience-designer + ui-ux-pro-max)
-
-**Composición desktop (1440):** 3 bandas centradas (una sola columna, no 2):
-- **A — Ancla (arriba):** eyebrow + título + subtítulo, centrado, `max-w-2xl`.
-- **B — Campo radial (protagonista):** contenedor `aspect-[4/3] max-w-4xl`. Núcleo al centro
-  óptico (~200–224px). Los 4 principios en **ROMBO IRREGULAR** (posiciones ~1/5/7/11 en reloj,
-  radios distintos 260–300px — NO cruz ortogonal, NO equidistante) para evitar "grafo
-  geométrico". **Líneas emanantes** SVG del núcleo a cada principio (`border-strong`, 0.75–1px,
-  **no cyan**). Cada principio = índice `text-sm` (minimizado) + título `text-base` + **1 línea**
-  de desc + **SIN ícono** (la línea reemplaza al ícono).
-- **C — Firma-ancla (abajo):** *"La forma SYNTRA de construir."* aislada, centrada,
-  `text-2xl→4xl` = manifiesto de cierre (sube 2 escalones vs. el pie de párrafo actual).
-- **Aire muerto resuelto:** el centro gana masa (núcleo), el ancho se usa como campo radial
-  (896px), las líneas convierten gaps en relaciones; el aire enmarca un centro fuerte.
-
-**Composición mobile (390):** espina vertical con **núcleo-cabeza** arriba → una línea baja del
-núcleo → conectores cortos a cada principio (1 línea c/u). Diferenciado de Proceso por
-**semántica de emanación** (no camino secuencial), **sin estados PENDIENTE/ACTIVO/HECHO**, sin
-columnas acción/entregable. Nada sticky.
-
-**Jerarquía:** firma-ancla ≈ núcleo > título/subtítulo statement > títulos de principios >
-índices/descripciones. Jerarquía por tipografía + `smoke-2`/`muted-foreground`, NO por color.
-
-**Motion (coreografía, GSAP/ScrollTrigger, dispara una vez al ~30% en viewport):** reveal
-**centro→afuera** (diferencia dura de Proceso, que baja): (1) statement (blur-reveal) → (2)
-núcleo aparece + "prende" (scale 0.92→1) → (3) las 4 **líneas se dibujan** hacia afuera
-(`stroke-dashoffset`, casi-simultáneas, micro-stagger ~60–120ms) → (4) **cada principio aparece
-cuando su línea lo alcanza** (la línea es la causa, el label la consecuencia) → (5) firma-ancla.
-`EASE_PREMIUM`/`DURATION` de `lib/motion.ts`. **NO scroll-scrub** paso a paso (el scroll dispara,
-no gobierna). **Deriva ambiente = latido de glow ±6% ~8s** (SIN órbita, SIN reacción al mouse),
-pausado fuera de viewport. **Hover** de principio: su línea/nodo se realza (electric permitido
-**solo** en hover/focus interactivo). **reduced-motion → frame final** (todo dibujado, núcleo
-quieto). **CLS 0** (solo opacity/transform/dashoffset/filter; alto reservado).
-
-**Materialidad del núcleo (identidad ESTABLE ≠ energía de Contacto):** hereda el lenguaje de
-`contacto-core.tsx` (esfera CSS/SVG + logo SC), pero **diferenciado**: glow interno **cálido**
-(`accent-warm` ~0.10–0.14 halo, no fill), más denso/asentado (sombras internas, menos specular),
-**sin órbita, sin mouse**, un pelo mayor (centro de gravedad). Esfera-marca con logo SC, **no**
-nodo abstracto.
-
-**Energía gravitacional (PED):** Nosotros es el **valle cálido** entre Proceso (cyan) y Contacto
-(electric) — "cero caída de energía" se cumple **cambiando el registro** (gravitacional vs
-cinético), no bajándola. Coreografía de temperatura del recorrido: cyan → warm → electric.
-
-**Bloqueante antes del prototipo:** cerrar el copy de los 4 principios (Product Strategist) —
-el largo de "1 línea afilada" condiciona el ancho de los bloques y el radio del rombo.
+- [x] Vida visible: imagen + partículas + loops + hover interactivo (sin 3D
+      pesado; WebGL no necesario acá).
+- [x] Cards con artefacto de contenido REAL (texto/íconos), cero skeletons.
+- [x] Color e identidad propia por card (anatomía Raycast) dentro de tokens.
+- [x] Atmósfera visible alrededor/entre/a través de las cards (stagger+blur).
+- [x] Diferenciación: brasas ≠ partículas de Contacto; sin orbe; sin clon de
+      Proceso; statement clímax se mantiene.
+- [x] Honestidad: la recomendación de CRITERIO es ilustrativa (declarada en
+      site.ts), sin clientes/métricas inventadas.
+- [x] reduced-motion safe (canvas off; framer via MotionConfig user) · loops
+      pausan fuera de viewport · solo transform/opacity/pathLength → CLS 0.
+- [x] `tsc`/`lint`/`build` verdes · 0 errores de consola · imagen 25KB.
 
 ## Owner approval
 
-Estado: **approved** — Matias / SYNTRA CORE (owner), 2026-07-01. Pipeline: definir copy de los
-4 principios (Product Strategist) → **prototipo estático** → captura con loop visual → **OK del
-owner al render** → motion (GSAP) → `syntra-visual-gate` → commit.
+**Aprobada por el owner en navegador (variantes vivas + 3 iteraciones de
+feedback en vivo), 2026-07-06.** Pipeline restante: capturas finales → commit
+atómico → PR → merge manual del owner.
