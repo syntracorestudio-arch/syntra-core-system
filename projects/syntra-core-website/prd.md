@@ -1,5 +1,11 @@
 # PRD — Sitio Web Oficial SYNTRA CORE
 
+> **Nota de alcance (2026-07-07, decisión owner):** los rubros listados en este
+> documento (inmobiliarias, estudios jurídicos, clínicas, etc.) son EJEMPLOS de
+> aplicación, no el límite del mercado. SYNTRA es para **cualquier negocio que
+> quiera crecer**, de cualquier tamaño y rubro.
+
+
 ## Objetivo
 
 Construir el sitio oficial de SYNTRA CORE para generar leads y comunicar servicios.

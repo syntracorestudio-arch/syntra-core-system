@@ -1,5 +1,11 @@
 # Signature Palette Exception — SYNTRA CORE
 
+> ⚠️ **SUPERSEDED (reforma V2, 2026-07-07)** por `design-freedom-v2.md`: la paleta de
+> marca es de USO LIBRE con criterio — no existe más la regla 90/10, ni "cyan solo
+> HECHO" (solo conserva semántica en componentes de sistema), ni el trámite de
+> excepción de paleta. Este documento queda como archivo histórico.
+
+
 La paleta SYNTRA (regla 90/10: azul = señal; cyan = HECHO; base slate/near-black;
 todo sobrio) es **la base de todo el sitio** y **sigue vigente**. Este documento
 define la **excepción acotada** para **piezas-firma**: bloques visuales

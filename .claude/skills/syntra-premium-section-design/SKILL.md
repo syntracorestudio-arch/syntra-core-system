@@ -1,11 +1,11 @@
 ---
 name: syntra-premium-section-design
-description: Use BEFORE implementing or redesigning any premium web section for SYNTRA (Hero, Servicios, Casos, Proceso, Contacto, etc.). Forces a read-only design concept first — root visual diagnosis, commercial objective, 3 visual directions, constraints to drop, dashboard/template/maqueta risks, a recommendation, and binary approval criteria — so implementation never starts without a written, approvable concept.
+description: OPTIONAL analysis tool for complex section redesigns — root visual diagnosis, commercial objective, 3 directions, risks, recommendation. V2 (2026-07-07): produced by/with the design-director when useful; it does NOT gate implementation (variantes-vivas workflow: live prototypes judged by the owner in browser).
 ---
 
 # SYNTRA Premium Section Design
 
-**Normative skill.** Run this BEFORE touching code on a visual section. Its purpose is to prevent the micro-iteration loop (changing classes "a ojo") by fixing concept + written criteria first. **For Categoría B/C visual tasks, approving this concept does NOT authorize implementation — it authorizes creating a `reference-lock`.** Code stays blocked until an owner-approved lock exists.
+**REFORMA V2 (2026-07-07): skill de ANÁLISIS OPCIONAL.** Útil cuando una sección compleja amerita diagnóstico + direcciones ANTES de prototipar (el design-director puede producir este entregable). Ya NO bloquea código: el workflow vigente es VARIANTES VIVAS (design-freedom-v2 §4) — prototipos vivos directos que el owner juzga en navegador. Ignorar las reglas de este archivo que condicionen la implementación a locks/aprobaciones de concepto.
 
 ## When this applies
 Before designing, redesigning, or elevating any visual section of the SYNTRA web. Pairs with `syntra-reference-lock` (the binding artifact this skill hands off to), `syntra-visual-gate` (which governs the commit) and `syntra-premium-motion-system` (for the motion).
@@ -23,12 +23,12 @@ Produce, before any implementation:
 8. **Decisión preliminar asset-first / code-first** — for the recommended direction, decide whether the protagonist visual is created as an asset (default if there is a main protagonist visual) or built in code. This is the seed of the lock's decision; `syntra-reference-lock` confirms it.
 
 ## SYNTRA invariants (always in the criteria)
-- Premium-accesible (Linear/Vercel/Stripe quality, clear for non-technical PyMEs).
+- Premium-accesible (calidad top, claro para cualquier dueño de negocio no técnico).
 - No dashboard, tabla, checklist, maqueta ni feature card genérica.
 - Differentiated from Proceso (cómo trabajamos) and Servicios (capacidad/producto).
 - Honestidad intacta: sin clientes, logos, métricas ni testimonios inventados; tono condicional cuando corresponda.
 - Mobile-first, CLS 0, reduced-motion, accesibilidad, Lighthouse +95.
-- Cyan reservado para HECHO (ver `syntra-premium-motion-system`).
+- Paleta libre con criterio de marca (design-freedom-v2 §1).
 
 ## Anti-patterns to block before code
 Dashboard widgets, status badges semánticos, timestamps/contadores falsos, grilla tabular, dots sin masa, feature-table de checks, aire muerto sin intención, duplicar Servicios o Proceso, "optimizar líneas del H1" como sustituto de diseño.

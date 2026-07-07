@@ -1,5 +1,10 @@
 # UI UX Pro Max — uso en SYNTRA CORE
 
+> ⚠️ **Actualización V2 (2026-07-07):** `ui-ux-pro-max` es la HERRAMIENTA ESTÁNDAR de
+> research del `design-director` (ya no "consultiva subordinada"). Sigue sin ser
+> autoridad de marca: la coherencia la juzgan design-director/VQD y el owner.
+
+
 Esta skill es de **apoyo**, no de autoridad. Antes de usarla, regir por la política:
 
 → **`agents/governance/ui-ux-pro-max-usage.md`** (fuente de verdad)

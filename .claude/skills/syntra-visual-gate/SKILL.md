@@ -1,6 +1,6 @@
 ---
 name: syntra-visual-gate
-description: Use before committing ANY visual or perceptual change to the SYNTRA web (Hero, Servicios, Casos, Proceso, Contacto, layout, composition, hierarchy, visible motion, responsive, use of space). Enforces the mandatory flow prototipo → QA técnico → screenshots → visual-quality-director → owner approval → commit. A green build is NOT design approval.
+description: Use before committing visual work to the SYNTRA web. V2 (2026-07-07): the gate IS the owner's approval of the LIVE prototype in their browser (variantes vivas). Minimum before showing: tsc/lint clean, console clean, render reviewed with vision at 1920+390. visual-quality-director = diagnostic tool on demand, not a mandatory step. A green build is NOT design approval; neither is prose.
 ---
 
 # SYNTRA Visual Quality Gate
@@ -86,7 +86,7 @@ writing:
 ## Qué falla
 ## Riesgos visuales
 ## ¿Parece dashboard/checklist/maqueta/tabla/feature card?
-## ¿El cyan está reservado solo para HECHO?
+## ¿Los colores son de la familia de marca? (paleta libre — design-freedom-v2 §1)
 ## ¿Se diferencia de Proceso / Servicios?
 ## ¿Hay CLS?
 ## ¿Reduced-motion muestra estado final?
@@ -124,7 +124,7 @@ This makes the veto objective (result vs approved reference), not only a subject
 - Jerarquía pobre / CTA sin peso / aire muerto o saturado.
 - No se entiende en pocos segundos / no se reconoce el contexto.
 - Rompe la percepción premium (ancla: Linear / Vercel / Stripe / Raycast / Framer).
-- Cyan usado fuera del estado HECHO.
+- Color fuera de la familia de marca sin decisión del owner.
 - **Balance:** texto principal comprimido o heading roto en demasiadas líneas sin intención; asset/escena protagonista demasiado chico, o un secundario domina al protagonista; columnas mal proporcionadas; 1920 desaprovechado (contenido flotando); mobile con stack excesivo o ilegible.
 - No fue revisado en los 6 breakpoints (incl. 1920×1080) ni pasó la Composition Self-Review.
 

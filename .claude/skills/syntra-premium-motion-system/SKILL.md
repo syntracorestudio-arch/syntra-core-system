@@ -1,6 +1,6 @@
 ---
 name: syntra-premium-motion-system
-description: Use for any motion/animation work on the SYNTRA web (live-system sections, reveals, transitions, the PENDIENTE→ACTIVO→HECHO pattern). Enforces purpose-first motion, canonical states, EASE_PREMIUM/DURATION tokens, reduced-motion final state and CLS 0. Under the living-web doctrine (2026-06-23) it ALSO permits 3D (R3F lazy), per-section living backgrounds and scroll-linked motion under the technical north; purpose still required, decorative-only motion still rejected.
+description: Use for any motion/animation work on the SYNTRA web (live-system sections, reveals, transitions, the PENDIENTE→ACTIVO→HECHO pattern). Enforces purpose-first motion, canonical states, EASE_PREMIUM/DURATION tokens, reduced-motion final state and CLS 0. Under the living-web doctrine (2026-06-23) it ALSO permits 3D (R3F lazy), per-section living backgrounds and scroll-linked motion under the technical north; REFORMA V2: la belleza es propósito suficiente (design-freedom-v2); límites solo técnicos.
 ---
 
 # SYNTRA Premium Motion System
@@ -18,16 +18,16 @@ description: Use for any motion/animation work on the SYNTRA web (live-system se
 Any task that adds or changes animation/transition on the SYNTRA web. Pairs with `syntra-visual-gate` (commit) and `syntra-premium-section-design` (concept).
 
 ## 1. Purpose first
-Before animating, state WHAT the motion communicates. If the answer is "it looks nice", do not animate. No motion decorativo, distractivo ni caricaturesco. One live focus per viewport.
+REFORMA V2 (design-freedom-v2 §2): **la belleza es propósito suficiente** — el motion decorativo de calidad es bienvenido. Los límites son técnicos (CLS 0, LCP, pausa fuera de viewport, reduced-motion, sin scroll-jacking), no morales. Mantener foco: no todo debe moverse a la vez.
 
 ## 2. Canonical states (live-system: "el recorrido de una consulta")
 ```
 PENDIENTE = neutro / bajo peso / apagado            (muted; sin cyan)
 ACTIVO    = brand-electric / transitorio / uno por vez (destello one-shot, se apaga solo)
-HECHO     = brand-cyan + check / persistente / clímax  (queda encendido; ÚNICO uso de cyan)
+HECHO     = brand-cyan + check / persistente / clímax  (queda encendido)
 ```
 - Un solo paso ACTIVO por vez (delays acumulados por índice, no stagger paralelo).
-- HECHO persiste tras el gesto (no parpadea, no loop). **El cyan es señal exclusiva de HECHO** — nunca decora íconos, labels, checks de soporte ni pills.
+- HECHO persiste tras el gesto (no parpadea, no loop). En los componentes de SISTEMA (este patrón), cyan conserva su semántica de HECHO; fuera de ellos la paleta es libre (design-freedom-v2 §1).
 
 ## 3. Tokens (no inventar)
 Consume from `projects/syntra-core-website/src/lib/motion.ts`:

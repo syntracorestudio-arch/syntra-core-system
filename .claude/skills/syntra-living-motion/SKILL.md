@@ -21,7 +21,7 @@ LIVIANO         → geometría low-poly / shaders (maath); sin texturas pesadas;
 MOBILE          → calidad reducida o fallback estático (matchMedia / capability)
 REDUCED-MOTION  → frame final estático, sin animación ni loop
 CLS 0           → alto reservado; el 3D es fondo/acento; jamás empuja layout
-TOKENS          → colores/curvas desde globals.css + lib/motion.ts (regla 90/10, depth)
+TOKENS          → colores/curvas desde globals.css + lib/motion.ts (paleta libre, design-freedom-v2)
 ```
 
 ## 2. Patrón de fondo 3D lazy (canónico)
@@ -91,8 +91,8 @@ type LivingBackgroundProps = {
 ## 7. Color y rol (coherencia)
 
 - Acentos de rol desde tokens: Web = electric · Automatización = `accent-ai` (violeta) ·
-  IA = `accent-secondary` (cyan) + `accent-warm` (ámbar). Base slate neutra, 90/10.
-- En motion de sistema: cyan **solo** para HECHO/resultado (regla viva del live-system).
+  IA = `accent-secondary` (cyan) + `accent-warm` (ámbar). Base slate; **paleta libre con criterio de marca** (design-freedom-v2 §1).
+- En los componentes de sistema (PENDIENTE→ACTIVO→HECHO), cyan conserva su semántica de resultado.
 
 ## 8. Checklist de cierre (antes del visual gate)
 
@@ -103,7 +103,7 @@ type LivingBackgroundProps = {
 [ ] reduced-motion → poster estático correcto
 [ ] mobile → calidad reducida/fallback, sin jank ni sobrecalentar
 [ ] sin errores de consola (WebGL context, R3F)
-[ ] tokens de marca respetados (sin drift, sin azul fuera de 90/10)
+[ ] familia de colores de marca respetada (design-freedom-v2 §1)
 [ ] la sección funciona y convierte SIN el 3D (progressive enhancement)
 ```
 
