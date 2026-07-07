@@ -16,6 +16,7 @@ type Landing = {
   timezone: string | null;
   status: string;
   accent: string | null;
+  logo: string | null;
   subtitle: string | null;
   whatsapp: string | null;
   address: string | null;
@@ -125,12 +126,21 @@ export default async function StudioLanding({ params }: { params: Promise<{ slug
       <main className="mx-auto w-full max-w-3xl px-5 pb-28 lg:px-8 lg:pb-16">
         {/* HERO */}
         <section className="relative overflow-hidden rounded-b-[2rem] bg-gradient-to-br from-primary/12 via-background to-background px-1 pt-10 pb-9 text-center sm:pt-14">
-          <span
-            className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/12 text-xl font-bold text-primary sm:size-16 sm:text-2xl"
-            aria-hidden
-          >
-            {initial}
-          </span>
+          {d.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={d.logo}
+              alt={d.name}
+              className="mx-auto h-16 w-auto max-w-[200px] object-contain sm:h-20"
+            />
+          ) : (
+            <span
+              className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/12 text-xl font-bold text-primary sm:size-16 sm:text-2xl"
+              aria-hidden
+            >
+              {initial}
+            </span>
+          )}
           <h1 className="mt-4 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">{d.name}</h1>
           <div className="mx-auto mt-3 h-0.5 w-12 rounded-full bg-primary" aria-hidden />
           {d.subtitle ? (
