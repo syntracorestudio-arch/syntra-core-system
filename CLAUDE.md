@@ -397,8 +397,9 @@ gobernanza** (su propio meta defiere a CLAUDE.md). Adopción **selectiva** para 
   `marketing/servicios/`, `marketing/aplicaciones/`, `marketing/hero/`).
 - Tokens: `projects/syntra-core-website/src/app/globals.css`.
 - Reference-locks: `docs/reference-locks/<section>.md` — **approved**: `hero`, `casos`,
-  `proceso`, `contacto` (Contacto v2 = **campo vivo + núcleo SC**); `servicios` en **draft**.
-  La sección **"Sistema" fue eliminada** (ya no existe `#sistema`).
+  `proceso`, `contacto` (Contacto v2 = **campo vivo + núcleo SC**), `nosotros` (v3
+  "Brasa"), `faq` ("Puente térmico"), `footer` ("Cierre de marca"); `servicios` en
+  **draft**. La sección **"Sistema" fue eliminada** (ya no existe `#sistema`).
 
 ## QA mínimo (trabajo web)
 `npx tsc --noEmit` · `npm run lint` · `npm run build` · `npm run visual:shots`
