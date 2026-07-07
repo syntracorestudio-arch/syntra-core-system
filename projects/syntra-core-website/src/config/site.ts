@@ -38,8 +38,14 @@ export const siteConfig: SiteConfig = {
     { label: "FAQ", href: "/#faq" },
     { label: "Contacto", href: "/#contacto" },
   ],
-  // Canales sociales: vacío a propósito. No renderiza nada hasta tener perfiles reales.
-  socialLinks: [],
+  // Canales sociales: íconos visibles desde ya (decisión owner 2026-07-07);
+  // href vacío = se muestra apagado con "(próximamente)" hasta linkear el perfil real.
+  socialLinks: [
+    { label: "Instagram", href: "", icon: "instagram" },
+    { label: "LinkedIn", href: "", icon: "linkedin" },
+    { label: "WhatsApp", href: "", icon: "whatsapp" },
+    { label: "X", href: "", icon: "x" },
+  ],
   cta: {
     primary: "Contanos tu proyecto",
     secondary: "Ver ejemplos",
@@ -116,9 +122,13 @@ export const siteConfig: SiteConfig = {
   },
 };
 
-/** Footer — frase de cierre de marca (content-driven, TASK-015B). */
+/**
+ * Footer — cierre de marca (rediseño "Última palabra", 2026-07-06).
+ * La frase cierra con IDENTIDAD (eco de la tesis de Nosotros), no repite la
+ * promesa del hero. Ubicación y crédito dogfooding confirmados por el owner.
+ */
 export const footerBrand =
-  "Construimos sistemas digitales que hacen crecer tu negocio.";
+  "Un estudio, no una agencia. Sistemas que tu negocio usa todos los días.";
 
 /** Copy del estado de éxito del formulario (momento de marca, content-driven). */
 export const contactSuccess = {
