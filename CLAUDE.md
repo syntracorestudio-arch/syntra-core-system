@@ -25,10 +25,21 @@ ejecución — no improvisar:
 - **MCP**: `shadcn` (componentes) y `playwright` (loop visual — ver "Herramientas / MCP").
 - **Plugins**: `superpowers` de forma SELECTIVA y subordinada (ver "Plugins / superpowers").
 
-**Reportar en cada output el tooling usado** (qué agent/skill/MCP/plugin) — es la auditoría
-que permite al owner verificar y corregir el drift. Si el prompt es vago, marcarlo y
-devolver una versión más afilada. Cuestionar los pedidos cuando convenga; no asumir que
-todo pedido está bien planteado.
+**Reportar en cada output el tooling usado** (qué agent/skill/MCP/plugin) — **en UNA
+línea**. Si el prompt es vago, marcarlo y devolver una versión más afilada. Cuestionar
+los pedidos cuando convenga.
+
+## Formato de outputs (obligatorio, pedido del owner 2026-07-07)
+
+- **Breve, claro y denso.** Liderar con el RESULTADO en 1-2 líneas; después solo el
+  detalle que cambia decisiones del owner.
+- Reporte de tarea típico: **~10-15 líneas máximo**. Análisis/propuestas que el owner
+  pidió en profundidad son la excepción.
+- QA/verificaciones: UNA línea agregada ("QA verde, 0 errores de consola") — listar
+  solo lo que FALLÓ o lo que requiere su decisión.
+- Sin repetir contexto que el owner ya tiene, sin secciones ceremoniales, sin
+  narrativa del proceso. Tablas solo si comparan opciones.
+- Cerrar siempre con el próximo paso o la pregunta concreta (una).
 
 > Vive en CLAUDE.md (se carga cada turno); el `syntra-daily-bootstrap` lo reactiva al
 > inicio del día. Ningún setup vuelve esto 100% automático → el reporte de tooling + el
@@ -328,10 +339,9 @@ Ante cualquier tarea no trivial:
 > Detalle completo: **`agents/governance/SYNTRA-CONTEXT-ROUTER.md`**. Resumen operativo:
 
 ## Context Receipt
-Ante cualquier tarea no trivial, antes de actuar, emitir un **Context Receipt** corto
-(tarea · tipo · modo · contexto cargado · qué hago sin permiso · qué requiere aprobación
-· guardas). Las tareas triviales (lookup, pregunta, corrección de una línea ya pedida)
-no lo requieren.
+Solo para tareas **riesgosas o ambiguas** (migraciones, deps, reformas, scope dudoso):
+una línea con tarea · modo · qué requiere aprobación. Las tareas normales arrancan
+directo (el formato de outputs breves manda).
 
 ## Modos
 - **Autopilot (autonomía guiada)** — default para técnico/bugfix y docs/governance:
