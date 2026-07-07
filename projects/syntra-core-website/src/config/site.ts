@@ -492,7 +492,7 @@ export const faqs: FaqItem[] = [
   {
     question: "¿Sirve para mi tipo de negocio?",
     answer:
-      "Trabajamos con PyMEs, inmobiliarias, estudios jurídicos, clínicas y empresas de servicios. Si tu negocio atiende consultas y tiene tareas repetitivas, es muy probable que haya procesos para mejorar. Y si creemos que no te conviene, te lo decimos.",
+      "Trabajamos con negocios de todo tipo y tamaño. Si tu negocio atiende consultas, vende o tiene tareas repetitivas, es muy probable que haya procesos para mejorar. Y si creemos que no te conviene, te lo decimos.",
   },
   {
     question: "¿Qué necesito tener listo para empezar?",
