@@ -1,20 +1,26 @@
-# SYNTRA CORE V1.1 — STABLE ARCHITECTURE
+# SYNTRA CORE V2 — ARQUITECTURA CONSOLIDADA (reforma 2026-07-07)
 
-Estado: CONGELADO
+Estado: **ARCHIVO DE REFERENCIA** (el estado "CONGELADO" de V1.1 queda reemplazado
+por **evolución con evidencia**: la estructura se mejora cuando el uso real lo pide).
 
-La arquitectura de agentes de SYNTRA CORE queda declarada como estable en su versión V1.1.
+**El roster operativo son los 10 wrappers de `.claude/agents/`** — fusiones V2:
+- `design-director` = creative-director + ui-ux-designer + website-experience-auditor
+  (usa la skill `ui-ux-pro-max` como herramienta estándar).
+- `product-experience-designer` absorbe a technical-product-owner.
+- `visual-quality-director` absorbe a design-system-guardian.
+- Eliminados como wrappers: project-manager (orquesta el agente principal).
+- Ejecutores (`frontend/motion-3d/backend-engineer`) corren en Opus.
 
-No deben crearse nuevos agentes, frameworks, protocolos o documentos de gobernanza sin evidencia operativa real proveniente de proyectos en uso.
+Las specs de esta carpeta se conservan como **archivo histórico y detalle profundo**
+de cada rol; ante conflicto entre una spec V1.1 y un wrapper V2 (o la doctrina
+`docs/creative-library/design-freedom-v2.md`), **manda el wrapper/doctrina V2**.
+En particular: las reglas restrictivas de paleta (90/10, "cyan solo HECHO"), los
+anti-patrones extensos de los frameworks y el ceremonial lock-antes-de-código
+quedaron superseded por la doctrina de libertad de diseño + workflow de
+**variantes vivas** (prototipos con motion juzgados por el owner en navegador).
 
-Toda mejora futura debe priorizar:
-
-- simplificación
-- fusión
-- deprecación
-- eliminación de redundancia
-- claridad operativa
-
-antes que expansión del sistema.
+Toda mejora futura sigue priorizando simplificación y fusión antes que expansión —
+pero con evidencia, no con congelamiento.
 
 ---
 
