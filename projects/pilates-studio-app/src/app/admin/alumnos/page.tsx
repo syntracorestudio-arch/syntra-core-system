@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { LogOut, Users, ChevronRight } from "lucide-react";
+import { LogOut, Users, ChevronRight, GraduationCap } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 const ADMIN_ROLES = ["admin", "reception"];
 
 type ProfileRel = { full_name: string; email: string | null; phone: string | null };
-type MemberRow = { id: string; status: string; profiles: ProfileRel | ProfileRel[] | null };
+type MemberRow = { id: string; status: string; role: string; profiles: ProfileRel | ProfileRel[] | null };
 type FinRow = {
   member_id: string;
   credits_available: number;
@@ -49,8 +49,8 @@ export default async function AlumnosPage({
 
   const { data: mems } = await supabase
     .from("members")
-    .select("id, status, profiles(full_name, email, phone)")
-    .eq("role", "client")
+    .select("id, status, role, profiles(full_name, email, phone)")
+    .in("role", ["client", "instructor"])
     .order("joined_at", { ascending: false });
   const { data: fins } = await supabase
     .from("member_financial_status")
@@ -66,10 +66,11 @@ export default async function AlumnosPage({
       id: m.id,
       name: prof?.full_name ?? "Alumno",
       email: prof?.email ?? null,
+      isInstructor: m.role === "instructor",
       fin: finByMember.get(m.id),
     };
   });
-  const withDebt = alumnos.filter((a) => a.fin && a.fin.financial_status !== "al_dia").length;
+  const withDebt = alumnos.filter((a) => !a.isInstructor && a.fin && a.fin.financial_status !== "al_dia").length;
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
@@ -124,14 +125,25 @@ export default async function AlumnosPage({
               <div className="min-w-0">
                 <p className="truncate font-semibold text-foreground">{a.name}</p>
                 {a.email ? <p className="truncate text-sm text-muted-foreground">{a.email}</p> : null}
-                {/* saldo en mobile (en desktop va en la columna derecha) */}
-                <p className="mt-0.5 text-sm font-medium text-foreground sm:hidden">{saldoText(a.fin)}</p>
+                {/* saldo en mobile (en desktop va en la columna derecha); instructor no lleva saldo */}
+                {!a.isInstructor ? (
+                  <p className="mt-0.5 text-sm font-medium text-foreground sm:hidden">{saldoText(a.fin)}</p>
+                ) : null}
               </div>
               <div className="flex shrink-0 items-center gap-3">
-                <div className="hidden text-right sm:block">
-                  <p className="text-sm font-medium text-foreground">{saldoText(a.fin)}</p>
-                </div>
-                {a.fin ? <FinancialBadge status={a.fin.financial_status} /> : null}
+                {a.isInstructor ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                    <GraduationCap className="size-3.5" aria-hidden />
+                    Instructor
+                  </span>
+                ) : (
+                  <>
+                    <div className="hidden text-right sm:block">
+                      <p className="text-sm font-medium text-foreground">{saldoText(a.fin)}</p>
+                    </div>
+                    {a.fin ? <FinancialBadge status={a.fin.financial_status} /> : null}
+                  </>
+                )}
                 <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
               </div>
             </a>

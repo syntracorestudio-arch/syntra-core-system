@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { LogOut, Plus, Pencil, LayoutGrid } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { ClassForm, type ClassFormInitial } from "@/components/admin/class-form";
+import { ClassForm, type ClassFormInitial, type InstructorOption } from "@/components/admin/class-form";
 import { AdminClassCard, type AdminClassData } from "@/components/admin/admin-class-card";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 
@@ -55,11 +55,13 @@ type ClassRow = {
   id: string;
   name: string;
   instructor_name: string | null;
+  instructor_id: string | null;
   default_capacity: number;
   duration_min: number | null;
   class_schedules: Schedule[] | null;
   class_occurrences: Occurrence[] | null;
 };
+type InstructorRow = { id: string; profiles: { full_name: string } | { full_name: string }[] | null };
 
 export default async function AdminClasesPage({
   searchParams,
@@ -88,14 +90,24 @@ export default async function AdminClasesPage({
 
   const nowIso = new Date().toISOString();
 
-  const { data: rows } = await supabase
-    .from("classes")
-    .select(
-      "id, name, instructor_name, default_capacity, duration_min, " +
-        "class_schedules(weekday, start_time, valid_from, valid_to), class_occurrences(id, starts_at, status)",
-    )
-    .eq("status", "active")
-    .order("created_at", { ascending: false });
+  const [{ data: rows }, { data: insRows }] = await Promise.all([
+    supabase
+      .from("classes")
+      .select(
+        "id, name, instructor_name, instructor_id, default_capacity, duration_min, " +
+          "class_schedules(weekday, start_time, valid_from, valid_to), class_occurrences(id, starts_at, status)",
+      )
+      .eq("status", "active")
+      .order("created_at", { ascending: false }),
+    supabase.from("members").select("id, profiles(full_name)").eq("role", "instructor"),
+  ]);
+
+  const instructors: InstructorOption[] = ((insRows ?? []) as unknown as InstructorRow[])
+    .map((m) => {
+      const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+      return { id: m.id, name: p?.full_name ?? "Instructor" };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, "es"));
 
   const classes: AdminClassData[] = ((rows ?? []) as unknown as ClassRow[]).map((r) => {
     const schedules = r.class_schedules ?? [];
@@ -143,7 +155,7 @@ export default async function AdminClasesPage({
     const base = {
       classId: row.id,
       name: row.name,
-      instructor: row.instructor_name ?? "",
+      instructorId: row.instructor_id ?? "",
       capacity: row.default_capacity,
       duration: row.duration_min ?? 60,
     };
@@ -256,7 +268,7 @@ export default async function AdminClasesPage({
                 {initial ? "Editar clase" : "Nueva clase"}
               </h2>
             </div>
-            <ClassForm key={initial?.classId ?? "new"} initial={initial} />
+            <ClassForm key={initial?.classId ?? "new"} initial={initial} instructors={instructors} />
           </div>
         </aside>
       </div>

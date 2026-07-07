@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, Wallet, CreditCard, Ticket, CalendarClock, Phone, Mail, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Wallet, CreditCard, Ticket, CalendarClock, Phone, Mail, CheckCircle2, GraduationCap } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
 import { PaymentForm, type PassOption } from "@/components/admin/payment-form";
+import { setMemberRole } from "./actions";
 
 export const dynamic = "force-dynamic";
 const ADMIN_ROLES = ["admin", "reception"];
@@ -50,14 +51,16 @@ export default async function FichaAlumnoPage({
 
   const { data: me } = await supabase.from("members").select("role").limit(1).maybeSingle();
   if (!me || !ADMIN_ROLES.includes(me.role)) redirect("/app");
+  const isAdmin = me.role === "admin";
 
   // alumno (RLS: admin ve members de su estudio; si no es de su estudio → null)
   const { data: target } = await supabase
     .from("members")
-    .select("id, status, profiles(full_name, email, phone)")
+    .select("id, status, role, profiles(full_name, email, phone)")
     .eq("id", id)
     .maybeSingle();
   if (!target) notFound();
+  const isInstructor = target.role === "instructor";
   const prof = (Array.isArray(target.profiles) ? target.profiles[0] : target.profiles) as ProfileRel | null;
 
   const nowIso = new Date().toISOString();
@@ -151,7 +154,14 @@ export default async function FichaAlumnoPage({
       </Link>
       <header className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">{prof?.full_name ?? "Alumno"}</h1>
-        <FinancialBadge status={financial} />
+        {isInstructor ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+            <GraduationCap className="size-3.5" aria-hidden />
+            Instructor
+          </span>
+        ) : (
+          <FinancialBadge status={financial} />
+        )}
       </header>
       {(prof?.email || prof?.phone) && (
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -185,6 +195,27 @@ export default async function FichaAlumnoPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
         {/* columna izquierda: saldo + membresía + registrar pago */}
         <div className="grid gap-4">
+          {/* rol: promover a instructor / volver a alumno (solo admin) */}
+          {isAdmin ? (
+            <form
+              action={setMemberRole}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm"
+            >
+              <input type="hidden" name="memberId" value={id} />
+              <input type="hidden" name="role" value={isInstructor ? "client" : "instructor"} />
+              <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                <GraduationCap className="size-4" aria-hidden />
+                {isInstructor ? "Es instructor del estudio" : "Rol: alumno"}
+              </span>
+              <button
+                type="submit"
+                className="shrink-0 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+              >
+                {isInstructor ? "Volver a alumno" : "Hacer instructor"}
+              </button>
+            </form>
+          ) : null}
+
           <div className="grid grid-cols-2 gap-3">
             {/* saldo (créditos) */}
             <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
