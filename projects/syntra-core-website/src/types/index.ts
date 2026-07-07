@@ -14,10 +14,12 @@ export interface NavItem {
   href: string;
 }
 
-/** Canal social/externo del footer. Estructura preparada para uso futuro. */
+/** Canal social/externo del footer. href vacío = ícono visible sin link (próximamente). */
 export interface SocialLink {
   label: string;
   href: string;
+  /** Clave del ícono de marca (SVG inline en footer-social.tsx). */
+  icon?: string;
 }
 
 /** Fila completa de un lead (tal como vive en Supabase). */
