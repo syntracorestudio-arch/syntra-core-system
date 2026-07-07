@@ -6,10 +6,12 @@ import { useFormStatus } from "react-dom";
 import { CalendarDays, Repeat, Minus, Plus } from "lucide-react";
 import { createClass, updateClass } from "@/app/admin/clases/actions";
 
+export type InstructorOption = { id: string; name: string };
+
 export type ClassFormInitial = {
   classId: string;
   name: string;
-  instructor: string;
+  instructorId: string; // member id del instructor asignado ("" = sin instructor)
   capacity: number;
   duration: number;
   kind: "once" | "recurring";
@@ -48,7 +50,13 @@ function SubmitButton({ editing }: { editing: boolean }) {
   );
 }
 
-export function ClassForm({ initial = null }: { initial?: ClassFormInitial | null }) {
+export function ClassForm({
+  initial = null,
+  instructors = [],
+}: {
+  initial?: ClassFormInitial | null;
+  instructors?: InstructorOption[];
+}) {
   const editing = initial !== null;
   const [type, setType] = useState<"once" | "recurring">(initial?.kind ?? "once");
   const [days, setDays] = useState<number[]>(initial?.weekdays ?? []);
@@ -90,7 +98,20 @@ export function ClassForm({ initial = null }: { initial?: ClassFormInitial | nul
         <input name="name" required maxLength={80} defaultValue={initial?.name ?? ""} className={inputCls} />
       </Field>
       <Field label="Instructor">
-        <input name="instructor" maxLength={80} defaultValue={initial?.instructor ?? ""} className={inputCls} />
+        {instructors.length > 0 ? (
+          <select name="instructor_id" defaultValue={initial?.instructorId ?? ""} className={inputCls}>
+            <option value="">Sin instructor asignado</option>
+            {instructors.map((ins) => (
+              <option key={ins.id} value={ins.id}>
+                {ins.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <p className="rounded-md border border-dashed border-border bg-card/60 px-3 py-2 text-xs text-muted-foreground">
+            Todavía no hay instructores. Hacé instructor a un miembro desde Alumnos para poder asignarlo.
+          </p>
+        )}
       </Field>
 
       <div className="grid grid-cols-2 gap-3">

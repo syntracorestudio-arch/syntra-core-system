@@ -32,10 +32,34 @@ function localToUtcISO(dateStr: string, timeStr: string, tz: string): string {
 
 const Common = z.object({
   name: z.string().trim().min(1).max(80),
-  instructor: z.string().trim().max(80).optional().default(""),
   capacity: z.coerce.number().int().positive().max(200),
   duration: z.coerce.number().int().min(10).max(240),
 });
+
+type ServerClient = Awaited<ReturnType<typeof createSupabaseServer>>;
+
+/**
+ * Resuelve el instructor elegido en el form a partir de su member id.
+ * Valida que sea un member del propio estudio con rol 'instructor' (RLS + filtro).
+ * Devuelve id + nombre (denormalizado en classes.instructor_name para display),
+ * o {id:null, name:null} si no se eligió / no es válido.
+ */
+async function resolveInstructor(
+  supabase: ServerClient,
+  raw: FormDataEntryValue | null,
+): Promise<{ id: string | null; name: string | null }> {
+  const instructorId = String(raw ?? "").trim();
+  if (!instructorId) return { id: null, name: null };
+  const { data: ins } = await supabase
+    .from("members")
+    .select("id, profiles(full_name)")
+    .eq("id", instructorId)
+    .eq("role", "instructor")
+    .maybeSingle();
+  if (!ins) return { id: null, name: null };
+  const p = Array.isArray(ins.profiles) ? ins.profiles[0] : ins.profiles;
+  return { id: ins.id as string, name: (p?.full_name as string) ?? null };
+}
 
 export async function createClass(formData: FormData) {
   const supabase = await createSupabaseServer();
@@ -58,12 +82,12 @@ export async function createClass(formData: FormData) {
   const type = String(formData.get("type") ?? "once");
   const common = Common.safeParse({
     name: formData.get("name"),
-    instructor: formData.get("instructor"),
     capacity: formData.get("capacity"),
     duration: formData.get("duration"),
   });
   if (!common.success) back({ error: "Revisá los datos del formulario." });
   const c = common.data;
+  const instr = await resolveInstructor(supabase, formData.get("instructor_id"));
 
   // 1) crear la clase (plantilla)
   const { data: klass, error: classErr } = await supabase
@@ -74,7 +98,8 @@ export async function createClass(formData: FormData) {
       type: String(formData.get("ctype") ?? "") || null,
       default_capacity: c.capacity,
       duration_min: c.duration,
-      instructor_name: c.instructor || null,
+      instructor_id: instr.id,
+      instructor_name: instr.name,
     })
     .select("id")
     .single();
@@ -149,18 +174,18 @@ export async function updateClass(formData: FormData) {
 
   const common = Common.safeParse({
     name: formData.get("name"),
-    instructor: formData.get("instructor"),
     capacity: formData.get("capacity"),
     duration: formData.get("duration"),
   });
   if (!common.success) back({ error: "Revisá los datos del formulario." });
   const c = common.data;
+  const instr = await resolveInstructor(supabase, formData.get("instructor_id"));
   const isRecurring = String(formData.get("type") ?? "once") === "recurring";
 
   let params: Record<string, unknown> = {
     p_class_id: classId,
     p_name: c.name,
-    p_instructor: c.instructor || "",
+    p_instructor: "", // el nombre se setea abajo desde el instructor elegido (member)
     p_capacity: c.capacity,
     p_duration: c.duration,
     p_is_recurring: isRecurring,
@@ -193,6 +218,13 @@ export async function updateClass(formData: FormData) {
         : "No se pudieron guardar los cambios.";
     back({ error: msg });
   }
+
+  // asignar/actualizar el instructor (member) — escritura directa por RLS (admin/reception)
+  await supabase
+    .from("classes")
+    .update({ instructor_id: instr.id, instructor_name: instr.name })
+    .eq("id", classId);
+
   back({ notice: "Cambios guardados." });
 }
 

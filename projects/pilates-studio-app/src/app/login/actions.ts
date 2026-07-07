@@ -20,5 +20,11 @@ export async function login(formData: FormData) {
     redirect("/login?error=" + encodeURIComponent("Credenciales inválidas."));
   }
 
+  // Ruteo por rol: cada perfil aterriza donde le sirve (la sesión ya está en cookies,
+  // RLS deja ver el propio member). Fallback seguro → /app (vista de alumno).
+  const { data: member } = await supabase.from("members").select("role").limit(1).maybeSingle();
+  const role = member?.role;
+  if (role === "instructor") redirect("/instructor");
+  if (role === "admin" || role === "reception") redirect("/admin");
   redirect("/app");
 }

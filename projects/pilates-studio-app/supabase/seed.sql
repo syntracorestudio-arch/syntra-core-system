@@ -36,6 +36,9 @@ values
   ('a0000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000000','authenticated','authenticated',
    'marco@reforma.test', crypt('password123', gen_salt('bf')), now(), now(), now(),
    '{"provider":"email","providers":["email"]}','{"full_name":"Marco PackVencido"}'),
+  ('a0000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000000','authenticated','authenticated',
+   'caro@reforma.test', crypt('password123', gen_salt('bf')), now(), now(), now(),
+   '{"provider":"email","providers":["email"]}','{"full_name":"Caro Instructora"}'),
   ('b0000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated',
    'admin@estudiob.test', crypt('password123', gen_salt('bf')), now(), now(), now(),
    '{"provider":"email","providers":["email"]}','{"full_name":"Admin B"}');
@@ -61,11 +64,14 @@ insert into public.members (id, studio_id, profile_id, role) values
   ('d1111111-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000002','client'),
   ('d1111111-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000003','client'),
   ('d1111111-0000-0000-0000-000000000004','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000004','client'),
+  ('d1111111-0000-0000-0000-000000000005','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000005','instructor'),
   ('d2222222-0000-0000-0000-000000000001','22222222-2222-2222-2222-222222222222','b0000000-0000-0000-0000-000000000001','admin');
 
 -- ---------- clase + recurrencia + ocurrencias ----------
-insert into public.classes (id, studio_id, name, type, default_capacity, duration_min, instructor_name) values
-  ('c1111111-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Reformer','reformer',8,60,'Caro');
+-- Reformer con instructor CON LOGIN (Caro, member rol instructor) → alimenta /instructor.
+insert into public.classes (id, studio_id, name, type, default_capacity, duration_min, instructor_id, instructor_name) values
+  ('c1111111-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Reformer','reformer',8,60,
+   'd1111111-0000-0000-0000-000000000005','Caro Instructora');
 
 insert into public.class_schedules (id, studio_id, class_id, weekday, start_time, capacity, valid_from) values
   ('51111111-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','c1111111-0000-0000-0000-000000000001',
@@ -75,9 +81,10 @@ insert into public.class_schedules (id, studio_id, class_id, weekday, start_time
 insert into public.class_occurrences (id, studio_id, class_id, schedule_id, starts_at, ends_at, capacity, booked_count, status) values
   ('01111111-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','c1111111-0000-0000-0000-000000000001',
    '51111111-0000-0000-0000-000000000001', now()+interval '2 day', now()+interval '2 day'+interval '60 min', 2, 0, 'scheduled'),
--- Ocurrencia futura cupo normal.
+-- Ocurrencia futura cupo normal (pronto: es la próxima real con anotados → alimenta el
+-- roster/check-in de la vista de instructor como primera clase seleccionada).
   ('01111111-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','c1111111-0000-0000-0000-000000000001',
-   '51111111-0000-0000-0000-000000000001', now()+interval '3 day', now()+interval '3 day'+interval '60 min', 8, 0, 'scheduled');
+   '51111111-0000-0000-0000-000000000001', now()+interval '5 hours', now()+interval '5 hours'+interval '60 min', 8, 0, 'scheduled');
 
 -- ---------- catálogo: pass ----------
 insert into public.passes (id, studio_id, name, credits, validity_days, price) values
@@ -111,6 +118,13 @@ insert into public.credit_ledger (id, studio_id, member_id, member_pass_id, delt
 insert into public.class_reservations (id, studio_id, occurrence_id, member_id, status, consumed_credit, credit_ledger_id) values
   ('60000000-0000-0000-0000-000000000009','11111111-1111-1111-1111-111111111111','01111111-0000-0000-0000-000000000002',
    'd1111111-0000-0000-0000-000000000004','booked', true, '90000000-0000-0000-0000-000000000009');
+update public.class_occurrences set booked_count = booked_count + 1 where id = '01111111-0000-0000-0000-000000000002';
+
+-- Lucía (membresía activa → sin consumir crédito) también anotada en la Reformer:
+-- da un roster de 2 para la vista del instructor (Caro).
+insert into public.class_reservations (id, studio_id, occurrence_id, member_id, status, consumed_credit) values
+  ('60000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','01111111-0000-0000-0000-000000000002',
+   'd1111111-0000-0000-0000-000000000003','booked', false);
 update public.class_occurrences set booked_count = booked_count + 1 where id = '01111111-0000-0000-0000-000000000002';
 
 -- ---------- Código de alta demo para Estudio Reforma (Fase 1D-1B) ----------
