@@ -211,10 +211,14 @@ TASK-024  (diferida)
 | VISUAL-WORKFLOW-003 | Mejorar `visual:shots`: pase de scroll antes del `fullPage` para reveals debajo del fold (whileInView/FadeIn) — commit `e60e21e` | DONE |
 | WEB-013A | Contacto — concept + logic audit (backend production-safe; decisión: agregar `projectType`) | DONE |
 | WEB-013B | Contacto — `projectType` full-stack (Zod → action → tipo → persistencia → n8n → panel + pills accesibles + migración `0004`) — commit `f5dbd3d` | DONE |
-| WEB-013C | Contacto — elevar materialidad + copy de cierre + success eco-neutro, bajo Visual Gate | TODO *(próxima)* |
-| WEB-HERO-FUTURE | **Hero — rediseñar como una sola escena integrada** (ver detalle) | FROZEN / DEFERRED |
+| WEB-013C | Contacto — elevar materialidad + copy de cierre + success eco-neutro, bajo Visual Gate | DONE (en producción; superseded por Contacto v2) |
+| WEB-CONTACTO-V2 | Contacto — fondo vivo "El campo se inclina hacia vos" (campo interactivo + núcleo SC) + form polish + `project_types` MULTI (migración `0005`, aplicada) | DONE |
+| WEB-SISTEMA-KILL | Sección "Sistema" **eliminada** de la Home (redundante + cliché; decisión owner) | DONE |
+| WEB-NOSOTROS-V3 | Nosotros — rediseño "Brasa": atmósfera AI + brasas canvas + cards premium con artefactos reales (lock `nosotros.md` v3; 2 direcciones previas rechazadas → workflow variantes-vivas) — PR #56 | DONE |
+| WEB-FAQ-TERMICO | FAQ — "Puente térmico": fondo que se enfría con scroll + rail termómetro + 7 objeciones reescritas (lock `faq.md`) — PR #57 | DONE |
+| WEB-FOOTER-CIERRE | Footer — "Cierre de marca": 4 columnas reales + redes a color (sin link hasta perfiles) + costura invisible con Contacto (lock `footer.md`) — PR #59 | DONE |
+| WEB-HERO-FUTURE | **Hero — rediseñar como una sola escena integrada** (ver detalle) · spike cubo glass 3D probado y descartado por el owner (2026-07-06, know-how R3F queda) | FROZEN / DEFERRED |
 | WEB-PERF-A | **Lighthouse mobile secciones vivas:** Hero H1 SSR + code-split 3D + font-display optional — PRs #33/#35 (ver detalle) | DONE (con deuda de perf) |
-| — | Canvas / Sistema + Nosotros (motion + estructura) | FROZEN (requiere descongelamiento) |
 
 ### WEB-HERO-FUTURE — Rediseñar Hero como una sola escena integrada — FROZEN / DEFERRED
 
@@ -259,11 +263,20 @@ Baseline mobile: Perf **67**, LCP **~7s**, CLS 0. Tres fixes (Cat A, PRs **#33**
   contención de CPU del entorno; medir por **PageSpeed Insights** (LCP 1.5 / SI 2.2 / CLS 0
   reales sugieren +95).
 
-**Próxima acción:** `WEB-013C` (Contacto) — elevar materialidad, copy de cierre y success state
-bajo el Visual Gate. **No tocar lógica salvo bug.** Contacto: `013A` (audit) + `013B` (`projectType`
-full-stack, commit `f5dbd3d`) cerrados. Transiciones (`WEB-012A/B`, `9304c3b`) y Casos
-(`WEB-011A→D`) cerrados. El Hero queda diferido (`WEB-HERO-FUTURE`); Canvas-motion / Nosotros FROZEN.
+**Estado (2026-07-07): la Home es web viva de punta a punta.** Hero (estratos) → Servicios
+(3D) → Casos (rail vivo) → Proceso (línea viva) → Nosotros (brasas, v3) → FAQ (puente
+térmico) → Contacto (campo eléctrico v2) → Footer (cierre de marca). Locks **approved**:
+hero · casos · proceso · contacto · nosotros · faq · footer (`servicios` sigue en draft).
+Migraciones `0004` y `0005` **aplicadas** en Supabase. Workflow vigente: **variantes vivas**
+(prototipos con motion juzgados en navegador; el lock se firma después documentando lo
+aprobado) — ver `docs/reference-locks/nosotros.md` §lecciones.
 
-> ⚠️ **Deploy:** aplicar `supabase/migrations/0004_lead_project_type.sql` en Supabase **antes** del
-> próximo deploy productivo (o de que producción use este código), o los `select` con
-> `project_type` fallan contra la DB real.
+**Próxima acción:** a definir con el owner. Candidatos reales:
+- **Formalizar `servicios.md`** (draft → approved documentando lo ya construido).
+- **Redes sociales:** crear perfiles y completar `href` en `siteConfig.socialLinks`.
+- **[ALTA] Deuda de perf arquitectónica** (ver WEB-PERF-A): ~72 → ~90 mobile exige Server
+  Components + recorte de framer above-the-fold; re-medir Lighthouse de la Home completa
+  ahora que todo el motion está mergeado.
+- **Dominio `syntracore.dev`:** pendiente sin fecha (aún no comprado); prod sigue en
+  `syntra-core-system.vercel.app`.
+- Hero `WEB-HERO-FUTURE` sigue FROZEN/DEFERRED.
