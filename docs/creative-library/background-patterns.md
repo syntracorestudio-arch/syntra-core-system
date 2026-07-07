@@ -1,5 +1,10 @@
 # SYNTRA Creative Library — Background Patterns
 
+> ⚠️ **Nota V2 (2026-07-07):** las advertencias de "cliché a evitar" de este catálogo
+> quedaron superseded por `design-freedom-v2.md` — auroras/beams/grids son material
+> legítimo (shippeamos auroras aprobadas). El catálogo sigue útil como recetario.
+
+
 > Tipos de fondo admitidos y su uso. Consultivo + normativo de coherencia.
 >
 > **Regla de oro:** No usar el mismo tipo de background en todas las secciones.

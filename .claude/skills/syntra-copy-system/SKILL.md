@@ -32,7 +32,7 @@ trata por separado.
 
 **Es:** profesional, clara y **humana**. Español **rioplatense neutro** (vos/tenés), directo,
 sin vueltas. Premium-accesible: calidad de redacción nivel Linear/Vercel/Stripe pero
-**entendible para un dueño de PyME no técnico**. Habla de **resultados de negocio**, no de
+**entendible para cualquier dueño de negocio no técnico — de cualquier tamaño y rubro**. Habla de **resultados de negocio**, no de
 tecnología. **Honesta**: si algo es condicional, se dice en condicional.
 
 **No es:** ni informal/canchera ni corporativa fría. **Registro parejo: ni demasiado técnico
@@ -86,7 +86,7 @@ componentes. Al sumar copy nuevo: extender el tipo + `site.ts`, no incrustar str
 Esto mantiene el copy editable, auditable y separado de la implementación.
 
 ## Anti-patrones a bloquear antes de escribir
-- Jerga técnica en copy visible para PyMEs · superlativos vacíos · "potenciá/revolucioná con
+- Jerga técnica en copy visible para dueños de negocio · superlativos vacíos · "potenciá/revolucioná con
   IA" sin sustancia · CTAs genéricos ("Enviar", "Más info") · Title Case / MAYÚSCULAS de
   relleno · inventar prueba social · copy que promete lo que el producto no hace · mezclar
   inglés innecesario · muros de texto (más de ~2 líneas por bloque sin jerarquía).

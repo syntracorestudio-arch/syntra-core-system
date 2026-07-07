@@ -1,11 +1,11 @@
 ---
 name: syntra-reference-lock
-description: Use AFTER the visual concept and BEFORE touching code on any premium/visual SYNTRA section (Hero, Casos, Servicios, Proceso, Contacto, signature pieces, protagonist backgrounds). Forces the creative direction into a verifiable, owner-approved artifact (docs/reference-locks/<section>.md) with at least one concrete visual reference and binary approval criteria, and records the asset-first vs code-first decision. No code on Cat B/C visual work without an approved lock. Prevents the "premium → straight to implementation" rework loop.
+description: Use AFTER the owner approves a live prototype (variantes-vivas workflow) to DOCUMENT the approved direction as docs/reference-locks/<section>.md — decisions, iterations, verified criteria, files. V2 (2026-07-07): documentation artifact written post-approval; it is NOT a permission gate before code anymore.
 ---
 
 # SYNTRA Reference Lock
 
-**Normative skill.** Turns "I want something premium" into a verifiable artifact the owner approves *before* any code. A green build or a nice paragraph is not direction — a locked visual reference is. This skill is what stopped the Hero rework loop: implementation no longer starts from words, it starts from an approved reference.
+**REFORMA V2 (2026-07-07): esta skill cambió de rol.** El workflow vigente es VARIANTES VIVAS (design-freedom-v2 §4): los prototipos se construyen directamente CON motion y el owner los aprueba EN VIVO en su navegador — ese OK es el gate. El reference-lock se escribe **DESPUÉS de la aprobación**, como DOCUMENTACIÓN de la dirección elegida (decisiones del owner, iteraciones, criterios verificados, archivos). Ya NO es un permiso previo al código. El formato del artefacto (abajo) sigue vigente como plantilla de documentación; ignorar toda regla de este archivo que condicione el código a un lock aprobado.
 
 ## When this applies
 Run this for any **Categoría B / C** visual task with relevant visual work, AFTER `syntra-premium-section-design` (concept) and BEFORE any implementation:

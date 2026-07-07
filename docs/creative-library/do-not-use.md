@@ -1,5 +1,11 @@
 # SYNTRA Creative Library — Do Not Use
 
+> ⚠️ **SUPERSEDED (reforma V2, 2026-07-07)** por `design-freedom-v2.md` §3: la lista
+> de prohibiciones reales es CORTA (stock sin adaptar, ilegibilidad, scroll-jacking,
+> deshonestidad, color fuera de familia). Auroras, partículas, glass, beams, 3D
+> decorativo y nodos son material legítimo con buena ejecución. Archivo histórico.
+
+
 > Anti-patrones. Si aparece alguno, es señal de "landing IA genérica" o de
 > repetición de fórmula. Cada uno con el reemplazo correcto.
 >
