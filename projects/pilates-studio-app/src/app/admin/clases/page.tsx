@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import { LogOut, Plus, Pencil, LayoutGrid } from "lucide-react";
+import { Plus, Pencil, LayoutGrid } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { ClassForm, type ClassFormInitial, type InstructorOption } from "@/components/admin/class-form";
 import { AdminClassCard, type AdminClassData } from "@/components/admin/admin-class-card";
-import { AdminTabs } from "@/components/admin/admin-tabs";
+import { PageHeader } from "@/components/admin/page-header";
 
 export const metadata = { title: "Clases — Panel" };
 export const dynamic = "force-dynamic";
@@ -188,23 +188,7 @@ export default async function AdminClasesPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
-      {/* header */}
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">{studio?.name ?? "Tu estudio"}</p>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Clases</h1>
-        </div>
-        <a
-          href="/logout"
-          aria-label="Cerrar sesión"
-          className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
-        >
-          <LogOut className="size-3.5" aria-hidden />
-          Salir
-        </a>
-      </header>
-
-      <AdminTabs active="clases" role={member.role} />
+      <PageHeader title="Clases" subtitle={studio?.name ?? "Tu estudio"} />
 
       {/* avisos */}
       {notice ? (

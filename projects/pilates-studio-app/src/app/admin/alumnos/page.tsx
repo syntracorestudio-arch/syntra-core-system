@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { LogOut, Users, ChevronRight, GraduationCap, Headset } from "lucide-react";
+import { Users, ChevronRight, GraduationCap, Headset } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { AdminTabs } from "@/components/admin/admin-tabs";
+import { PageHeader } from "@/components/admin/page-header";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
 
 export const metadata = { title: "Alumnos — Panel" };
@@ -76,22 +76,7 @@ export default async function AlumnosPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">{studio?.name ?? "Tu estudio"}</p>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Alumnos</h1>
-        </div>
-        <a
-          href="/logout"
-          aria-label="Cerrar sesión"
-          className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
-        >
-          <LogOut className="size-3.5" aria-hidden />
-          Salir
-        </a>
-      </header>
-
-      <AdminTabs active="alumnos" role={member.role} />
+      <PageHeader title="Alumnos" subtitle={studio?.name ?? "Tu estudio"} />
 
       {notice ? (
         <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
