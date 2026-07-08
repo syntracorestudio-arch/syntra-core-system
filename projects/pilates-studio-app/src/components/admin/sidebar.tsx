@@ -13,10 +13,13 @@ import {
   LogOut,
   MoreHorizontal,
   CalendarCheck,
+  Bell,
   X,
 } from "lucide-react";
+import { markNotificationsRead } from "@/app/admin/notifications-actions";
 
 type Item = { key: string; href: string; label: string; icon: typeof LayoutGrid; adminOnly: boolean };
+export type NotifItem = { id: string; title: string; body: string | null; link: string | null; read: boolean; createdAt: string };
 
 const GROUPS: { group: string; items: Item[] }[] = [
   {
@@ -43,34 +46,97 @@ function initials(name: string) {
   const parts = name.trim().split(/\s+/).slice(0, 2);
   return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "·";
 }
+function relTime(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "recién";
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `hace ${h} h`;
+  return `hace ${Math.floor(h / 24)} d`;
+}
+
+function NotifList({ items, onNavigate }: { items: NotifItem[]; onNavigate?: () => void }) {
+  if (items.length === 0) {
+    return <p className="px-1 py-6 text-center text-sm text-muted-foreground">Sin novedades por ahora.</p>;
+  }
+  return (
+    <ul className="divide-y divide-border">
+      {items.map((n) => {
+        const inner = (
+          <div className="flex items-start gap-2 py-2.5">
+            <span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${n.read ? "bg-transparent" : "bg-primary"}`} aria-hidden />
+            <div className="min-w-0 flex-1">
+              <p className={`text-sm ${n.read ? "text-foreground" : "font-semibold text-foreground"}`}>{n.title}</p>
+              {n.body ? <p className="truncate text-xs text-muted-foreground">{n.body}</p> : null}
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{relTime(n.createdAt)}</p>
+            </div>
+          </div>
+        );
+        return (
+          <li key={n.id}>
+            {n.link ? (
+              <Link href={n.link} onClick={onNavigate} className="-mx-2 block rounded-lg px-2 hover:bg-secondary">
+                {inner}
+              </Link>
+            ) : (
+              <div className="px-0">{inner}</div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 export function AdminSidebar({
   role,
   studioName,
   logo,
   userName,
+  notifications = [],
+  unreadCount = 0,
 }: {
   role: string;
   studioName: string;
   logo: string | null;
   userName: string;
+  notifications?: NotifItem[];
+  unreadCount?: number;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const isAdmin = role === "admin";
   const isActive = (href: string) => (href === "/admin" ? pathname === "/admin" : pathname.startsWith(href));
   const canSee = (it: Item) => !it.adminOnly || isAdmin;
 
   const brand = logo ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={logo} alt={studioName} className="h-9 w-auto max-w-[150px] object-contain" />
+    <img src={logo} alt={studioName} className="h-9 w-auto max-w-[130px] object-contain" />
   ) : (
-    <span className="inline-flex items-center gap-2">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
         <CalendarCheck className="size-4" aria-hidden />
       </span>
       <span className="truncate text-sm font-bold tracking-tight text-foreground">{studioName}</span>
     </span>
+  );
+
+  const bellBtn = (
+    <button
+      type="button"
+      onClick={() => setNotifOpen((v) => !v)}
+      aria-label="Novedades"
+      className="relative flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+    >
+      <Bell className="size-4" aria-hidden />
+      {unreadCount > 0 ? (
+        <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+          {unreadCount > 9 ? "9+" : unreadCount}
+        </span>
+      ) : null}
+    </button>
   );
 
   const userFooter = (
@@ -92,7 +158,6 @@ export function AdminSidebar({
     </div>
   );
 
-  // items de la bottom-bar (mobile): 3 esenciales + "Más"
   const primary = GROUPS[0].items;
   const moreItems = GROUPS.flatMap((g) => g.items).filter((it) => canSee(it) && !primary.some((p) => p.key === it.key));
 
@@ -100,7 +165,29 @@ export function AdminSidebar({
     <>
       {/* ── Sidebar desktop ── */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-surface-sunken lg:flex">
-        <div className="flex h-16 items-center px-4">{brand}</div>
+        <div className="flex h-16 items-center justify-between gap-2 px-4">
+          {brand}
+          {bellBtn}
+        </div>
+
+        {notifOpen ? (
+          <div className="absolute left-3 top-16 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-3 shadow-lg">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">Novedades</p>
+              {unreadCount > 0 ? (
+                <form action={markNotificationsRead}>
+                  <button type="submit" className="text-xs font-medium text-primary hover:underline">
+                    marcar leídas
+                  </button>
+                </form>
+              ) : null}
+            </div>
+            <div className="max-h-80 overflow-y-auto">
+              <NotifList items={notifications} onNavigate={() => setNotifOpen(false)} />
+            </div>
+          </div>
+        ) : null}
+
         <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-2">
           {GROUPS.map((g) => {
             const items = g.items.filter(canSee);
@@ -161,10 +248,13 @@ export function AdminSidebar({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] text-muted-foreground"
+          className="relative flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] text-muted-foreground"
         >
           <MoreHorizontal className="size-5" aria-hidden />
           Más
+          {unreadCount > 0 ? (
+            <span className="absolute right-6 top-1.5 size-2 rounded-full bg-primary" aria-hidden />
+          ) : null}
         </button>
       </nav>
 
@@ -172,7 +262,7 @@ export function AdminSidebar({
       {open ? (
         <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Más opciones">
           <div className="absolute inset-0 bg-foreground/40" onClick={() => setOpen(false)} />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-border bg-card p-4 pb-6 duration-300 animate-in slide-in-from-bottom-4">
+          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-2xl border-t border-border bg-card p-4 pb-6 duration-300 animate-in slide-in-from-bottom-4">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-sm font-semibold text-foreground">Más</p>
               <button
@@ -184,6 +274,25 @@ export function AdminSidebar({
                 <X className="size-4" aria-hidden />
               </button>
             </div>
+
+            {/* Novedades */}
+            <div className="mb-3 rounded-xl border border-border bg-surface-sunken p-3">
+              <div className="flex items-center justify-between">
+                <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                  <Bell className="size-4 text-primary" aria-hidden />
+                  Novedades
+                </p>
+                {unreadCount > 0 ? (
+                  <form action={markNotificationsRead}>
+                    <button type="submit" className="text-xs font-medium text-primary hover:underline">
+                      marcar leídas
+                    </button>
+                  </form>
+                ) : null}
+              </div>
+              <NotifList items={notifications} onNavigate={() => setOpen(false)} />
+            </div>
+
             <ul className="grid gap-1">
               {moreItems.map((it) => {
                 const Icon = it.icon;

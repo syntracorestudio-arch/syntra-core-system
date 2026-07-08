@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Ticket, ChevronRight } from "lucide-react";
+import { Ticket, ChevronRight, Wallet } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/admin/page-header";
 import { SettingsForm, type SettingsInitial } from "@/components/admin/settings-form";
 import { LogoUploader } from "@/components/admin/logo-uploader";
+import { MpConnect } from "@/components/admin/mp-connect";
 
 export const metadata = { title: "Configuración — Panel" };
 export const dynamic = "force-dynamic";
@@ -45,6 +47,16 @@ export default async function ConfiguracionPage({
     )
     .eq("studio_id", member.studio_id)
     .maybeSingle();
+
+  // Estado de la conexión de cobro (solo campos NO-secretos; el token nunca sale del server).
+  const admin = createAdminClient();
+  const { data: mp } = await admin
+    .from("studio_payment_providers")
+    .select("status, mp_nickname")
+    .eq("studio_id", member.studio_id)
+    .maybeSingle();
+  const mpConnected = mp?.status === "connected";
+  const mpNickname = (mp?.mp_nickname as string | null) ?? null;
 
   const b =
     studio?.branding && typeof studio.branding === "object" ? (studio.branding as Record<string, unknown>) : {};
@@ -106,6 +118,24 @@ export default async function ConfiguracionPage({
         </div>
         <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
       </Link>
+
+      {/* Cobro online — MercadoPago (cuenta propia del estudio) */}
+      <section className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Wallet className="size-5" aria-hidden />
+          </span>
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Cobro online (MercadoPago)</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Conectá tu cuenta para cobrar packs y abonos online. El dinero entra directo a tu MercadoPago.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <MpConnect connected={mpConnected} nickname={mpNickname} />
+        </div>
+      </section>
     </main>
   );
 }
