@@ -73,7 +73,7 @@ export async function startCheckout(formData: FormData) {
           failure: `${origin}/app/comprar?status=fail`,
           pending: `${origin}/app/comprar?status=pending`,
         },
-        ...(webhook ? { notification_url: webhook } : {}),
+        ...(webhook ? { notification_url: `${webhook}?studio=${member.studio_id}` } : {}),
       },
     });
     initPoint = pref.sandbox_init_point ?? pref.init_point ?? null;
