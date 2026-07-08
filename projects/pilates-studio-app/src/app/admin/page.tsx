@@ -10,11 +10,12 @@ import {
   ChevronRight,
   CheckCircle2,
   Clock4,
+  Activity,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/page-header";
-import { Sparkline } from "@/components/admin/sparkline";
 import { CountUp } from "@/components/admin/count-up";
+import { IncomeAreaChart } from "@/components/admin/income-area-chart";
 
 export const metadata = { title: "Resumen — Panel" };
 export const dynamic = "force-dynamic";
@@ -22,6 +23,9 @@ export const dynamic = "force-dynamic";
 const ADMIN_ROLES = ["admin", "reception"];
 const DEFAULT_TZ = "America/Argentina/Buenos_Aires";
 const EXPIRY_WARNING_DAYS = 14;
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const DAY_LABEL: Record<number, string> = { 1: "L", 2: "M", 3: "M", 4: "J", 5: "V", 6: "S", 0: "D" };
+const DAY_FULL: Record<number, string> = { 1: "lun", 2: "mar", 3: "mié", 4: "jue", 5: "vie", 6: "sáb", 0: "dom" };
 
 function tzDate(iso: string, tz: string) {
   const p = Object.fromEntries(
@@ -31,7 +35,6 @@ function tzDate(iso: string, tz: string) {
   );
   return `${p.year}-${p.month}-${p.day}`;
 }
-/** Hora local del estudio (YYYY-MM-DD + HH:MM en tz) → instante UTC ISO (DST-safe). */
 function localToUtcISO(dateStr: string, timeStr: string, tz: string) {
   const [y, mo, d] = dateStr.split("-").map(Number);
   const [h, mi] = timeStr.split(":").map(Number);
@@ -54,13 +57,22 @@ function localToUtcISO(dateStr: string, timeStr: string, tz: string) {
 }
 function addDays(dateStr: string, n: number) {
   const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d + n));
-  return dt.toISOString().slice(0, 10);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
 }
-/** Primer día (YYYY-MM) del mes anterior a un YYYY-MM. */
 function prevMonth(ym: string) {
   const [y, m] = ym.split("-").map(Number);
   return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+}
+function shiftYm(ym: string, months: number) {
+  const [y, m] = ym.split("-").map(Number);
+  const idx = y * 12 + (m - 1) + months;
+  return `${Math.floor(idx / 12)}-${String((idx % 12) + 1).padStart(2, "0")}`;
+}
+function shortMonth(ym: string) {
+  const [y, m] = ym.split("-").map(Number);
+  return new Intl.DateTimeFormat("es-AR", { month: "short", timeZone: "UTC" })
+    .format(new Date(Date.UTC(y, m - 1, 1)))
+    .replace(/\./g, "");
 }
 function money(n: number) {
   return `$${Math.round(n).toLocaleString("es-AR")}`;
@@ -90,7 +102,6 @@ export default async function AdminDashboardPage() {
     .limit(1)
     .maybeSingle();
   if (!member || !ADMIN_ROLES.includes(member.role)) redirect("/app");
-  // reception: opera (agenda, cobros, deuda) pero NO ve los totales financieros globales.
   const isReception = member.role === "reception";
   const studioRel = (member.studios ?? null) as { name: string; timezone: string | null } | { name: string; timezone: string | null }[] | null;
   const studio = Array.isArray(studioRel) ? studioRel[0] : studioRel;
@@ -119,7 +130,7 @@ export default async function AdminDashboardPage() {
       .order("starts_at", { ascending: true }),
   ]);
 
-  // ---- ingresos (mes actual + comparativa mes anterior) ----
+  // ---- ingresos + comparativa ----
   const payments = (pays ?? []) as { amount: number; concept: string; paid_at: string }[];
   const ingresosTotal = payments.reduce((s, p) => s + Number(p.amount), 0);
   const monthPays = payments.filter((p) => p.paid_at >= monthStart);
@@ -127,34 +138,39 @@ export default async function AdminDashboardPage() {
   const ingresosPrevMes = payments
     .filter((p) => p.paid_at >= prevMonthStart && p.paid_at < monthStart)
     .reduce((s, p) => s + Number(p.amount), 0);
-  // delta solo si hay historia real el mes anterior (sin comparativas huecas)
   const delta = ingresosPrevMes > 0 ? Math.round(((ingresosMes - ingresosPrevMes) / ingresosPrevMes) * 100) : null;
   const packsMes = monthPays.filter((p) => p.concept === "pack").length;
   const sueltasMes = monthPays.filter((p) => p.concept === "drop_in").length;
 
-  // ---- alumnos / deuda ----
+  // serie de ingresos por mes (últimos 6) para el área
+  const incomeByMonth = new Map<string, number>();
+  for (const p of payments) {
+    const k = p.paid_at.slice(0, 7);
+    incomeByMonth.set(k, (incomeByMonth.get(k) ?? 0) + Number(p.amount));
+  }
+  const incomeSeries = Array.from({ length: 6 }, (_, i) => {
+    const ym = shiftYm(thisYm, -(5 - i));
+    return { label: shortMonth(ym), value: incomeByMonth.get(ym) ?? 0 };
+  });
+
+  // ---- alumnos / deuda (solo clients) ----
   const nameById = new Map<string, string>(
     ((mems ?? []) as { id: string; profiles: ProfileRel | ProfileRel[] | null }[]).map((m) => {
       const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
       return [m.id, prof?.full_name ?? "Alumno"];
     }),
   );
-  // La vista member_financial_status incluye TODOS los roles (incl. instructores):
-  // la deuda/al-día del negocio se cuenta solo sobre alumnos (nameById = clients).
-  const finList = ((fins ?? []) as { member_id: string; financial_status: string }[]).filter((f) =>
-    nameById.has(f.member_id),
-  );
+  const finList = ((fins ?? []) as { member_id: string; financial_status: string }[]).filter((f) => nameById.has(f.member_id));
   const debtors = finList.filter((f) => f.financial_status !== "al_dia");
   const alDia = finList.length - debtors.length;
 
-  // ---- membresías por vencer ----
   const limitDate = addDays(todayLocal, EXPIRY_WARNING_DAYS);
   const porVencer = ((mships ?? []) as { valid_to: string; status: string }[]).filter(
     (m) => m.valid_to >= todayLocal && m.valid_to <= limitDate,
   ).length;
   const needsAttention = debtors.length > 0 || porVencer > 0;
 
-  // ---- ocupación ----
+  // ---- ocupación: semana + heatmap día×hora + clases de hoy ----
   const occs = (occ ?? []) as { starts_at: string; capacity: number; booked_count: number; classes: { name: string } | { name: string }[] | null }[];
   const weekCap = occs.reduce((s, o) => s + o.capacity, 0);
   const weekBooked = occs.reduce((s, o) => s + o.booked_count, 0);
@@ -166,34 +182,21 @@ export default async function AdminDashboardPage() {
       return { time: timeOf(o.starts_at, tz), name: cls?.name ?? "Clase", booked: o.booked_count, capacity: o.capacity };
     });
 
-  // ingresos por mes (sparkline, últimos 6 meses)
-  const incomeByMonth = new Map<string, number>();
-  for (const p of payments) {
-    const k = p.paid_at.slice(0, 7);
-    incomeByMonth.set(k, (incomeByMonth.get(k) ?? 0) + Number(p.amount));
+  // heatmap: (weekday × hora) → ocupación
+  const slots = new Map<string, { booked: number; cap: number }>();
+  const hoursSet = new Set<number>();
+  for (const o of occs) {
+    const dk = tzDate(o.starts_at, tz);
+    const wd = new Date(`${dk}T12:00:00Z`).getUTCDay();
+    const hh = Number(timeOf(o.starts_at, tz).slice(0, 2));
+    hoursSet.add(hh);
+    const key = `${wd}-${hh}`;
+    const acc = slots.get(key) ?? { booked: 0, cap: 0 };
+    acc.booked += o.booked_count;
+    acc.cap += o.capacity;
+    slots.set(key, acc);
   }
-  const ref = new Date(nowIso);
-  const monthlyIncome = Array.from({ length: 6 }, (_, i) => {
-    const dt = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth() - (5 - i), 1));
-    return incomeByMonth.get(dt.toISOString().slice(0, 7)) ?? 0;
-  });
-
-  // ocupación por día (próximos 7 días) → mini-barras
-  const perDay = Array.from({ length: 7 }, (_, i) => {
-    const dk = addDays(todayLocal, i);
-    let cap = 0;
-    let booked = 0;
-    for (const o of occs) {
-      if (tzDate(o.starts_at, tz) === dk) {
-        cap += o.capacity;
-        booked += o.booked_count;
-      }
-    }
-    const label = new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "narrow" }).format(
-      new Date(`${dk}T12:00:00Z`),
-    );
-    return { label, pct: cap > 0 ? Math.round((booked / cap) * 100) : 0, today: i === 0 };
-  });
+  const hours = [...hoursSet].sort((a, b) => a - b);
 
   const monthLabel = new Intl.DateTimeFormat("es-AR", { timeZone: tz, month: "long" }).format(new Date(nowIso));
   const isEmpty = payments.length === 0 && occs.length === 0;
@@ -207,8 +210,7 @@ export default async function AdminDashboardPage() {
           <Wallet className="mx-auto size-7 text-primary" aria-hidden />
           <h2 className="mt-3 text-lg font-semibold text-foreground">Tu negocio, en una pantalla</h2>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            Cargá tus primeras clases y registrá un pago para ver acá tus ingresos, la ocupación y quién
-            está al día.
+            Cargá tus primeras clases y registrá un pago para ver acá tus ingresos, la ocupación y quién está al día.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             <Link
@@ -228,54 +230,75 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
       ) : (
-        <div className="mt-6 grid gap-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
-          {/* ══ Zona 1 · Dinero (protagonista; reception no ve totales) ══ */}
+        <div className="mt-6 grid gap-5 duration-500 animate-in fade-in slide-in-from-bottom-2">
+          {/* ══ KPIs ══ */}
+          <div className={`grid grid-cols-2 gap-3 ${isReception ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
+            {!isReception ? (
+              <Kpi
+                icon={<TrendingUp className="size-4" aria-hidden />}
+                label={`Ingresos de ${monthLabel}`}
+                hero
+              >
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <CountUp value={ingresosMes} prefix="$" className="text-2xl font-bold tabular-nums text-foreground" />
+                  {delta !== null ? (
+                    <span
+                      className={`inline-flex items-center gap-0.5 text-xs font-semibold ${
+                        delta >= 0 ? "text-primary" : "text-muted-foreground"
+                      }`}
+                    >
+                      {delta >= 0 ? <TrendingUp className="size-3" aria-hidden /> : <TrendingDown className="size-3" aria-hidden />}
+                      {delta >= 0 ? "+" : ""}
+                      {delta}%
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {packsMes} {packsMes === 1 ? "pack" : "packs"} · {sueltasMes} {sueltasMes === 1 ? "suelta" : "sueltas"}
+                </p>
+              </Kpi>
+            ) : null}
+
+            <Kpi icon={<Activity className="size-4" aria-hidden />} label="Ocupación semana">
+              <p className="text-2xl font-bold tabular-nums text-foreground">{weekOcc}%</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {weekBooked}/{weekCap} lugares
+              </p>
+            </Kpi>
+
+            <Kpi icon={<CheckCircle2 className="size-4" aria-hidden />} label="Alumnos al día" tone="success">
+              <p className="text-2xl font-bold tabular-nums text-foreground">{alDia}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">de {finList.length}</p>
+            </Kpi>
+
+            <Kpi
+              icon={<AlertCircle className="size-4" aria-hidden />}
+              label="Con deuda"
+              tone={debtors.length > 0 ? "warning" : "muted"}
+            >
+              <p className={`text-2xl font-bold tabular-nums ${debtors.length > 0 ? "text-foreground" : "text-foreground"}`}>
+                {debtors.length}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">a cobrar</p>
+            </Kpi>
+          </div>
+
+          {/* ══ Ingresos (protagonista, solo admin) ══ */}
           {!isReception ? (
-            <section className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/12 via-card to-card p-5 shadow-raised sm:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <TrendingUp className="size-3.5 text-primary" aria-hidden />
-                    Ingresos de <span className="capitalize">{monthLabel}</span>
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <CountUp
-                      value={ingresosMes}
-                      prefix="$"
-                      className="block text-4xl font-bold tracking-tight text-foreground tabular-nums sm:text-5xl"
-                    />
-                    {delta !== null ? (
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          delta >= 0 ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground"
-                        }`}
-                      >
-                        {delta >= 0 ? (
-                          <TrendingUp className="size-3.5" aria-hidden />
-                        ) : (
-                          <TrendingDown className="size-3.5" aria-hidden />
-                        )}
-                        {delta >= 0 ? "+" : ""}
-                        {delta}% vs mes anterior
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    {packsMes} {packsMes === 1 ? "pack" : "packs"} · {sueltasMes}{" "}
-                    {sueltasMes === 1 ? "suelta" : "sueltas"} · total histórico {money(ingresosTotal)}
-                  </p>
-                </div>
-                <div className="min-w-[8rem] flex-1 text-primary">
-                  <Sparkline data={monthlyIncome} className="h-14 w-full" />
-                  <p className="mt-1 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
-                    últimos 6 meses
-                  </p>
-                </div>
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-raised">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="text-base font-semibold text-foreground">Ingresos</h2>
+                <span className="text-xs text-muted-foreground">
+                  últimos 6 meses · total {money(ingresosTotal)}
+                </span>
+              </div>
+              <div className="mt-4">
+                <IncomeAreaChart data={incomeSeries} />
               </div>
             </section>
           ) : null}
 
-          {/* ══ Zona 2 · Necesita tu atención (deuda + vencimientos, cada uno accionable) ══ */}
+          {/* ══ Necesita tu atención ══ */}
           <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <h2 className="inline-flex items-center gap-1.5 text-base font-semibold text-foreground">
@@ -293,7 +316,6 @@ export default async function AdminDashboardPage() {
 
             {needsAttention ? (
               <div className="mt-4 grid gap-4 sm:grid-cols-2 sm:items-start">
-                {/* deudores */}
                 <div>
                   <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
                     <Wallet className="size-4 text-destructive" aria-hidden />
@@ -307,9 +329,7 @@ export default async function AdminDashboardPage() {
                             href={`/admin/alumnos/${d.member_id}`}
                             className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-secondary"
                           >
-                            <span className="truncate text-sm text-foreground">
-                              {nameById.get(d.member_id) ?? "Alumno"}
-                            </span>
+                            <span className="truncate text-sm text-foreground">{nameById.get(d.member_id) ?? "Alumno"}</span>
                             <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
                               cobrar <ChevronRight className="size-3.5" aria-hidden />
                             </span>
@@ -327,7 +347,6 @@ export default async function AdminDashboardPage() {
                   ) : null}
                 </div>
 
-                {/* vencimientos */}
                 <div>
                   <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
                     <Clock4 className="size-4 text-warning" aria-hidden />
@@ -335,8 +354,7 @@ export default async function AdminDashboardPage() {
                   </p>
                   {porVencer > 0 ? (
                     <p className="mt-2 text-sm text-foreground">
-                      {porVencer} {porVencer === 1 ? "membresía vence" : "membresías vencen"} en los próximos{" "}
-                      {EXPIRY_WARNING_DAYS} días.
+                      {porVencer} {porVencer === 1 ? "membresía vence" : "membresías vencen"} en los próximos {EXPIRY_WARNING_DAYS} días.
                     </p>
                   ) : (
                     <p className="mt-2 text-sm text-muted-foreground">Sin vencimientos en {EXPIRY_WARNING_DAYS} días.</p>
@@ -358,38 +376,42 @@ export default async function AdminDashboardPage() {
             )}
           </section>
 
-          {/* ══ Zona 3 y 4 · Operación (ocupación + hoy) ══ */}
+          {/* ══ Operación: heatmap ocupación + clases de hoy ══ */}
           <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
             <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-foreground">Ocupación de la semana</h2>
+                <h2 className="text-base font-semibold text-foreground">Ocupación por horario</h2>
                 <span className="text-sm font-semibold text-foreground">{weekOcc}%</span>
               </div>
-              <div className="mt-4 flex items-end justify-between gap-2">
-                {perDay.map((d, i) => (
-                  <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                    <div className="flex h-16 w-full items-end overflow-hidden rounded-md bg-secondary">
-                      <div
-                        className={`w-full rounded-md transition-base ${d.today ? "bg-primary" : "bg-primary/60"}`}
-                        style={{ height: `${Math.max(d.pct, 4)}%` }}
-                        aria-hidden
-                      />
-                    </div>
-                    <span className={`text-[10px] uppercase ${d.today ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                      {d.label}
-                    </span>
+              <p className="text-xs text-muted-foreground">Próximos 7 días · cuándo se llenan tus clases</p>
+              {hours.length > 0 ? (
+                <div className="mt-4">
+                  <div className="grid gap-1" style={{ gridTemplateColumns: "auto repeat(7, minmax(0, 1fr))" }}>
+                    <span />
+                    {DAY_ORDER.map((wd) => (
+                      <span key={wd} className="text-center text-[10px] font-medium uppercase text-muted-foreground">
+                        {DAY_LABEL[wd]}
+                      </span>
+                    ))}
+                    {hours.map((hh) => (
+                      <HeatRow key={hh} hh={hh} slots={slots} />
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground">
-                  {weekBooked} de {weekCap} lugares reservados (7 días).
-                </p>
-                <Link href="/admin/clases#nueva-clase" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                  <CalendarPlus className="size-3.5" aria-hidden />
-                  Nueva clase
-                </Link>
-              </div>
+                  <div className="mt-3 flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground">
+                    menos
+                    {[12, 34, 56, 78, 100].map((a) => (
+                      <span
+                        key={a}
+                        className="size-3 rounded-sm"
+                        style={{ backgroundColor: `color-mix(in srgb, var(--primary) ${a}%, transparent)` }}
+                      />
+                    ))}
+                    más
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-muted-foreground">No hay clases programadas esta semana.</p>
+              )}
             </section>
 
             <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -427,5 +449,65 @@ export default async function AdminDashboardPage() {
         </div>
       )}
     </main>
+  );
+}
+
+function Kpi({
+  icon,
+  label,
+  tone = "primary",
+  hero = false,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  tone?: "primary" | "success" | "warning" | "muted";
+  hero?: boolean;
+  children: React.ReactNode;
+}) {
+  const chip =
+    tone === "success"
+      ? "bg-success/15 text-success"
+      : tone === "warning"
+        ? "bg-warning/15 text-warning"
+        : tone === "muted"
+          ? "bg-secondary text-muted-foreground"
+          : "bg-primary/10 text-primary";
+  return (
+    <div
+      className={`rounded-2xl border border-border p-4 shadow-sm ${
+        hero ? "bg-gradient-to-br from-primary/10 via-card to-card sm:col-span-2 lg:col-span-1" : "bg-card"
+      }`}
+    >
+      <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <span className={`flex size-6 items-center justify-center rounded-md ${chip}`}>{icon}</span>
+        {label}
+      </p>
+      <div className="mt-2">{children}</div>
+    </div>
+  );
+}
+
+function HeatRow({ hh, slots }: { hh: number; slots: Map<string, { booked: number; cap: number }> }) {
+  return (
+    <>
+      <span className="pr-1 text-right text-[10px] tabular-nums text-muted-foreground">{String(hh).padStart(2, "0")}h</span>
+      {DAY_ORDER.map((wd) => {
+        const s = slots.get(`${wd}-${hh}`);
+        if (!s || s.cap === 0) {
+          return <span key={wd} className="h-6 rounded-sm bg-surface-sunken" aria-hidden />;
+        }
+        const pct = Math.round((s.booked / s.cap) * 100);
+        const alpha = 14 + Math.round((pct / 100) * 86);
+        return (
+          <span
+            key={wd}
+            title={`${DAY_FULL[wd]} ${String(hh).padStart(2, "0")}h · ${s.booked}/${s.cap} (${pct}%)`}
+            className="h-6 rounded-sm"
+            style={{ backgroundColor: `color-mix(in srgb, var(--primary) ${alpha}%, transparent)` }}
+          />
+        );
+      })}
+    </>
   );
 }
