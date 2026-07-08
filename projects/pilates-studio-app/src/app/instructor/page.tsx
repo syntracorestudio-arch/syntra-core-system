@@ -52,6 +52,7 @@ export default async function InstructorPage({
   const { data: me } = await supabase
     .from("members")
     .select("id, role, profiles(full_name), studios(name, timezone)")
+    .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
   // Guard de rol: esta área es solo para instructores.

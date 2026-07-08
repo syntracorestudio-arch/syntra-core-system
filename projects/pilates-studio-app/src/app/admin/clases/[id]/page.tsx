@@ -56,6 +56,7 @@ export default async function ClaseDetallePage({
   const { data: me } = await supabase
     .from("members")
     .select("role, studios(timezone)")
+    .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
   if (!me || !ADMIN_ROLES.includes(me.role)) redirect("/app");

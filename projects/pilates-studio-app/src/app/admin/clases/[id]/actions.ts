@@ -16,7 +16,12 @@ async function guard() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: member } = await supabase.from("members").select("role").limit(1).maybeSingle();
+  const { data: member } = await supabase
+    .from("members")
+    .select("role")
+    .eq("profile_id", user.id)
+    .limit(1)
+    .maybeSingle();
   if (!member || !ADMIN_ROLES.includes(member.role)) redirect("/app");
   return supabase;
 }

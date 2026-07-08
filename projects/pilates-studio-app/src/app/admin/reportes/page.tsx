@@ -112,6 +112,7 @@ export default async function ReportesPage({
   const { data: member } = await supabase
     .from("members")
     .select("role, studios(name, timezone)")
+    .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
   // Reportes = datos financieros → solo admin (reception no accede).

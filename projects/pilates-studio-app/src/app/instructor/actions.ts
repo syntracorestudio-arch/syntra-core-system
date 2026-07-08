@@ -16,7 +16,12 @@ export async function setAttendance(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: me } = await supabase.from("members").select("id, role").limit(1).maybeSingle();
+  const { data: me } = await supabase
+    .from("members")
+    .select("id, role")
+    .eq("profile_id", user.id)
+    .limit(1)
+    .maybeSingle();
   if (!me || me.role !== "instructor") redirect("/app");
 
   const reservationId = String(formData.get("reservation") ?? "");
