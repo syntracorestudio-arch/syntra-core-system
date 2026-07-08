@@ -1,94 +1,27 @@
-"use client";
-
-import * as React from "react";
-import { ArrowRight, Check } from "lucide-react";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
-
-import { services, siteConfig } from "@/config/site";
-import { getIcon } from "@/lib/icons";
-import { EASE_PREMIUM, DURATION } from "@/lib/motion";
-import { cn } from "@/lib/utils";
+import { siteConfig } from "@/config/site";
 import { Section } from "@/components/layout/section";
 import { Container } from "@/components/layout/container";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { BlurReveal } from "@/components/animations/blur-reveal";
-import { MagicCard } from "@/components/ui/magic-card";
-import { BorderBeam } from "@/components/ui/border-beam";
-import { ServiceModulesTabs } from "@/components/marketing/servicios/service-modules-tabs";
-import { ServicesConnectionFlow } from "@/components/marketing/servicios/services-connection-flow";
+import { ServicesShowcase } from "@/components/marketing/servicios/services-showcase";
 import { ServicesDecide } from "@/components/marketing/servicios/services-decide";
 import { DeferredLivingBackground } from "@/components/marketing/living/deferred-living-background";
 
 /**
- * ServicesSection — PROTOTIPO web viva (piloto).
+ * ServicesSection — Servicios v5 "Showcase imagery-led" (dirección final del owner).
  *
- * Tres puertas como CARDS PREMIUM (MagicCard spotlight + BorderBeam por rol) sobre el
- * fondo vivo 3D. Contenido interior más rico (tag · título · descripción · entregables
- * con check · CTA) sin tocar el copy de site.ts. Identidad por rol
- * (electric/violeta/cyan). reduced-motion safe; CLS 0.
+ * Server Component: sin estado ni hooks — solo compone. Sobre el fondo vivo 3D (arco)
+ * que se conserva intacto:
+ *   1. heading (BlurReveal + SectionHeading, con el copy nuevo de siteConfig),
+ *   2. <ServicesShowcase /> — grid 2×2 de paneles liderados por render 3D + circuito
+ *      central hacia un núcleo,
+ *   3. <ServicesDecide /> — por dónde empezar + CTA consultivo (filas sin cajas,
+ *      contrasta con los paneles ricos).
  *
- * Estado: prototipo para aprobar el objetivo visual del lock (Servicios). No commitear
- * hasta OK del owner (visual gate).
+ * reduced-motion safe; CLS 0 (sin animar layout).
  */
-
-interface Role {
-  idx: string;
-  /** color sólido del rol (hex) para spotlight + beam */
-  hex: string;
-  hex2: string;
-  text: string; // clase de texto del rol
-  tint: string; // bg tint del ícono
-  ring: string; // borde del chip de ícono
-}
-
-const ROLES: Record<string, Role> = {
-  web: {
-    idx: "01",
-    hex: "#2563eb",
-    hex2: "#38bdf8",
-    text: "text-brand-electric",
-    tint: "bg-brand-electric/10",
-    ring: "ring-brand-electric/25",
-  },
-  automation: {
-    idx: "02",
-    hex: "#6d5dfb",
-    hex2: "#2563eb",
-    text: "text-accent-ai",
-    tint: "bg-accent-ai/10",
-    ring: "ring-accent-ai/25",
-  },
-  ia: {
-    idx: "03",
-    hex: "#38bdf8",
-    hex2: "#6d5dfb",
-    text: "text-brand-cyan",
-    tint: "bg-brand-cyan/10",
-    ring: "ring-brand-cyan/25",
-  },
-};
-
-const FALLBACK: Role = ROLES.ia;
-
 function ServicesSection() {
   const { eyebrow, title, subtitle } = siteConfig.sections.services;
-  const reduce = useReducedMotion() ?? false;
-
-  const grid: Variants = {
-    hidden: {},
-    show: {
-      transition: { staggerChildren: reduce ? 0 : 0.12, delayChildren: reduce ? 0 : 0.05 },
-    },
-  };
-  const card: Variants = {
-    hidden: reduce ? { opacity: 1 } : { opacity: 0, y: 26, filter: "blur(6px)" },
-    show: {
-      opacity: 1,
-      y: 0,
-      filter: "blur(0px)",
-      transition: { duration: reduce ? 0 : DURATION.section, ease: EASE_PREMIUM },
-    },
-  };
 
   return (
     <Section
@@ -138,119 +71,11 @@ function ServicesSection() {
           <SectionHeading eyebrow={eyebrow} title={title} subtitle={subtitle} align="left" />
         </BlurReveal>
 
-      {/* === Tres puertas: cards premium === */}
-      <motion.div
-        variants={grid}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.2 }}
-        className="mx-auto mt-12 grid max-w-5xl gap-5 lg:mt-16 lg:grid-cols-3 lg:gap-6"
-      >
-        {services.map((service) => {
-          const Icon = getIcon(service.icon);
-          const role = ROLES[service.id] ?? FALLBACK;
+        {/* === Showcase 2×2 imagery-led + circuito central, arco 3D detrás === */}
+        <ServicesShowcase />
 
-          return (
-            <motion.div
-              key={service.id}
-              variants={card}
-              whileHover={
-                reduce ? undefined : { y: -6, boxShadow: `0 16px 48px -16px ${role.hex}66` }
-              }
-              transition={{ duration: 0.3, ease: EASE_PREMIUM }}
-              className="h-full rounded-2xl"
-            >
-              <MagicCard
-                gradientColor={role.hex}
-                gradientOpacity={0.14}
-                gradientFrom={role.hex}
-                gradientTo={role.hex2}
-                gradientSize={260}
-                className="h-full rounded-2xl"
-              >
-                <div className="relative flex h-full flex-col gap-4 p-6">
-                  {/* Top: ícono de rol + índice */}
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={cn(
-                        "inline-flex size-10 items-center justify-center rounded-xl ring-1",
-                        role.tint,
-                        role.ring,
-                      )}
-                    >
-                      <Icon className={cn("size-5", role.text)} aria-hidden="true" />
-                    </span>
-                    <span
-                      className={cn(
-                        "font-heading text-2xl font-bold tracking-tighter tabular-nums opacity-25",
-                        role.text,
-                      )}
-                    >
-                      {role.idx}
-                    </span>
-                  </div>
-
-                  {/* Tag */}
-                  <span className={cn("font-accent text-xs tracking-widest uppercase", role.text)}>
-                    {service.tag}
-                  </span>
-
-                  {/* Título + descripción */}
-                  <div className="space-y-3">
-                    <h3 className="font-heading text-2xl leading-tight font-bold tracking-tight text-balance">
-                      {service.title}
-                    </h3>
-                    <p className="text-sm leading-relaxed text-pretty text-muted-foreground">
-                      {service.description}
-                    </p>
-                  </div>
-
-                  {/* Entregables (copy existente, presentación más rica) */}
-                  <ul className="mt-1 space-y-2">
-                    {service.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2.5 text-sm text-foreground/85">
-                        <Check className={cn("mt-0.5 size-4 shrink-0", role.text)} aria-hidden="true" />
-                        <span className="leading-snug">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* CTA al pie */}
-                  <a
-                    href="#contacto"
-                    className={cn(
-                      "mt-auto inline-flex items-center gap-1.5 pt-2 text-sm font-medium transition-opacity hover:opacity-80",
-                      role.text,
-                    )}
-                  >
-                    Lo quiero para mi negocio
-                    <ArrowRight className="size-4" aria-hidden="true" />
-                  </a>
-                </div>
-
-                {!reduce && (
-                  <BorderBeam
-                    size={130}
-                    duration={9}
-                    colorFrom={role.hex}
-                    colorTo={role.hex2}
-                    className="opacity-70"
-                  />
-                )}
-              </MagicCard>
-            </motion.div>
-          );
-        })}
-      </motion.div>
-
-      {/* === Bloque 2: qué podés construir con cada módulo (tabs) === */}
-      <ServiceModulesTabs />
-
-      {/* === Bloque 3: una solución puede crecer con la otra (flujo) === */}
-      <ServicesConnectionFlow />
-
-      {/* === Bloques 4 + 5: por dónde empezar + CTA consultivo === */}
-      <ServicesDecide />
+        {/* === Cierre: por dónde empezar + CTA consultivo === */}
+        <ServicesDecide />
       </Container>
     </Section>
   );

@@ -4,9 +4,7 @@ import type {
   FaqItem,
   NavItem,
   ServiceItem,
-  ServicesConnection,
   ServicesConsultCta,
-  ServicesStartOption,
   SiteConfig,
   StackItem,
   WorkflowStep,
@@ -77,9 +75,9 @@ export const siteConfig: SiteConfig = {
   sections: {
     services: {
       eyebrow: "Servicios modulares",
-      title: "Elegí por dónde empezar",
+      title: "Cuatro módulos, un solo sistema",
       subtitle:
-        "Podés lanzar una web premium, automatizar tareas, sumar un chatbot con IA o conectar todo en un sistema completo cuando tu negocio lo necesite.",
+        "Cada módulo funciona solo y genera valor desde el primer día. Cuando tu negocio lo pide, se conectan entre sí y trabajan como un solo sistema.",
     },
     useCases: {
       eyebrow: "Qué construimos",
@@ -145,6 +143,7 @@ export const projectTypeOptions: { value: ProjectType; label: string }[] = [
   { value: "web", label: "Web para mi negocio" },
   { value: "automation", label: "Automatización de procesos" },
   { value: "ai", label: "IA / integración inteligente" },
+  { value: "panel", label: "Panel de gestión" },
   { value: "unsure", label: "Todavía no lo tengo claro" },
 ];
 
@@ -162,6 +161,12 @@ export function projectTypeLabel(values: string[] | null): string {
 
 export const mainNav: NavItem[] = siteConfig.nav;
 
+/**
+ * Módulos de Servicios v2 "Circuito modular". ORDEN = pipeline de Ejemplos
+ * (web → ia → automation → panel): la misma secuencia con la que el visitante
+ * ya vio las demos vivas, para que el selector y el diagrama lean parejo.
+ * `essentials` = "Puede incluir…" (lista comercial breve, no técnica).
+ */
 export const services: ServiceItem[] = [
   {
     id: "web",
@@ -170,22 +175,37 @@ export const services: ServiceItem[] = [
     title: "Webs premium",
     description:
       "Una presencia profesional que genera confianza y convierte visitas en consultas.",
+    blurb: "Una web que genera confianza y convierte visitas en consultas.",
     features: [
       "Más consultas desde tu sitio",
       "Mejor presencia y posición en Google",
       "Se ve perfecto en celular y escritorio",
       "Listo para sumar automatización después",
     ],
-    moduleIntro:
-      "Creamos una presencia digital clara, profesional y preparada para convertir visitas en consultas reales.",
-    includes: [
-      "Página institucional o landing page",
-      "Un mensaje claro sobre lo que ofrecés",
-      "Diseño adaptable a celular y escritorio",
+    essentials: [
+      "Landing o sitio institucional",
       "Formularios listos para recibir consultas",
-      "Textos pensados para generar oportunidades",
-      "Un sitio rápido, ordenado y fácil de navegar",
-      "Base preparada para sumar automatizaciones",
+      "Base lista para automatizar después",
+    ],
+  },
+  {
+    id: "ia",
+    icon: "Sparkles",
+    tag: "ia",
+    title: "Asistentes con IA",
+    description:
+      "Respuestas más rápidas y consultas mejor ordenadas, con el tono de tu marca, incluso fuera de horario.",
+    blurb: "Un asistente que responde al instante, con el tono de tu marca.",
+    features: [
+      "Respuestas rápidas, incluso fuera de horario",
+      "Filtra y deriva lo importante a tu equipo",
+      "Información de cada consulta ordenada",
+      "Atención con el tono de tu marca",
+    ],
+    essentials: [
+      "Respuestas 24/7 con la información de tu negocio",
+      "Filtro y derivación a tu equipo",
+      "Atención con el tono de tu marca",
     ],
   },
   {
@@ -195,96 +215,42 @@ export const services: ServiceItem[] = [
     title: "Automatizaciones",
     description:
       "Menos tareas manuales y mejor seguimiento para responder más rápido y perder menos oportunidades.",
+    blurb: "Las tareas repetitivas se hacen solas: registro, avisos y seguimiento.",
     features: [
       "Menos carga manual para tu equipo",
       "Seguimiento más ordenado de cada consulta",
       "Avisos y reportes automáticos",
       "Conecta las herramientas que ya usás",
     ],
-    moduleIntro:
-      "Ordenamos las tareas repetitivas para que tu negocio responda más rápido, pierda menos oportunidades y dependa menos de procesos manuales.",
-    includes: [
-      "Registro automático de consultas",
-      "Avisos internos para tu equipo",
-      "Seguimientos más ordenados",
-      "Menos carga manual de información",
-      "Reportes simples para ver qué está pasando",
-      "Conexión entre las herramientas que usás",
-      "Validaciones para reducir errores o duplicados",
+    essentials: [
+      "Registro automático de cada consulta",
+      "Avisos a tu equipo por mail",
+      "Conexión entre las herramientas que ya usás",
     ],
   },
   {
-    id: "ia",
-    icon: "Sparkles",
-    tag: "ia",
-    title: "Chatbots con IA",
+    id: "panel",
+    icon: "Database",
+    tag: "panel",
+    title: "Paneles de gestión",
     description:
-      "Respuestas más rápidas y consultas mejor ordenadas, con el tono de tu marca, incluso fuera de horario.",
+      "Todas las consultas y pedidos de tu negocio en un solo lugar, con su estado y su historia.",
+    blurb: "Todo tu negocio en una pantalla: cada consulta con su estado.",
     features: [
-      "Respuestas rápidas, incluso fuera de horario",
-      "Filtra y deriva lo importante a tu equipo",
-      "Información de cada consulta ordenada",
-      "Atención con el tono de tu marca",
+      "Todo el negocio en una sola pantalla",
+      "Cada consulta con su estado y su responsable",
+      "Decisiones con datos reales, no de memoria",
+      "Nada queda sin seguimiento",
     ],
-    moduleIntro:
-      "Creamos asistentes que ayudan a responder, filtrar y ordenar consultas con el tono de tu negocio.",
-    includes: [
-      "Respuestas rápidas a preguntas frecuentes",
-      "Atención inicial fuera de horario",
-      "Filtro de consultas antes de derivarlas",
-      "Captura de los datos importantes",
-      "Organización de las conversaciones",
-      "Respuestas alineadas a tu marca",
-      "Derivación a una persona cuando haga falta",
+    essentials: [
+      "Vista simple para tu equipo",
+      "Estados claros por consulta",
+      "Reportes para decidir mejor",
     ],
   },
 ];
 
-/** Bloque 2 — encabezado de "Qué podés construir con cada módulo". */
-export const servicesModulesMeta = {
-  title: "Qué podés construir con cada módulo",
-  subtitle:
-    "Cada servicio puede funcionar como un primer paso independiente o conectarse más adelante con el resto del sistema.",
-};
-
-/** Bloque 3 — "Una solución puede crecer con la otra" (narrativa + flujo). */
-export const servicesConnection: ServicesConnection = {
-  title: "Una solución puede crecer con la otra",
-  body: "Podés empezar con una web, una automatización o un asistente con IA. Lo importante es que cada pieza quede preparada para conectarse después, para que tu negocio no tenga soluciones aisladas, sino un sistema más ordenado y fácil de escalar.",
-  flow: [
-    { label: "Web recibe la consulta", role: "web" },
-    { label: "Automatización la ordena", role: "automation" },
-    { label: "IA responde o filtra", role: "ia" },
-    { label: "Tu equipo recibe una oportunidad más clara", role: "team" },
-  ],
-};
-
-/** Bloque 4 — "Por dónde te conviene empezar" (ayuda a decidir el primer paso). */
-export const servicesStart: { title: string; options: ServicesStartOption[] } = {
-  title: "Por dónde te conviene empezar",
-  options: [
-    {
-      id: "presence",
-      title: "Necesito verme más profesional",
-      body: "Empezá por una web premium que explique mejor tu negocio y convierta visitas en consultas.",
-      serviceId: "web",
-    },
-    {
-      id: "tasks",
-      title: "Pierdo tiempo en tareas repetitivas",
-      body: "Empezá por una automatización que ordene consultas, avisos, seguimientos o reportes.",
-      serviceId: "automation",
-    },
-    {
-      id: "questions",
-      title: "Recibo muchas preguntas parecidas",
-      body: "Empezá por un asistente con IA para responder, filtrar y derivar consultas de forma más clara.",
-      serviceId: "ia",
-    },
-  ],
-};
-
-/** Bloque 5 — CTA consultivo del cierre de Servicios. */
+/** CTA consultivo del cierre de Servicios. */
 export const servicesConsultCta: ServicesConsultCta = {
   question: "¿No sabés por dónde empezar?",
   microcopy:
