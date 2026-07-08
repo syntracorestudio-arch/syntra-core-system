@@ -29,6 +29,7 @@ export default async function ConfiguracionPage({
   const { data: member } = await supabase
     .from("members")
     .select("role, studio_id, studios(name, timezone, branding)")
+    .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
   if (!member) redirect("/app");

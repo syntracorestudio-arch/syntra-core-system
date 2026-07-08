@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { LogOut, Users, ChevronRight, GraduationCap } from "lucide-react";
+import { LogOut, Users, ChevronRight, GraduationCap, Headset } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
@@ -41,6 +41,7 @@ export default async function AlumnosPage({
   const { data: member } = await supabase
     .from("members")
     .select("role, studios(name)")
+    .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
   if (!member || !ADMIN_ROLES.includes(member.role)) redirect("/app");
@@ -50,7 +51,7 @@ export default async function AlumnosPage({
   const { data: mems } = await supabase
     .from("members")
     .select("id, status, role, profiles(full_name, email, phone)")
-    .in("role", ["client", "instructor"])
+    .in("role", ["client", "instructor", "reception"])
     .order("joined_at", { ascending: false });
   const { data: fins } = await supabase
     .from("member_financial_status")
@@ -66,11 +67,12 @@ export default async function AlumnosPage({
       id: m.id,
       name: prof?.full_name ?? "Alumno",
       email: prof?.email ?? null,
-      isInstructor: m.role === "instructor",
+      role: m.role,
+      isStaff: m.role === "instructor" || m.role === "reception",
       fin: finByMember.get(m.id),
     };
   });
-  const withDebt = alumnos.filter((a) => !a.isInstructor && a.fin && a.fin.financial_status !== "al_dia").length;
+  const withDebt = alumnos.filter((a) => !a.isStaff && a.fin && a.fin.financial_status !== "al_dia").length;
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
@@ -125,16 +127,20 @@ export default async function AlumnosPage({
               <div className="min-w-0">
                 <p className="truncate font-semibold text-foreground">{a.name}</p>
                 {a.email ? <p className="truncate text-sm text-muted-foreground">{a.email}</p> : null}
-                {/* saldo en mobile (en desktop va en la columna derecha); instructor no lleva saldo */}
-                {!a.isInstructor ? (
+                {/* saldo en mobile (en desktop va en la columna derecha); el staff no lleva saldo */}
+                {!a.isStaff ? (
                   <p className="mt-0.5 text-sm font-medium text-foreground sm:hidden">{saldoText(a.fin)}</p>
                 ) : null}
               </div>
               <div className="flex shrink-0 items-center gap-3">
-                {a.isInstructor ? (
+                {a.isStaff ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                    <GraduationCap className="size-3.5" aria-hidden />
-                    Instructor
+                    {a.role === "reception" ? (
+                      <Headset className="size-3.5" aria-hidden />
+                    ) : (
+                      <GraduationCap className="size-3.5" aria-hidden />
+                    )}
+                    {a.role === "reception" ? "Recepción" : "Instructor"}
                   </span>
                 ) : (
                   <>

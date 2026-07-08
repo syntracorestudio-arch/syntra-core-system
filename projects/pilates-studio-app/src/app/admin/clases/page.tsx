@@ -80,6 +80,7 @@ export default async function AdminClasesPage({
   const { data: member } = await supabase
     .from("members")
     .select("role, studios(name, timezone)")
+    .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
   if (!member || !ADMIN_ROLES.includes(member.role)) redirect("/app");

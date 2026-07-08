@@ -13,16 +13,22 @@ export async function login(formData: FormData) {
   }
 
   const supabase = await createSupabaseServer();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data: signIn, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error) {
+  if (error || !signIn.user) {
     // No filtrar detalles del error de auth.
     redirect("/login?error=" + encodeURIComponent("Credenciales inválidas."));
   }
 
-  // Ruteo por rol: cada perfil aterriza donde le sirve (la sesión ya está en cookies,
-  // RLS deja ver el propio member). Fallback seguro → /app (vista de alumno).
-  const { data: member } = await supabase.from("members").select("role").limit(1).maybeSingle();
+  // Ruteo por rol: cada perfil aterriza donde le sirve. IMPORTANTE filtrar por el
+  // usuario actual: admin/reception ven TODOS los members del estudio (RLS), así que
+  // sin este filtro `.limit(1)` devolvería un member arbitrario. Fallback → /app.
+  const { data: member } = await supabase
+    .from("members")
+    .select("role")
+    .eq("profile_id", signIn.user.id)
+    .limit(1)
+    .maybeSingle();
   const role = member?.role;
   if (role === "instructor") redirect("/instructor");
   if (role === "admin" || role === "reception") redirect("/admin");

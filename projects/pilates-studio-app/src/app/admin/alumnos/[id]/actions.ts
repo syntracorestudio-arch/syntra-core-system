@@ -26,7 +26,12 @@ export async function registerPayment(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: member } = await supabase.from("members").select("role").limit(1).maybeSingle();
+  const { data: member } = await supabase
+    .from("members")
+    .select("role")
+    .eq("profile_id", user.id)
+    .limit(1)
+    .maybeSingle();
   if (!member || !ADMIN_ROLES.includes(member.role)) redirect("/app");
 
   const parsed = Schema.safeParse({
@@ -71,10 +76,16 @@ export async function registerPayment(formData: FormData) {
   back({ notice: "Pago registrado. Saldo actualizado." });
 }
 
+const ROLE_NOTICE: Record<string, string> = {
+  client: "Vuelve a ser alumno.",
+  instructor: "Ahora es instructor.",
+  reception: "Ahora es recepción.",
+};
+
 /**
- * Cambia el rol de un member entre 'client' e 'instructor' (solo admin).
- * Restringido a esos dos valores a propósito: este control NUNCA puede escalar
- * a 'admin'/'reception' (evita escalada de privilegios desde la ficha).
+ * Cambia el rol de un member entre 'client', 'instructor' y 'reception' (solo admin).
+ * Restringido a esos tres valores a propósito: este control NUNCA puede escalar a
+ * 'admin' (evita escalada de privilegios desde la ficha).
  * La escritura va por RLS (members_write_admin, mismo estudio).
  */
 export async function setMemberRole(formData: FormData) {
@@ -84,8 +95,13 @@ export async function setMemberRole(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Solo admin (no reception) gestiona instructores.
-  const { data: me } = await supabase.from("members").select("role").limit(1).maybeSingle();
+  // Solo admin gestiona roles de staff.
+  const { data: me } = await supabase
+    .from("members")
+    .select("role")
+    .eq("profile_id", user.id)
+    .limit(1)
+    .maybeSingle();
   if (!me || me.role !== "admin") redirect("/app");
 
   const memberId = String(formData.get("memberId") ?? "");
@@ -93,7 +109,9 @@ export async function setMemberRole(formData: FormData) {
   const back = (params: Record<string, string>): never =>
     redirect(`/admin/alumnos/${memberId}?${new URLSearchParams(params).toString()}`);
 
-  const parsed = z.object({ memberId: UUID, role: z.enum(["client", "instructor"]) }).safeParse({ memberId, role });
+  const parsed = z
+    .object({ memberId: UUID, role: z.enum(["client", "instructor", "reception"]) })
+    .safeParse({ memberId, role });
   if (!parsed.success) return back({ error: "Datos inválidos." });
 
   const { error } = await supabase
@@ -102,7 +120,5 @@ export async function setMemberRole(formData: FormData) {
     .eq("id", parsed.data.memberId);
   if (error) return back({ error: "No se pudo actualizar el rol." });
 
-  back({
-    notice: parsed.data.role === "instructor" ? "Ahora es instructor." : "Vuelve a ser alumno.",
-  });
+  back({ notice: ROLE_NOTICE[parsed.data.role] ?? "Rol actualizado." });
 }

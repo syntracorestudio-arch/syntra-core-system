@@ -8,8 +8,6 @@ import { togglePass } from "./actions";
 export const metadata = { title: "Packs — Panel" };
 export const dynamic = "force-dynamic";
 
-const ADMIN_ROLES = ["admin", "reception"];
-
 function money(n: number) {
   return `$${Number(n).toLocaleString("es-AR")}`;
 }
@@ -35,8 +33,15 @@ export default async function PacksPage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: member } = await supabase.from("members").select("role").limit(1).maybeSingle();
-  if (!member || !ADMIN_ROLES.includes(member.role)) redirect("/app");
+  // Precios/catálogo = decisión del dueño → solo admin (reception no gestiona packs).
+  const { data: member } = await supabase
+    .from("members")
+    .select("role")
+    .eq("profile_id", user.id)
+    .limit(1)
+    .maybeSingle();
+  if (!member) redirect("/app");
+  if (member.role !== "admin") redirect("/admin");
 
   const { data: rows } = await supabase
     .from("passes")

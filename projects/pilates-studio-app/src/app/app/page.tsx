@@ -55,6 +55,7 @@ export default async function AppPage({
   const { data: member } = await supabase
     .from("members")
     .select("role, studios(name, timezone, slug)")
+    .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
 

@@ -39,6 +39,9 @@ values
   ('a0000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000000','authenticated','authenticated',
    'caro@reforma.test', crypt('password123', gen_salt('bf')), now(), now(), now(),
    '{"provider":"email","providers":["email"]}','{"full_name":"Caro Instructora"}'),
+  ('a0000000-0000-0000-0000-000000000006','00000000-0000-0000-0000-000000000000','authenticated','authenticated',
+   'recepcion@reforma.test', crypt('password123', gen_salt('bf')), now(), now(), now(),
+   '{"provider":"email","providers":["email"]}','{"full_name":"Rocío Recepción"}'),
   ('b0000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated',
    'admin@estudiob.test', crypt('password123', gen_salt('bf')), now(), now(), now(),
    '{"provider":"email","providers":["email"]}','{"full_name":"Admin B"}');
@@ -65,6 +68,7 @@ insert into public.members (id, studio_id, profile_id, role) values
   ('d1111111-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000003','client'),
   ('d1111111-0000-0000-0000-000000000004','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000004','client'),
   ('d1111111-0000-0000-0000-000000000005','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000005','instructor'),
+  ('d1111111-0000-0000-0000-000000000006','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000006','reception'),
   ('d2222222-0000-0000-0000-000000000001','22222222-2222-2222-2222-222222222222','b0000000-0000-0000-0000-000000000001','admin');
 
 -- ---------- clase + recurrencia + ocurrencias ----------

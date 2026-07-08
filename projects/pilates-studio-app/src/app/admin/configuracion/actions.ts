@@ -26,6 +26,7 @@ async function adminStudioBranding() {
   const { data: member } = await supabase
     .from("members")
     .select("role, studio_id, studios(branding)")
+    .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
   if (!member || member.role !== "admin") back({ error: "Solo el dueño puede editar la configuración." });
@@ -106,6 +107,7 @@ export async function updateSettings(formData: FormData) {
   const { data: member } = await supabase
     .from("members")
     .select("role, studio_id, studios(branding)")
+    .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
   if (!member || member.role !== "admin") back({ error: "Solo el dueño puede editar la configuración." });

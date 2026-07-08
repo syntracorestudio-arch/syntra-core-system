@@ -72,6 +72,7 @@ export async function createClass(formData: FormData) {
   const { data: member } = await supabase
     .from("members")
     .select("role, studio_id, studios(timezone)")
+    .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
   const studioRel = member?.studios as { timezone: string | null } | { timezone: string | null }[] | null;
@@ -166,7 +167,12 @@ export async function updateClass(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: member } = await supabase.from("members").select("role").limit(1).maybeSingle();
+  const { data: member } = await supabase
+    .from("members")
+    .select("role")
+    .eq("profile_id", user.id)
+    .limit(1)
+    .maybeSingle();
   if (!member || !ADMIN_ROLES.includes(member.role)) back({ error: "No autorizado." });
 
   const classId = String(formData.get("classId") ?? "");
