@@ -2,135 +2,79 @@
 section: casos
 status: approved
 approved_by: "Matias / SYNTRA CORE (owner)"
-date: 2026-06-26
-decision: code-first
+date: 2026-07-08
+decision: code-first (prototipo vivo juzgado en navegador — workflow variantes vivas)
+supersedes: "Casos v1 'Campo de señales' (2026-06-26)"
 ---
 
-# Reference Lock — Casos ("Campo de señales")
+# Reference Lock — Casos v2 ("Ejemplos — demos vivas de servicio")
 
-> Bajo `docs/creative-library/living-web-doctrine.md` (web viva, Fase 5 de rollout).
-> Análisis read-only por `website-experience-auditor` + `creative-director` +
-> `product-experience-designer` (2026-06-26); dirección elegida por el owner.
-> **Este lock NO autoriza código hasta `status: approved`.**
+> **Documentación POST-aprobación** (design-freedom-v2 §4): el owner aprobó el
+> prototipo VIVO en su navegador el 2026-07-08 tras ~6 rondas de iteración en vivo.
+> Este lock registra lo aprobado; no fue gate previo.
 
-## Objetivo comercial / rol en la landing
+## Qué es la sección ahora
 
-Casos responde *"¿esto sirve para un negocio como el mío?"* mediante reconocimiento por
-rubro (inmobiliarias/legal/salud/pymes) + una escena de chat real que termina en un
-resultado concreto (sello HECHO). Es el **capítulo humano** del recorrido (entre el "qué
-hacemos" de Servicios y el "cómo lo construimos" de Proceso). KPI: auto-identificación
-en <3s + credibilidad de la demostración. **Esta intervención NO cambia ese rol**: lo
-pone al nivel de la web viva (campo vivo propio) y cose la transición hacia Proceso.
+- Nav: **"Ejemplos"** (`#casos`). Heading: eyebrow "Qué construimos" · título
+  **"Lo que construimos, funcionando"**.
+- Se eliminó el eje por rubro (inmobiliaria/legal/salud) — la audiencia es
+  **cualquier negocio** (reforma V2). En su lugar: **4 demos vivas de servicio**
+  en orden de pipeline: **Landing → Asistente IA → Automatización → Panel**.
+- Hilo narrativo ficticio que cruza las 4 demos: **"Julián P." compra una campera
+  azul talle M en "Tienda Moda"** (local de ropa genérico). La consulta de la
+  landing es el pedido del chat, se registra en la automatización y aparece en el
+  panel.
+- Nota de honestidad invertida a fortaleza (dogfooding aprobado): "los sistemas
+  son reales… las consultas de esta web se registran con un sistema como este".
 
-## Referencias aprobadas
+## Decisiones de diseño aprobadas (vinculantes para iteraciones futuras)
 
-> Trabajo **code-first generativo** (campo 3D + scroll). Referencias concretas:
+1. **Interiores = apps REALES, no cards azules SYNTRA.** Cada demo reproduce la
+   app de verdad con su propia paleta: WhatsApp dark oficial (#0b141a/#005c4b/
+   #00a884), sitio del cliente en tema claro con marca propia (ámbar #d97706),
+   planilla estilo Sheets (verde #188038), mail estilo Gmail (rojo #EA4335),
+   panel SaaS claro (estados ámbar/azul/verde). El chrome (navegador/teléfono/
+   frame) + halo exterior = única capa de presentación SYNTRA.
+2. **Regla permanente de marca: SIN violeta (#6d5dfb) y SIN cyan (#38bdf8)**
+   (estética "hecho con IA"). Éxito/HECHO → **warm dorado**. Acentos de demo:
+   electric #2563eb / warm / #60a5fa.
+3. **Chip HECHO siempre FUERA del frame** (dentro rompería el realismo).
+4. **Fotos realistas** (Pollinations MCP): `public/demo-assets/tienda-hero.jpg`
+   (interior boutique) + `producto-campera.jpg` (campera denim).
+5. **Aviso de automatización = MAIL, no WhatsApp** (decisión owner 2026-07-08:
+   mail es lo simple de programar — Gmail/SMTP directo vs Meta Business API; la
+   demo muestra solo lo realista de implementar fácil).
+6. **Chat compacto con conversación que fluye** (opción B aprobada): teléfono
+   proporcionado, hilo `flex-col-reverse` (solo CSS) — los mensajes viejos salen
+   por arriba y el frame final muestra el cierre de la venta (reserva + link de
+   pago). Guion de 6 mensajes con foto+caption en burbuja.
+7. **Flujo de automatización con artefactos reales, no genéricos**: formulario
+   web con campos → fila que se escribe en la planilla → notificación de mail al
+   equipo, unidos por línea de pipeline con pulso.
+8. **Content-driven**: todo el copy vive en `site.ts` (`serviceDemos`,
+   `serviceDemoScenes`); motor compartido `useDemoLoop` (IntersectionObserver
+   pausa fuera de viewport; reduced-motion → estado final estático).
+9. **CasosBackdrop (campo vivo v1) se conserva** como fondo de la sección.
 
-**Ref-1 — Wireframe de campo (aprobado por el owner al elegir "Campo de señales"):**
+## Archivos
 
-```
-CASOS · campo de señales
+- `src/components/marketing/aplicaciones/demos/` — `use-demo-loop.ts`,
+  `demo-shared.tsx`, `demo-landing.tsx`, `demo-chat.tsx`, `demo-automation.tsx`,
+  `demo-dashboard.tsx`, `service-demo-selector.tsx`.
+- `src/components/sections/use-cases-section.tsx` (Server Component).
+- Eliminados: `application-selector.tsx`, `use-case-chat-scene.tsx` (v1).
 
-  · ·   ·    · ·   (trazos cálidos derivan ↓ = consultas entrando)
-   ·  ·   · ·
-  [ selector rubros ]  [ escena chat WhatsApp ]   ← CONSERVAR intacto
-     ·   ·  ·   ·
-        ·  ·  ·
-  \\  electric tenue (convergencia)  //
-  ───────── borde se enfría ─────────
-        ↓ anticipa (no contiene) el cable de Proceso
-```
+## Criterios binarios (verificados en la aprobación)
 
-**Ref-2 — Escenas vivas en repo (live):** `living-background.tsx` (Servicios arco / Proceso
-conducto) como referencia de material/calidad/perf del motor a reutilizar.
+- [x] Las 4 demos parecen apps reales (paletas oficiales), no cards SYNTRA.
+- [x] Cero violeta y cero cyan en toda la sección; HECHO en warm dorado.
+- [x] Hilo "Julián P. / Tienda Moda" consistente en las 4 demos.
+- [x] Nada se corta al final de las animaciones (chat fluye; landing scrollea a
+      límite limpio; automatización y panel completos).
+- [x] Loops pausan fuera de viewport · reduced-motion → estado final.
+- [x] `tsc` · `lint` verdes · 0 errores de consola · verificado en loop visual
+      (Playwright MCP) a 1920.
 
-**Ref-3 — Corazón a conservar (live):** `application-selector.tsx` + `use-case-chat-scene.tsx`
-(selector por rubro + chat WhatsApp image-led + sello HECHO). Es el activo de la sección.
+## Anti-loop
 
-## Qué se toma de cada referencia
-
-- **De Ref-1:** campo de **trazos/partículas de luz tenues** que derivan hacia abajo (las
-  consultas "entrando"), **convergen y se enfrían a electric** en el ~15% inferior →
-  anticipan el nacimiento del cable de Proceso. El cuerpo del campo mantiene la **calidez**
-  (`--accent-warm`) como identidad humana de Casos.
-- **De Ref-2:** motor `<LivingBackground>` parametrizado (nueva `variant="casos"`):
-  Environment/Bloom/Poster/CanvasBoundary/dpr capado/pausa fuera de viewport/reduced-motion.
-  Patrón de **scrim de legibilidad** de Proceso (texto siempre legible sobre el campo).
-- **De Ref-3:** TODO el corazón image-led se conserva **sin tocar**.
-
-## Qué NO se toma
-
-- **NO** un cable físico continuo que cruce el `SectionBridge` (su doctrina prohíbe
-  conectores visuales) ni que entre a Proceso → el cable sigue siendo **clímax exclusivo de
-  Proceso**. Casos lo **anticipa por temperatura/convergencia**, no lo contiene.
-- **NO** geometría del arco (Servicios) ni del conducto (Proceso): campo distinto (§4).
-- **NO** enfriar el chat WhatsApp (verde/beige = realismo) ni migrar Casos al azul.
-- **NO** imponer scroll-linealidad: Casos es **exploración libre** por selector (no recorrido
-  vertical como Proceso). El campo es fondo, no esqueleto.
-- **NO** unificar los arcos: `Entra→Se ordena→Se actúa→Listo` (cliente) ≠
-  `PENDIENTE→ACTIVO→HECHO` (método). Solo el **HECHO/cyan** es el ancla compartida.
-
-## Dirección visual elegida
-
-**"Campo de señales".** Campo vivo generativo: trazos de luz cálidos que derivan hacia abajo
-y **convergen enfriándose a electric** en el borde inferior, anticipando el cable de Proceso.
-Cuenta visualmente "la consulta entra → se resuelve (HECHO) → y así la construimos (Proceso)".
-Conserva selector + escenas de chat. Es **capa de fondo + cosido de temperatura, NO
-reestructuración.**
-
-## Decisión asset-first / code-first
-
-**code-first.** El protagonista nuevo es un **campo generativo** (no un asset estático); las
-escenas image-led ya existen y se conservan. Se reutiliza el motor (variant nueva). Anti-loop:
-**máx. 2 iteraciones** de código; en la 3ª se vuelve a este lock.
-
-## Signature Palette Exception
-
-**¿Aplica excepción de paleta?** no
-
-**Justificación:** todo usa tokens (`--accent-warm` = humano/resultado para el cuerpo;
-`--brand-electric` para la convergencia inferior; `--brand-cyan` reservado al HECHO). Casos
-es el capítulo cálido dentro del 90/10 frío del recorrido — diferenciación con propósito,
-sin drift.
-
-**Cómo se mantiene la marca:** acento cálido del token, electric solo en el borde, cyan solo
-en el sello HECHO existente. **Cómo se protege la legibilidad:** scrim (patrón Proceso) +
-las escenas/paneles sobre superficie propia.
-
-Referencia: `docs/creative-library/signature-palette-exception.md`
-
-## Criterios binarios de aprobación
-
-- [ ] Casos tiene **campo vivo propio** (`LivingBackground variant="casos"`, lazy `ssr:false`,
-      pausa fuera de viewport, reduced-motion → Poster), **distinto** del arco y del conducto.
-- [ ] El campo **converge y se enfría a electric** en el borde inferior (anticipa el cable),
-      **sin** cable físico continuo y **sin** tocar el `SectionBridge`.
-- [ ] Selector por rubro + escenas de chat WhatsApp image-led + sello HECHO + nota de
-      honestidad: **intactos**.
-- [ ] El chat conserva su paleta (verde/beige); el cuerpo de Casos conserva la **calidez**.
-- [ ] **cyan** solo en HECHO; electric acotado a la convergencia; 90/10 respetado.
-- [ ] La sección sigue siendo **exploración libre** (selector), sin scroll-jacking ni
-      linealidad impuesta.
-- [ ] **Cose** con Servicios (arriba) y con Proceso (abajo): sin salto de "otra época".
-- [ ] **CLS 0** · **Lighthouse ~90+ mobile** · reduced-motion → estado final · sin errores
-      de consola. No degrada la base técnica ya sana de Casos.
-- [ ] Mobile: calidad reducida/fallback; reconocimiento por rubro sigue siendo lo primero.
-
-## Riesgos visuales
-
-- **Partículas → "crypto/gamer"** (anti-patrón duro): densidad MUY baja, trazos finos (no
-  puntos-estrella), sin glow saturado. Debe leerse "señal entrando", no wallpaper tech.
-- **Borrar la frontera con Proceso:** se evita manteniendo la calidez del cuerpo + el cambio
-  de temperatura solo en el borde (rol distinto: anticipación, no estructura).
-- **Tapar el contenido image-led:** el campo es fondo tenue + scrim; las escenas mandan.
-
-## Riesgos técnicos / performance
-
-- **Dos campos 3D en scroll** (Casos + Proceso): por eso NO cable continuo; cada uno lazy +
-  pausado fuera de viewport. Medir mobile (dpr capado / fallback).
-- **LCP:** `dynamic(ssr:false)`; el contenido vive sin el 3D (progressive enhancement).
-- **CLS 0:** campo `absolute inset-0` detrás; alturas del split ya reservadas.
-
-## Owner approval
-
-Estado: **approved** — Matias / SYNTRA CORE (owner), 2026-06-26.
+Máx. 2 iteraciones de código sobre una demo; a la 3ª, volver a este lock.
