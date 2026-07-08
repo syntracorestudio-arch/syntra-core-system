@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogOut, Ticket, ChevronRight } from "lucide-react";
+import { Ticket, ChevronRight } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { AdminTabs } from "@/components/admin/admin-tabs";
+import { PageHeader } from "@/components/admin/page-header";
 import { SettingsForm, type SettingsInitial } from "@/components/admin/settings-form";
 import { LogoUploader } from "@/components/admin/logo-uploader";
 
@@ -70,22 +70,7 @@ export default async function ConfiguracionPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-4xl px-5 pb-16 pt-8 lg:px-8">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">{studio?.name ?? "Tu estudio"}</p>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Configuración</h1>
-        </div>
-        <a
-          href="/logout"
-          aria-label="Cerrar sesión"
-          className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
-        >
-          <LogOut className="size-3.5" aria-hidden />
-          Salir
-        </a>
-      </header>
-
-      <AdminTabs active="configuracion" role={member.role} />
+      <PageHeader title="Configuración" subtitle={studio?.name ?? "Tu estudio"} />
 
       {notice ? (
         <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">

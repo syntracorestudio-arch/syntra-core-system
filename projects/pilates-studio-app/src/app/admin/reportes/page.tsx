@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import {
-  LogOut,
   Ticket,
   CalendarDays,
   CreditCard,
@@ -17,7 +16,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { AdminTabs } from "@/components/admin/admin-tabs";
+import { PageHeader } from "@/components/admin/page-header";
 import { PeriodSelect } from "@/components/admin/period-select";
 
 export const metadata = { title: "Reportes — Panel" };
@@ -234,22 +233,7 @@ export default async function ReportesPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">{studio?.name ?? "Tu estudio"}</p>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Reportes</h1>
-        </div>
-        <a
-          href="/logout"
-          aria-label="Cerrar sesión"
-          className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
-        >
-          <LogOut className="size-3.5" aria-hidden />
-          Salir
-        </a>
-      </header>
-
-      <AdminTabs active="reportes" role={member.role} />
+      <PageHeader title="Reportes" subtitle={studio?.name ?? "Tu estudio"} />
 
       <div className="mt-6 grid gap-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
         {/* ── Pulso de caja (siempre actual) ── */}
