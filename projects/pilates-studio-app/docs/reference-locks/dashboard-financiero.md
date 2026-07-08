@@ -170,8 +170,40 @@ azulado frío; depender solo de color para el estado.
 **Anti-patrones:** dashboard fintech denso · tablas extensas · glassmorphism · neón IA ·
 look cripto · KPIs en cero fríos en estudios nuevos · jerga técnica ("transacciones/usuarios").
 
+## Fase 2 — evolución "briefing" (implementada 2026-07-08)
+
+El dashboard base (Fase 1) se elevó a un **parte guiado** que responde en secuencia:
+*¿entró plata? → ¿a quién cobrar / qué vence? → ¿está lleno? → ¿qué hay hoy?*. Concepto
+aprobado por el owner (variantes-vivas: prototipo vivo revisado en navegador → OK → commit;
+este lock documenta lo aprobado).
+
+**Cambios respecto de la baseline:**
+- **Se suelta la grilla pareja de KPIs** como chasis: el panel se lee por **zonas** con un
+  protagonista por zona, no como scoreboard de cards iguales (evita el cliché de dashboard).
+- **Zona Dinero** (protagonista): ingresos del mes + **Δ vs mes anterior** (chip; se **oculta**
+  si el mes anterior no tuvo ingresos → sin comparativas huecas) + packs/sueltas/total + sparkline.
+- **Zona "Necesita tu atención"**: unifica **deuda + vencimientos**; cada deudor con acción
+  "cobrar" → ficha, y CTA "Registrar pago". Color semántico solo en lo accionable.
+- **Zona Ocupación** (barras semana) y **Zona Hoy** (clases), cada una con su acción.
+- **Rol reception**: ve el briefing operativo **sin la zona Dinero** (no ve totales financieros
+  globales). Regla aprobada por el owner.
+- **Reportes avanzados** (packs/sueltas por período, ocupación por clase, no-shows,
+  cancelaciones) → **vista aparte** futura, para no saturar el briefing. *(Pendiente, Fase 2+.)*
+
+**Correcciones de correctitud (loop visual):**
+- La deuda/al-día se cuenta **solo sobre alumnos** (`role='client'`): la vista
+  `member_financial_status` incluye instructores y los contaba como deudores.
+- Barras de ocupación con **altura explícita** en el track (antes colapsaban).
+
+**Criterios binarios Fase 2 (además de los de arriba):**
+- [x] Se lee de arriba a abajo como parte, no como grilla pareja.
+- [x] Un protagonista por zona; cada zona ofrece su acción.
+- [x] Δ vs mes anterior se oculta si no hay historia (sin números falsos).
+- [x] reception no ve totales financieros globales.
+- [x] Deuda contada solo sobre alumnos (instructores excluidos).
+
 ## Owner approval
-Estado: approved · approved_by: owner · 2026-06-25
+Estado: approved · approved_by: owner · 2026-06-25 · evolución Fase 2 aprobada 2026-07-08
 
 <!-- Lock APROBADO por el owner (2026-06-25). Habilita implementar esta pantalla en Fase 1
      bajo el visual gate (qa-performance-guard + visual-quality-director + OK del owner). -->
