@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { LogOut, CalendarDays, LayoutGrid } from "lucide-react";
+import { LogOut, CalendarDays, LayoutGrid, Wallet } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { ClassCard, type ClassCardData } from "@/components/calendar/class-card";
+import { buttonClass } from "@/components/ui/button";
 
 export const metadata = { title: "Reservá tu clase" };
 export const dynamic = "force-dynamic";
@@ -215,10 +216,12 @@ export default async function AppPage({
               {saldoText}
             </p>
             {!hasMembership && credits === 0 ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Comprá un pack en tu estudio para reservar.
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Comprá un pack para empezar a reservar.</p>
             ) : null}
+            <a href="/app/comprar" className={buttonClass("primary", "sm", "mt-3 w-full")}>
+              <Wallet className="size-4" aria-hidden />
+              Comprar pack
+            </a>
           </div>
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <p className="text-xs text-muted-foreground">Tu semana</p>
