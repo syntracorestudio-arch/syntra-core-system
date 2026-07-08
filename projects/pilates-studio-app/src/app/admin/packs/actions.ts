@@ -4,8 +4,6 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
-const ADMIN_ROLES = ["admin", "reception"];
-
 function back(params: Record<string, string>): never {
   redirect(`/admin/packs?${new URLSearchParams(params).toString()}`);
 }
@@ -23,8 +21,15 @@ async function adminStudio() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: member } = await supabase.from("members").select("role, studio_id").limit(1).maybeSingle();
-  if (!member || !ADMIN_ROLES.includes(member.role)) redirect("/app");
+  const { data: member } = await supabase
+    .from("members")
+    .select("role, studio_id")
+    .eq("profile_id", user.id)
+    .limit(1)
+    .maybeSingle();
+  // Solo admin gestiona packs/precios (reception no).
+  if (!member) redirect("/app");
+  if (member.role !== "admin") redirect("/admin");
   return { supabase, studioId: member.studio_id as string };
 }
 

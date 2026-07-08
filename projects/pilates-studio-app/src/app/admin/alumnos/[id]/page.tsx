@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, Wallet, CreditCard, Ticket, CalendarClock, Phone, Mail, CheckCircle2, GraduationCap } from "lucide-react";
+import { ArrowLeft, Wallet, CreditCard, Ticket, CalendarClock, Phone, Mail, CheckCircle2, GraduationCap, Headset, UserCircle } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
 import { PaymentForm, type PassOption } from "@/components/admin/payment-form";
@@ -8,6 +8,12 @@ import { setMemberRole } from "./actions";
 
 export const dynamic = "force-dynamic";
 const ADMIN_ROLES = ["admin", "reception"];
+
+const ROLE_OPTIONS = [
+  { key: "client", label: "Alumno" },
+  { key: "instructor", label: "Instructor" },
+  { key: "reception", label: "Recepción" },
+] as const;
 
 const CONCEPT_LABEL: Record<string, string> = {
   pack: "Pack",
@@ -49,7 +55,12 @@ export default async function FichaAlumnoPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: me } = await supabase.from("members").select("role").limit(1).maybeSingle();
+  const { data: me } = await supabase
+    .from("members")
+    .select("role")
+    .eq("profile_id", user.id)
+    .limit(1)
+    .maybeSingle();
   if (!me || !ADMIN_ROLES.includes(me.role)) redirect("/app");
   const isAdmin = me.role === "admin";
 
@@ -60,7 +71,8 @@ export default async function FichaAlumnoPage({
     .eq("id", id)
     .maybeSingle();
   if (!target) notFound();
-  const isInstructor = target.role === "instructor";
+  const targetRole = (target.role as string) ?? "client";
+  const isStaff = targetRole === "instructor" || targetRole === "reception";
   const prof = (Array.isArray(target.profiles) ? target.profiles[0] : target.profiles) as ProfileRel | null;
 
   const nowIso = new Date().toISOString();
@@ -154,10 +166,14 @@ export default async function FichaAlumnoPage({
       </Link>
       <header className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">{prof?.full_name ?? "Alumno"}</h1>
-        {isInstructor ? (
+        {isStaff ? (
           <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-            <GraduationCap className="size-3.5" aria-hidden />
-            Instructor
+            {targetRole === "reception" ? (
+              <Headset className="size-3.5" aria-hidden />
+            ) : (
+              <GraduationCap className="size-3.5" aria-hidden />
+            )}
+            {targetRole === "reception" ? "Recepción" : "Instructor"}
           </span>
         ) : (
           <FinancialBadge status={financial} />
@@ -195,25 +211,34 @@ export default async function FichaAlumnoPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
         {/* columna izquierda: saldo + membresía + registrar pago */}
         <div className="grid gap-4">
-          {/* rol: promover a instructor / volver a alumno (solo admin) */}
+          {/* rol en el estudio: alumno / instructor / recepción (solo admin) */}
           {isAdmin ? (
-            <form
-              action={setMemberRole}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm"
-            >
-              <input type="hidden" name="memberId" value={id} />
-              <input type="hidden" name="role" value={isInstructor ? "client" : "instructor"} />
-              <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                <GraduationCap className="size-4" aria-hidden />
-                {isInstructor ? "Es instructor del estudio" : "Rol: alumno"}
-              </span>
-              <button
-                type="submit"
-                className="shrink-0 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-              >
-                {isInstructor ? "Volver a alumno" : "Hacer instructor"}
-              </button>
-            </form>
+            <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+              <p className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <UserCircle className="size-4" aria-hidden />
+                Rol en el estudio
+              </p>
+              <div className="mt-2 flex gap-1 rounded-xl bg-secondary p-1">
+                {ROLE_OPTIONS.map((r) => {
+                  const active = targetRole === r.key;
+                  const cls =
+                    "flex-1 rounded-lg px-2 py-1.5 text-center text-xs font-medium transition-colors";
+                  return active ? (
+                    <span key={r.key} className={`${cls} bg-card text-foreground shadow-sm`} aria-current="true">
+                      {r.label}
+                    </span>
+                  ) : (
+                    <form key={r.key} action={setMemberRole} className="flex-1">
+                      <input type="hidden" name="memberId" value={id} />
+                      <input type="hidden" name="role" value={r.key} />
+                      <button type="submit" className={`w-full text-muted-foreground hover:text-foreground ${cls}`}>
+                        {r.label}
+                      </button>
+                    </form>
+                  );
+                })}
+              </div>
+            </div>
           ) : null}
 
           <div className="grid grid-cols-2 gap-3">
