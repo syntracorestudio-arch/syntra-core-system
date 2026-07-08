@@ -203,7 +203,7 @@ export default async function AdminClasesPage({
         </a>
       </header>
 
-      <AdminTabs active="clases" />
+      <AdminTabs active="clases" role={member.role} />
 
       {/* avisos */}
       {notice ? (

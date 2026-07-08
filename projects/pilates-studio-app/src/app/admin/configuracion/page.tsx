@@ -84,7 +84,7 @@ export default async function ConfiguracionPage({
         </a>
       </header>
 
-      <AdminTabs active="configuracion" />
+      <AdminTabs active="configuracion" role={member.role} />
 
       {notice ? (
         <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">

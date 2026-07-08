@@ -215,7 +215,7 @@ export default async function AdminDashboardPage() {
         </a>
       </header>
 
-      <AdminTabs active="resumen" />
+      <AdminTabs active="resumen" role={member.role} />
 
       {isEmpty ? (
         <div className="mt-8 rounded-2xl border border-dashed border-border bg-card/60 px-6 py-14 text-center">
