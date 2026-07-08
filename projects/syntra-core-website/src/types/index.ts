@@ -126,23 +126,6 @@ export interface StackItem {
   category: "Frontend" | "Backend" | "Infraestructura" | "Automatización" | "IA";
 }
 
-/** Caso de uso por industria (escenario problema → solución). */
-export interface UseCaseItem {
-  id: string;
-  icon: string;
-  /** Rubro / industria */
-  title: string;
-  /** Narrativa breve: el problema típico y cómo lo resolvemos */
-  description: string;
-  /** Dolor concreto del rubro (situación "antes") */
-  pain: string;
-  /** Frase comercial / promesa del rubro (una línea) */
-  tagline: string;
-  /** Entregables concretos para ese rubro (qué incluiría) */
-  deliverables: string[];
-  /** Recorrido vivo de 4 pasos en lenguaje de cliente; el 4º es el resultado (estado HECHO). */
-  flow: string[];
-}
 
 /** Pregunta frecuente (manejo de objeciones). */
 export interface FaqItem {
