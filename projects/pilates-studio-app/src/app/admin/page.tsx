@@ -6,9 +6,11 @@ import {
   AlertCircle,
   CalendarClock,
   TrendingUp,
+  TrendingDown,
   CalendarPlus,
   ChevronRight,
   CheckCircle2,
+  Clock4,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { AdminTabs } from "@/components/admin/admin-tabs";
@@ -56,6 +58,11 @@ function addDays(dateStr: string, n: number) {
   const dt = new Date(Date.UTC(y, m - 1, d + n));
   return dt.toISOString().slice(0, 10);
 }
+/** Primer día (YYYY-MM) del mes anterior a un YYYY-MM. */
+function prevMonth(ym: string) {
+  const [y, m] = ym.split("-").map(Number);
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+}
 function money(n: number) {
   return `$${Math.round(n).toLocaleString("es-AR")}`;
 }
@@ -83,13 +90,17 @@ export default async function AdminDashboardPage() {
     .limit(1)
     .maybeSingle();
   if (!member || !ADMIN_ROLES.includes(member.role)) redirect("/app");
+  // reception: opera (agenda, cobros, deuda) pero NO ve los totales financieros globales.
+  const isReception = member.role === "reception";
   const studioRel = (member.studios ?? null) as { name: string; timezone: string | null } | { name: string; timezone: string | null }[] | null;
   const studio = Array.isArray(studioRel) ? studioRel[0] : studioRel;
   const tz = studio?.timezone || DEFAULT_TZ;
 
   const nowIso = new Date().toISOString();
   const todayLocal = tzDate(nowIso, tz);
-  const monthStart = localToUtcISO(`${todayLocal.slice(0, 7)}-01`, "00:00", tz);
+  const thisYm = todayLocal.slice(0, 7);
+  const monthStart = localToUtcISO(`${thisYm}-01`, "00:00", tz);
+  const prevMonthStart = localToUtcISO(`${prevMonth(thisYm)}-01`, "00:00", tz);
   const todayStart = localToUtcISO(todayLocal, "00:00", tz);
   const tomorrowStart = localToUtcISO(addDays(todayLocal, 1), "00:00", tz);
   const weekEnd = localToUtcISO(addDays(todayLocal, 7), "00:00", tz);
@@ -108,11 +119,16 @@ export default async function AdminDashboardPage() {
       .order("starts_at", { ascending: true }),
   ]);
 
-  // ---- ingresos ----
+  // ---- ingresos (mes actual + comparativa mes anterior) ----
   const payments = (pays ?? []) as { amount: number; concept: string; paid_at: string }[];
   const ingresosTotal = payments.reduce((s, p) => s + Number(p.amount), 0);
   const monthPays = payments.filter((p) => p.paid_at >= monthStart);
   const ingresosMes = monthPays.reduce((s, p) => s + Number(p.amount), 0);
+  const ingresosPrevMes = payments
+    .filter((p) => p.paid_at >= prevMonthStart && p.paid_at < monthStart)
+    .reduce((s, p) => s + Number(p.amount), 0);
+  // delta solo si hay historia real el mes anterior (sin comparativas huecas)
+  const delta = ingresosPrevMes > 0 ? Math.round(((ingresosMes - ingresosPrevMes) / ingresosPrevMes) * 100) : null;
   const packsMes = monthPays.filter((p) => p.concept === "pack").length;
   const sueltasMes = monthPays.filter((p) => p.concept === "drop_in").length;
 
@@ -123,7 +139,11 @@ export default async function AdminDashboardPage() {
       return [m.id, prof?.full_name ?? "Alumno"];
     }),
   );
-  const finList = (fins ?? []) as { member_id: string; financial_status: string }[];
+  // La vista member_financial_status incluye TODOS los roles (incl. instructores):
+  // la deuda/al-día del negocio se cuenta solo sobre alumnos (nameById = clients).
+  const finList = ((fins ?? []) as { member_id: string; financial_status: string }[]).filter((f) =>
+    nameById.has(f.member_id),
+  );
   const debtors = finList.filter((f) => f.financial_status !== "al_dia");
   const alDia = finList.length - debtors.length;
 
@@ -132,6 +152,7 @@ export default async function AdminDashboardPage() {
   const porVencer = ((mships ?? []) as { valid_to: string; status: string }[]).filter(
     (m) => m.valid_to >= todayLocal && m.valid_to <= limitDate,
   ).length;
+  const needsAttention = debtors.length > 0 || porVencer > 0;
 
   // ---- ocupación ----
   const occs = (occ ?? []) as { starts_at: string; capacity: number; booked_count: number; classes: { name: string } | { name: string }[] | null }[];
@@ -222,185 +243,201 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-          {/* KPIs */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/* ingresos del mes (héroe con degradé cálido + sparkline) */}
-            <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-5 shadow-raised sm:col-span-2">
-              <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <TrendingUp className="size-3.5 text-primary" aria-hidden />
-                Ingresos de <span className="capitalize">{monthLabel}</span>
-              </p>
-              <CountUp
-                value={ingresosMes}
-                prefix="$"
-                className="mt-1 block text-4xl font-bold tracking-tight text-foreground tabular-nums"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                {packsMes} {packsMes === 1 ? "pack" : "packs"} · {sueltasMes}{" "}
-                {sueltasMes === 1 ? "suelta" : "sueltas"} · total {money(ingresosTotal)}
-              </p>
-              <div className="mt-3 text-primary">
-                <Sparkline data={monthlyIncome} className="h-12 w-full" />
-              </div>
-            </div>
-            {/* al día */}
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <span className="flex size-9 items-center justify-center rounded-full bg-success/15 text-success">
-                <CheckCircle2 className="size-5" aria-hidden />
-              </span>
-              <p className="mt-3 text-3xl font-bold text-foreground">{alDia}</p>
-              <p className="text-xs text-muted-foreground">al día</p>
-            </div>
-            {/* con pago pendiente */}
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <span
-                className={`flex size-9 items-center justify-center rounded-full ${
-                  debtors.length > 0 ? "bg-destructive/15 text-destructive" : "bg-secondary text-muted-foreground"
-                }`}
-              >
-                <AlertCircle className="size-5" aria-hidden />
-              </span>
-              <p className={`mt-3 text-3xl font-bold ${debtors.length > 0 ? "text-destructive" : "text-foreground"}`}>
-                {debtors.length}
-              </p>
-              <p className="text-xs text-muted-foreground">con pago pendiente</p>
-            </div>
-          </div>
-
-          {/* acciones rápidas */}
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/admin/alumnos"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:opacity-90"
-            >
-              <Wallet className="size-4" aria-hidden />
-              Registrar pago
-            </Link>
-            <Link
-              href="/admin/clases#nueva-clase"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
-            >
-              <CalendarPlus className="size-4" aria-hidden />
-              Nueva clase
-            </Link>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-            {/* alertas: deuda + por vencer */}
-            <div className="grid gap-4">
-              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <h2 className="text-base font-semibold text-foreground">Alumnos con pago pendiente</h2>
-                {debtors.length > 0 ? (
-                  <ul className="mt-3 divide-y divide-border">
-                    {debtors.slice(0, 6).map((d) => (
-                      <li key={d.member_id}>
-                        <Link
-                          href={`/admin/alumnos/${d.member_id}`}
-                          className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-secondary"
-                        >
-                          <span className="truncate text-sm font-medium text-foreground">
-                            {nameById.get(d.member_id) ?? "Alumno"}
-                          </span>
-                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                            ver ficha <ChevronRight className="size-3.5" aria-hidden />
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-success">
-                    <CheckCircle2 className="size-4" aria-hidden />
-                    Todos al día.
+        <div className="mt-6 grid gap-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          {/* ══ Zona 1 · Dinero (protagonista; reception no ve totales) ══ */}
+          {!isReception ? (
+            <section className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/12 via-card to-card p-5 shadow-raised sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <TrendingUp className="size-3.5 text-primary" aria-hidden />
+                    Ingresos de <span className="capitalize">{monthLabel}</span>
                   </p>
-                )}
-              </section>
+                  <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <CountUp
+                      value={ingresosMes}
+                      prefix="$"
+                      className="block text-4xl font-bold tracking-tight text-foreground tabular-nums sm:text-5xl"
+                    />
+                    {delta !== null ? (
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          delta >= 0 ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        {delta >= 0 ? (
+                          <TrendingUp className="size-3.5" aria-hidden />
+                        ) : (
+                          <TrendingDown className="size-3.5" aria-hidden />
+                        )}
+                        {delta >= 0 ? "+" : ""}
+                        {delta}% vs mes anterior
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {packsMes} {packsMes === 1 ? "pack" : "packs"} · {sueltasMes}{" "}
+                    {sueltasMes === 1 ? "suelta" : "sueltas"} · total histórico {money(ingresosTotal)}
+                  </p>
+                </div>
+                <div className="min-w-[8rem] flex-1 text-primary">
+                  <Sparkline data={monthlyIncome} className="h-14 w-full" />
+                  <p className="mt-1 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
+                    últimos 6 meses
+                  </p>
+                </div>
+              </div>
+            </section>
+          ) : null}
 
-              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-base font-semibold text-foreground">Membresías por vencer</h2>
-                  {porVencer > 0 ? (
-                    <Link
-                      href="/admin/alumnos"
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      ver alumnos <ChevronRight className="size-3.5" aria-hidden />
+          {/* ══ Zona 2 · Necesita tu atención (deuda + vencimientos, cada uno accionable) ══ */}
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <h2 className="inline-flex items-center gap-1.5 text-base font-semibold text-foreground">
+                {needsAttention ? (
+                  <AlertCircle className="size-4 text-warning" aria-hidden />
+                ) : (
+                  <CheckCircle2 className="size-4 text-success" aria-hidden />
+                )}
+                Necesita tu atención
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                {alDia} al día{debtors.length > 0 ? ` · ${debtors.length} con deuda` : ""}
+              </span>
+            </div>
+
+            {needsAttention ? (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 sm:items-start">
+                {/* deudores */}
+                <div>
+                  <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                    <Wallet className="size-4 text-destructive" aria-hidden />
+                    {debtors.length} {debtors.length === 1 ? "alumno con pago pendiente" : "alumnos con pago pendiente"}
+                  </p>
+                  {debtors.length > 0 ? (
+                    <ul className="mt-2 divide-y divide-border">
+                      {debtors.slice(0, 5).map((d) => (
+                        <li key={d.member_id}>
+                          <Link
+                            href={`/admin/alumnos/${d.member_id}`}
+                            className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-secondary"
+                          >
+                            <span className="truncate text-sm text-foreground">
+                              {nameById.get(d.member_id) ?? "Alumno"}
+                            </span>
+                            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
+                              cobrar <ChevronRight className="size-3.5" aria-hidden />
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-sm text-muted-foreground">Nadie con deuda.</p>
+                  )}
+                  {debtors.length > 5 ? (
+                    <Link href="/admin/alumnos" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">
+                      ver los {debtors.length}
                     </Link>
                   ) : null}
                 </div>
-                {porVencer > 0 ? (
-                  <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-foreground">
-                    <AlertCircle className="size-4 text-warning" aria-hidden />
-                    {porVencer} {porVencer === 1 ? "membresía vence" : "membresías vencen"} en los próximos{" "}
-                    {EXPIRY_WARNING_DAYS} días.
+
+                {/* vencimientos */}
+                <div>
+                  <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                    <Clock4 className="size-4 text-warning" aria-hidden />
+                    Vencimientos próximos
                   </p>
-                ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">Sin vencimientos próximos.</p>
-                )}
-              </section>
-            </div>
-
-            {/* operación de hoy */}
-            <div className="grid gap-4">
-              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-base font-semibold text-foreground">Ocupación de la semana</h2>
-                  <span className="text-sm font-semibold text-foreground">{weekOcc}%</span>
+                  {porVencer > 0 ? (
+                    <p className="mt-2 text-sm text-foreground">
+                      {porVencer} {porVencer === 1 ? "membresía vence" : "membresías vencen"} en los próximos{" "}
+                      {EXPIRY_WARNING_DAYS} días.
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-sm text-muted-foreground">Sin vencimientos en {EXPIRY_WARNING_DAYS} días.</p>
+                  )}
+                  <Link
+                    href="/admin/alumnos"
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:opacity-90"
+                  >
+                    <Wallet className="size-4" aria-hidden />
+                    Registrar pago
+                  </Link>
                 </div>
-                <div className="mt-4 flex h-16 items-end justify-between gap-2">
-                  {perDay.map((d, i) => (
-                    <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                      <div className="flex w-full flex-1 items-end overflow-hidden rounded-md bg-secondary">
-                        <div
-                          className={`w-full rounded-md transition-base ${d.today ? "bg-primary" : "bg-primary/60"}`}
-                          style={{ height: `${Math.max(d.pct, 4)}%` }}
-                          aria-hidden
-                        />
-                      </div>
-                      <span className={`text-[10px] uppercase ${d.today ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                        {d.label}
-                      </span>
+              </div>
+            ) : (
+              <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-success">
+                <CheckCircle2 className="size-4" aria-hidden />
+                Todo al día · sin vencimientos próximos.
+              </p>
+            )}
+          </section>
+
+          {/* ══ Zona 3 y 4 · Operación (ocupación + hoy) ══ */}
+          <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold text-foreground">Ocupación de la semana</h2>
+                <span className="text-sm font-semibold text-foreground">{weekOcc}%</span>
+              </div>
+              <div className="mt-4 flex items-end justify-between gap-2">
+                {perDay.map((d, i) => (
+                  <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
+                    <div className="flex h-16 w-full items-end overflow-hidden rounded-md bg-secondary">
+                      <div
+                        className={`w-full rounded-md transition-base ${d.today ? "bg-primary" : "bg-primary/60"}`}
+                        style={{ height: `${Math.max(d.pct, 4)}%` }}
+                        aria-hidden
+                      />
                     </div>
-                  ))}
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {weekBooked} de {weekCap} lugares reservados (próximos 7 días).
+                    <span className={`text-[10px] uppercase ${d.today ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                      {d.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  {weekBooked} de {weekCap} lugares reservados (7 días).
                 </p>
-              </section>
+                <Link href="/admin/clases#nueva-clase" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                  <CalendarPlus className="size-3.5" aria-hidden />
+                  Nueva clase
+                </Link>
+              </div>
+            </section>
 
-              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="flex items-center justify-between">
                 <h2 className="inline-flex items-center gap-1.5 text-base font-semibold text-foreground">
                   <CalendarClock className="size-4 text-muted-foreground" aria-hidden />
                   Clases de hoy
                 </h2>
-                {todayOccs.length > 0 ? (
-                  <ul className="mt-3 divide-y divide-border">
-                    {todayOccs.map((c, i) => {
-                      const full = c.booked >= c.capacity;
-                      return (
-                        <li key={i} className="flex items-center justify-between gap-3 py-2.5">
-                          <div className="flex items-baseline gap-3">
-                            <span className="text-sm font-bold tabular-nums text-foreground">{c.time}</span>
-                            <span className="text-sm text-foreground">{c.name}</span>
-                          </div>
-                          <span className={`text-xs font-medium ${full ? "text-destructive" : "text-muted-foreground"}`}>
-                            {c.booked}/{c.capacity}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <p className="text-sm text-muted-foreground">No hay clases hoy.</p>
-                    <Link href="/admin/clases" className="text-sm font-medium text-primary hover:underline">
-                      Ver agenda
-                    </Link>
-                  </div>
-                )}
-              </section>
-            </div>
+                <Link href="/admin/clases" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                  ver agenda <ChevronRight className="size-3.5" aria-hidden />
+                </Link>
+              </div>
+              {todayOccs.length > 0 ? (
+                <ul className="mt-3 divide-y divide-border">
+                  {todayOccs.map((c, i) => {
+                    const full = c.booked >= c.capacity;
+                    return (
+                      <li key={i} className="flex items-center justify-between gap-3 py-2.5">
+                        <div className="flex items-baseline gap-3">
+                          <span className="text-sm font-bold tabular-nums text-foreground">{c.time}</span>
+                          <span className="text-sm text-foreground">{c.name}</span>
+                        </div>
+                        <span className={`text-xs font-medium ${full ? "text-destructive" : "text-muted-foreground"}`}>
+                          {c.booked}/{c.capacity}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">No hay clases hoy.</p>
+              )}
+            </section>
           </div>
         </div>
       )}
