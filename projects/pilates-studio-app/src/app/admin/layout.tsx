@@ -49,9 +49,37 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       } as CSSProperties)
     : undefined;
 
+  // Avisos in-app (RLS: admin/recepción ven los de su estudio). Últimos 10 + no leídas.
+  const [notifRes, unreadRes] = user
+    ? await Promise.all([
+        supabase
+          .from("notifications")
+          .select("id, title, body, link, read_at, created_at")
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
+      ])
+    : [{ data: null }, { count: 0 }];
+  const notifications = ((notifRes.data ?? []) as {
+    id: string;
+    title: string;
+    body: string | null;
+    link: string | null;
+    read_at: string | null;
+    created_at: string;
+  }[]).map((n) => ({ id: n.id, title: n.title, body: n.body, link: n.link, read: !!n.read_at, createdAt: n.created_at }));
+  const unreadCount = ("count" in unreadRes ? unreadRes.count : 0) ?? 0;
+
   return (
     <div style={style} className="min-h-dvh">
-      <AdminSidebar role={role} studioName={studioName} logo={logo} userName={userName} />
+      <AdminSidebar
+        role={role}
+        studioName={studioName}
+        logo={logo}
+        userName={userName}
+        notifications={notifications}
+        unreadCount={unreadCount}
+      />
       <div className="pb-20 lg:pb-0 lg:pl-60">{children}</div>
     </div>
   );
