@@ -89,7 +89,7 @@ export default async function AlumnosPage({
         </a>
       </header>
 
-      <AdminTabs active="alumnos" />
+      <AdminTabs active="alumnos" role={member.role} />
 
       {notice ? (
         <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
