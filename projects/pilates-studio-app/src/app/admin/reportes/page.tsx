@@ -18,6 +18,7 @@ import {
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/page-header";
 import { PeriodSelect } from "@/components/admin/period-select";
+import { IconChip } from "@/components/ui/icon-chip";
 
 export const metadata = { title: "Reportes — Panel" };
 export const dynamic = "force-dynamic";
@@ -343,7 +344,7 @@ function PulseTile({ icon, label, value, hero = false }: { icon: React.ReactNode
       }`}
     >
       <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <span className="text-primary">{icon}</span>
+        <IconChip>{icon}</IconChip>
         {label}
       </p>
       <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-foreground">{value}</p>

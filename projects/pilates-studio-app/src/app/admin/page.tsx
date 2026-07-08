@@ -16,6 +16,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/page-header";
 import { CountUp } from "@/components/admin/count-up";
 import { IncomeAreaChart } from "@/components/admin/income-area-chart";
+import { IconChip, type ChipTone } from "@/components/ui/icon-chip";
 
 export const metadata = { title: "Resumen — Panel" };
 export const dynamic = "force-dynamic";
@@ -461,18 +462,10 @@ function Kpi({
 }: {
   icon: React.ReactNode;
   label: string;
-  tone?: "primary" | "success" | "warning" | "muted";
+  tone?: ChipTone;
   hero?: boolean;
   children: React.ReactNode;
 }) {
-  const chip =
-    tone === "success"
-      ? "bg-success/15 text-success"
-      : tone === "warning"
-        ? "bg-warning/15 text-warning"
-        : tone === "muted"
-          ? "bg-secondary text-muted-foreground"
-          : "bg-primary/10 text-primary";
   return (
     <div
       className={`rounded-2xl border border-border p-4 shadow-sm ${
@@ -480,7 +473,7 @@ function Kpi({
       }`}
     >
       <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <span className={`flex size-6 items-center justify-center rounded-md ${chip}`}>{icon}</span>
+        <IconChip tone={tone}>{icon}</IconChip>
         {label}
       </p>
       <div className="mt-2">{children}</div>
