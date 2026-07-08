@@ -50,11 +50,11 @@ export interface ServiceItem {
   tag: string;
   title: string;
   description: string;
+  /** Definición corta del módulo (1 línea, entra completa en el panel del showcase). */
+  blurb: string;
   features: string[];
-  /** Texto del módulo (bloque "Qué podés construir con cada módulo"). */
-  moduleIntro: string;
-  /** Qué puede incluir el módulo (lista comercial, no técnica). */
-  includes: string[];
+  /** "Puede incluir" — lista comercial breve (esenciales del módulo, no técnica). */
+  essentials?: string[];
   /**
    * Visual protagonista (image-led). Opcional: si falta, la sección usa un
    * placeholder premium CSS/SVG. Listo para reemplazar por WebP final.
@@ -65,23 +65,6 @@ export interface ServiceItem {
     height: number;
     alt: string;
   };
-}
-
-/** Bloque "Una solución puede crecer con la otra": narrativa + flujo de conexión. */
-export interface ServicesConnection {
-  title: string;
-  body: string;
-  /** Pasos del flujo; `role` define el color (team = neutro/resultado). */
-  flow: { label: string; role: "web" | "automation" | "ia" | "team" }[];
-}
-
-/** Opción de "Por dónde te conviene empezar" (ayuda a decidir el primer paso). */
-export interface ServicesStartOption {
-  id: string;
-  title: string;
-  body: string;
-  /** Servicio sugerido (define color de rol y, a futuro, el deep-link). */
-  serviceId: "web" | "automation" | "ia";
 }
 
 /** CTA consultivo del cierre de Servicios. */

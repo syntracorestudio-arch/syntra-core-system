@@ -8,7 +8,7 @@ import { z } from "zod";
  * Tipo de proyecto (WEB-013B) — calificación opcional del lead. Keys estables
  * para DB/panel/payload; los labels en español viven en `config/site.ts`.
  */
-export const PROJECT_TYPES = ["web", "automation", "ai", "unsure"] as const;
+export const PROJECT_TYPES = ["web", "automation", "ai", "panel", "unsure"] as const;
 export const projectTypeSchema = z.enum(PROJECT_TYPES);
 export type ProjectType = z.infer<typeof projectTypeSchema>;
 
