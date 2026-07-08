@@ -9,7 +9,6 @@ import type {
   ServicesStartOption,
   SiteConfig,
   StackItem,
-  UseCaseItem,
   WorkflowStep,
   WorkflowCta,
 } from "@/types";
@@ -33,7 +32,7 @@ export const siteConfig: SiteConfig = {
     "Diseñamos y construimos webs premium, automatizaciones e integraciones con IA para que tu empresa trabaje más rápido y venda mejor.",
   nav: [
     { label: "Servicios", href: "/#servicios" },
-    { label: "Casos", href: "/#casos" },
+    { label: "Ejemplos", href: "/#casos" },
     { label: "Proceso", href: "/#proceso" },
     { label: "FAQ", href: "/#faq" },
     { label: "Contacto", href: "/#contacto" },
@@ -83,10 +82,10 @@ export const siteConfig: SiteConfig = {
         "Podés lanzar una web premium, automatizar tareas, sumar un chatbot con IA o conectar todo en un sistema completo cuando tu negocio lo necesite.",
     },
     useCases: {
-      eyebrow: "Dónde aplica",
-      title: "Pensado para problemas reales de tu negocio",
+      eyebrow: "Qué construimos",
+      title: "Lo que construimos, funcionando",
       subtitle:
-        "Escenarios reales de uso: cómo una consulta, un turno o un pedido puede convertirse en una respuesta ordenada y accionable. Cada solución se adapta a tu negocio.",
+        "Una landing, un asistente con IA, una automatización y un panel: cuatro piezas que podés ver en acción acá mismo, y que adaptamos a cualquier tipo de negocio.",
     },
     about: {
       eyebrow: "Quiénes somos",
@@ -294,92 +293,6 @@ export const servicesConsultCta: ServicesConsultCta = {
   href: "#contacto",
 };
 
-export const useCases: UseCaseItem[] = [
-  {
-    id: "inmobiliarias",
-    icon: "Building2",
-    title: "Inmobiliarias",
-    description:
-      "El sistema ordena el lead, responde con la información clave y evita que una oportunidad quede sin seguimiento.",
-    pain: "Cuando una consulta llega por WhatsApp, el asistente responde y ayuda a coordinar la visita.",
-    tagline:
-      "Mientras vos mostrás propiedades, cada interesado recibe respuesta y seguimiento.",
-    deliverables: [
-      "Catálogo de propiedades con buscador y filtros",
-      "Captación de interesados desde la web",
-      "Respuestas y seguimiento automatizados",
-    ],
-    flow: [
-      "Entra una consulta por una propiedad",
-      "Queda registrada como interesado",
-      "Se activan la respuesta y el seguimiento",
-      "Listo para coordinar la visita",
-    ],
-  },
-  {
-    id: "legal",
-    icon: "Scale",
-    title: "Estudios jurídicos",
-    description:
-      "El sistema registra el motivo, reúne la información inicial y evita que un mensaje importante quede perdido.",
-    pain: "Cuando llega una consulta legal, el asistente ordena el caso y lo deriva para revisión.",
-    tagline:
-      "Mientras el estudio atiende casos, cada consulta entra ordenada y lista para revisar.",
-    deliverables: [
-      "Sitio institucional sobrio y confiable",
-      "Formularios de consulta calificada",
-      "Automatización de turnos y seguimiento",
-    ],
-    flow: [
-      "Entra una consulta por el formulario",
-      "Se ordena por tipo de caso",
-      "Se propone turno y recordatorio",
-      "Lista para que el equipo la tome",
-    ],
-  },
-  {
-    id: "salud",
-    icon: "Stethoscope",
-    title: "Clínicas y profesionales",
-    description:
-      "El sistema registra la consulta, comparte la información inicial y ofrece horarios disponibles para que cada contacto quede ordenado desde el primer mensaje.",
-    pain: "Cuando un paciente consulta por WhatsApp, el asistente responde y ayuda a coordinar el turno.",
-    tagline:
-      "Mientras el equipo atiende pacientes, cada consulta recibe respuesta y seguimiento.",
-    deliverables: [
-      "Web clara con servicios y especialidades",
-      "Solicitud de turnos online",
-      "Recordatorios y mensajes automáticos",
-    ],
-    flow: [
-      "Entra una solicitud de turno",
-      "Queda registrada en la agenda",
-      "Se envían confirmación y recordatorio",
-      "Listo para la consulta, sin coordinar",
-    ],
-  },
-  {
-    id: "pymes",
-    icon: "Store",
-    title: "Empresas de servicios y PyMEs",
-    description:
-      "El sistema registra la consulta, responde con la información clave y evita que una venta se pierda por demora o desorden.",
-    pain: "Cuando entra un pedido por WhatsApp, el asistente responde y ayuda a confirmarlo.",
-    tagline:
-      "Mientras tu negocio vende, cada consulta recibe respuesta y cada pedido queda encaminado.",
-    deliverables: [
-      "Sitio o sistema a medida de tu operación",
-      "Captación y gestión de clientes",
-      "Automatización de procesos internos",
-    ],
-    flow: [
-      "Entra un contacto desde la web",
-      "El cliente queda cargado al instante",
-      "Su presupuesto se arma solo",
-      "Reporte listo para revisar",
-    ],
-  },
-];
 
 /**
  * Nota de honestidad de la sección Servicios (escenas ilustrativas, no clientes).
@@ -390,7 +303,147 @@ export const servicesNote =
 
 /** Nota de honestidad de la sección Aplicaciones (escenarios, no casos reales). */
 export const applicationsNote =
-  "Escenarios de aplicación — ejemplos de cómo trabajamos, adaptados a cada negocio. No representan clientes específicos.";
+  "Demos con datos ilustrativos — los nombres y negocios son de ejemplo. Los sistemas son reales: así funcionan los que construimos, adaptados a cada negocio. De hecho, las consultas de esta web se registran con un sistema como este.";
+
+/**
+ * Casos v2 — "Lo que construimos, funcionando" (2026-07-07): 4 demos VIVAS del
+ * servicio en orden pipeline (la misma consulta ficticia de Julián P. atraviesa
+ * landing → automatización → panel; el asistente muestra el canal WhatsApp).
+ * Reemplaza el eje por-rubro (audiencia generalizada).
+ */
+export const serviceDemos = [
+  {
+    id: "landing",
+    icon: "LayoutTemplate",
+    pill: "Landing que convierte",
+    lead: "Una visita entra, entiende qué ofrecés en segundos y te deja su consulta.",
+    tagline: "Cada visita que entiende tu propuesta es una oportunidad que no se pierde.",
+    description:
+      "Diseñamos páginas rápidas y claras: un mensaje directo, un formulario simple y una consulta que llega lista para responder.",
+    flow: [
+      "Una visita llega a la página",
+      "Entiende la propuesta en segundos",
+      "Deja su consulta en el formulario",
+      "La consulta llega lista para responder",
+    ],
+    done: "Consulta enviada · Lista para responder",
+  },
+  {
+    id: "asistente",
+    icon: "Sparkles",
+    pill: "Asistente con IA",
+    lead: "Un cliente escribe fuera de horario y, aun así, sale con su pedido reservado.",
+    tagline: "Cada consulta recibe respuesta al instante, con el tono de tu marca.",
+    description:
+      "Construimos asistentes que responden con la información de tu negocio, resuelven consultas de stock y precios, y cierran la venta sin que nadie esté mirando el teléfono.",
+    flow: [
+      "Un cliente escribe por WhatsApp",
+      "El asistente responde con stock y precios",
+      "Reserva el pedido y envía el link de pago",
+      "La venta queda encaminada y registrada",
+    ],
+    done: "Pedido reservado · Link de pago enviado",
+  },
+  {
+    id: "automatizacion",
+    icon: "Workflow",
+    pill: "Automatización",
+    lead: "Llega una consulta y, sin que nadie la cargue, ya está registrada y tu equipo avisado.",
+    tagline: "Nada depende de que alguien se acuerde: el sistema lo hace solo.",
+    description:
+      "Conectamos tu web y tus herramientas para que cada consulta se registre sola, dispare el aviso al equipo y quede lista para el seguimiento.",
+    flow: [
+      "Entra una consulta desde la web",
+      "Se registra sola, con todos sus datos",
+      "Tu equipo recibe el aviso por mail",
+      "Queda lista para el seguimiento",
+    ],
+    done: "Registrada y avisada · Sin carga manual",
+  },
+  {
+    id: "panel",
+    icon: "Database",
+    pill: "Panel de gestión",
+    lead: "Todas las consultas del negocio en un solo lugar: qué entró, qué se respondió y qué está pendiente.",
+    tagline: "Decidís mirando datos reales, no reconstruyendo conversaciones.",
+    description:
+      "Diseñamos paneles simples donde tu equipo ve cada consulta con su estado — sin planillas dispersas ni mensajes perdidos.",
+    flow: [
+      "Cada consulta entra al panel con su estado",
+      "Se ve quién es y qué necesita",
+      "El equipo la toma y responde",
+      "Nada queda sin seguimiento",
+    ],
+    done: "Sin consultas perdidas · Todo con estado",
+  },
+] as const;
+
+/** Microcopy interna de las escenas demo (ilustrativa, content-driven). */
+export const serviceDemoScenes = {
+  landing: {
+    url: "tiendamoda.com.ar",
+    brand: "Tienda Moda",
+    headline: "La nueva colección ya está acá",
+    sub: "Envíos a todo el país y cambios sin costo.",
+    cta: "Ver colección",
+    cards: ["Envíos a todo el país", "Cambios sin costo", "3 y 6 cuotas"],
+    form: {
+      nombre: "Julián P.",
+      email: "julian@correo.com",
+      mensaje: "¿Tienen la campera azul en talle M?",
+    },
+  },
+  /** Conversación realista del asistente (WhatsApp real; hilo Talleres del Sur). */
+  asistente: {
+    business: "Tienda Moda",
+    status: "en línea",
+    chat: [
+      { from: "client", text: "Hola! Vi la campera azul en la página. ¿La tienen en talle M?", time: "21:47" },
+      { from: "assistant", text: "¡Hola! Sí 🙌 Nos queda en M y en L. Es esta — sale $68.000, con 3 y 6 cuotas sin interés.", time: "21:47", image: "/demo-assets/producto-campera.jpg" },
+      { from: "client", text: "Buenísimo. ¿Hacen envíos a Córdoba?", time: "21:48" },
+      { from: "assistant", text: "Sí, llega en 3 a 5 días hábiles y el envío es gratis desde $50.000. ¿Te la reservo en M?", time: "21:48" },
+      { from: "client", text: "Dale, reservala 👌", time: "21:48" },
+      { from: "assistant", text: "Listo ✅ Te envié el link de pago. Apenas se acredite te paso el número de seguimiento.", time: "21:49" },
+    ],
+  },
+  /** Flujo REAL: formulario web → fila en la planilla → mail al equipo. */
+  automatizacion: {
+    entrada: {
+      title: "Llega la consulta desde tu web",
+      meta: "hace 8 s",
+      fields: [
+        ["Nombre", "Julián P."],
+        ["Pedido", "Campera azul · talle M"],
+        ["Email", "julian@correo.com"],
+      ],
+    },
+    registro: {
+      title: "Se registra sola en tu planilla",
+      headers: ["Fecha", "Cliente", "Pedido", "Estado"],
+      row: ["08/07", "Julián P.", "Campera azul · M", "Nuevo"],
+    },
+    aviso: {
+      title: "Tu equipo recibe el aviso por mail",
+      sender: "Tienda Moda · Pedidos",
+      subject: "Nuevo pedido: Julián P. — Campera azul (M)",
+      body: "Talle M reservado desde la web. Preparar envío a Córdoba.",
+      time: "ahora",
+    },
+  },
+  panel: {
+    header: "Consultas · esta semana",
+    counters: [
+      { label: "Nuevas", value: 2 },
+      { label: "En curso", value: 3 },
+      { label: "Respondidas", value: 12 },
+    ],
+    rows: [
+      { name: "Julián P.", detail: "Campera azul · M", status: "Nueva" },
+      { name: "Carla M.", detail: "Vestido lino · S", status: "En curso" },
+      { name: "Andrés T.", detail: "Cambio de talle", status: "Respondida" },
+    ],
+  },
+} as const;
 
 /** Frase-firma editorial de la sección Nosotros (statement de identidad). */
 export const aboutStatement = "La forma SYNTRA de construir.";
