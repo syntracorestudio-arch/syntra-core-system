@@ -11,8 +11,17 @@ function back(params: Record<string, string>): never {
   redirect(`/app/comprar?${new URLSearchParams(params).toString()}`);
 }
 
-/** Inicia el checkout online de un pack: crea la preferencia MP con la credencial del
- *  estudio, registra un intento `pending` y redirige al checkout de MercadoPago. */
+type Purchase = {
+  title: string;
+  price: number;
+  concept: "pack" | "membership" | "abono" | "drop_in";
+  passId: string | null;
+  membershipDays: number | null;
+};
+
+/** Inicia el checkout online de un pack o de un plan (membresía/abono/suelta): crea la
+ *  preferencia MP con la credencial del estudio, registra un intento `pending` y redirige
+ *  al checkout de MercadoPago. La fuente de verdad del cobro es el webhook. */
 export async function startCheckout(formData: FormData) {
   const supabase = await createSupabaseServer();
   const {
@@ -29,12 +38,40 @@ export async function startCheckout(formData: FormData) {
   if (!member) redirect("/login");
 
   const passId = String(formData.get("passId") ?? "");
-  const { data: pass } = await supabase
-    .from("passes")
-    .select("id, name, price, active")
-    .eq("id", passId)
-    .maybeSingle();
-  if (!pass || !pass.active) return back({ error: "El pack no está disponible." });
+  const productId = String(formData.get("productId") ?? "");
+
+  // Resolver qué se compra (pack de créditos o plan). Precio SIEMPRE del servidor.
+  let item: Purchase | null = null;
+  if (passId) {
+    const { data: pass } = await supabase
+      .from("passes")
+      .select("id, name, price, active")
+      .eq("id", passId)
+      .maybeSingle();
+    if (!pass || !pass.active) return back({ error: "El pack no está disponible." });
+    item = {
+      title: pass.name as string,
+      price: Number(pass.price),
+      concept: "pack",
+      passId: pass.id as string,
+      membershipDays: null,
+    };
+  } else if (productId) {
+    const { data: prod } = await supabase
+      .from("sale_products")
+      .select("id, name, concept, price, duration_days, active")
+      .eq("id", productId)
+      .maybeSingle();
+    if (!prod || !prod.active) return back({ error: "El plan no está disponible." });
+    item = {
+      title: prod.name as string,
+      price: Number(prod.price),
+      concept: prod.concept as Purchase["concept"],
+      passId: null,
+      membershipDays: prod.concept === "drop_in" ? null : (prod.duration_days as number | null),
+    };
+  }
+  if (!item) return back({ error: "Elegí un pack o plan para comprar." });
 
   const token = await getStudioMpToken(member.studio_id as string);
   if (!token) return back({ error: "El estudio todavía no tiene el cobro online activo." });
@@ -43,7 +80,7 @@ export async function startCheckout(formData: FormData) {
   const host = h.get("host") ?? "localhost:3001";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const origin = `${proto}://${host}`;
-  const webhook = process.env.MP_WEBHOOK_URL; // pública (túnel) — se setea al probar Slice C
+  const webhook = process.env.MP_WEBHOOK_URL; // pública (dominio del deploy)
 
   const attemptId = crypto.randomUUID();
   let initPoint: string | null = null;
@@ -53,10 +90,10 @@ export async function startCheckout(formData: FormData) {
       body: {
         items: [
           {
-            id: pass.id as string,
-            title: pass.name as string,
+            id: item.passId ?? productId,
+            title: item.title,
             quantity: 1,
-            unit_price: Number(pass.price),
+            unit_price: item.price,
             currency_id: "ARS",
           },
         ],
@@ -65,8 +102,8 @@ export async function startCheckout(formData: FormData) {
           studio_id: member.studio_id,
           member_id: member.id,
           attempt_id: attemptId,
-          pass_id: pass.id,
-          concept: "pack",
+          concept: item.concept,
+          pass_id: item.passId,
         },
         back_urls: {
           success: `${origin}/app/comprar?status=ok`,
@@ -89,13 +126,14 @@ export async function startCheckout(formData: FormData) {
     id: attemptId,
     studio_id: member.studio_id,
     member_id: member.id,
-    concept: "pack",
-    amount: Number(pass.price),
+    concept: item.concept,
+    amount: item.price,
     status: "pending",
     provider: "mercadopago",
     preference_id: preferenceId,
     idempotency_key: attemptId,
-    pass_id: pass.id,
+    pass_id: item.passId,
+    membership_days: item.membershipDays,
   });
 
   redirect(initPoint);
