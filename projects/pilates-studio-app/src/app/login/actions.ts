@@ -20,6 +20,14 @@ export async function login(formData: FormData) {
     redirect("/login?error=" + encodeURIComponent("Credenciales inválidas."));
   }
 
+  // Superadmin (SYNTRA) → panel global de estudios.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_superadmin")
+    .eq("id", signIn.user.id)
+    .maybeSingle();
+  if (profile?.is_superadmin) redirect("/super");
+
   // Ruteo por rol: cada perfil aterriza donde le sirve. IMPORTANTE filtrar por el
   // usuario actual: admin/reception ven TODOS los members del estudio (RLS), así que
   // sin este filtro `.limit(1)` devolvería un member arbitrario. Fallback → /app.
