@@ -1,8 +1,6 @@
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { JsonLd } from "@/components/shared/json-ld";
-import { SectionBridge } from "@/components/shared/section-bridge";
-import { homeBridges } from "@/config/site";
 import { HeroSection } from "@/components/sections/hero-section";
 import { ServicesSection } from "@/components/sections/services-section";
 import { UseCasesSection } from "@/components/sections/use-cases-section";
@@ -14,9 +12,9 @@ import { FinalCtaSection } from "@/components/sections/final-cta-section";
 /**
  * Home — landing oficial SYNTRA CORE.
  * Flujo: Hero → Servicios → Casos → Proceso → Nosotros → FAQ → CTA.
- * Las frases-bisagra (SectionBridge) cosen el relato sección a sección (WEB-012B):
- * el resultado de cada bloque es el input del siguiente. Nosotros va después de
- * Proceso (confianza antes del cierre), sin tocar su contenido interno.
+ * Secciones conectadas directo, sin frases-bisagra (el owner eliminó el último
+ * SectionBridge el 2026-07-09). Nosotros va después de Proceso (confianza antes
+ * del cierre), sin tocar su contenido interno.
  */
 export default function Home() {
   return (
@@ -27,10 +25,7 @@ export default function Home() {
       <main className="flex flex-1 flex-col">
         <HeroSection />
         <ServicesSection />
-        <SectionBridge>{homeBridges.servicesToUseCases}</SectionBridge>
         <UseCasesSection />
-        {/* Sin SectionBridge entre Casos y Proceso: el campo de señales converge al nodo
-            y entra directo al cable de Proceso (continuidad visual resultado→método). */}
         <WorkflowSection />
         <AboutSection />
         <FaqSection />
