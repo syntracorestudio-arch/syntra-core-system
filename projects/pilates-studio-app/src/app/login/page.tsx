@@ -8,8 +8,8 @@ import { siteConfig } from "@/config/site";
 
 export const metadata = { title: "Ingresar" };
 
-// Imagen del panel de marca (full-bleed). B = ambiente de estudio (elegida por el owner).
-const BG = "/login-bg-b.jpg";
+// Imagen del panel de marca (full-bleed): estudio real con reformers de madera (988×1280).
+const BG = "/login-bg.jpg";
 
 // Calidez ambiental del lado del formulario (token-driven → respeta white-label).
 const ambient: CSSProperties = {
@@ -35,7 +35,12 @@ export default async function LoginPage({
       {/* ── Panel de marca a sangre (banda superior en celular, media pantalla desde tablet) ── */}
       <section className="relative h-[38vh] min-h-[240px] overflow-hidden md:h-auto">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={BG} alt="" aria-hidden className="absolute inset-0 size-full object-cover" />
+        <img
+          src={BG}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 size-full object-cover object-center md:object-bottom"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/30 to-foreground/5" />
         <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8 md:p-10 lg:p-12">
           <div className="inline-flex items-center gap-3">
