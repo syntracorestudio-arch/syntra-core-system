@@ -220,7 +220,7 @@ export default async function AppPage({
             ) : null}
             <a href="/app/comprar" className={buttonClass("primary", "sm", "mt-3 w-full")}>
               <Wallet className="size-4" aria-hidden />
-              Comprar pack
+              Comprar
             </a>
           </div>
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">

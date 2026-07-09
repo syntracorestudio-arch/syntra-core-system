@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Ticket, ChevronRight, Wallet } from "lucide-react";
+import { Ticket, ChevronRight, Wallet, CalendarClock } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/admin/page-header";
@@ -117,6 +117,22 @@ export default async function ConfiguracionPage({
           <div>
             <h2 className="text-base font-semibold text-foreground">Packs y precios</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">Definí los packs que vendés y sus precios.</p>
+          </div>
+        </div>
+        <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
+      </Link>
+
+      <Link
+        href="/admin/planes"
+        className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm transition-base hover:-translate-y-px hover:shadow-md"
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <CalendarClock className="size-5" aria-hidden />
+          </span>
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Abonos y membresías</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">Membresías, abonos y clases sueltas con su precio.</p>
           </div>
         </div>
         <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
