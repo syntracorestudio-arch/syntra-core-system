@@ -254,10 +254,11 @@ export default async function ReportesPage({
                 <span className="text-[10px] tabular-nums text-muted-foreground">
                   {t.value > 0 ? `$${Math.round(t.value / 1000)}k` : ""}
                 </span>
-                <div className="flex h-24 w-full items-end overflow-hidden rounded-md bg-secondary">
+                {/* barra desde la línea base (sin track-contenedor: la altura ES el valor) */}
+                <div className="flex h-24 w-full items-end border-b border-border/70">
                   <div
-                    className={`w-full rounded-md transition-base ${t.current ? "bg-primary" : "bg-primary/55"}`}
-                    style={{ height: `${Math.max(Math.round((t.value / maxTrend) * 100), 2)}%` }}
+                    className={`w-full rounded-t-md transition-base ${t.current ? "bg-primary" : "bg-primary/50"}`}
+                    style={{ height: `${Math.max(Math.round((t.value / maxTrend) * 100), t.value > 0 ? 4 : 1)}%` }}
                     aria-hidden
                   />
                 </div>
@@ -377,7 +378,7 @@ function BreakdownCard({
             const v = data.get(r.key) ?? { amount: 0, count: 0 };
             const Icon = r.icon;
             return (
-              <li key={r.key}>
+              <li key={r.key} className={v.amount === 0 ? "opacity-45" : undefined}>
                 <div className="flex items-center justify-between gap-2 text-sm">
                   <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
                     <Icon className="size-4 text-muted-foreground" aria-hidden />
