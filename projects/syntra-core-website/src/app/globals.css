@@ -409,6 +409,60 @@
     transform-origin: center;
   }
 
+  /* === SectionAtmosphere v2 — campo estelar + auroras (fondo unificado Home, 2026-07-09).
+     CSS puro, drift/breathe SOLO por transform (GPU). La regla global de reduced-motion
+     (arriba) las neutraliza. El campo estelar une la mitad delantera con las estrellas de
+     Nosotros / el polvo de Contacto sin canvas. === */
+  @keyframes atmo-drift-a {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50% { transform: translate3d(-30px, 22px, 0); }
+  }
+  @keyframes atmo-drift-b {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50% { transform: translate3d(26px, -28px, 0); }
+  }
+  @keyframes atmo-blob-a {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50% { transform: translate3d(3%, -3%, 0) scale(1.06); }
+  }
+  @keyframes atmo-blob-b {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+    50% { transform: translate3d(-3%, 3%, 0) scale(1); }
+  }
+
+  /* Campo estelar: 2 capas de puntos DETERMINISTAS (dots pre-posicionados, sin runtime
+     random), tiles distintos → pseudo-profundidad; drift oscilante lentísimo (vuelve a 0
+     → loop sin salto). Oversize -4rem + overflow-hidden del padre → sin bordes visibles. */
+  .atmo-stars {
+    position: absolute;
+    inset: -4rem;
+    background-repeat: repeat;
+    will-change: transform;
+  }
+  .atmo-stars-a {
+    opacity: 0.35;
+    background-size: 520px 520px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='520'%3E%3Ccircle cx='34' cy='58' r='1' fill='%23cdd6e4' opacity='.55'/%3E%3Ccircle cx='96' cy='140' r='.6' fill='%23cdd6e4' opacity='.35'/%3E%3Ccircle cx='150' cy='44' r='1.2' fill='%23cdd6e4' opacity='.7'/%3E%3Ccircle cx='210' cy='96' r='.7' fill='%23cdd6e4' opacity='.4'/%3E%3Ccircle cx='268' cy='32' r='.9' fill='%23cdd6e4' opacity='.5'/%3E%3Ccircle cx='320' cy='120' r='1.1' fill='%23cdd6e4' opacity='.6'/%3E%3Ccircle cx='392' cy='60' r='.6' fill='%23cdd6e4' opacity='.3'/%3E%3Ccircle cx='454' cy='110' r='1.3' fill='%23cdd6e4' opacity='.75'/%3E%3Ccircle cx='500' cy='40' r='.7' fill='%23cdd6e4' opacity='.45'/%3E%3Ccircle cx='60' cy='210' r='.8' fill='%23cdd6e4' opacity='.5'/%3E%3Ccircle cx='128' cy='262' r='1.1' fill='%23cdd6e4' opacity='.6'/%3E%3Ccircle cx='190' cy='220' r='.6' fill='%23cdd6e4' opacity='.35'/%3E%3Ccircle cx='250' cy='300' r='.9' fill='%23cdd6e4' opacity='.5'/%3E%3Ccircle cx='318' cy='244' r='.7' fill='%23cdd6e4' opacity='.4'/%3E%3Ccircle cx='380' cy='306' r='1.2' fill='%23cdd6e4' opacity='.7'/%3E%3Ccircle cx='444' cy='250' r='.6' fill='%23cdd6e4' opacity='.3'/%3E%3Ccircle cx='496' cy='300' r='1' fill='%23cdd6e4' opacity='.55'/%3E%3Ccircle cx='40' cy='360' r='1.1' fill='%23cdd6e4' opacity='.6'/%3E%3Ccircle cx='104' cy='420' r='.7' fill='%23cdd6e4' opacity='.4'/%3E%3Ccircle cx='168' cy='372' r='.9' fill='%23cdd6e4' opacity='.5'/%3E%3Ccircle cx='236' cy='440' r='1.3' fill='%23cdd6e4' opacity='.72'/%3E%3Ccircle cx='300' cy='388' r='.6' fill='%23cdd6e4' opacity='.32'/%3E%3Ccircle cx='360' cy='458' r='.8' fill='%23cdd6e4' opacity='.48'/%3E%3Ccircle cx='430' cy='400' r='1' fill='%23cdd6e4' opacity='.55'/%3E%3Ccircle cx='486' cy='462' r='.7' fill='%23cdd6e4' opacity='.4'/%3E%3Ccircle cx='80' cy='490' r='.9' fill='%23cdd6e4' opacity='.5'/%3E%3Ccircle cx='280' cy='150' r='.6' fill='%23cdd6e4' opacity='.3'/%3E%3Ccircle cx='410' cy='180' r='.8' fill='%23cdd6e4' opacity='.46'/%3E%3C/svg%3E");
+    animation: atmo-drift-a 160s ease-in-out infinite;
+  }
+  .atmo-stars-b {
+    opacity: 0.5;
+    background-size: 880px 880px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='880' height='880'%3E%3Ccircle cx='80' cy='110' r='1.4' fill='%23cdd6e4' opacity='.7'/%3E%3Ccircle cx='300' cy='60' r='1' fill='%23cdd6e4' opacity='.5'/%3E%3Ccircle cx='520' cy='140' r='1.6' fill='%23cdd6e4' opacity='.8'/%3E%3Ccircle cx='720' cy='80' r='1.1' fill='%23cdd6e4' opacity='.55'/%3E%3Ccircle cx='840' cy='220' r='1.3' fill='%23cdd6e4' opacity='.65'/%3E%3Ccircle cx='140' cy='340' r='1.2' fill='%23cdd6e4' opacity='.6'/%3E%3Ccircle cx='400' cy='300' r='1.6' fill='%23cdd6e4' opacity='.82'/%3E%3Ccircle cx='620' cy='380' r='1' fill='%23cdd6e4' opacity='.5'/%3E%3Ccircle cx='810' cy='440' r='1.4' fill='%23cdd6e4' opacity='.7'/%3E%3Ccircle cx='90' cy='560' r='1.5' fill='%23cdd6e4' opacity='.75'/%3E%3Ccircle cx='340' cy='620' r='1.1' fill='%23cdd6e4' opacity='.55'/%3E%3Ccircle cx='560' cy='560' r='1.3' fill='%23cdd6e4' opacity='.66'/%3E%3Ccircle cx='760' cy='660' r='1.6' fill='%23cdd6e4' opacity='.8'/%3E%3Ccircle cx='200' cy='800' r='1.2' fill='%23cdd6e4' opacity='.6'/%3E%3Ccircle cx='480' cy='820' r='1.4' fill='%23cdd6e4' opacity='.72'/%3E%3Ccircle cx='700' cy='840' r='1' fill='%23cdd6e4' opacity='.5'/%3E%3C/svg%3E");
+    animation: atmo-drift-b 200s ease-in-out infinite;
+  }
+
+  /* Aurora: blobs de COLOR (no brillo blanco → no toca la banda de luminancia) muy difusos
+     que respiran (transform-only). El blur es estático (rasteriza una vez). */
+  .atmo-blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(64px);
+    will-change: transform;
+  }
+  .atmo-blob-a { animation: atmo-blob-a 18s ease-in-out infinite; }
+  .atmo-blob-b { animation: atmo-blob-b 22s ease-in-out infinite; }
+
   /* === CTA sweep — barrido de luz izq→der en hover (200ms) ===
      Pseudo-elemento sobre el botón; sin reflow (solo transform/opacity). */
   .cta-sweep {

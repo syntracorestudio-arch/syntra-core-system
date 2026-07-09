@@ -1,307 +1,262 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { ArrowRight, Check } from "lucide-react";
-import {
-  motion,
-  useReducedMotion,
-  useScroll,
-  useTransform,
-  type MotionValue,
-} from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
-import { siteConfig, workflow, workflowCta, workflowMethodPromise } from "@/config/site";
-import { getIcon } from "@/lib/icons";
-import { EASE_PREMIUM } from "@/lib/motion";
+import { siteConfig, workflow, workflowCta } from "@/config/site";
+import { EASE_PREMIUM, DURATION } from "@/lib/motion";
 import { Section } from "@/components/layout/section";
 import { Container } from "@/components/layout/container";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { BlurReveal } from "@/components/animations/blur-reveal";
-import { DeferredLivingBackground } from "@/components/marketing/living/deferred-living-background";
+import { SectionAtmosphere } from "@/components/marketing/living/section-atmosphere";
 
 /**
- * WorkflowSection — "La Línea Viva" (reference-lock proceso.md, web viva).
+ * WorkflowSection — Proceso v2 "Escenario evolutivo" (arquitectura PED, 2026-07-09).
  *
- * El proceso ES un camino: un conducto 3D vertical (LivingBackground variant="proceso")
- * con una cresta de luz que baja con el scroll. En el frente, cada estación usa DOS
- * columnas alrededor del nodo central — "qué hacemos" (izq) · "qué recibís"/entregable
- * (der) — y completa ATADA AL SCROLL: PENDIENTE (atenuado) → ACTIVO (foco) → HECHO (check
- * cyan + entregable, que queda). El cable es la bisagra entre acción y resultado. Cierre
- * con CTA relacional. Sin scroll-hijack. reduced-motion → estado final. Solo opacity/
- * transform → CLS 0.
+ * Murió la dual-card (cajas gemelas) y la atenuación por opacity (bug de legibilidad).
+ * Ahora es un ESCENARIO que evoluciona:
+ *  - Desktop (lg+): split sticky. Izquierda = un panel de FOTO enmarcado que hace crossfade
+ *    entre las 4 fotos reales según el paso activo + indicador de progreso 01-04. Derecha =
+ *    los 4 pasos como TEXTO EDITORIAL sin cajas (PASO · título · body · "Tu parte" · el
+ *    RESULTADO como hito dorado). El paso activo lo detecta un IntersectionObserver (scroll
+ *    libre, sin hijack); NADIE se atenúa: todos los pasos 100% legibles siempre.
+ *  - Mobile (<lg): franjas apiladas, cada paso su foto enmarcada + texto (reveal whileInView).
+ *
+ * Fondo: SectionAtmosphere (acento dual) — NO se toca. Solo transform/opacity. CLS 0
+ * (aspect de foto reservado). Sin cyan (checks/resultado en warm). reduced-motion: swap
+ * instantáneo de foto, sin reveals.
  */
 
-function ProcessStep({
+/** Warm dorado del resultado (hito) y del paso activo. */
+const WARM = "#e7c8a0";
+/** Electric del label PASO 0X. */
+const ELECTRIC = "#2563eb";
+/** Fotos reales del proceso (Unsplash horizontales, aprobadas). Índice = paso. */
+const STEP_IMG = [
+  "/proceso/proceso-paso-1.jpg",
+  "/proceso/proceso-paso-2.jpg",
+  "/proceso/proceso-paso-3.jpg",
+  "/proceso/proceso-paso-4.jpg",
+];
+/** Frame compartido de foto (mismo lenguaje que los paneles v5). */
+const FRAME =
+  "relative overflow-hidden rounded-2xl border border-white/10 shadow-[0_30px_64px_-26px_rgba(0,0,0,0.85)]";
+
+/** Texto editorial de un paso (compartido desktop/mobile). `active` enciende el numeral. */
+function StepEditorial({
   item,
-  index,
-  total,
-  progress,
-  reduce,
+  active,
 }: {
   item: (typeof workflow)[number];
-  index: number;
-  total: number;
-  progress: MotionValue<number>;
-  reduce: boolean;
+  active: boolean;
 }) {
-  // Banda de progreso de este paso (scroll-linked).
-  const start = index / total;
-  const mid = (index + 0.55) / total;
-
-  const panelOpacity = useTransform(progress, [start - 0.08, start + 0.04], [0.4, 1]);
-  // Entrada en stagger ligada al scroll: cada paso "sube" al entrar en foco.
-  const panelY = useTransform(progress, [start - 0.08, start + 0.04], [26, 0]);
-  const doneOpacity = useTransform(progress, [mid - 0.05, mid], [0, 1]);
-  const doneScale = useTransform(progress, [mid - 0.05, mid], [0.85, 1]);
-  // Sello HECHO: pop con leve overshoot al completarse.
-  const stampScale = useTransform(progress, [mid - 0.05, mid - 0.02, mid], [0.9, 1.06, 1]);
-  // Acento ACTIVO: pico que aparece y se va (plateau breve) cuando la cresta llega.
-  const activeOpacity = useTransform(
-    progress,
-    [start, start + 0.05, mid, mid + 0.05],
-    [0, 0.85, 0.85, 0],
-  );
-
-  const colStyle = reduce ? { opacity: 1 } : { opacity: panelOpacity, y: panelY };
-  const done = reduce ? { opacity: 1 } : { opacity: doneOpacity };
-  const activeRing = reduce ? { opacity: 0 } : { opacity: activeOpacity };
-  const hover = reduce ? undefined : { y: -4 };
-  const hoverTransition = { duration: 0.25, ease: EASE_PREMIUM };
-
   return (
-    <div className="relative grid grid-cols-[2.5rem_1fr] gap-x-4 gap-y-4 pb-12 md:grid-cols-[1fr_3.5rem_1fr] md:gap-x-8 md:gap-y-0 md:pb-16">
-      {/* Nodo sobre la columna vertebral (col1 mobile, col2/centro desktop) */}
-      <div className="col-start-1 row-start-1 flex justify-center md:col-start-2">
-        <div className="relative z-10">
-          {/* Chip dimensional: bisel (gradiente + luz interior + sombra) → look 3D */}
-          <span className="relative flex size-14 items-center justify-center rounded-2xl bg-gradient-to-b from-surface-3 to-surface-1 ring-1 ring-border-strong shadow-[inset_0_1px_0_rgba(255,255,255,0.10),inset_0_-3px_6px_rgba(0,0,0,0.45),0_14px_32px_-14px_rgba(0,0,0,0.75)] backdrop-blur-sm md:size-16">
-            {React.createElement(getIcon(item.icon), {
-              className: "size-6 md:size-7 text-foreground/75",
-              stroke: "url(#proc-icon-grad)",
-              "aria-hidden": true,
-            })}
-            {/* ACTIVO: acento que destella al activarse */}
-            <motion.span
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 rounded-2xl border border-brand-electric/60 bg-brand-electric/10"
-              style={activeRing}
-            />
-            {/* HECHO: check cyan que revela y queda */}
-            <motion.span
-              className="absolute -top-1.5 -right-1.5 inline-flex size-5 items-center justify-center rounded-full border border-brand-cyan/40 bg-surface-2 text-brand-cyan"
-              style={
-                reduce
-                  ? { opacity: 1, scale: 1 }
-                  : { opacity: doneOpacity, scale: doneScale }
-              }
-            >
-              <Check className="size-3" aria-hidden="true" />
-            </motion.span>
-          </span>
-        </div>
+    <>
+      <span
+        className="font-accent text-xs tracking-widest tabular-nums transition-colors"
+        style={{ color: active ? WARM : ELECTRIC }}
+      >
+        PASO {String(item.step).padStart(2, "0")}
+      </span>
+      <h3 className="mt-2 font-heading text-2xl leading-tight font-bold tracking-tight text-balance sm:text-3xl">
+        {item.title}
+      </h3>
+      <p className="mt-3 text-base leading-relaxed text-pretty text-muted-foreground">
+        {item.description}
+      </p>
+      {item.needFromYou ? (
+        <p className="mt-4 text-sm">
+          <span className="font-medium text-foreground/70">Tu parte:</span>{" "}
+          <span className="text-muted-foreground">{item.needFromYou}</span>
+        </p>
+      ) : null}
+
+      {/* Resultado = HITO DORADO (sello, no caja): border-l warm + check warm */}
+      <div className="mt-5 border-l-2 pl-4" style={{ borderColor: WARM }}>
+        <span
+          className="font-accent text-[0.7rem] tracking-widest uppercase"
+          style={{ color: WARM, opacity: 0.85 }}
+        >
+          Resultado
+        </span>
+        <p
+          className="mt-1 flex items-center gap-2 text-base font-semibold"
+          style={{ color: WARM }}
+        >
+          <Check className="size-4 shrink-0" strokeWidth={2.4} aria-hidden="true" />
+          {item.result}
+        </p>
       </div>
-
-      {/* Columna IZQUIERDA — "qué hacemos" (panel contenido; mobile col2 row1, desktop col1) */}
-      <motion.div
-        style={colStyle}
-        className="col-start-2 row-start-1 min-w-0 md:col-start-1"
-      >
-        <motion.div
-          whileHover={hover}
-          transition={hoverTransition}
-          className="relative rounded-2xl border border-border/50 bg-surface-2/45 p-5 backdrop-blur-md transition-colors hover:border-brand-electric/40 md:p-6"
-        >
-          {/* Énfasis del paso ACTIVO (sincronizado con la cresta del cable) */}
-          <motion.span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-brand-electric/50"
-            style={activeRing}
-          />
-          <span className="font-accent text-xs tracking-widest text-muted-foreground">
-            PASO {String(item.step).padStart(2, "0")}
-          </span>
-          <h3 className="mt-1.5 font-heading text-xl font-semibold tracking-tight text-balance sm:text-2xl">
-            {item.title}
-          </h3>
-          <p className="mt-2.5 text-sm leading-relaxed text-pretty text-muted-foreground">
-            {item.description}
-          </p>
-          {item.needFromYou ? (
-            <p className="mt-4 flex flex-wrap gap-x-1.5 border-t border-border/40 pt-3 text-xs leading-relaxed">
-              <span className="font-medium text-foreground/80">Tu parte:</span>
-              <span className="text-muted-foreground">{item.needFromYou}</span>
-            </p>
-          ) : null}
-        </motion.div>
-      </motion.div>
-
-      {/* Columna DERECHA — "qué recibís" (panel; mobile col2 row2, desktop col3) */}
-      <motion.div
-        style={colStyle}
-        className="col-start-2 row-start-2 min-w-0 md:col-start-3 md:row-start-1"
-      >
-        <motion.div
-          whileHover={hover}
-          transition={hoverTransition}
-          className="relative overflow-hidden rounded-2xl border border-border/50 bg-surface-2/45 p-5 backdrop-blur-md transition-colors hover:border-brand-cyan/40 md:p-6"
-        >
-          {/* Énfasis del paso ACTIVO */}
-          <motion.span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-brand-electric/50"
-            style={activeRing}
-          />
-          {/* Acento cyan (HECHO) que revela y queda */}
-          <motion.span
-            aria-hidden="true"
-            className="absolute top-0 left-0 h-full w-0.5 bg-brand-cyan"
-            style={done}
-          />
-          <span className="font-accent text-[0.7rem] tracking-widest text-muted-foreground uppercase">
-            Qué recibís
-          </span>
-          {/* Sello HECHO: pop al completarse */}
-          <motion.div
-            className="mt-1.5 flex origin-left items-center gap-2.5"
-            style={reduce ? { scale: 1 } : { scale: stampScale }}
-          >
-            <motion.span
-              className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-cyan/15 text-brand-cyan"
-              style={reduce ? { opacity: 1 } : { opacity: doneOpacity }}
-            >
-              <Check className="size-3.5" aria-hidden="true" />
-            </motion.span>
-            <span className="text-base font-semibold text-foreground sm:text-lg">
-              {item.result}
-            </span>
-          </motion.div>
-          {item.reassure ? (
-            <p className="mt-4 border-t border-border/40 pt-3 text-xs leading-relaxed text-muted-foreground">
-              {item.reassure}
-            </p>
-          ) : null}
-        </motion.div>
-      </motion.div>
-    </div>
+    </>
   );
 }
 
 function WorkflowSection() {
   const { eyebrow, title, subtitle } = siteConfig.sections.workflow;
   const reduce = useReducedMotion() ?? false;
-  const total = workflow.length;
 
-  const stepsRef = React.useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: stepsRef,
-    offset: ["start center", "end center"],
-  });
+  // Paso activo (desktop): el crossfade de la foto + el indicador. IntersectionObserver por
+  // bloque de paso → setActive en el CALLBACK (handler, no en el body del effect).
+  const [active, setActive] = React.useState(0);
+  const stepRefs = React.useRef<Array<HTMLDivElement | null>>([]);
+  React.useEffect(() => {
+    const els = stepRefs.current.filter((el): el is HTMLDivElement => el !== null);
+    if (!els.length) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActive(Number((entry.target as HTMLElement).dataset.step));
+          }
+        }
+      },
+      // Línea de activación en el TERCIO SUPERIOR (banda ~2%): el paso se activa
+      // recién cuando su bloque LLEGA a la zona de lectura (top cruza ~32% del
+      // viewport) — con la banda al centro, el paso siguiente "ganaba" apenas
+      // asomaba desde abajo y la foto cambiaba antes de tiempo (feedback owner).
+      { rootMargin: "-30% 0px -68% 0px", threshold: 0 },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
 
   return (
     <Section
       id="proceso"
       contained={false}
-      className="relative overflow-hidden py-16 sm:py-24 lg:py-28"
+      // SIN overflow-hidden: rompería el position:sticky del panel de foto (la
+      // atmósfera ya se auto-contiene con su propio overflow-hidden).
+      className="relative py-16 sm:py-24 lg:py-28"
     >
-      {/* === Fondo full-bleed: base fría + conducto 3D vivo (La Línea Viva) === */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(70% 45% at 50% 0%, #2a2f3a 0%, transparent 55%)," +
-              "linear-gradient(180deg, #15171c 0%, #101216 60%, #0d0e12 100%)",
-          }}
-        />
-        <DeferredLivingBackground variant="proceso" />
-        <div className="sys-canvas-grid absolute inset-0 opacity-[0.12]" />
-      </div>
-
-      {/* Scrim de legibilidad + fundido sup/inf (cose con vecinas), sobre el conducto. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-[5]"
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(8,9,12,0.55) 0%, rgba(8,9,12,0.12) 18%, transparent 45%, rgba(8,9,12,0.28) 100%)",
-        }}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-[6]"
-        style={{
-          background:
-            "radial-gradient(125% 90% at 50% 50%, transparent 58%, rgba(6,7,9,0.5) 100%)," +
-            "linear-gradient(to bottom, rgba(6,7,9,0.9) 0%, transparent 12%, transparent 88%, rgba(6,7,9,0.92) 100%)",
-        }}
-      />
-
-      {/* Gradiente de marca para el stroke de los íconos de los nodos (electric→cyan). */}
-      <svg aria-hidden="true" width="0" height="0" className="absolute">
-        <defs>
-          <linearGradient id="proc-icon-grad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#2563eb" />
-            <stop offset="100%" stopColor="#38bdf8" />
-          </linearGradient>
-        </defs>
-      </svg>
+      {/* === Fondo unificado: atmósfera CSS (acento dual), sin canvas — NO se toca === */}
+      <SectionAtmosphere accent="dual" />
 
       <Container className="relative z-10">
         <BlurReveal>
           <SectionHeading eyebrow={eyebrow} title={title} subtitle={subtitle} />
-          {/* Micro-promesa de método: enmarca los 4 pasos y da coherencia (no relleno). */}
-          <p className="mx-auto mt-4 max-w-xl text-center text-sm leading-relaxed text-pretty text-foreground/70">
-            {workflowMethodPromise}
-          </p>
         </BlurReveal>
 
-        {/* === Camino vertical de estaciones (dos columnas: qué hacemos · qué recibís) === */}
-        <div ref={stepsRef} className="relative mx-auto mt-16 max-w-5xl lg:mt-20">
-          {/* Columna vertebral (mobile: rail izq; desktop: centro) que se llena con el scroll */}
-          <div
-            aria-hidden="true"
-            className="absolute top-2 bottom-10 left-5 w-px md:left-1/2 md:-translate-x-1/2"
-          >
-            <div className="absolute inset-0 bg-border/50" />
-            <motion.div
-              className="absolute inset-0 origin-top bg-gradient-to-b from-brand-electric/50 via-brand-electric/40 to-brand-cyan/60"
-              style={reduce ? { scaleY: 1 } : { scaleY: scrollYProgress }}
-            />
+        {/* === Desktop (lg+): split sticky — foto (izq) + pasos editoriales (der) === */}
+        <div className="mt-14 hidden gap-12 lg:mt-20 lg:grid lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1fr)] lg:items-start">
+          {/* Izquierda sticky: foto con crossfade + indicador de progreso */}
+          <div className="lg:sticky lg:top-24 lg:self-start">
+            <div className={`${FRAME} aspect-[16/10]`}>
+              {STEP_IMG.map((src, i) => (
+                <motion.div
+                  key={src}
+                  aria-hidden={active === i ? undefined : true}
+                  className="absolute inset-0"
+                  initial={false}
+                  animate={{ opacity: active === i ? 1 : 0 }}
+                  transition={{ duration: reduce ? 0 : 0.5, ease: EASE_PREMIUM }}
+                >
+                  <Image
+                    src={src}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1024px) 42vw, 100vw"
+                    className="object-cover"
+                  />
+                </motion.div>
+              ))}
+              {/* Vignette sutil para dar profundidad al frame */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0"
+                style={{ background: "radial-gradient(120% 100% at 50% 0%, transparent 60%, rgba(5,7,12,0.5) 100%)" }}
+              />
+            </div>
+
+            {/* Indicador de progreso 01-04 (el activo en warm; barra llena hasta el activo) */}
+            <div className="mt-5 grid grid-cols-4 gap-2.5">
+              {workflow.map((item, i) => (
+                <div key={item.step} className="flex items-center gap-2">
+                  <span
+                    className="font-accent text-[0.7rem] tabular-nums transition-colors"
+                    style={{ color: active === i ? WARM : "rgba(148,163,184,0.55)" }}
+                  >
+                    {String(item.step).padStart(2, "0")}
+                  </span>
+                  <span
+                    className="h-px flex-1 rounded-full transition-colors"
+                    style={{
+                      backgroundColor: i <= active ? WARM : "rgba(148,163,184,0.22)",
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
+          {/* Derecha: 4 pasos editoriales (todos legibles; el activo enciende su numeral) */}
+          <div>
+            {workflow.map((item, i) => (
+              <div
+                key={item.step}
+                data-step={i}
+                ref={(el) => {
+                  stepRefs.current[i] = el;
+                }}
+                className="border-t border-border/50 py-12 first:border-t-0 first:pt-0 lg:py-16"
+              >
+                <StepEditorial item={item} active={active === i} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* === Mobile (<lg): franjas apiladas (foto + texto por paso) === */}
+        <div className="mt-12 space-y-12 lg:hidden">
           {workflow.map((item, i) => (
-            <ProcessStep
+            <motion.div
               key={item.step}
-              item={item}
-              index={i}
-              total={total}
-              progress={scrollYProgress}
-              reduce={reduce}
-            />
+              initial={reduce ? { opacity: 1 } : { opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: reduce ? 0 : DURATION.section, ease: EASE_PREMIUM }}
+            >
+              <div className={`${FRAME} aspect-video`}>
+                <Image
+                  src={STEP_IMG[i]}
+                  alt=""
+                  fill
+                  sizes="100vw"
+                  className="object-cover"
+                />
+              </div>
+              <div className="mt-5">
+                <StepEditorial item={item} active={false} />
+              </div>
+            </motion.div>
           ))}
         </div>
 
-        {/* === Cierre: CTA relacional (arrancar por el paso 1, sin compromiso) === */}
+        {/* === Cierre editorial (border-t, sin mega-card) — CTA relacional === */}
         <BlurReveal>
-          <div className="mx-auto mt-6 flex max-w-2xl flex-col items-center gap-5 rounded-2xl border border-border/60 bg-background/40 p-7 text-center backdrop-blur-sm sm:p-9">
-            <div className="space-y-2">
-              <p className="font-heading text-xl font-semibold tracking-tight text-balance sm:text-2xl">
-                {workflowCta.lead}
-              </p>
-              <p className="mx-auto max-w-md text-sm leading-relaxed text-pretty text-muted-foreground">
-                {workflowCta.body}
-              </p>
+          <div className="mx-auto mt-16 max-w-5xl border-t border-border/50 pt-10 lg:mt-20">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
+              <div className="max-w-xl">
+                <p className="font-heading text-2xl font-bold tracking-tight text-balance sm:text-3xl">
+                  {workflowCta.lead}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-pretty text-muted-foreground">
+                  {workflowCta.body}
+                </p>
+              </div>
+              <a
+                href={workflowCta.href}
+                className="group inline-flex shrink-0 items-center gap-2 rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                {workflowCta.button}
+                <ArrowRight
+                  className="size-4 transition-transform group-hover:translate-x-0.5"
+                  aria-hidden="true"
+                />
+              </a>
             </div>
-            <a
-              href={workflowCta.href}
-              className="group inline-flex items-center gap-2 rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-            >
-              {workflowCta.button}
-              <ArrowRight
-                className="size-4 transition-transform group-hover:translate-x-0.5"
-                aria-hidden="true"
-              />
-            </a>
           </div>
         </BlurReveal>
       </Container>

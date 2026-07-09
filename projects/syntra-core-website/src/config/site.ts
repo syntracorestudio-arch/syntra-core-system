@@ -95,7 +95,7 @@ export const siteConfig: SiteConfig = {
       eyebrow: "Cómo trabajamos",
       title: "De tu idea a un sistema funcionando",
       subtitle:
-        "Un proceso claro, sin vueltas. Sabés en todo momento qué estamos haciendo y por qué.",
+        "Cuatro pasos, y en cada uno sabés qué estamos haciendo y qué recibís.",
     },
     faq: {
       eyebrow: "Preguntas frecuentes",
@@ -414,16 +414,6 @@ export const serviceDemoScenes = {
 /** Frase-firma editorial de la sección Nosotros (statement de identidad). */
 export const aboutStatement = "La forma SYNTRA de construir.";
 
-/**
- * Frases-bisagra entre secciones de la Home (WEB-012B) — narrativa continua.
- * Cada una nombra el resultado de la sección anterior como input de la siguiente.
- * Copy-first: las renderiza `SectionBridge`, sin conectores visuales.
- */
-export const homeBridges = {
-  servicesToUseCases: "Esto mismo, puesto a trabajar:",
-  useCasesToWorkflow: "Y así lo construimos, paso a paso:",
-} as const;
-
 export const aboutPillars: AboutPillar[] = [
   {
     id: "postura",
@@ -547,7 +537,6 @@ export const workflow: WorkflowStep[] = [
       "Analizamos tus objetivos, tus procesos y dónde estás perdiendo tiempo o ventas. Antes de proponer, escuchamos. El primer paso es sin compromiso.",
     result: "Diagnóstico claro",
     needFromYou: "Una charla y que nos cuentes cómo trabajás hoy.",
-    reassure: "Sin compromiso: si no te sirve, te lo decimos.",
   },
   {
     step: 2,
@@ -557,7 +546,6 @@ export const workflow: WorkflowStep[] = [
       "Definimos cómo va a funcionar todo: diseño, estructura y las tareas que se van a automatizar. Nada de plantillas, todo pensado para tu caso.",
     result: "Propuesta para aprobar",
     needFromYou: "Revisás la propuesta y nos das el OK antes de construir nada.",
-    reassure: "No empezamos a desarrollar hasta que estés de acuerdo.",
   },
   {
     step: 3,
@@ -567,7 +555,6 @@ export const workflow: WorkflowStep[] = [
       "Desarrollamos con tecnología moderna y conectamos tus herramientas para que el trabajo repetitivo se haga solo.",
     result: "Sistema funcionando",
     needFromYou: "Casi nada de tu lado: nos das accesos puntuales y seguís con lo tuyo.",
-    reassure: "Te vamos mostrando avances; no es una caja negra.",
   },
   {
     step: 4,
@@ -577,13 +564,8 @@ export const workflow: WorkflowStep[] = [
       "Publicamos, medimos resultados reales y hacemos crecer el sistema a medida que crece tu negocio.",
     result: "En marcha y con soporte",
     needFromYou: "Usás el sistema; nosotros estamos atrás para lo que surja.",
-    reassure: "No te dejamos solo después de lanzar.",
   },
 ];
-
-/** Micro-promesa de método (bajo el heading): enmarca los 4 pasos y da coherencia. */
-export const workflowMethodPromise =
-  "Trabajamos en 4 pasos claros. Te mostramos cada avance y no avanzamos sin tu OK.";
 
 /** Cierre del Proceso — CTA relacional (arrancar por el paso 1, sin compromiso). */
 export const workflowCta: WorkflowCta = {

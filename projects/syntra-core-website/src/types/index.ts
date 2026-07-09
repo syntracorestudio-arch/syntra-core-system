@@ -85,8 +85,6 @@ export interface WorkflowStep {
   result: string;
   /** Qué se necesita del cliente en esta etapa (dimensión colaborativa). Opcional. */
   needFromYou?: string;
-  /** Micro-tranquilizadora anti-ansiedad de la etapa (distinta del result). Opcional. */
-  reassure?: string;
 }
 
 /** CTA de cierre del Proceso: relacional ("demos el primer paso"), no consultivo. */
