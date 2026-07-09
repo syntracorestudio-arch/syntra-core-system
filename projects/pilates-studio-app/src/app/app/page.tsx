@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { LogOut, CalendarDays, LayoutGrid, Wallet } from "lucide-react";
+import { LogOut, CalendarDays, LayoutGrid, Wallet, CalendarCheck, Sparkles } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { ClassCard, type ClassCardData } from "@/components/calendar/class-card";
 import { buttonClass } from "@/components/ui/button";
@@ -113,6 +113,25 @@ export default async function AppPage({
   const resByOcc = new Map((myRes ?? []).map((r) => [r.occurrence_id, r.id]));
   const waitingOcc = new Set((myWait ?? []).map((w) => w.occurrence_id));
 
+  // Próxima clase reservada (occ viene ordenado por starts_at asc)
+  const nextBookedOcc = (occ ?? []).find((o) => resByOcc.has(o.id as string));
+  const nextBooked = nextBookedOcc
+    ? (() => {
+        const { date, time } = tzParts(nextBookedOcc.starts_at as string, tz);
+        const klass = (Array.isArray(nextBookedOcc.classes) ? nextBookedOcc.classes[0] : nextBookedOcc.classes) as
+          | { name: string; instructor_name: string | null }
+          | null;
+        const todayKey = tzParts(new Date().toISOString(), tz).date;
+        const dayLabel =
+          date === todayKey
+            ? "Hoy"
+            : new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(
+                new Date(`${date}T12:00:00Z`),
+              );
+        return { dayLabel, time, name: klass?.name ?? "Clase", instructor: klass?.instructor_name ?? null };
+      })()
+    : null;
+
   // Agrupar ocurrencias por día local
   const byDay = new Map<string, ClassCardData[]>();
   for (const o of occ ?? []) {
@@ -143,6 +162,12 @@ export default async function AppPage({
 
   const fullName = (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "";
   const firstName = fullName.split(" ")[0] || "alumno/a";
+  const todayLabel = new Intl.DateTimeFormat("es-AR", {
+    timeZone: tz,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(now);
 
   const saldoText = hasMembership
     ? "Abono activo"
@@ -162,19 +187,21 @@ export default async function AppPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-5xl px-5 pb-16 pt-8 lg:px-8">
-      {/* header */}
-      <header className="flex items-center justify-between gap-4">
+      {/* header — banda cálida que ancla la página */}
+      <header className="flex items-center justify-between gap-4 rounded-3xl border border-border bg-gradient-to-br from-accent/70 via-card to-card p-5 shadow-sm sm:p-6">
         <div>
-          <p className="text-sm text-muted-foreground">Hola, {firstName}</p>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <p className="text-sm text-muted-foreground">
+            Hola, {firstName} · {todayLabel}
+          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             {studio?.name ?? "Tu estudio"}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {isStaff ? (
             <a
               href="/admin"
-              className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
             >
               <LayoutGrid className="size-3.5" aria-hidden />
               Panel
@@ -183,7 +210,7 @@ export default async function AppPage({
           <a
             href="/logout"
             aria-label="Cerrar sesión"
-            className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
+            className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
           >
             <LogOut className="size-3.5" aria-hidden />
             Salir
@@ -206,10 +233,16 @@ export default async function AppPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
         {/* resumen lateral (arriba en mobile, columna derecha en desktop) */}
         <aside className="order-1 grid gap-3 lg:order-2 lg:sticky lg:top-8">
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-            <p className="text-xs text-muted-foreground">Tu saldo</p>
+          {/* saldo = héroe del aside */}
+          <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-5 shadow-raised">
+            <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <Sparkles className="size-3.5" aria-hidden />
+              </span>
+              Tu saldo
+            </p>
             <p
-              className={`mt-1 text-2xl font-bold ${
+              className={`mt-2 text-2xl font-bold ${
                 !hasMembership && credits === 0 ? "text-destructive" : "text-foreground"
               }`}
             >
@@ -223,16 +256,38 @@ export default async function AppPage({
               Comprar
             </a>
           </div>
+
+          {/* próxima clase reservada */}
+          {nextBooked ? (
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <span className="flex size-7 items-center justify-center rounded-full bg-success/15 text-success">
+                  <CalendarCheck className="size-3.5" aria-hidden />
+                </span>
+                Tu próxima clase
+              </p>
+              <p className="mt-2 text-lg font-bold text-foreground">
+                {nextBooked.name} · {nextBooked.time}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {nextBooked.dayLabel.charAt(0).toUpperCase() + nextBooked.dayLabel.slice(1)}
+              </p>
+              {nextBooked.instructor ? (
+                <p className="mt-0.5 text-xs text-muted-foreground">con {nextBooked.instructor}</p>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-            <p className="text-xs text-muted-foreground">Tu semana</p>
+            <p className="text-xs font-medium text-muted-foreground">Tu semana</p>
             <dl className="mt-2 grid gap-1.5 text-sm">
               <div className="flex items-center justify-between">
                 <dt className="text-muted-foreground">Clases disponibles</dt>
-                <dd className="font-semibold text-foreground">{weekTotal}</dd>
+                <dd className="font-semibold tabular-nums text-foreground">{weekTotal}</dd>
               </div>
               <div className="flex items-center justify-between">
                 <dt className="text-muted-foreground">Tus reservas</dt>
-                <dd className="font-semibold text-foreground">{reservedCount}</dd>
+                <dd className="font-semibold tabular-nums text-foreground">{reservedCount}</dd>
               </div>
             </dl>
           </div>
