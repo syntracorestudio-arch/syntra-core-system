@@ -6,7 +6,7 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive";
 export type ButtonSize = "sm" | "md";
 
 const base =
-  "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-base active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60";
+  "inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-base active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60";
 
 const sizes: Record<ButtonSize, string> = {
   md: "min-h-11 px-4 text-sm", // ≥44px target
