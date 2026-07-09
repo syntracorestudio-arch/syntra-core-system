@@ -25,8 +25,15 @@ const ADMIN_ROLES = ["admin", "reception"];
 const DEFAULT_TZ = "America/Argentina/Buenos_Aires";
 const EXPIRY_WARNING_DAYS = 14;
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
-const DAY_LABEL: Record<number, string> = { 1: "L", 2: "M", 3: "M", 4: "J", 5: "V", 6: "S", 0: "D" };
+const DAY_LABEL: Record<number, string> = { 1: "L", 2: "Ma", 3: "Mi", 4: "J", 5: "V", 6: "S", 0: "D" };
 const DAY_FULL: Record<number, string> = { 1: "lun", 2: "mar", 3: "mié", 4: "jue", 5: "vie", 6: "sáb", 0: "dom" };
+// Motivo de deuda por estado (la deuda es un estado derivado, no un monto).
+const DEBT_LABEL: Record<string, string> = {
+  membresia_vencida: "membresía vencida",
+  pack_sin_saldo: "pack sin saldo",
+  sin_creditos: "sin créditos",
+  debe_pago: "sin plan activo",
+};
 
 function tzDate(iso: string, tz: string) {
   const p = Object.fromEntries(
@@ -124,7 +131,7 @@ export default async function AdminDashboardPage() {
     supabase.from("memberships").select("valid_to, status").eq("status", "active"),
     supabase
       .from("class_occurrences")
-      .select("starts_at, capacity, booked_count, classes(name)")
+      .select("starts_at, capacity, booked_count, classes(name, instructor_name)")
       .eq("status", "scheduled")
       .gte("starts_at", todayStart)
       .lt("starts_at", weekEnd)
@@ -140,6 +147,7 @@ export default async function AdminDashboardPage() {
     .filter((p) => p.paid_at >= prevMonthStart && p.paid_at < monthStart)
     .reduce((s, p) => s + Number(p.amount), 0);
   const delta = ingresosPrevMes > 0 ? Math.round(((ingresosMes - ingresosPrevMes) / ingresosPrevMes) * 100) : null;
+  const prevMonthLabel = shortMonth(prevMonth(thisYm));
   const packsMes = monthPays.filter((p) => p.concept === "pack").length;
   const sueltasMes = monthPays.filter((p) => p.concept === "drop_in").length;
 
@@ -172,7 +180,8 @@ export default async function AdminDashboardPage() {
   const needsAttention = debtors.length > 0 || porVencer > 0;
 
   // ---- ocupación: semana + heatmap día×hora + clases de hoy ----
-  const occs = (occ ?? []) as { starts_at: string; capacity: number; booked_count: number; classes: { name: string } | { name: string }[] | null }[];
+  type OccCls = { name: string; instructor_name: string | null };
+  const occs = (occ ?? []) as { starts_at: string; capacity: number; booked_count: number; classes: OccCls | OccCls[] | null }[];
   const weekCap = occs.reduce((s, o) => s + o.capacity, 0);
   const weekBooked = occs.reduce((s, o) => s + o.booked_count, 0);
   const weekOcc = weekCap > 0 ? Math.round((weekBooked / weekCap) * 100) : 0;
@@ -180,7 +189,13 @@ export default async function AdminDashboardPage() {
     .filter((o) => o.starts_at >= todayStart && o.starts_at < tomorrowStart)
     .map((o) => {
       const cls = Array.isArray(o.classes) ? o.classes[0] : o.classes;
-      return { time: timeOf(o.starts_at, tz), name: cls?.name ?? "Clase", booked: o.booked_count, capacity: o.capacity };
+      return {
+        time: timeOf(o.starts_at, tz),
+        name: cls?.name ?? "Clase",
+        instructor: cls?.instructor_name ?? null,
+        booked: o.booked_count,
+        capacity: o.capacity,
+      };
     });
 
   // heatmap: (weekday × hora) → ocupación
@@ -240,17 +255,18 @@ export default async function AdminDashboardPage() {
                 label={`Ingresos de ${monthLabel}`}
                 hero
               >
-                <div className="flex flex-wrap items-baseline gap-x-2">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <CountUp value={ingresosMes} prefix="$" className="text-2xl font-bold tabular-nums text-foreground" />
                   {delta !== null ? (
                     <span
-                      className={`inline-flex items-center gap-0.5 text-xs font-semibold ${
-                        delta >= 0 ? "text-primary" : "text-muted-foreground"
+                      className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        delta >= 0 ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
                       }`}
+                      title={`Mes en curso vs ${prevMonthLabel} completo`}
                     >
                       {delta >= 0 ? <TrendingUp className="size-3" aria-hidden /> : <TrendingDown className="size-3" aria-hidden />}
                       {delta >= 0 ? "+" : ""}
-                      {delta}%
+                      {delta}% vs {prevMonthLabel}
                     </span>
                   ) : null}
                 </div>
@@ -330,8 +346,13 @@ export default async function AdminDashboardPage() {
                             href={`/admin/alumnos/${d.member_id}`}
                             className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-secondary"
                           >
-                            <span className="truncate text-sm text-foreground">{nameById.get(d.member_id) ?? "Alumno"}</span>
-                            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm text-foreground">{nameById.get(d.member_id) ?? "Alumno"}</span>
+                              <span className="block text-[11px] text-muted-foreground">
+                                {DEBT_LABEL[d.financial_status] ?? d.financial_status}
+                              </span>
+                            </span>
+                            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-primary-ink">
                               cobrar <ChevronRight className="size-3.5" aria-hidden />
                             </span>
                           </Link>
@@ -342,7 +363,7 @@ export default async function AdminDashboardPage() {
                     <p className="mt-1 text-sm text-muted-foreground">Nadie con deuda.</p>
                   )}
                   {debtors.length > 5 ? (
-                    <Link href="/admin/alumnos" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">
+                    <Link href="/admin/alumnos" className="mt-2 inline-block text-xs font-semibold text-primary-ink hover:underline">
                       ver los {debtors.length}
                     </Link>
                   ) : null}
@@ -362,10 +383,9 @@ export default async function AdminDashboardPage() {
                   )}
                   <Link
                     href="/admin/alumnos"
-                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:opacity-90"
+                    className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary-ink hover:underline"
                   >
-                    <Wallet className="size-4" aria-hidden />
-                    Registrar pago
+                    ver alumnos <ChevronRight className="size-3.5" aria-hidden />
                   </Link>
                 </div>
               </div>
@@ -421,7 +441,7 @@ export default async function AdminDashboardPage() {
                   <CalendarClock className="size-4 text-muted-foreground" aria-hidden />
                   Clases de hoy
                 </h2>
-                <Link href="/admin/clases" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                <Link href="/admin/clases" className="inline-flex items-center gap-1 text-xs font-semibold text-primary-ink hover:underline">
                   ver agenda <ChevronRight className="size-3.5" aria-hidden />
                 </Link>
               </div>
@@ -429,15 +449,39 @@ export default async function AdminDashboardPage() {
                 <ul className="mt-3 divide-y divide-border">
                   {todayOccs.map((c, i) => {
                     const full = c.booked >= c.capacity;
+                    const pct = c.capacity > 0 ? Math.round((c.booked / c.capacity) * 100) : 0;
                     return (
                       <li key={i} className="flex items-center justify-between gap-3 py-2.5">
-                        <div className="flex items-baseline gap-3">
+                        <div className="flex min-w-0 items-baseline gap-3">
                           <span className="text-sm font-bold tabular-nums text-foreground">{c.time}</span>
-                          <span className="text-sm text-foreground">{c.name}</span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm text-foreground">{c.name}</span>
+                            {c.instructor ? (
+                              <span className="block truncate text-[11px] text-muted-foreground">{c.instructor}</span>
+                            ) : null}
+                          </span>
                         </div>
-                        <span className={`text-xs font-medium ${full ? "text-destructive" : "text-muted-foreground"}`}>
-                          {c.booked}/{c.capacity}
-                        </span>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span
+                            className="h-1.5 w-14 overflow-hidden rounded-full bg-surface-sunken"
+                            role="img"
+                            aria-label={`Ocupación ${pct}%`}
+                          >
+                            <span
+                              className={`block h-full rounded-full ${full ? "bg-destructive" : "bg-primary"}`}
+                              style={{ width: `${Math.min(pct, 100)}%` }}
+                            />
+                          </span>
+                          {full ? (
+                            <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                              Lleno
+                            </span>
+                          ) : (
+                            <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                              {c.booked}/{c.capacity}
+                            </span>
+                          )}
+                        </div>
                       </li>
                     );
                   })}

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Users, ChevronRight, GraduationCap, Headset } from "lucide-react";
+import { Users, ChevronRight, GraduationCap, Headset, Search } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/page-header";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
@@ -25,12 +25,66 @@ function saldoText(f: FinRow | undefined) {
   return "Sin saldo";
 }
 
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "·";
+}
+
+type Person = {
+  id: string;
+  name: string;
+  email: string | null;
+  role: string;
+  isStaff: boolean;
+  fin: FinRow | undefined;
+};
+
+function PersonRow({ p }: { p: Person }) {
+  return (
+    <a
+      href={`/admin/alumnos/${p.id}`}
+      className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-secondary/50"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-primary-ink">
+        {initials(p.name)}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-foreground">{p.name}</span>
+        {p.email ? <span className="block truncate text-xs text-muted-foreground">{p.email}</span> : null}
+        {!p.isStaff ? (
+          <span className="mt-0.5 block text-xs font-medium text-foreground sm:hidden">{saldoText(p.fin)}</span>
+        ) : null}
+      </span>
+      {p.isStaff ? (
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary-ink">
+          {p.role === "reception" ? (
+            <Headset className="size-3.5" aria-hidden />
+          ) : (
+            <GraduationCap className="size-3.5" aria-hidden />
+          )}
+          {p.role === "reception" ? "Recepción" : "Instructor"}
+        </span>
+      ) : (
+        <>
+          <span className="hidden w-28 shrink-0 text-right text-sm font-medium tabular-nums text-foreground sm:block">
+            {saldoText(p.fin)}
+          </span>
+          <span className="hidden w-36 shrink-0 justify-end sm:flex">
+            {p.fin ? <FinancialBadge status={p.fin.financial_status} /> : null}
+          </span>
+        </>
+      )}
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+    </a>
+  );
+}
+
 export default async function AlumnosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ notice?: string; error?: string }>;
+  searchParams: Promise<{ notice?: string; error?: string; q?: string }>;
 }) {
-  const { notice, error } = await searchParams;
+  const { notice, error, q } = await searchParams;
   const supabase = await createSupabaseServer();
 
   const {
@@ -61,7 +115,7 @@ export default async function AlumnosPage({
     ((fins ?? []) as unknown as FinRow[]).map((f) => [f.member_id, f]),
   );
 
-  const alumnos = ((mems ?? []) as unknown as MemberRow[]).map((m) => {
+  const all: Person[] = ((mems ?? []) as unknown as MemberRow[]).map((m) => {
     const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
     return {
       id: m.id,
@@ -72,7 +126,15 @@ export default async function AlumnosPage({
       fin: finByMember.get(m.id),
     };
   });
-  const withDebt = alumnos.filter((a) => !a.isStaff && a.fin && a.fin.financial_status !== "al_dia").length;
+
+  const query = (q ?? "").trim().toLowerCase();
+  const matches = (p: Person) =>
+    !query || p.name.toLowerCase().includes(query) || (p.email ?? "").toLowerCase().includes(query);
+
+  const clients = all.filter((p) => !p.isStaff && matches(p));
+  const staff = all.filter((p) => p.isStaff && matches(p));
+  const totalClients = all.filter((p) => !p.isStaff).length;
+  const withDebt = clients.filter((p) => p.fin && p.fin.financial_status !== "al_dia").length;
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
@@ -89,65 +151,61 @@ export default async function AlumnosPage({
         </p>
       ) : null}
 
-      <div className="mt-6 flex items-center justify-between">
+      {/* header de lista + buscador (GET, sin JS) */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-foreground">
-          {alumnos.length > 0
-            ? `${alumnos.length} ${alumnos.length === 1 ? "alumno" : "alumnos"}`
-            : "Alumnos"}
+          {totalClients} {totalClients === 1 ? "alumno" : "alumnos"}
+          {withDebt > 0 ? (
+            <span className="ml-2 text-xs font-normal text-muted-foreground">{withDebt} con pago pendiente</span>
+          ) : null}
         </h2>
-        {withDebt > 0 ? (
-          <span className="text-xs text-muted-foreground">{withDebt} con pago pendiente</span>
-        ) : null}
+        <form method="get" className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <input
+            type="search"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="Buscar por nombre o email"
+            className="w-64 max-w-full rounded-xl border border-input bg-card py-2 pl-9 pr-3 text-sm text-foreground outline-none transition-base placeholder:text-muted-foreground/60 focus:border-transparent focus:ring-2 focus:ring-ring"
+          />
+        </form>
       </div>
 
-      <div className="mt-3 grid gap-2">
-        {alumnos.length > 0 ? (
-          alumnos.map((a, i) => (
-            <a
-              key={a.id}
-              href={`/admin/alumnos/${a.id}`}
-              style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-base hover:-translate-y-px hover:shadow-md sm:p-5 animate-in fade-in slide-in-from-bottom-2 duration-500 [animation-fill-mode:backwards]"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-foreground">{a.name}</p>
-                {a.email ? <p className="truncate text-sm text-muted-foreground">{a.email}</p> : null}
-                {/* saldo en mobile (en desktop va en la columna derecha); el staff no lleva saldo */}
-                {!a.isStaff ? (
-                  <p className="mt-0.5 text-sm font-medium text-foreground sm:hidden">{saldoText(a.fin)}</p>
-                ) : null}
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                {a.isStaff ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                    {a.role === "reception" ? (
-                      <Headset className="size-3.5" aria-hidden />
-                    ) : (
-                      <GraduationCap className="size-3.5" aria-hidden />
-                    )}
-                    {a.role === "reception" ? "Recepción" : "Instructor"}
-                  </span>
-                ) : (
-                  <>
-                    <div className="hidden text-right sm:block">
-                      <p className="text-sm font-medium text-foreground">{saldoText(a.fin)}</p>
-                    </div>
-                    {a.fin ? <FinancialBadge status={a.fin.financial_status} /> : null}
-                  </>
-                )}
-                <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
-              </div>
-            </a>
-          ))
-        ) : (
-          <div className="rounded-2xl border border-dashed border-border bg-card/60 px-6 py-12 text-center">
-            <Users className="mx-auto size-6 text-muted-foreground" aria-hidden />
-            <p className="mt-3 text-sm text-muted-foreground">
-              Todavía no hay alumnos. Se suman al ingresar con el código del estudio.
-            </p>
+      {/* alumnos (filas densas en un solo contenedor) */}
+      {clients.length > 0 ? (
+        <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-sm duration-500 animate-in fade-in slide-in-from-bottom-2">
+          <div className="divide-y divide-border">
+            {clients.map((p) => (
+              <PersonRow key={p.id} p={p} />
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="mt-3 rounded-2xl border border-dashed border-border bg-card/60 px-6 py-12 text-center">
+          <Users className="mx-auto size-6 text-muted-foreground" aria-hidden />
+          <p className="mt-3 text-sm text-muted-foreground">
+            {query
+              ? `Sin resultados para “${q}”.`
+              : "Todavía no hay alumnos. Se suman al ingresar con el código del estudio."}
+          </p>
+        </div>
+      )}
+
+      {/* equipo (instructores + recepción), separado de los alumnos */}
+      {staff.length > 0 ? (
+        <>
+          <h2 className="mt-8 text-base font-semibold text-foreground">
+            Equipo <span className="text-xs font-normal text-muted-foreground">{staff.length}</span>
+          </h2>
+          <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+            <div className="divide-y divide-border">
+              {staff.map((p) => (
+                <PersonRow key={p.id} p={p} />
+              ))}
+            </div>
+          </div>
+        </>
+      ) : null}
     </main>
   );
 }

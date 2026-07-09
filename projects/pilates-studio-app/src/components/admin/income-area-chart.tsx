@@ -21,8 +21,31 @@ function TooltipBox({ active, payload, label }: { active?: boolean; payload?: { 
   );
 }
 
+type LastDotProps = { cx?: number; cy?: number; index?: number; payload?: Point };
+
 /** Área de ingresos por mes. Serie = acento del estudio (var --primary → white-label). */
 export function IncomeAreaChart({ data }: { data: Point[] }) {
+  // Dot + valor SOLO en el último mes (el dato que el admin busca primero).
+  const renderLastDot = (props: LastDotProps) => {
+    const { cx, cy, index, payload } = props;
+    if (index !== data.length - 1 || cx == null || cy == null) return <g key={`d-${index}`} />;
+    return (
+      <g key={`d-${index}`}>
+        <circle cx={cx} cy={cy} r={4.5} fill="var(--primary)" stroke="var(--card)" strokeWidth={2} />
+        <text
+          x={cx - 10}
+          y={cy - 10}
+          textAnchor="end"
+          fontSize={12}
+          fontWeight={700}
+          fill="var(--foreground)"
+        >
+          {kfmt(payload?.value ?? 0)}
+        </text>
+      </g>
+    );
+  };
+
   return (
     <div className="h-56 w-full sm:h-64">
       <ResponsiveContainer width="100%" height="100%">
@@ -55,7 +78,7 @@ export function IncomeAreaChart({ data }: { data: Point[] }) {
             strokeWidth={2.5}
             fill="url(#incomeFill)"
             isAnimationActive={false}
-            dot={false}
+            dot={renderLastDot}
             activeDot={{ r: 4, fill: "var(--primary)", strokeWidth: 0 }}
           />
         </AreaChart>
