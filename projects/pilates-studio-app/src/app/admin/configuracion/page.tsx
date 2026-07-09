@@ -52,11 +52,14 @@ export default async function ConfiguracionPage({
   const admin = createAdminClient();
   const { data: mp } = await admin
     .from("studio_payment_providers")
-    .select("status, mp_nickname")
+    .select("status, mp_nickname, webhook_secret")
     .eq("studio_id", member.studio_id)
     .maybeSingle();
   const mpConnected = mp?.status === "connected";
   const mpNickname = (mp?.mp_nickname as string | null) ?? null;
+  const mpHasSecret = Boolean(mp?.webhook_secret); // solo presencia, nunca el valor
+  const webhookBase = process.env.MP_WEBHOOK_URL ?? null;
+  const mpWebhookUrl = webhookBase ? `${webhookBase}?studio=${member.studio_id}` : null;
 
   const b =
     studio?.branding && typeof studio.branding === "object" ? (studio.branding as Record<string, unknown>) : {};
@@ -133,7 +136,12 @@ export default async function ConfiguracionPage({
           </div>
         </div>
         <div className="mt-4">
-          <MpConnect connected={mpConnected} nickname={mpNickname} />
+          <MpConnect
+            connected={mpConnected}
+            nickname={mpNickname}
+            hasSecret={mpHasSecret}
+            webhookUrl={mpWebhookUrl}
+          />
         </div>
       </section>
     </main>
