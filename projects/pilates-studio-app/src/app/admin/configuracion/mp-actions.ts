@@ -31,6 +31,7 @@ export async function connectMercadoPago(formData: FormData) {
   const { studioId } = await adminStudio();
   const token = String(formData.get("access_token") ?? "").trim();
   if (!token) return back({ error: "Pegá tu Access Token de MercadoPago." });
+  const webhookSecret = String(formData.get("webhook_secret") ?? "").trim();
 
   // Validar el token contra MP (identifica la cuenta receptora).
   let mpUserId: string | null = null;
@@ -55,6 +56,7 @@ export async function connectMercadoPago(formData: FormData) {
       provider: "mercadopago",
       status: "connected",
       access_token: encryptSecret(token),
+      webhook_secret: webhookSecret ? encryptSecret(webhookSecret) : null,
       mp_user_id: mpUserId,
       mp_nickname: nickname,
       connected_at: new Date().toISOString(),
@@ -63,6 +65,20 @@ export async function connectMercadoPago(formData: FormData) {
   );
   if (error) return back({ error: "No se pudo guardar la conexión." });
   back({ notice: nickname ? `MercadoPago conectado (${nickname}).` : "MercadoPago conectado." });
+}
+
+/** Setea/actualiza/borra la clave secreta del webhook (validación de firma) sin reconectar. */
+export async function setWebhookSecret(formData: FormData) {
+  const { studioId } = await adminStudio();
+  const secret = String(formData.get("webhook_secret") ?? "").trim();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("studio_payment_providers")
+    .update({ webhook_secret: secret ? encryptSecret(secret) : null })
+    .eq("studio_id", studioId)
+    .eq("status", "connected");
+  if (error) return back({ error: "No se pudo guardar la clave del webhook." });
+  back({ notice: secret ? "Clave del webhook guardada." : "Clave del webhook eliminada." });
 }
 
 /** Desconecta MercadoPago (borra la credencial del estudio). */

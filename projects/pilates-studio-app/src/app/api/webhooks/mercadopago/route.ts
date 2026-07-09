@@ -1,6 +1,7 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getStudioMpToken } from "@/lib/mercadopago";
+import { getStudioMpAuth } from "@/lib/mercadopago";
 import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,38 @@ function money(n: number) {
 }
 
 /**
+ * Valida la firma 'x-signature' de MercadoPago (HMAC-SHA256 sobre un manifest fijo).
+ * Manifest oficial: `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`. Devuelve true
+ * solo si el hash coincide (comparación en tiempo constante).
+ */
+function verifyMpSignature(
+  secret: string,
+  dataId: string | null,
+  xRequestId: string | null,
+  xSignature: string | null,
+): boolean {
+  if (!xSignature || !dataId) return false;
+  let ts: string | null = null;
+  let v1: string | null = null;
+  for (const part of xSignature.split(",")) {
+    const [k, ...rest] = part.split("=");
+    const val = rest.join("=").trim();
+    if (k.trim() === "ts") ts = val;
+    else if (k.trim() === "v1") v1 = val;
+  }
+  if (!ts || !v1) return false;
+  // MP: si el id trae letras, va en minúscula; los ids de pago son numéricos.
+  const id = /[a-zA-Z]/.test(dataId) ? dataId.toLowerCase() : dataId;
+  const manifest = `id:${id};request-id:${xRequestId ?? ""};ts:${ts};`;
+  const expected = crypto.createHmac("sha256", secret).update(manifest).digest("hex");
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(v1, "hex"));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Webhook de MercadoPago. La FUENTE DE VERDAD es la API de MP: no confiamos en el body,
  * re-consultamos el pago con el token del estudio. Idempotente (mercadopago_webhook_events).
  * Aplica el beneficio SOLO al estado 'approved'. Responde 200 siempre (MP reintenta si no).
@@ -24,6 +57,9 @@ function money(n: number) {
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const studioId = url.searchParams.get("studio");
+  const dataIdParam = url.searchParams.get("data.id"); // para el manifest de la firma
+  const xSignature = req.headers.get("x-signature");
+  const xRequestId = req.headers.get("x-request-id");
 
   // id del pago: puede venir en query (?data.id / ?id) o en el body JSON.
   let paymentId = url.searchParams.get("data.id") ?? url.searchParams.get("id");
@@ -41,11 +77,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, skipped: true });
   }
 
-  const token = await getStudioMpToken(studioId);
-  if (!token) return NextResponse.json({ ok: true, skipped: "no-token" });
+  const auth = await getStudioMpAuth(studioId);
+  if (!auth) return NextResponse.json({ ok: true, skipped: "no-token" });
+  const { token, webhookSecret } = auth;
+
+  // Firma HMAC: si el estudio configuró su clave secreta, la notificación DEBE venir
+  // firmada por MP. Firma inválida → 401 (probable falsificación). Sin clave → se
+  // omite (el binding de intento/monto + re-consulta ya protegen el cobro).
+  if (webhookSecret && !verifyMpSignature(webhookSecret, dataIdParam ?? paymentId, xRequestId, xSignature)) {
+    return NextResponse.json({ ok: false, error: "invalid-signature" }, { status: 401 });
+  }
 
   // Fuente de verdad: consultar el pago en MP.
-  let pay: { status?: string; external_reference?: string; transaction_amount?: number } | null = null;
+  let pay: {
+    status?: string;
+    external_reference?: string;
+    transaction_amount?: number;
+    currency_id?: string;
+  } | null = null;
   try {
     const r = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -72,6 +121,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, status });
   }
 
+  // Binding: el intento debe existir, pertenecer AL estudio del webhook y coincidir en
+  // monto/moneda con lo que MP confirmó. Corta pagos que no corresponden al intento
+  // (monto adulterado, id de intento de otro estudio, reuso de preferencia).
+  const { data: att } = await admin
+    .from("payment_attempts")
+    .select("id, studio_id, member_id, amount, currency, concept")
+    .eq("id", attemptId)
+    .maybeSingle();
+  if (!att) return NextResponse.json({ ok: true, skipped: "no-attempt" });
+  if (att.studio_id !== studioId) return NextResponse.json({ ok: true, skipped: "studio-mismatch" });
+  if (
+    pay?.transaction_amount != null &&
+    Math.abs(Number(pay.transaction_amount) - Number(att.amount)) > 0.01
+  ) {
+    return NextResponse.json({ ok: true, skipped: "amount-mismatch" });
+  }
+  if (pay?.currency_id && String(att.currency) && pay.currency_id !== att.currency) {
+    return NextResponse.json({ ok: true, skipped: "currency-mismatch" });
+  }
+
   // Idempotencia a nivel evento: primer 'approved' de este pago procesa; repetidos se ignoran.
   const { error: dupErr } = await admin
     .from("mercadopago_webhook_events")
@@ -85,14 +154,9 @@ export async function POST(req: Request) {
   });
 
   if (applied === true) {
-    // Datos para el aviso in-app al dueño.
-    const { data: att } = await admin
-      .from("payment_attempts")
-      .select("member_id, amount, concept")
-      .eq("id", attemptId)
-      .maybeSingle();
+    // Aviso in-app al dueño (reusa el intento ya cargado para el binding).
     let memberName = "Un alumno";
-    if (att?.member_id) {
+    if (att.member_id) {
       const { data: m } = await admin
         .from("members")
         .select("profiles(full_name)")
@@ -101,12 +165,12 @@ export async function POST(req: Request) {
       const prof = Array.isArray(m?.profiles) ? m?.profiles[0] : m?.profiles;
       memberName = (prof?.full_name as string) ?? memberName;
     }
-    const label = att ? (CONCEPT_LABEL[att.concept] ?? att.concept) : "pago";
+    const label = CONCEPT_LABEL[att.concept] ?? att.concept;
     await createNotification(studioId, {
       type: "payment",
       title: "Pago recibido",
-      body: att ? `${memberName} pagó ${money(Number(att.amount))} · ${label}` : `${memberName} realizó un pago`,
-      link: att?.member_id ? `/admin/alumnos/${att.member_id}` : "/admin",
+      body: `${memberName} pagó ${money(Number(att.amount))} · ${label}`,
+      link: `/admin/alumnos/${att.member_id}`,
     });
   }
 
