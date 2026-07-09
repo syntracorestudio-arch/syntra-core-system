@@ -31,8 +31,8 @@ import { EmberParticles } from "@/components/marketing/aplicaciones/nosotros/emb
  *    vivo + micro-CTA a Contacto) + items en columna derecha.
  *  · ITEM: número índice + BARRA TÉRMICA warm→electric que se enciende al
  *    abrir + indicador "+"→"×" + glow del color interpolado de su posición
- *    (item 1 = warm … item 7 = electric). Leída = tick CYAN persistente
- *    (duda resuelta = HECHO, uso semántico del token reservado).
+ *    (item 1 = warm … item 7 = electric). Leída = tick WARM dorado persistente
+ *    (duda resuelta = HECHO → warm #e7c8a0; sweep de color 2026-07-09).
  *  · Apertura con grid-rows (CSS puro, sin medir alturas, user-initiated → CLS 0).
  * reduced-motion: MotionConfig user + canvas apagado + frontera a media altura.
  */
@@ -153,6 +153,11 @@ function FaqSection() {
               Nosotros y ATERRIZA en el tono del backdrop de Contacto
               (#0b0f18→#06070d) — sin salto de división. */}
           <div className="absolute inset-0 bg-[linear-gradient(180deg,#05070c_0%,#070b15_58%,#090d16_100%)]" />
+          {/* Campo estelar de la casa (mismas capas atmo-* que SectionAtmosphere): mata el
+              "frame plano" y cose FAQ con el resto de la película. La termoclina de abajo ya
+              aporta los blobs warm/electric respirando, así que acá solo va el stardust. */}
+          <div className="atmo-stars atmo-stars-a" />
+          <div className="atmo-stars atmo-stars-b" />
           {/* Banda de entrega: los últimos px se funden al color exacto con el
               que abre el backdrop de Contacto. */}
           <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-b from-transparent via-[#080c14]/60 to-[#070a11]" />
@@ -227,7 +232,7 @@ function FaqSection() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <p className="text-sm text-smoke-2">{faqRail.microcopy}</p>
-                  {/* Contador de dudas resueltas (cyan = HECHO, semántico);
+                  {/* Contador de dudas resueltas (warm dorado = HECHO, semántico);
                       pop sutil en cada cambio. */}
                   <motion.p
                     key={resolved.size}
@@ -236,7 +241,7 @@ function FaqSection() {
                     transition={{ duration: 0.35, ease: EASE_PREMIUM }}
                     aria-live="polite"
                     className={`font-accent text-[0.7rem] uppercase tracking-[0.18em] ${
-                      resolved.size > 0 ? "text-brand-cyan/80" : "text-muted-foreground/50"
+                      resolved.size > 0 ? "text-accent-warm/80" : "text-muted-foreground/50"
                     }`}
                   >
                     {resolved.size > 0
@@ -294,7 +299,7 @@ function FaqSection() {
                         onClick={() => toggle(i)}
                         className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left sm:px-6 sm:py-5"
                       >
-                        {/* Índice + tick cyan persistente al haberla leído */}
+                        {/* Índice + tick warm dorado persistente al haberla leído */}
                         <span className="relative flex w-8 shrink-0 items-center gap-1">
                           <span
                             className="font-accent text-xs tracking-[0.18em] tabular-nums transition-colors duration-300"
@@ -309,7 +314,7 @@ function FaqSection() {
                           {isResolved && !isOpen && (
                             <Check
                               aria-hidden="true"
-                              className="size-3 text-brand-cyan/80"
+                              className="size-3 text-accent-warm/80"
                               strokeWidth={2.5}
                             />
                           )}

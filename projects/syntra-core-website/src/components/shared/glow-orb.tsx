@@ -4,14 +4,14 @@ import { cn } from "@/lib/utils";
 
 interface GlowOrbProps extends React.ComponentProps<"div"> {
   /** Color del glow */
-  tone?: "electric" | "cyan" | "deep";
+  tone?: "electric" | "deep";
   /** Tamaño aproximado del orbe */
   size?: "sm" | "md" | "lg";
 }
 
+// Sweep de color 2026-07-09: se retiró la variante "cyan" (sin uso; cyan prohibido en web).
 const toneMap: Record<NonNullable<GlowOrbProps["tone"]>, string> = {
   electric: "bg-brand-electric/25",
-  cyan: "bg-brand-cyan/20",
   deep: "bg-brand-deep/30",
 };
 
@@ -59,7 +59,7 @@ function GradientBackground({ className, ...props }: React.ComponentProps<"div">
       )}
       {...props}
     >
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-cyan/30 to-transparent" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-electric/30 to-transparent" />
     </div>
   );
 }

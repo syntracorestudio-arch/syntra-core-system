@@ -263,20 +263,30 @@ Baseline mobile: Perf **67**, LCP **~7s**, CLS 0. Tres fixes (Cat A, PRs **#33**
   contención de CPU del entorno; medir por **PageSpeed Insights** (LCP 1.5 / SI 2.2 / CLS 0
   reales sugieren +95).
 
-**Estado (2026-07-07): la Home es web viva de punta a punta.** Hero (estratos) → Servicios
-(3D) → Casos (rail vivo) → Proceso (línea viva) → Nosotros (brasas, v3) → FAQ (puente
-térmico) → Contacto (campo eléctrico v2) → Footer (cierre de marca). Locks **approved**:
-hero · casos · proceso · contacto · nosotros · faq · footer (`servicios` sigue en draft).
-Migraciones `0004` y `0005` **aplicadas** en Supabase. Workflow vigente: **variantes vivas**
-(prototipos con motion juzgados en navegador; el lock se firma después documentando lo
-aprobado) — ver `docs/reference-locks/nosotros.md` §lecciones.
+**Estado (2026-07-09): era imagery-led + atmósfera unificada.** Hero (estratos) →
+Servicios v5 (showcase con renders 3D en carrusel Embla con drag) → Ejemplos/Casos v2
+(4 demos vivas de servicio, hilo "Julián P./Tienda Moda") → Proceso v2 (escenario
+evolutivo: foto sticky con crossfade + pasos editoriales) → Nosotros (brasas) → FAQ
+(termoclina + stardust) → Contacto (éxito en warm dorado) → Footer. **Fondos unificados**:
+atmósfera común (base #05070c + auroras térmicas + campo estelar 3D con fallback CSS);
+los 3 fondos cromados viejos (arco/tubos/cable) eliminados. **Regla no-violeta/cyan
+cerrada en toda la web pública** (sweep 2026-07-09; /panel interno fuera de scope).
+Locks **approved**: hero · casos (v2) · proceso (v1, pendiente re-lock v2) · contacto ·
+nosotros · faq · footer · **servicios (v5)**. Workflow vigente: **variantes vivas** +
+**asset-first con referencias del owner** (lección Servicios v5).
+
+**Lighthouse (2026-07-09, build prod local, post-limpieza de canvas):**
+- Mobile **82** (desde ~72) — CLS 0 · TBT 60ms · FCP 1.2s; freno: **LCP 4.8s**
+  (render-delay del hero por animación de entrada, no peso de imagen) + ~98KiB JS sin uso.
+- Desktop **97** (LCP 1.3s) — objetivo +95 cumplido.
 
 **Próxima acción:** a definir con el owner. Candidatos reales:
-- **Formalizar `servicios.md`** (draft → approved documentando lo ya construido).
+- **[ALTA] Cerrar perf mobile 82→~90** (WEB-PERF-A): destrabar el render-delay del LCP
+  del hero (la animación de entrada retrasa el paint — pintar el hero estático y animar
+  el resto) + recorte de JS sin uso (~98KiB / ~450ms).
+- **Re-lock de Proceso v2** (documentar el escenario evolutivo; el lock v1 describe el
+  cable eliminado).
 - **Redes sociales:** crear perfiles y completar `href` en `siteConfig.socialLinks`.
-- **[ALTA] Deuda de perf arquitectónica** (ver WEB-PERF-A): ~72 → ~90 mobile exige Server
-  Components + recorte de framer above-the-fold; re-medir Lighthouse de la Home completa
-  ahora que todo el motion está mergeado.
 - **Dominio `syntracore.dev`:** pendiente sin fecha (aún no comprado); prod sigue en
   `syntra-core-system.vercel.app`.
 - Hero `WEB-HERO-FUTURE` sigue FROZEN/DEFERRED.

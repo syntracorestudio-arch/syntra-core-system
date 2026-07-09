@@ -99,8 +99,8 @@
   --muted: #1e293b;
   --muted-foreground: #94a3b8;
 
-  /* Accent (cyan tecnológico para highlights) */
-  --accent: #38bdf8;
+  /* Accent (electric claro para highlights / hover de items shadcn) */
+  --accent: #60a5fa;
   --accent-foreground: #0f172a;
 
   --destructive: #ef4444;
@@ -139,13 +139,14 @@
   /* border-accent = var(--accent-primary) — SOLO hover/focus/active */
 
   /* ============================================================
-     SPRINT 01 — ROLES CROMÁTICOS EXPANDIDOS (color-roles-rhythm)
-     Mantiene la regla 90/10. Azul = acción (electric), cyan = sistema/
-     inteligencia. Se suman dos roles, SIEMPRE como halo/filo a baja opacidad
-     (nunca fill de CTA): violeta = IA/profundidad, ámbar = humano/resultado.
+     ROLES CROMÁTICOS (doctrina vigente 2026-07-09)
+     Web pública: familia slate + electric (#2563eb / #60a5fa) + warm
+     (#e7c8a0 / #d97706). VIOLETA (#6d5dfb) y CYAN (#38bdf8) PROHIBIDOS en la
+     web pública; éxito/HECHO → warm dorado. Los tokens --accent-ai / --brand-cyan
+     se conservan SOLO porque el /panel interno (herramienta, no la web) los usa.
      ============================================================ */
-  --accent-ai: #6d5dfb;     /* violeta/indigo — IA / profundidad */
-  --accent-warm: #e7c8a0;   /* ámbar/arena sutil — humano / resultado */
+  --accent-ai: #6d5dfb;     /* violeta — SOLO panel interno (no web pública) */
+  --accent-warm: #e7c8a0;   /* ámbar/arena — humano / resultado (HECHO) */
   --smoke-2: #cbd5e1;       /* segundo blanco para jerarquía tipográfica */
 }
 
@@ -163,7 +164,7 @@
   --secondary-foreground: #f8fafc;
   --muted: #1e293b;
   --muted-foreground: #94a3b8;
-  --accent: #38bdf8;
+  --accent: #60a5fa;
   --accent-foreground: #0f172a;
   --destructive: #ef4444;
   --border: rgba(248, 250, 252, 0.08);
@@ -513,17 +514,12 @@
       0 8px 40px -8px rgba(37, 99, 235, 0.45);
   }
 
-  .glow-cyan {
-    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18),
-      0 8px 40px -8px rgba(56, 189, 248, 0.4);
-  }
-
-  /* Texto con gradiente de marca (deep → electric → cyan) */
+  /* Texto con gradiente de marca (smoke → electric claro; sin cyan, sweep 2026-07-09) */
   .text-gradient-brand {
     background: linear-gradient(
       120deg,
       var(--brand-smoke) 0%,
-      var(--brand-cyan) 100%
+      #60a5fa 100%
     );
     -webkit-background-clip: text;
     background-clip: text;

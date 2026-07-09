@@ -31,7 +31,7 @@ export default function OpengraphImage() {
           style={{
             fontSize: 34,
             letterSpacing: 2,
-            color: "#38bdf8",
+            color: "#60a5fa",
             textTransform: "uppercase",
           }}
         >

@@ -101,7 +101,7 @@ function Navbar() {
       <span
         aria-hidden="true"
         style={{ transform: `scaleX(${progress})` }}
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-px origin-left bg-gradient-to-r from-brand-electric/70 via-brand-cyan/70 to-accent-ai/60 transition-transform duration-150 ease-out motion-reduce:transition-none"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px origin-left bg-gradient-to-r from-brand-electric/70 via-[#60a5fa]/70 to-accent-warm/60 transition-transform duration-150 ease-out motion-reduce:transition-none"
       />
 
       <div className={cn(SHELL, "grid h-16 grid-cols-[1fr_auto_1fr] items-center md:h-[4.5rem]")}>
