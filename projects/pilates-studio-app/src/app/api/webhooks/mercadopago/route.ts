@@ -45,7 +45,12 @@ export async function POST(req: Request) {
   if (!token) return NextResponse.json({ ok: true, skipped: "no-token" });
 
   // Fuente de verdad: consultar el pago en MP.
-  let pay: { status?: string; external_reference?: string; transaction_amount?: number } | null = null;
+  let pay: {
+    status?: string;
+    external_reference?: string;
+    transaction_amount?: number;
+    currency_id?: string;
+  } | null = null;
   try {
     const r = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -72,6 +77,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, status });
   }
 
+  // Binding: el intento debe existir, pertenecer AL estudio del webhook y coincidir en
+  // monto/moneda con lo que MP confirmó. Corta pagos que no corresponden al intento
+  // (monto adulterado, id de intento de otro estudio, reuso de preferencia).
+  const { data: att } = await admin
+    .from("payment_attempts")
+    .select("id, studio_id, member_id, amount, currency, concept")
+    .eq("id", attemptId)
+    .maybeSingle();
+  if (!att) return NextResponse.json({ ok: true, skipped: "no-attempt" });
+  if (att.studio_id !== studioId) return NextResponse.json({ ok: true, skipped: "studio-mismatch" });
+  if (
+    pay?.transaction_amount != null &&
+    Math.abs(Number(pay.transaction_amount) - Number(att.amount)) > 0.01
+  ) {
+    return NextResponse.json({ ok: true, skipped: "amount-mismatch" });
+  }
+  if (pay?.currency_id && String(att.currency) && pay.currency_id !== att.currency) {
+    return NextResponse.json({ ok: true, skipped: "currency-mismatch" });
+  }
+
   // Idempotencia a nivel evento: primer 'approved' de este pago procesa; repetidos se ignoran.
   const { error: dupErr } = await admin
     .from("mercadopago_webhook_events")
@@ -85,14 +110,9 @@ export async function POST(req: Request) {
   });
 
   if (applied === true) {
-    // Datos para el aviso in-app al dueño.
-    const { data: att } = await admin
-      .from("payment_attempts")
-      .select("member_id, amount, concept")
-      .eq("id", attemptId)
-      .maybeSingle();
+    // Aviso in-app al dueño (reusa el intento ya cargado para el binding).
     let memberName = "Un alumno";
-    if (att?.member_id) {
+    if (att.member_id) {
       const { data: m } = await admin
         .from("members")
         .select("profiles(full_name)")
@@ -101,12 +121,12 @@ export async function POST(req: Request) {
       const prof = Array.isArray(m?.profiles) ? m?.profiles[0] : m?.profiles;
       memberName = (prof?.full_name as string) ?? memberName;
     }
-    const label = att ? (CONCEPT_LABEL[att.concept] ?? att.concept) : "pago";
+    const label = CONCEPT_LABEL[att.concept] ?? att.concept;
     await createNotification(studioId, {
       type: "payment",
       title: "Pago recibido",
-      body: att ? `${memberName} pagó ${money(Number(att.amount))} · ${label}` : `${memberName} realizó un pago`,
-      link: att?.member_id ? `/admin/alumnos/${att.member_id}` : "/admin",
+      body: `${memberName} pagó ${money(Number(att.amount))} · ${label}`,
+      link: `/admin/alumnos/${att.member_id}`,
     });
   }
 
