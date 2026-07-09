@@ -33,31 +33,23 @@ function SceneFrame({
 }
 
 /**
- * Temperatura de la atmósfera por servicio (Sprint 01 — color roles + rhythm).
- * Rompe la monotonía de 3 paneles idénticos en Servicios SIN tocar el chasis:
- * solo cambia el mesh de fondo, a baja opacidad (regla 90/10). El azul sigue
- * siendo acción; cyan = sistema; violeta = IA; ámbar = humano (filo, muy sutil).
- *   - "system" (default): azul/cyan original → NO cambia Contacto ni hero-visual.
- *   - "web":        azul/electric protagonista.
- *   - "ai":         violeta/indigo (Automatización pasa por el "cerebro").
- *   - "warm":       cyan + un filo ámbar muy sutil (IA respondiendo a un humano).
+ * Atmósfera del chasis (mesh radial a baja opacidad). Hoy la usa SOLO hero-visual con el
+ * tono "system"; los tonos por-servicio (web/ai/warm) quedaron sin uso al migrar Servicios
+ * a los paneles v5 → se retiraron (incluía el violeta muerto). Sweep de color 2026-07-09:
+ * sin violeta/cyan — el segundo halo pasó de cyan a electric claro (#60a5fa).
  */
 const ATMOSPHERE_MESH = {
   system:
-    "radial-gradient(60% 55% at 30% 22%, rgba(37,99,235,0.18), transparent 70%), radial-gradient(55% 50% at 78% 82%, rgba(56,189,248,0.14), transparent 72%)",
-  web: "radial-gradient(60% 55% at 28% 20%, rgba(37,99,235,0.22), transparent 70%), radial-gradient(55% 50% at 80% 84%, rgba(56,189,248,0.10), transparent 72%)",
-  ai: "radial-gradient(60% 55% at 30% 22%, rgba(109,93,251,0.20), transparent 70%), radial-gradient(55% 50% at 80% 84%, rgba(37,99,235,0.10), transparent 72%)",
-  warm: "radial-gradient(60% 55% at 30% 22%, rgba(56,189,248,0.16), transparent 70%), radial-gradient(55% 52% at 80% 86%, rgba(231,200,160,0.09), transparent 72%)",
+    "radial-gradient(60% 55% at 30% 22%, rgba(37,99,235,0.18), transparent 70%), radial-gradient(55% 50% at 78% 82%, rgba(96,165,250,0.14), transparent 72%)",
 } as const;
 
 type AtmosphereTone = keyof typeof ATMOSPHERE_MESH;
 
 /**
  * SceneAtmosphere — atmósfera compartida: mesh radial por OPACIDAD (estilo Vercel)
- * + grilla técnica (`sys-canvas-grid`, con su máscara). Estática (sin motion): cada
- * escena la envuelve en su propio `motion.div` para el reveal por capas + el
- * parallax de puntero. `tone` define la temperatura (default "system" = azul/cyan
- * original, para no alterar Contacto/hero-visual). Decorativa.
+ * + grilla técnica (`sys-canvas-grid`, con su máscara). Estática (sin motion): el
+ * consumidor (hero-visual) la envuelve en su propio `motion.div` para el reveal por
+ * capas + el parallax de puntero. Único tono "system" (electric); decorativa.
  */
 function SceneAtmosphere({ tone = "system" }: { tone?: AtmosphereTone }) {
   return (

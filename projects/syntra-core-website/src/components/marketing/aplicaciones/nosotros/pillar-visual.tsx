@@ -23,8 +23,8 @@ import { EASE_PREMIUM } from "@/lib/motion";
 export const PILLAR_THEME = {
   postura: { hex: "#3b82f6", rgb: "59,130,246" }, // electric (construcción)
   criterio: { hex: "#e7c8a0", rgb: "231,200,160" }, // warm (criterio humano)
-  cercania: { hex: "#6d5dfb", rgb: "109,93,251" }, // accent-ai (conversación viva)
-  compromiso: { hex: "#38bdf8", rgb: "56,189,248" }, // cyan = resultado que sigue
+  cercania: { hex: "#60a5fa", rgb: "96,165,250" }, // electric claro (conversación viva) — sweep 2026-07-09
+  compromiso: { hex: "#e7c8a0", rgb: "231,200,160" }, // warm = resultado que sigue (HECHO) — sweep 2026-07-09
 } as const;
 export type PillarId = keyof typeof PILLAR_THEME;
 

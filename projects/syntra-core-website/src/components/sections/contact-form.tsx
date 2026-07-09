@@ -90,14 +90,14 @@ function ContactForm() {
     return (
       <div
         role="status"
-        className="success-reveal relative overflow-hidden rounded-2xl border border-brand-cyan/30 bg-brand-cyan/[0.05] px-6 py-12 text-center"
+        className="success-reveal relative overflow-hidden rounded-2xl border border-accent-warm/30 bg-accent-warm/[0.05] px-6 py-12 text-center"
       >
-        {/* Hairline de cierre (cyan = HECHO; sobrio, sin glow) */}
+        {/* Hairline de cierre (warm dorado = HECHO; sobrio, sin glow) */}
         <span
           aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-cyan/50 to-transparent"
+          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-warm/50 to-transparent"
         />
-        <span className="success-check mx-auto mb-5 inline-flex size-14 items-center justify-center rounded-full border border-brand-cyan/40 bg-brand-cyan/10 text-brand-cyan">
+        <span className="success-check mx-auto mb-5 inline-flex size-14 items-center justify-center rounded-full border border-accent-warm/40 bg-accent-warm/10 text-accent-warm">
           <CheckCircle2 className="size-7" aria-hidden="true" />
         </span>
         <p className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">
@@ -109,7 +109,7 @@ function ContactForm() {
         <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-foreground/80">
           {contactSuccess.microcopy}
         </p>
-        <p className="mt-8 inline-flex items-center gap-1.5 rounded-full border border-brand-cyan/30 bg-surface-2 px-3 py-1 text-xs font-medium text-brand-cyan">
+        <p className="mt-8 inline-flex items-center gap-1.5 rounded-full border border-accent-warm/30 bg-surface-2 px-3 py-1 text-xs font-medium text-accent-warm">
           <Check className="size-3 shrink-0" aria-hidden="true" />
           {contactSuccess.secondary}
         </p>

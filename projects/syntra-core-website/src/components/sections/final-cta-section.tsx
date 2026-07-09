@@ -93,7 +93,7 @@ function FinalCtaSection() {
                     También podés escribirnos a{" "}
                     <TrackedLink
                       href={`mailto:${siteConfig.email}`}
-                      className="text-brand-cyan underline-offset-4 hover:underline"
+                      className="text-[#60a5fa] underline-offset-4 hover:underline"
                       trackProps={{ location: "final_cta", target: "mailto" }}
                     >
                       {siteConfig.email}
@@ -105,7 +105,7 @@ function FinalCtaSection() {
                     cómo los tratamos en nuestra{" "}
                     <Link
                       href="/privacidad"
-                      className="text-brand-cyan underline-offset-4 hover:underline"
+                      className="text-[#60a5fa] underline-offset-4 hover:underline"
                     >
                       Política de privacidad
                     </Link>

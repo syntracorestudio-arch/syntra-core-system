@@ -15,7 +15,7 @@ const badgeVariants = cva(
       variant: {
         default: "border-border bg-secondary px-3 py-1 text-secondary-foreground",
         brand:
-          "border-brand-electric/30 bg-brand-electric/10 px-3 py-1 text-brand-cyan",
+          "border-brand-electric/30 bg-brand-electric/10 px-3 py-1 text-brand-electric",
         outline: "border-border px-3 py-1 text-muted-foreground",
         // Eyebrow neutro (Color+Depth v1: badges sin azul, regla 90/10)
         neutral:

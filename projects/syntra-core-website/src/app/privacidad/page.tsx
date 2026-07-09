@@ -43,7 +43,7 @@ export default function PrivacidadPage() {
                 sobre privacidad, escribinos a{" "}
                 <a
                   href={`mailto:${siteConfig.email}`}
-                  className="text-brand-cyan hover:underline"
+                  className="text-[#60a5fa] hover:underline"
                 >
                   {siteConfig.email}
                 </a>
@@ -98,7 +98,7 @@ export default function PrivacidadPage() {
                 escribiéndonos a{" "}
                 <a
                   href={`mailto:${siteConfig.email}`}
-                  className="text-brand-cyan hover:underline"
+                  className="text-[#60a5fa] hover:underline"
                 >
                   {siteConfig.email}
                 </a>

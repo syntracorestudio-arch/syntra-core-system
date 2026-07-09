@@ -58,7 +58,7 @@ function HeroSection() {
       {/* === Fondo premium (acompaña, no compite) === */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-20">
         <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_70%_35%,#101c34,#0b1120_62%)]" />
-        <div className="absolute top-1/2 right-[8%] size-[44rem] max-w-[90vw] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(37,99,235,0.14),rgba(56,189,248,0.06)_46%,transparent_70%)] blur-[100px]" />
+        <div className="absolute top-1/2 right-[8%] size-[44rem] max-w-[90vw] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(37,99,235,0.14),rgba(96,165,250,0.06)_46%,transparent_70%)] blur-[100px]" />
       </div>
 
       {/* === Asset protagonista full-bleed (image-first, sin costuras) === */}
@@ -93,14 +93,14 @@ function HeroSection() {
           </div>
         </motion.div>
 
-        {/* Light response al hover: sheen diagonal + glow cyan sutil (desktop).
+        {/* Light response al hover: sheen diagonal + glow electric claro sutil (desktop).
             Solo opacity → no lava la imagen, sin costura. */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 hidden opacity-0 transition-opacity duration-700 ease-out group-hover:opacity-100 motion-reduce:transition-none lg:block"
         >
           <div className="absolute inset-0 bg-[linear-gradient(115deg,transparent_45%,rgba(150,195,255,0.10)_60%,transparent_72%)]" />
-          <div className="absolute top-1/2 right-[20%] size-[26rem] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.12),transparent_66%)] blur-3xl" />
+          <div className="absolute top-1/2 right-[20%] size-[26rem] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(96,165,250,0.12),transparent_66%)] blur-3xl" />
         </div>
 
         {/* Light sweep cinematográfico (desktop, transform/opacity; sin hard-stop,
@@ -218,7 +218,7 @@ function HeroSection() {
                     className="group rounded-xl border border-white/10 bg-white/[0.04] p-3 text-left shadow-[0_6px_20px_rgba(6,10,22,0.25)] backdrop-blur-sm transition-[transform,border-color,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                   >
                     <Icon
-                      className="size-4 text-brand-cyan transition-transform duration-200 ease-out group-hover:scale-110 motion-reduce:transform-none"
+                      className="size-4 text-[#60a5fa] transition-transform duration-200 ease-out group-hover:scale-110 motion-reduce:transform-none"
                       aria-hidden="true"
                     />
                     <p className="mt-2 text-sm font-medium text-foreground">
