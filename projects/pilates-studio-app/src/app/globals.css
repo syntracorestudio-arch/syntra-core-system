@@ -16,36 +16,49 @@
 :root {
   --radius: 0.9rem;
 
-  /* Lienzo cálido + texto */
-  --background: #fbf7f2; /* arena */
-  --foreground: #3f3a34; /* gris cálido oscuro */
-  --card: #ffffff;
-  --card-foreground: #3f3a34;
-  --popover: #ffffff;
-  --popover-foreground: #3f3a34;
+  /* Lienzo cálido + texto — paleta "Arcilla empolvada" v2 (anti-blanco, 2026-07-09):
+     lienzo claro + sidebar/hundidos marcadamente más fuertes (feedback owner:
+     sidebar y página no deben mezclarse). Sin blanco puro en ninguna superficie. */
+  --background: #f7f0e5; /* arena clara */
+  --foreground: #3a342c; /* gris cálido oscuro (punch sobre crema) */
+  --card: #fcf7ee; /* crema clara */
+  --card-foreground: #3a342c;
+  --popover: #fdfaf3; /* un paso más claro que card (stacking) */
+  --popover-foreground: #3a342c;
 
   /* Acento del estudio (white-label, default terracota) */
   --primary: #c8775a;
-  --primary-foreground: #ffffff;
+  --primary-foreground: #fdf7ee; /* crema sobre el acento (nunca blanco puro) */
+  --primary-ink: #a85a3f; /* texto/links en acento sobre superficies claras (AA 5:1) */
 
-  --secondary: #f0e9e0;
-  --secondary-foreground: #3f3a34;
-  --muted: #f0e9e0;
-  --muted-foreground: #8a8178;
-  --accent: #f0e4d8;
-  --accent-foreground: #3f3a34;
+  --secondary: #eee3d0;
+  --secondary-foreground: #3a342c;
+  --muted: #eee3d0;
+  --muted-foreground: #665d50; /* AA sobre card y sunken (≥4.5:1) */
+  --accent: #f2dcc4; /* durazno empolvado */
+  --accent-foreground: #3a342c;
 
   /* Semánticos consistentes (independientes del acento) */
   --success: #5e8b6a; /* al día / con cupo */
   --warning: #c99a3b; /* por vencer / pocos lugares */
   --destructive: #c2675f; /* deuda / lleno (rojo suave, no alarmante) */
 
-  --border: #e7ded3;
-  --input: #e7ded3;
+  --border: #e0d1ba;
+  --input: #d8c6ac; /* un paso más oscuro que border = affordance de campo */
   --ring: #c8775a;
 
   /* Pase de elevation: superficie hundida + motion */
-  --surface-sunken: #f6f1ea; /* entre arena y secondary (zonas internas/resúmenes) */
+  --surface-sunken: #efe6d6;
+
+  /* Sidebar con carácter propio (banda de color fuerte, independiente del lienzo).
+     Dirección elegida por el owner (2026-07-09): "Carbón neutro" — gris moderno. */
+  --sidebar: #2b2b2f;
+  --sidebar-foreground: #f0efed;
+  --sidebar-muted: #9d9ba0;
+  --sidebar-border: #3b3b40;
+  --sidebar-hover: #35353a;
+  --sidebar-active: #424248;
+  --sidebar-active-foreground: #f5f4f2;
   --dur-fast: 150ms;
   --dur-base: 200ms;
   --dur-slow: 300ms;
@@ -60,6 +73,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-ink: var(--primary-ink);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -82,13 +96,22 @@
      para no enfriar el lienzo boutique. Sobrescribe las utilidades shadow-sm/md/lg
      (que ya usa la app) → todas las superficies ganan profundidad cálida sin tocar
      archivo por archivo. `--shadow-raised` es el nivel extra para el KPI héroe. */
-  --shadow-sm: 0 1px 3px 0 rgb(63 58 52 / 0.06), 0 1px 2px -1px rgb(63 58 52 / 0.05);
-  --shadow-md: 0 4px 12px -2px rgb(63 58 52 / 0.08), 0 2px 6px -2px rgb(63 58 52 / 0.05);
-  --shadow-lg: 0 12px 28px -6px rgb(63 58 52 / 0.12);
-  --shadow-raised: 0 6px 18px -4px rgb(63 58 52 / 0.1), 0 2px 6px -2px rgb(63 58 52 / 0.06);
+  --shadow-sm: 0 1px 3px 0 rgb(58 52 44 / 0.07), 0 1px 2px -1px rgb(58 52 44 / 0.06);
+  --shadow-md: 0 4px 12px -2px rgb(58 52 44 / 0.09), 0 2px 6px -2px rgb(58 52 44 / 0.06);
+  --shadow-lg: 0 12px 28px -6px rgb(58 52 44 / 0.14);
+  --shadow-raised: 0 6px 18px -4px rgb(58 52 44 / 0.12), 0 2px 6px -2px rgb(58 52 44 / 0.07);
 
   /* Superficie hundida → habilita utilidades bg-surface-sunken */
   --color-surface-sunken: var(--surface-sunken);
+
+  /* Sidebar → habilita bg-sidebar, text-sidebar-foreground, etc. */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
 
   /* Easing premium (ease-out-quint) */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -107,6 +130,12 @@ body {
   color: var(--foreground);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums; /* montos y contadores alinean columnas */
+}
+
+/* Iconografía lucide: trazo 1.75 (el default 2 se siente técnico; 1.75 acompaña a Nunito). */
+.lucide {
+  stroke-width: 1.75;
 }
 
 h1,

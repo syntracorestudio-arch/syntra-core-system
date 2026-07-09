@@ -116,10 +116,10 @@ export function AdminSidebar({
     <img src={logo} alt={studioName} className="h-9 w-auto max-w-[130px] object-contain" />
   ) : (
     <span className="inline-flex min-w-0 items-center gap-2">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-active text-sidebar-active-foreground">
         <CalendarCheck className="size-4" aria-hidden />
       </span>
-      <span className="truncate text-sm font-bold tracking-tight text-foreground">{studioName}</span>
+      <span className="truncate text-sm font-bold tracking-tight text-sidebar-foreground">{studioName}</span>
     </span>
   );
 
@@ -128,7 +128,7 @@ export function AdminSidebar({
       type="button"
       onClick={() => setNotifOpen((v) => !v)}
       aria-label="Novedades"
-      className="relative flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+      className="relative flex size-9 shrink-0 items-center justify-center rounded-lg text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground"
     >
       <Bell className="size-4" aria-hidden />
       {unreadCount > 0 ? (
@@ -140,18 +140,18 @@ export function AdminSidebar({
   );
 
   const userFooter = (
-    <div className="flex items-center gap-2.5 border-t border-border px-4 py-3">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-primary">
+    <div className="flex items-center gap-2.5 border-t border-sidebar-border px-4 py-3">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-active text-sm font-semibold text-sidebar-active-foreground">
         {initials(userName)}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-foreground">{userName}</p>
-        <p className="truncate text-xs text-muted-foreground">{ROLE_LABEL[role] ?? "Equipo"}</p>
+        <p className="truncate text-sm font-medium text-sidebar-foreground">{userName}</p>
+        <p className="truncate text-xs text-sidebar-muted">{ROLE_LABEL[role] ?? "Equipo"}</p>
       </div>
       <a
         href="/logout"
         aria-label="Cerrar sesión"
-        className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        className="flex size-9 items-center justify-center rounded-lg text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground"
       >
         <LogOut className="size-4" aria-hidden />
       </a>
@@ -164,7 +164,7 @@ export function AdminSidebar({
   return (
     <>
       {/* ── Sidebar desktop ── */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-surface-sunken lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
         <div className="flex h-16 items-center justify-between gap-2 px-4">
           {brand}
           {bellBtn}
@@ -194,7 +194,7 @@ export function AdminSidebar({
             if (items.length === 0) return null;
             return (
               <div key={g.group}>
-                <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+                <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-muted/80">
                   {g.group}
                 </p>
                 <ul className="space-y-0.5">
@@ -208,8 +208,8 @@ export function AdminSidebar({
                           aria-current={active ? "page" : undefined}
                           className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
                             active
-                              ? "bg-primary/10 font-medium text-primary"
-                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                              ? "bg-sidebar-active font-medium text-sidebar-active-foreground"
+                              : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-foreground"
                           }`}
                         >
                           <Icon className="size-4 shrink-0" aria-hidden />
