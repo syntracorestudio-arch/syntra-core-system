@@ -1,16 +1,37 @@
 import { z } from "zod";
 
+import {
+  HONEYPOT_FIELD,
+  LEAD_STATUSES,
+  NOTIFICATION_ERROR_CODES,
+  NOTIFICATION_STATUSES,
+  PROJECT_TYPES,
+} from "@/lib/validations/lead-shared";
+import type {
+  LeadStatus,
+  NotificationErrorCode,
+  NotificationStatus,
+  ProjectType,
+} from "@/lib/validations/lead-shared";
+
 /**
  * SYNTRA CORE — Schema de validación de leads.
  * Fuente única de verdad para cliente Y servidor (nunca confiar solo en el frontend).
+ *
+ * Las constantes/tipos SIN zod viven en `lead-shared.ts` (los componentes de
+ * cliente importan de allí para no arrastrar zod al bundle de la Home); acá se
+ * re-exportan para que el resto del código siga teniendo una sola puerta.
  */
-/**
- * Tipo de proyecto (WEB-013B) — calificación opcional del lead. Keys estables
- * para DB/panel/payload; los labels en español viven en `config/site.ts`.
- */
-export const PROJECT_TYPES = ["web", "automation", "ai", "panel", "unsure"] as const;
-export const projectTypeSchema = z.enum(PROJECT_TYPES);
-export type ProjectType = z.infer<typeof projectTypeSchema>;
+export {
+  HONEYPOT_FIELD,
+  LEAD_STATUSES,
+  NOTIFICATION_ERROR_CODES,
+  NOTIFICATION_STATUSES,
+  PROJECT_TYPES,
+};
+export type { LeadStatus, NotificationErrorCode, NotificationStatus, ProjectType };
+
+export const projectTypeSchema: z.ZodType<ProjectType> = z.enum(PROJECT_TYPES);
 
 export const leadSchema = z.object({
   name: z
@@ -48,48 +69,10 @@ export const leadSchema = z.object({
 
 export type LeadInput = z.infer<typeof leadSchema>;
 
-/** Nombre del campo honeypot anti-spam (debe llegar vacío). */
-export const HONEYPOT_FIELD = "website";
+export const leadStatusSchema: z.ZodType<LeadStatus> = z.enum(LEAD_STATUSES);
 
-/** Pipeline de estados de un lead (orden lógico). */
-export const LEAD_STATUSES = [
-  "new",
-  "contacted",
-  "qualified",
-  "won",
-  "lost",
-] as const;
-
-export const leadStatusSchema = z.enum(LEAD_STATUSES);
-export type LeadStatus = z.infer<typeof leadStatusSchema>;
-
-/**
- * Eje de notificación (TASK-020) — SEPARADO del status comercial.
- * - pending: lead creado, notificación a n8n aún no confirmada.
- * - sent: n8n respondió OK tras el flujo de email.
- * - failed: se agotaron los intentos hacia n8n o faltó la config en prod.
- * - unknown: leads legacy creados antes de la migración 0002.
- */
-export const NOTIFICATION_STATUSES = [
-  "pending",
-  "sent",
-  "failed",
-  "unknown",
-] as const;
-
-export const notificationStatusSchema = z.enum(NOTIFICATION_STATUSES);
-export type NotificationStatus = z.infer<typeof notificationStatusSchema>;
-
-/** Códigos de error controlados (nunca texto libre, PII ni secretos). */
-export const NOTIFICATION_ERROR_CODES = [
-  "timeout",
-  "network_error",
-  "http_error",
-  "unexpected_error",
-  "missing_webhook_url",
-] as const;
-
-export type NotificationErrorCode = (typeof NOTIFICATION_ERROR_CODES)[number];
+export const notificationStatusSchema: z.ZodType<NotificationStatus> =
+  z.enum(NOTIFICATION_STATUSES);
 
 /** Validación de la mutación de status (Server Action del panel). */
 export const updateLeadStatusSchema = z.object({

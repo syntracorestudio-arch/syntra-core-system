@@ -17,7 +17,8 @@ import {
 import { contactSuccess, projectTypeOptions, siteConfig } from "@/config/site";
 import { EASE_PREMIUM, DURATION, VIEWPORT_ONCE } from "@/lib/motion";
 import { track } from "@/lib/analytics";
-import { HONEYPOT_FIELD } from "@/lib/validations/lead";
+// lead-shared (no lead.ts): evita arrastrar zod al bundle cliente de la Home.
+import { HONEYPOT_FIELD } from "@/lib/validations/lead-shared";
 import { submitLead } from "@/app/actions/submit-lead";
 import { initialLeadState } from "@/app/actions/lead-form-state";
 import { Button } from "@/components/ui/button";

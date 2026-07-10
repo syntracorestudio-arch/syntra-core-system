@@ -275,15 +275,22 @@ Locks **approved**: hero · casos (v2) · proceso (v1, pendiente re-lock v2) · 
 nosotros · faq · footer · **servicios (v5)**. Workflow vigente: **variantes vivas** +
 **asset-first con referencias del owner** (lección Servicios v5).
 
-**Lighthouse (2026-07-09, build prod local, post-limpieza de canvas):**
-- Mobile **82** (desde ~72) — CLS 0 · TBT 60ms · FCP 1.2s; freno: **LCP 4.8s**
-  (render-delay del hero por animación de entrada, no peso de imagen) + ~98KiB JS sin uso.
-- Desktop **97** (LCP 1.3s) — objetivo +95 cumplido.
+**Lighthouse (2026-07-10, build prod local, post-fix LCP — branch feat/perf-lcp-hero):**
+- Mobile **86** (desde 82) — CLS 0 · TBT 10ms · FCP 1.2s · SI 1.8s (desde 3.3s) · LCP 4.1s.
+- Desktop **98** (LCP 1.1s).
+- Diagnóstico real del "render-delay": NO era la animación del hero (el H1 es el LCP y
+  pinta con el FCP; observado LCP = 256ms). El freno era **zod entero (~64KiB gz, 84%
+  sin uso) en el critical path de la Home**: `contact-form` importaba `HONEYPOT_FIELD`
+  desde `lead.ts` y arrastraba el schema completo. Fix: `lead-shared.ts` (constantes/
+  tipos sin zod, cliente importa de ahí; `lead.ts` re-exporta). Bonus: `sizes` reales
+  del logo (pedía 640px para ~100px de display, con `priority`).
+- El LCP simulado restante (4.1s) es framework (react-dom + runtime Next + fuentes) en
+  el grafo lantern midiendo en localhost (todo arranca <60ms → todo cuenta); no es
+  recortable sin sacrificar SSR/SEO de secciones. Re-medir en prod (Vercel/PSI) —
+  con red real el grafo se despeja y el score debería acercarse a ~90.
 
 **Próxima acción:** a definir con el owner. Candidatos reales:
-- **[ALTA] Cerrar perf mobile 82→~90** (WEB-PERF-A): destrabar el render-delay del LCP
-  del hero (la animación de entrada retrasa el paint — pintar el hero estático y animar
-  el resto) + recorte de JS sin uso (~98KiB / ~450ms).
+- **Medir en prod (PageSpeed Insights)** tras el deploy del fix LCP para el número real.
 - **Re-lock de Proceso v2** (documentar el escenario evolutivo; el lock v1 describe el
   cable eliminado).
 - **Redes sociales:** crear perfiles y completar `href` en `siteConfig.socialLinks`.

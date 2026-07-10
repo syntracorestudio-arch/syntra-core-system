@@ -118,7 +118,9 @@ function Navbar() {
             width={800}
             height={378}
             priority
-            sizes="240px"
+            // Display real: h-10/h-12 → ~85-102px de ancho. Es priority (entra
+            // al grafo del LCP): sobredeclarar sizes triplicaba el peso servido.
+            sizes="110px"
             className="h-10 w-auto md:h-12"
           />
         </Link>
