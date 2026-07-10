@@ -43,7 +43,7 @@ function Footer() {
               alt="SYNTRA CORE"
               width={800}
               height={378}
-              sizes="280px"
+              sizes="140px"
               className="h-14 w-auto sm:h-16"
             />
             <p className="max-w-xs text-sm leading-relaxed text-smoke-2 text-pretty">
