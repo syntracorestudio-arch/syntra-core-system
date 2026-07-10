@@ -8,9 +8,12 @@ import {
   ExternalLink,
   CheckCircle2,
   PauseCircle,
+  Wallet,
+  CalendarDays,
 } from "lucide-react";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { IconChip } from "@/components/ui/icon-chip";
 import { createStudio, toggleStudioStatus } from "./actions";
 import { SubmitButton } from "./submit-button";
 
@@ -38,6 +41,39 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+function money(n: number) {
+  return `$${Math.round(n).toLocaleString("es-AR")}`;
+}
+
+function Metric({
+  icon,
+  label,
+  value,
+  detail,
+  hero = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  detail?: string;
+  hero?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border border-border p-4 shadow-sm ${
+        hero ? "bg-gradient-to-br from-primary/10 via-card to-card" : "bg-card"
+      }`}
+    >
+      <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <IconChip>{icon}</IconChip>
+        {label}
+      </p>
+      <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-foreground">{value}</p>
+      {detail ? <p className="mt-0.5 text-xs text-muted-foreground">{detail}</p> : null}
+    </div>
+  );
+}
+
 export default async function SuperPage({
   searchParams,
 }: {
@@ -46,14 +82,36 @@ export default async function SuperPage({
   const { notice, error } = await searchParams;
   await requireSuperadmin();
 
+  // Ventanas de tiempo (AR es UTC-3 sin DST → el inicio de mes local es a las 03:00Z).
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const ymAr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+  })
+    .format(now)
+    .slice(0, 7);
+  const monthStartIso = `${ymAr}-01T03:00:00.000Z`;
+  const weekEndIso = new Date(now.getTime() + 7 * 86_400_000).toISOString();
+
   // Datos globales vía service-role (el gate ya validó superadmin).
   const admin = createAdminClient();
-  const [{ data: studiosRaw }, { data: membersRaw }] = await Promise.all([
+  const [{ data: studiosRaw }, { data: membersRaw }, { data: paysRaw }, { data: occRaw }] = await Promise.all([
     admin.from("studios").select("id, name, slug, status, timezone, created_at").order("created_at", { ascending: false }),
     admin.from("members").select("studio_id, role, status"),
+    admin.from("payments").select("studio_id, amount").eq("status", "confirmed").gte("paid_at", monthStartIso),
+    admin
+      .from("class_occurrences")
+      .select("booked_count, capacity")
+      .eq("status", "scheduled")
+      .gte("starts_at", nowIso)
+      .lt("starts_at", weekEndIso),
   ]);
   const studios = (studiosRaw ?? []) as StudioRow[];
   const members = (membersRaw ?? []) as { studio_id: string; role: string; status: string }[];
+  const monthPays = (paysRaw ?? []) as { studio_id: string; amount: number }[];
+  const weekOccs = (occRaw ?? []) as { booked_count: number; capacity: number }[];
 
   const counts = new Map<string, { clients: number; staff: number }>();
   for (const m of members) {
@@ -63,6 +121,22 @@ export default async function SuperPage({
     else c.staff += 1;
     counts.set(m.studio_id, c);
   }
+
+  // Métricas globales del SaaS
+  const activeStudios = studios.filter((s) => s.status === "active").length;
+  const suspendedStudios = studios.length - activeStudios;
+  const totalClients = [...counts.values()].reduce((s, c) => s + c.clients, 0);
+  const totalStaff = [...counts.values()].reduce((s, c) => s + c.staff, 0);
+  const gmvMes = monthPays.reduce((s, p) => s + Number(p.amount), 0);
+  const gmvByStudio = new Map<string, number>();
+  for (const p of monthPays) gmvByStudio.set(p.studio_id, (gmvByStudio.get(p.studio_id) ?? 0) + Number(p.amount));
+  const weekBooked = weekOccs.reduce((s, o) => s + o.booked_count, 0);
+  const weekCap = weekOccs.reduce((s, o) => s + o.capacity, 0);
+  const weekPct = weekCap > 0 ? Math.round((weekBooked / weekCap) * 100) : 0;
+  const monthLabel = new Intl.DateTimeFormat("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    month: "long",
+  }).format(now);
 
   const fmtDate = (iso: string) =>
     new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(iso));
@@ -86,6 +160,35 @@ export default async function SuperPage({
           {error}
         </p>
       ) : null}
+
+      {/* ── Métricas globales del SaaS ── */}
+      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric
+          icon={<Wallet className="size-4" aria-hidden />}
+          label={`Volumen de ${monthLabel}`}
+          value={money(gmvMes)}
+          detail={`${monthPays.length} ${monthPays.length === 1 ? "cobro" : "cobros"} en la plataforma`}
+          hero
+        />
+        <Metric
+          icon={<Building2 className="size-4" aria-hidden />}
+          label="Estudios activos"
+          value={String(activeStudios)}
+          detail={suspendedStudios > 0 ? `${suspendedStudios} suspendido${suspendedStudios === 1 ? "" : "s"}` : "todos operando"}
+        />
+        <Metric
+          icon={<Users className="size-4" aria-hidden />}
+          label="Alumnos activos"
+          value={String(totalClients)}
+          detail={`+ ${totalStaff} staff`}
+        />
+        <Metric
+          icon={<CalendarDays className="size-4" aria-hidden />}
+          label="Reservas próximos 7 días"
+          value={String(weekBooked)}
+          detail={weekCap > 0 ? `${weekPct}% de ocupación global` : "sin clases programadas"}
+        />
+      </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         {/* lista de estudios */}
@@ -128,6 +231,10 @@ export default async function SuperPage({
                         <span className="inline-flex items-center gap-1">
                           <GraduationCap className="size-3.5" aria-hidden />
                           {c.staff} staff
+                        </span>
+                        <span className="w-20 text-right font-medium tabular-nums text-foreground">
+                          {money(gmvByStudio.get(s.id) ?? 0)}
+                          <span className="block text-[10px] font-normal text-muted-foreground">este mes</span>
                         </span>
                       </span>
                       <div className="flex shrink-0 items-center gap-1.5">
