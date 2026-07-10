@@ -14,6 +14,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { startCheckout } from "./actions";
 import { BuyButton } from "./buy-button";
+import { SuspendedScreen } from "@/components/suspended-screen";
 
 export const metadata = { title: "Comprar" };
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ function money(n: number) {
   return `$${Number(n).toLocaleString("es-AR")}`;
 }
 
-type StudioRel = { name: string };
+type StudioRel = { name: string; status: string };
 type Pass = { id: string; name: string; credits: number; validity_days: number; price: number };
 type PlanConcept = "membership" | "abono" | "drop_in";
 type Plan = { id: string; name: string; concept: PlanConcept; price: number; duration_days: number | null };
@@ -48,13 +49,18 @@ export default async function ComprarPage({
 
   const { data: member } = await supabase
     .from("members")
-    .select("studio_id, studios(name)")
+    .select("studio_id, studios(name, status)")
     .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
   if (!member) redirect("/login");
   const studioRel = (member.studios ?? null) as StudioRel | StudioRel[] | null;
   const studio = Array.isArray(studioRel) ? studioRel[0] : studioRel;
+
+  // Estudio suspendido (Fase 5): no se vende nada.
+  if (studio?.status === "suspended") {
+    return <SuspendedScreen studioName={studio.name} audience="member" />;
+  }
 
   const { data: passesRaw } = await supabase
     .from("passes")

@@ -235,8 +235,8 @@ export default async function StudioLanding({ params }: { params: Promise<{ slug
           )}
         </section>
 
-        {/* PACKS */}
-        {d.packs.length > 0 ? (
+        {/* PACKS (ocultos si el estudio está suspendido) */}
+        {!suspended && d.packs.length > 0 ? (
           <section className="mt-10">
             <h2 className="text-lg font-bold text-foreground">Packs</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">

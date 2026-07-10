@@ -25,10 +25,29 @@ function messageFor(raw: string): { kind: "error" | "notice"; text: string } {
   return { kind: "error", text: "No se pudo completar la acción. Probá de nuevo." };
 }
 
+/** Estudio suspendido (Fase 5) → sin reservas nuevas (cancelar SÍ se permite). */
+async function studioIsSuspended(supabase: Awaited<ReturnType<typeof createSupabaseServer>>) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  const { data } = await supabase
+    .from("members")
+    .select("studios(status)")
+    .eq("profile_id", user.id)
+    .limit(1)
+    .maybeSingle();
+  const rel = (data?.studios ?? null) as { status: string } | { status: string }[] | null;
+  return (Array.isArray(rel) ? rel[0] : rel)?.status === "suspended";
+}
+
 export async function reserve(formData: FormData) {
   const day = String(formData.get("day") ?? "");
   const occ = String(formData.get("occ") ?? "");
   const supabase = await createSupabaseServer();
+  if (await studioIsSuspended(supabase)) {
+    back(day, { error: "El estudio está suspendido; no se pueden reservar clases." });
+  }
   const { error } = await supabase.rpc("reserve_class", { p_occurrence_id: occ });
   if (error) {
     const m = messageFor(error.message);
@@ -41,6 +60,9 @@ export async function joinWaitlist(formData: FormData) {
   const day = String(formData.get("day") ?? "");
   const occ = String(formData.get("occ") ?? "");
   const supabase = await createSupabaseServer();
+  if (await studioIsSuspended(supabase)) {
+    back(day, { error: "El estudio está suspendido; no se pueden reservar clases." });
+  }
   const { error } = await supabase.rpc("join_waitlist", { p_occurrence_id: occ });
   if (error) {
     const m = messageFor(error.message);

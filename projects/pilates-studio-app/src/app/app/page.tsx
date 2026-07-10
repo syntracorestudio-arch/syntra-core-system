@@ -3,6 +3,7 @@ import { LogOut, CalendarDays, LayoutGrid, Wallet, CalendarCheck, Sparkles } fro
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { ClassCard, type ClassCardData } from "@/components/calendar/class-card";
 import { buttonClass } from "@/components/ui/button";
+import { SuspendedScreen } from "@/components/suspended-screen";
 
 export const metadata = { title: "Reservá tu clase" };
 export const dynamic = "force-dynamic";
@@ -37,7 +38,7 @@ function buildDayStrip(todayLocal: string) {
   });
 }
 
-type StudioRel = { name: string; timezone: string | null; slug: string };
+type StudioRel = { name: string; timezone: string | null; slug: string; status: string };
 
 export default async function AppPage({
   searchParams,
@@ -55,7 +56,7 @@ export default async function AppPage({
   // Vínculo + estudio (RLS: el alumno ve su propio member + su estudio)
   const { data: member } = await supabase
     .from("members")
-    .select("role, studios(name, timezone, slug)")
+    .select("role, studios(name, timezone, slug, status)")
     .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -64,6 +65,11 @@ export default async function AppPage({
   const studio = Array.isArray(studioRel) ? studioRel[0] : studioRel;
   const tz = studio?.timezone || DEFAULT_TZ;
   const isStaff = member?.role === "admin" || member?.role === "reception";
+
+  // Estudio suspendido (Fase 5): la app del alumno queda en pausa.
+  if (studio?.status === "suspended") {
+    return <SuspendedScreen studioName={studio.name} audience="member" />;
+  }
 
   const now = new Date();
   const nowIso = now.toISOString();

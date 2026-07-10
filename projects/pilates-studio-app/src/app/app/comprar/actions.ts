@@ -31,11 +31,14 @@ export async function startCheckout(formData: FormData) {
 
   const { data: member } = await supabase
     .from("members")
-    .select("id, studio_id")
+    .select("id, studio_id, studios(status)")
     .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
   if (!member) redirect("/login");
+  const studioRel = (member.studios ?? null) as { status: string } | { status: string }[] | null;
+  const studioStatus = (Array.isArray(studioRel) ? studioRel[0] : studioRel)?.status;
+  if (studioStatus === "suspended") return back({ error: "El estudio está suspendido; no se pueden hacer compras." });
 
   const passId = String(formData.get("passId") ?? "");
   const productId = String(formData.get("productId") ?? "");
