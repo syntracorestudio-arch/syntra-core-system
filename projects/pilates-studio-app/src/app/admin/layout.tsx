@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { accentForeground } from "@/lib/accent";
 import { AdminSidebar } from "@/components/admin/sidebar";
+import { SuspendedScreen } from "@/components/suspended-screen";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const { data: member } = user
     ? await supabase
         .from("members")
-        .select("role, profiles(full_name), studios(name, branding)")
+        .select("role, profiles(full_name), studios(name, branding, status)")
         .eq("profile_id", user.id)
         .limit(1)
         .maybeSingle()
@@ -30,11 +31,16 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const userName = (Array.isArray(profRel) ? profRel[0] : profRel)?.full_name ?? "Equipo";
 
   const studioRel = (member?.studios ?? null) as
-    | { name: string; branding: Record<string, unknown> | null }
-    | { name: string; branding: Record<string, unknown> | null }[]
+    | { name: string; branding: Record<string, unknown> | null; status: string }
+    | { name: string; branding: Record<string, unknown> | null; status: string }[]
     | null;
   const studio = Array.isArray(studioRel) ? studioRel[0] : studioRel;
   const studioName = studio?.name ?? "Tu estudio";
+
+  // Estudio suspendido (Fase 5): el panel completo queda bloqueado.
+  if (studio?.status === "suspended") {
+    return <SuspendedScreen studioName={studioName} audience="admin" />;
+  }
   const branding = studio?.branding ?? null;
   const bstr = (k: string) =>
     branding && typeof branding === "object" && typeof branding[k] === "string" ? String(branding[k]) : null;

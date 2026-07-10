@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LogOut, CalendarDays, Users, Clock3, CheckCircle2, Circle } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { setAttendance } from "./actions";
+import { SuspendedScreen } from "@/components/suspended-screen";
 
 export const metadata = { title: "Mis clases — Instructor" };
 export const dynamic = "force-dynamic";
@@ -51,7 +52,7 @@ export default async function InstructorPage({
 
   const { data: me } = await supabase
     .from("members")
-    .select("id, role, profiles(full_name), studios(name, timezone)")
+    .select("id, role, profiles(full_name), studios(name, timezone, status)")
     .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -61,9 +62,17 @@ export default async function InstructorPage({
 
   const myId = me.id as string;
   const prof = (Array.isArray(me.profiles) ? me.profiles[0] : me.profiles) as ProfileRel | null;
-  const sRel = (me.studios ?? null) as { name: string; timezone: string | null } | { name: string; timezone: string | null }[] | null;
+  const sRel = (me.studios ?? null) as
+    | { name: string; timezone: string | null; status: string }
+    | { name: string; timezone: string | null; status: string }[]
+    | null;
   const studio = Array.isArray(sRel) ? sRel[0] : sRel;
   const tz = studio?.timezone || DEFAULT_TZ;
+
+  // Estudio suspendido (Fase 5): la vista del instructor también se pausa.
+  if (studio?.status === "suspended") {
+    return <SuspendedScreen studioName={studio.name} audience="member" />;
+  }
 
   const nowIso = new Date().toISOString();
 
