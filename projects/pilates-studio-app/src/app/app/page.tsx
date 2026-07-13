@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { LogOut, CalendarDays, LayoutGrid, Wallet, CalendarCheck, Sparkles, UserRound } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ClassCard, type ClassCardData } from "@/components/calendar/class-card";
 import { buttonClass } from "@/components/ui/button";
 import { SuspendedScreen } from "@/components/suspended-screen";
@@ -56,7 +57,7 @@ export default async function AppPage({
   // Vínculo + estudio (RLS: el alumno ve su propio member + su estudio)
   const { data: member } = await supabase
     .from("members")
-    .select("role, studios(name, timezone, slug, status)")
+    .select("role, studio_id, studios(name, timezone, slug, status)")
     .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -80,16 +81,28 @@ export default async function AppPage({
   // que es security-definer y filtraría mal / fugaría datos de otros alumnos).
   const { data: passes } = await supabase
     .from("member_passes")
-    .select("id")
+    .select("id, expires_at")
     .gt("expires_at", nowIso);
-  const validPassIds = (passes ?? []).map((p) => p.id as string);
+  const validPasses = (passes ?? []) as { id: string; expires_at: string }[];
+  const validPassIds = validPasses.map((p) => p.id);
   let credits = 0;
+  let nearestExpiry: string | null = null;
   if (validPassIds.length > 0) {
     const { data: ledger } = await supabase
       .from("credit_ledger")
-      .select("delta")
+      .select("delta, member_pass_id")
       .in("member_pass_id", validPassIds);
-    credits = (ledger ?? []).reduce((s, l) => s + (l.delta as number), 0);
+    const byPass = new Map<string, number>();
+    for (const l of (ledger ?? []) as { delta: number; member_pass_id: string }[]) {
+      byPass.set(l.member_pass_id, (byPass.get(l.member_pass_id) ?? 0) + l.delta);
+      credits += l.delta;
+    }
+    // vencimiento más próximo entre los passes que aún tienen saldo
+    nearestExpiry =
+      validPasses
+        .filter((p) => (byPass.get(p.id) ?? 0) > 0)
+        .map((p) => p.expires_at)
+        .sort()[0] ?? null;
   }
   const { data: mships } = await supabase
     .from("memberships")
@@ -114,10 +127,26 @@ export default async function AppPage({
     .eq("status", "booked");
   const { data: myWait } = await supabase
     .from("waitlist")
-    .select("occurrence_id")
+    .select("occurrence_id, position")
     .eq("status", "waiting");
   const resByOcc = new Map((myRes ?? []).map((r) => [r.occurrence_id, r.id]));
-  const waitingOcc = new Set((myWait ?? []).map((w) => w.occurrence_id));
+  const waitPosByOcc = new Map(
+    ((myWait ?? []) as { occurrence_id: string; position: number }[]).map((w) => [w.occurrence_id, w.position]),
+  );
+
+  // Política de cancelación del estudio (el alumno no lee settings por RLS → server).
+  const adminDb = createAdminClient();
+  const { data: st } = await adminDb
+    .from("studio_settings")
+    .select("cancellation_window_hours, refund_on_late_cancel")
+    .eq("studio_id", (member as { studio_id?: string } | null)?.studio_id ?? "")
+    .maybeSingle();
+  const windowH = (st?.cancellation_window_hours as number | undefined) ?? 24;
+  const refundLate = Boolean(st?.refund_on_late_cancel);
+  const fmtDeadline = (iso: string) =>
+    new Intl.DateTimeFormat("es-AR", { timeZone: tz, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .format(new Date(iso))
+      .replace(/\./g, "");
 
   // Próxima clase reservada (occ viene ordenado por starts_at asc)
   const nextBookedOcc = (occ ?? []).find((o) => resByOcc.has(o.id as string));
@@ -145,6 +174,18 @@ export default async function AppPage({
     const klass = (Array.isArray(o.classes) ? o.classes[0] : o.classes) as
       | { name: string; instructor_name: string | null; duration_min: number | null }
       | null;
+    const myResId = resByOcc.get(o.id as string) ?? null;
+    // Deadline de cancelación sin costo (solo para MIS reservas)
+    let cancelHint: string | null = null;
+    if (myResId) {
+      const deadline = new Date(new Date(o.starts_at as string).getTime() - windowH * 3600_000);
+      cancelHint =
+        deadline.toISOString() > nowIso
+          ? `Cancelás sin costo hasta ${fmtDeadline(deadline.toISOString())}`
+          : refundLate
+            ? null
+            : "Fuera de ventana: si cancelás no se devuelve el crédito";
+    }
     const card: ClassCardData = {
       occurrenceId: o.id as string,
       time,
@@ -153,8 +194,10 @@ export default async function AppPage({
       instructor: klass?.instructor_name ?? null,
       capacity: o.capacity as number,
       booked: o.booked_count as number,
-      myReservationId: resByOcc.get(o.id as string) ?? null,
-      isWaiting: waitingOcc.has(o.id as string),
+      myReservationId: myResId,
+      isWaiting: waitPosByOcc.has(o.id as string),
+      waitPosition: waitPosByOcc.get(o.id as string) ?? null,
+      cancelHint,
     };
     (byDay.get(date) ?? byDay.set(date, []).get(date)!).push(card);
   }
@@ -262,6 +305,15 @@ export default async function AppPage({
             >
               {saldoText}
             </p>
+            {!hasMembership && credits > 0 && nearestExpiry ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Vencen el{" "}
+                {new Intl.DateTimeFormat("es-AR", { timeZone: tz, day: "numeric", month: "long" }).format(
+                  new Date(nearestExpiry),
+                )}
+                .
+              </p>
+            ) : null}
             {!hasMembership && credits === 0 ? (
               <p className="mt-1 text-xs text-muted-foreground">Comprá un pack para empezar a reservar.</p>
             ) : null}
