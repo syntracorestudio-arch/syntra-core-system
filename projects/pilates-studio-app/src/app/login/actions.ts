@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
@@ -41,4 +42,21 @@ export async function login(formData: FormData) {
   if (role === "instructor") redirect("/instructor");
   if (role === "admin" || role === "reception") redirect("/admin");
   redirect("/app");
+}
+
+/** Inicia el flujo OAuth de Google (PKCE): redirige a Google y vuelve por /auth/callback. */
+export async function loginWithGoogle() {
+  const supabase = await createSupabaseServer();
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3001";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${proto}://${host}/auth/callback` },
+  });
+  if (error || !data?.url) {
+    redirect("/login?error=" + encodeURIComponent("No se pudo iniciar sesión con Google. Reintentá."));
+  }
+  redirect(data.url);
 }

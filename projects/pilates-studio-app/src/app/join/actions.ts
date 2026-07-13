@@ -83,3 +83,26 @@ export async function join(formData: FormData) {
 
   redirect("/app");
 }
+
+/**
+ * Vincula una cuenta YA logueada (ej. entró con Google) a un estudio por código.
+ * Usa la RPC atómica con el cliente del usuario (grant a authenticated) — sin service-role.
+ */
+export async function linkWithCode(formData: FormData) {
+  const code = String(formData.get("code") ?? "").trim();
+  if (!code) joinError("Ingresá el código de tu estudio.");
+
+  const supabase = await createSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { error } = await supabase.rpc("redeem_join_code", {
+    p_code: code,
+    p_profile_id: user.id,
+  });
+  if (error) joinError("Código inválido o no disponible.");
+
+  redirect("/app?notice=" + encodeURIComponent("¡Listo! Tu cuenta quedó vinculada al estudio."));
+}

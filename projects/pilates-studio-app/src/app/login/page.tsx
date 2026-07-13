@@ -1,10 +1,34 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { CalendarCheck, Mail, Lock, AlertCircle, KeyRound, CreditCard, Store } from "lucide-react";
-import { login } from "./actions";
+import { login, loginWithGoogle } from "./actions";
 import { LoginSubmit } from "./submit-button";
 import { buttonClass } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
+
+/** Logo G multicolor de Google (lucide no lo trae; SVG oficial simplificado). */
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" aria-hidden>
+      <path
+        fill="#4285F4"
+        d="M23.5 12.27c0-.85-.08-1.66-.22-2.45H12v4.64h6.46a5.53 5.53 0 0 1-2.4 3.62v3h3.88c2.27-2.1 3.56-5.17 3.56-8.81Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.96-1.07 7.94-2.91l-3.88-3c-1.08.72-2.45 1.15-4.06 1.15-3.13 0-5.78-2.11-6.72-4.96H1.27v3.1A12 12 0 0 0 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.28a7.2 7.2 0 0 1 0-4.56v-3.1H1.27a12 12 0 0 0 0 10.76l4.01-3.1Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.76c1.76 0 3.35.6 4.6 1.8l3.44-3.44A11.97 11.97 0 0 0 12 0 12 12 0 0 0 1.27 6.62l4.01 3.1C6.22 6.87 8.87 4.76 12 4.76Z"
+      />
+    </svg>
+  );
+}
 import { siteConfig } from "@/config/site";
 
 export const metadata = { title: "Ingresar" };
@@ -120,6 +144,19 @@ export default async function LoginPage({
             </label>
 
             <LoginSubmit />
+          </form>
+
+          {/* Google OAuth */}
+          <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            o
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <form action={loginWithGoogle}>
+            <button type="submit" className={buttonClass("secondary", "md", "w-full")}>
+              <GoogleIcon />
+              Continuar con Google
+            </button>
           </form>
 
           {/* alta por código del estudio */}

@@ -1,7 +1,9 @@
-import { join } from "./actions";
+import { join, linkWithCode } from "./actions";
 import { PasswordInput } from "@/components/ui/password-input";
+import { createSupabaseServer } from "@/lib/supabase/server";
 
 export const metadata = { title: "Sumate a tu estudio" };
+export const dynamic = "force-dynamic";
 
 export default async function JoinPage({
   searchParams,
@@ -9,6 +11,65 @@ export default async function JoinPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+
+  // Si ya hay sesión (ej. entró con Google) solo falta VINCULAR por código.
+  const supabase = await createSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: member } = user
+    ? await supabase.from("members").select("id").eq("profile_id", user.id).limit(1).maybeSingle()
+    : { data: null };
+  const linkMode = !!user && !member;
+
+  if (linkMode) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center px-6 py-16">
+        <div className="w-full max-w-sm">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Ya casi estás</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Tu cuenta <strong className="text-foreground">{user!.email}</strong> ya existe. Ingresá el código que te
+            dio tu estudio para vincularte y empezar a reservar.
+          </p>
+
+          {error ? (
+            <p
+              role="alert"
+              className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              {error}
+            </p>
+          ) : null}
+
+          <form action={linkWithCode} className="mt-6 grid gap-4">
+            <label className="grid gap-1.5 text-sm">
+              <span className="font-medium text-foreground">Código del estudio</span>
+              <input
+                type="text"
+                name="code"
+                required
+                autoComplete="off"
+                className="rounded-md border border-input bg-card px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-ring"
+              />
+            </label>
+            <button
+              type="submit"
+              className="mt-2 rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground transition-colors hover:opacity-90"
+            >
+              Vincularme a mi estudio
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            ¿No es tu cuenta?{" "}
+            <a href="/logout" className="font-medium text-primary-ink hover:underline">
+              Salir
+            </a>
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-6 py-16">
