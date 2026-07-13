@@ -77,7 +77,21 @@ export async function startCheckout(formData: FormData) {
   if (!item) return back({ error: "Elegí un pack o plan para comprar." });
 
   const token = await getStudioMpToken(member.studio_id as string);
-  if (!token) return back({ error: "El estudio todavía no tiene el cobro online activo." });
+  if (!token) {
+    // Distinguir "no conectó" de "credencial ilegible" (ej. cambió MP_ENC_KEY del entorno).
+    const admin0 = createAdminClient();
+    const { data: prov } = await admin0
+      .from("studio_payment_providers")
+      .select("status")
+      .eq("studio_id", member.studio_id)
+      .maybeSingle();
+    return back({
+      error:
+        prov?.status === "connected"
+          ? "No se pudo leer la credencial de MercadoPago. El estudio debe reconectar su cuenta en Ajustes → Cobro online."
+          : "El estudio todavía no tiene el cobro online activo.",
+    });
+  }
 
   const h = await headers();
   const host = h.get("host") ?? "localhost:3001";
@@ -116,7 +130,10 @@ export async function startCheckout(formData: FormData) {
         ...(webhook ? { notification_url: `${webhook}?studio=${member.studio_id}` } : {}),
       },
     });
-    initPoint = pref.sandbox_init_point ?? pref.init_point ?? null;
+    // init_point SIEMPRE: es el checkout vigente (con credenciales TEST sirve para probar).
+    // sandbox_init_point es legacy y rompe pagos con tarjeta de prueba; además, en
+    // producción hubiera mandado compradores reales al sandbox.
+    initPoint = pref.init_point ?? pref.sandbox_init_point ?? null;
     preferenceId = pref.id ?? null;
   } catch {
     return back({ error: "No se pudo iniciar el pago. Reintentá en unos minutos." });
