@@ -16,6 +16,7 @@ import {
   Bell,
   X,
   UserRound,
+  Sun,
 } from "lucide-react";
 import { markNotificationsRead } from "@/app/admin/notifications-actions";
 
@@ -27,6 +28,7 @@ const GROUPS: { group: string; items: Item[] }[] = [
     group: "Principal",
     items: [
       { key: "resumen", href: "/admin", label: "Resumen", icon: LayoutGrid, adminOnly: false },
+      { key: "hoy", href: "/admin/hoy", label: "Hoy", icon: Sun, adminOnly: false },
       { key: "clases", href: "/admin/clases", label: "Clases", icon: CalendarDays, adminOnly: false },
       { key: "alumnos", href: "/admin/alumnos", label: "Alumnos", icon: Users, adminOnly: false },
     ],
