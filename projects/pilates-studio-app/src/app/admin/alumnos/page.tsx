@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { Users, ChevronRight, GraduationCap, Headset, Search } from "lucide-react";
+import { Users, Search } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/page-header";
-import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
+import { PersonRow, type Person, type FinRow } from "@/components/admin/person-row";
 
 export const metadata = { title: "Alumnos — Panel" };
 export const dynamic = "force-dynamic";
@@ -11,73 +11,6 @@ const ADMIN_ROLES = ["admin", "reception"];
 
 type ProfileRel = { full_name: string; email: string | null; phone: string | null };
 type MemberRow = { id: string; status: string; role: string; profiles: ProfileRel | ProfileRel[] | null };
-type FinRow = {
-  member_id: string;
-  credits_available: number;
-  has_active_membership: boolean;
-  financial_status: FinancialStatus;
-};
-
-function saldoText(f: FinRow | undefined) {
-  if (!f) return "—";
-  if (f.has_active_membership) return "Abono activo";
-  if (f.credits_available > 0) return `${f.credits_available} ${f.credits_available === 1 ? "clase" : "clases"}`;
-  return "Sin saldo";
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "·";
-}
-
-type Person = {
-  id: string;
-  name: string;
-  email: string | null;
-  role: string;
-  isStaff: boolean;
-  fin: FinRow | undefined;
-};
-
-function PersonRow({ p }: { p: Person }) {
-  return (
-    <a
-      href={`/admin/alumnos/${p.id}`}
-      className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-secondary/50"
-    >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-primary-ink">
-        {initials(p.name)}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{p.name}</span>
-        {p.email ? <span className="block truncate text-xs text-muted-foreground">{p.email}</span> : null}
-        {!p.isStaff ? (
-          <span className="mt-0.5 block text-xs font-medium text-foreground sm:hidden">{saldoText(p.fin)}</span>
-        ) : null}
-      </span>
-      {p.isStaff ? (
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary-ink">
-          {p.role === "reception" ? (
-            <Headset className="size-3.5" aria-hidden />
-          ) : (
-            <GraduationCap className="size-3.5" aria-hidden />
-          )}
-          {p.role === "reception" ? "Recepción" : "Instructor"}
-        </span>
-      ) : (
-        <>
-          <span className="hidden w-28 shrink-0 text-right text-sm font-medium tabular-nums text-foreground sm:block">
-            {saldoText(p.fin)}
-          </span>
-          <span className="hidden w-36 shrink-0 justify-end sm:flex">
-            {p.fin ? <FinancialBadge status={p.fin.financial_status} /> : null}
-          </span>
-        </>
-      )}
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-    </a>
-  );
-}
 
 export default async function AlumnosPage({
   searchParams,
@@ -105,7 +38,7 @@ export default async function AlumnosPage({
   const { data: mems } = await supabase
     .from("members")
     .select("id, status, role, profiles(full_name, email, phone)")
-    .in("role", ["client", "instructor", "reception"])
+    .eq("role", "client")
     .order("joined_at", { ascending: false });
   const { data: fins } = await supabase
     .from("member_financial_status")
@@ -122,18 +55,15 @@ export default async function AlumnosPage({
       name: prof?.full_name ?? "Alumno",
       email: prof?.email ?? null,
       role: m.role,
-      isStaff: m.role === "instructor" || m.role === "reception",
+      isStaff: false,
       fin: finByMember.get(m.id),
     };
   });
 
   const query = (q ?? "").trim().toLowerCase();
-  const matches = (p: Person) =>
-    !query || p.name.toLowerCase().includes(query) || (p.email ?? "").toLowerCase().includes(query);
-
-  const clients = all.filter((p) => !p.isStaff && matches(p));
-  const staff = all.filter((p) => p.isStaff && matches(p));
-  const totalClients = all.filter((p) => !p.isStaff).length;
+  const clients = all.filter(
+    (p) => !query || p.name.toLowerCase().includes(query) || (p.email ?? "").toLowerCase().includes(query),
+  );
   const withDebt = clients.filter((p) => p.fin && p.fin.financial_status !== "al_dia").length;
 
   return (
@@ -154,7 +84,7 @@ export default async function AlumnosPage({
       {/* header de lista + buscador (GET, sin JS) */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-foreground">
-          {totalClients} {totalClients === 1 ? "alumno" : "alumnos"}
+          {all.length} {all.length === 1 ? "alumno" : "alumnos"}
           {withDebt > 0 ? (
             <span className="ml-2 text-xs font-normal text-muted-foreground">{withDebt} con pago pendiente</span>
           ) : null}
@@ -171,7 +101,6 @@ export default async function AlumnosPage({
         </form>
       </div>
 
-      {/* alumnos (filas densas en un solo contenedor) */}
       {clients.length > 0 ? (
         <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-sm duration-500 animate-in fade-in slide-in-from-bottom-2">
           <div className="divide-y divide-border">
@@ -190,22 +119,6 @@ export default async function AlumnosPage({
           </p>
         </div>
       )}
-
-      {/* equipo (instructores + recepción), separado de los alumnos */}
-      {staff.length > 0 ? (
-        <>
-          <h2 className="mt-8 text-base font-semibold text-foreground">
-            Equipo <span className="text-xs font-normal text-muted-foreground">{staff.length}</span>
-          </h2>
-          <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-            <div className="divide-y divide-border">
-              {staff.map((p) => (
-                <PersonRow key={p.id} p={p} />
-              ))}
-            </div>
-          </div>
-        </>
-      ) : null}
     </main>
   );
 }
