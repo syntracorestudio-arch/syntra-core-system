@@ -12,6 +12,10 @@ export type ClassCardData = {
   /** id de la reserva propia si el alumno ya reservó esta clase */
   myReservationId: string | null;
   isWaiting: boolean;
+  /** posición en la lista de espera (si está anotado) */
+  waitPosition: number | null;
+  /** aviso de ventana de cancelación para MI reserva ("sin costo hasta…" / fuera de ventana) */
+  cancelHint: string | null;
 };
 
 type CupoState = "reserved" | "waiting" | "full" | "few" | "open";
@@ -76,7 +80,7 @@ export function ClassCard({
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium text-foreground ${badge.tint}`}
               >
                 <span className={`size-1.5 rounded-full ${badge.dot}`} aria-hidden />
-                {badge.text}
+                {state === "waiting" && data.waitPosition ? `En espera · puesto ${data.waitPosition}` : badge.text}
               </span>
               {state !== "full" && state !== "reserved" ? (
                 <span className="text-xs text-muted-foreground">
@@ -99,6 +103,9 @@ export function ClassCard({
               >
                 Cancelar reserva
               </button>
+              {data.cancelHint ? (
+                <p className="mt-1.5 text-center text-xs text-muted-foreground">{data.cancelHint}</p>
+              ) : null}
             </form>
           ) : state === "waiting" ? (
             <p className="rounded-lg bg-secondary px-4 py-2.5 text-center text-sm text-muted-foreground">
