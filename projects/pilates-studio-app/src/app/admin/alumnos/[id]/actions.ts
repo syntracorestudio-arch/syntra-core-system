@@ -122,3 +122,31 @@ export async function setMemberRole(formData: FormData) {
 
   back({ notice: ROLE_NOTICE[parsed.data.role] ?? "Rol actualizado." });
 }
+
+/** Guarda la nota operativa del alumno (lesiones, acuerdos; la ve el staff). */
+export async function updateMemberNotes(formData: FormData) {
+  const supabase = await createSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: me } = await supabase
+    .from("members")
+    .select("role")
+    .eq("profile_id", user.id)
+    .limit(1)
+    .maybeSingle();
+  if (!me || !ADMIN_ROLES.includes(me.role)) redirect("/app");
+
+  const memberId = String(formData.get("memberId") ?? "");
+  const notes = String(formData.get("notes") ?? "").trim().slice(0, 500);
+  const back = (params: Record<string, string>): never =>
+    redirect(`/admin/alumnos/${memberId}?${new URLSearchParams(params).toString()}`);
+
+  const { error } = await supabase
+    .from("members")
+    .update({ notes: notes || null })
+    .eq("id", memberId);
+  back(error ? { error: "No se pudo guardar la nota." } : { notice: notes ? "Nota guardada." : "Nota eliminada." });
+}

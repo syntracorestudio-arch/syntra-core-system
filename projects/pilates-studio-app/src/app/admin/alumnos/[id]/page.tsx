@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, Wallet, CreditCard, Ticket, CalendarClock, Phone, Mail, CheckCircle2, GraduationCap, Headset, UserCircle, MessageCircle } from "lucide-react";
+import { ArrowLeft, Wallet, CreditCard, Ticket, CalendarClock, Phone, Mail, CheckCircle2, GraduationCap, Headset, UserCircle, MessageCircle, StickyNote } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
 import { PaymentForm, type PassOption } from "@/components/admin/payment-form";
-import { setMemberRole } from "./actions";
+import { setMemberRole, updateMemberNotes } from "./actions";
+import { NotesSaveButton } from "./notes-save-button";
 
 export const dynamic = "force-dynamic";
 const ADMIN_ROLES = ["admin", "reception"];
@@ -67,7 +68,7 @@ export default async function FichaAlumnoPage({
   // alumno (RLS: admin ve members de su estudio; si no es de su estudio → null)
   const { data: target } = await supabase
     .from("members")
-    .select("id, status, role, profiles(full_name, email, phone)")
+    .select("id, status, role, notes, profiles(full_name, email, phone)")
     .eq("id", id)
     .maybeSingle();
   if (!target) notFound();
@@ -224,6 +225,29 @@ export default async function FichaAlumnoPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
         {/* columna izquierda: saldo + membresía + registrar pago */}
         <div className="grid gap-4">
+          {/* nota operativa (lesiones, acuerdos) — la ve el staff, incl. instructor en su roster */}
+          <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+            <p className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <StickyNote className="size-4" aria-hidden />
+              Nota del alumno
+            </p>
+            <form action={updateMemberNotes} className="mt-2 grid gap-2">
+              <input type="hidden" name="memberId" value={target.id as string} />
+              <textarea
+                name="notes"
+                rows={3}
+                maxLength={500}
+                defaultValue={(target.notes as string | null) ?? ""}
+                placeholder="Ej: hernia lumbar — evitar springs fuertes. Prefiere reformer 3."
+                className="w-full resize-none rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition-base placeholder:text-muted-foreground/60 focus:border-transparent focus:ring-2 focus:ring-ring"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] text-muted-foreground">La ve el equipo (incl. instructor en su clase).</span>
+                <NotesSaveButton />
+              </div>
+            </form>
+          </div>
+
           {/* rol en el estudio: alumno / instructor / recepción (solo admin) */}
           {isAdmin ? (
             <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">

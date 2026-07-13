@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Sun, Users, CheckCircle2, UserX, AlertCircle, MessageCircle, ChevronRight } from "lucide-react";
+import { Sun, Users, CheckCircle2, UserX, AlertCircle, MessageCircle, ChevronRight, StickyNote } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/page-header";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
@@ -50,7 +50,7 @@ function timeOf(iso: string, tz: string) {
 }
 
 type ProfileRel = { full_name: string; phone: string | null };
-type MemberRel = { id: string; profiles: ProfileRel | ProfileRel[] | null };
+type MemberRel = { id: string; notes: string | null; profiles: ProfileRel | ProfileRel[] | null };
 type AttRel = { status: string } | { status: string }[] | null;
 type ClsRel = { name: string; instructor_name: string | null } | { name: string; instructor_name: string | null }[] | null;
 
@@ -105,12 +105,15 @@ export default async function HoyPage({
   if (occIds.length > 0) {
     const { data } = await supabase
       .from("class_reservations")
-      .select("id, occurrence_id, member_id, members(id, profiles(full_name, phone)), attendance(status)")
+      .select("id, occurrence_id, member_id, members(id, notes, profiles(full_name, phone)), attendance(status)")
       .in("occurrence_id", occIds)
       .in("status", ["booked", "attended", "no_show"]);
     resRows = (data ?? []) as unknown as ResRow[];
   }
-  const byOcc = new Map<string, { id: string; memberId: string; name: string; phone: string | null; att: "checked_in" | "no_show" | null }[]>();
+  const byOcc = new Map<
+    string,
+    { id: string; memberId: string; name: string; phone: string | null; note: string | null; att: "checked_in" | "no_show" | null }[]
+  >();
   for (const r of resRows) {
     const m = Array.isArray(r.members) ? r.members[0] : r.members;
     const prof = m ? (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) : null;
@@ -121,6 +124,7 @@ export default async function HoyPage({
       memberId: r.member_id,
       name: prof?.full_name ?? "Alumno",
       phone: prof?.phone ?? null,
+      note: m?.notes ?? null,
       att: (a?.status as "checked_in" | "no_show" | undefined) ?? null,
     });
     byOcc.set(r.occurrence_id, list);
@@ -178,21 +182,29 @@ export default async function HoyPage({
                       const phone = (r.phone ?? "").replace(/[^\d]/g, "");
                       return (
                         <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                          <span className="flex min-w-0 flex-1 items-center gap-2">
-                            <Link href={`/admin/alumnos/${r.memberId}`} className="truncate text-sm text-foreground hover:underline">
-                              {r.name}
-                            </Link>
-                            {debtor ? <FinancialBadge status={finByMember.get(r.memberId) as FinancialStatus} /> : null}
-                            {debtor && phone ? (
-                              <a
-                                href={`https://wa.me/${phone}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="WhatsApp"
-                                className="flex size-7 items-center justify-center rounded-lg bg-success/10 text-success transition-colors hover:bg-success/20"
-                              >
-                                <MessageCircle className="size-3.5" aria-hidden />
-                              </a>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <Link href={`/admin/alumnos/${r.memberId}`} className="truncate text-sm text-foreground hover:underline">
+                                {r.name}
+                              </Link>
+                              {debtor ? <FinancialBadge status={finByMember.get(r.memberId) as FinancialStatus} /> : null}
+                              {debtor && phone ? (
+                                <a
+                                  href={`https://wa.me/${phone}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="WhatsApp"
+                                  className="flex size-7 items-center justify-center rounded-lg bg-success/10 text-success transition-colors hover:bg-success/20"
+                                >
+                                  <MessageCircle className="size-3.5" aria-hidden />
+                                </a>
+                              ) : null}
+                            </span>
+                            {r.note ? (
+                              <span className="mt-0.5 flex items-start gap-1 text-xs text-warning">
+                                <StickyNote className="mt-0.5 size-3 shrink-0" aria-hidden />
+                                {r.note}
+                              </span>
                             ) : null}
                           </span>
                           {started ? (
