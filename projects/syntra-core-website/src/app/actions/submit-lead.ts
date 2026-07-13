@@ -31,6 +31,23 @@ export async function submitLead(
     return { status: "success", message: "¡Gracias! Te contactaremos pronto." };
   }
 
+  // Checkboxes MULTI (0005): el form envía 0..N valores con name="projectType".
+  // Leemos todos, normalizamos a string y descartamos vacíos. Ausente = undefined.
+  const projectTypes = formData
+    .getAll("projectType")
+    .map(String)
+    .filter(Boolean);
+
+  // Eco de lo tipeado para TODO retorno de error: sin esto React 19 resetea el
+  // form y el usuario pierde su mensaje (peor fricción posible en conversión).
+  const values = {
+    name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    company: String(formData.get("company") ?? ""),
+    message: String(formData.get("message") ?? ""),
+    projectTypes,
+  };
+
   // Rate limiting por IP (anti-abuso). 5 envíos cada 10 minutos.
   const ip = await getClientIp();
   const rl = rateLimit(`lead:${ip}`);
@@ -38,15 +55,9 @@ export async function submitLead(
     return {
       status: "error",
       message: `Demasiados intentos. Probá de nuevo en ${rl.retryAfterSec} segundos.`,
+      values,
     };
   }
-
-  // Checkboxes MULTI (0005): el form envía 0..N valores con name="projectType".
-  // Leemos todos, normalizamos a string y descartamos vacíos. Ausente = undefined.
-  const projectTypes = formData
-    .getAll("projectType")
-    .map(String)
-    .filter(Boolean);
 
   const parsed = leadSchema.safeParse({
     name: formData.get("name"),
@@ -73,6 +84,7 @@ export async function submitLead(
       status: "error",
       message: "Revisá los campos marcados.",
       errors,
+      values,
     };
   }
 
@@ -82,6 +94,7 @@ export async function submitLead(
     return {
       status: "error",
       message: `${result.error} Probá de nuevo o escribinos por email.`,
+      values,
     };
   }
 

@@ -42,6 +42,12 @@ const formGroup: Variants = {
   },
 };
 
+/** Materia "vidrio hundido" de la atmósfera para inputs/textarea (pase Aterrizaje
+ *  térmico): fill oscuro translúcido familia #05070c + hairline interior + bloom
+ *  electric al focus. Solo borde/sombra/color → CLS 0. */
+const GLASS_FIELD =
+  "rounded-xl border-white/[0.08] bg-[#070b14]/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),inset_0_2px_10px_rgba(0,0,0,0.35)] backdrop-blur-sm placeholder:text-foreground/30 hover:border-white/[0.16] focus-visible:border-[#60a5fa]/60 focus-visible:bg-[#070b14]/80 focus-visible:ring-[#60a5fa]/25 focus-visible:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_26px_-6px_rgba(96,165,250,0.5)]";
+
 /**
  * ContactForm — captura de leads.
  * useActionState (React 19): valida en servidor, muestra errores por campo,
@@ -86,6 +92,18 @@ function ContactForm() {
       track("lead_submit_error", { reason: state.errors ? "validation" : "server" });
     }
   }, [state]);
+
+  // Tras un error de validación, llevar el foco al PRIMER campo inválido (puede
+  // quedar fuera de viewport). Solo al volver la action (state nuevo), no por render.
+  React.useEffect(() => {
+    if (state.status !== "error" || !state.errors) return;
+    for (const key of ["name", "email", "company", "message"] as const) {
+      if (state.errors[key]) {
+        document.getElementById(`${baseId}-${key}`)?.focus();
+        break;
+      }
+    }
+  }, [state, baseId]);
 
   if (state.status === "success") {
     return (
@@ -154,6 +172,7 @@ function ContactForm() {
           placeholder="Tu nombre"
           autoComplete="name"
           error={state.errors?.name}
+          defaultValue={state.values?.name}
         />
         <Field
           id={fieldId("email")}
@@ -164,6 +183,7 @@ function ContactForm() {
           placeholder="tu@email.com"
           autoComplete="email"
           error={state.errors?.email}
+          defaultValue={state.values?.email}
         />
       </motion.div>
 
@@ -176,6 +196,7 @@ function ContactForm() {
           placeholder="Nombre de tu empresa"
           autoComplete="organization"
           error={state.errors?.company}
+          defaultValue={state.values?.company}
         />
       </motion.div>
 
@@ -184,16 +205,21 @@ function ContactForm() {
           fieldset/legend ya es el agrupador accesible correcto para checkboxes.
           Materialidad mínima/on-system; la elevación visual completa es WEB-013C. */}
       <motion.fieldset variants={formGroup}>
-        <legend className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
-          <LayoutGrid className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <legend className="inline-flex flex-wrap items-center gap-2 text-[0.7rem] font-medium tracking-[0.14em] uppercase text-foreground/60">
+          <LayoutGrid
+            className="size-4 shrink-0 text-[#60a5fa] [filter:drop-shadow(0_0_6px_rgba(96,165,250,0.45))]"
+            aria-hidden
+          />
           Tipo de proyecto{" "}
-          <span className="font-normal text-muted-foreground">(opcional)</span>
+          <span className="font-normal normal-case tracking-normal text-muted-foreground">
+            (opcional · podés marcar más de una)
+          </span>
         </legend>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-2.5 flex flex-wrap gap-2">
           {projectTypeOptions.map((opt) => (
             <label
               key={opt.value}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface-1 px-4 py-2 text-sm text-muted-foreground transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-accent-primary/50 hover:bg-surface-2 hover:text-foreground hover:shadow-[0_6px_18px_-8px_rgba(37,99,235,0.45)] has-[:checked]:border-accent-primary has-[:checked]:bg-accent-primary/15 has-[:checked]:text-foreground has-[:checked]:shadow-[0_0_0_1px_rgba(37,99,235,0.35)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-primary/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-white/10 bg-[#070b14]/60 px-4 py-2 text-sm text-foreground/65 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-accent-primary/50 hover:text-foreground hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_18px_-8px_rgba(37,99,235,0.45)] has-[:checked]:border-accent-primary has-[:checked]:bg-accent-primary/15 has-[:checked]:text-foreground has-[:checked]:shadow-[0_0_0_1px_rgba(37,99,235,0.35),0_6px_20px_-8px_rgba(37,99,235,0.5)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-primary/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
               <input
                 type="checkbox"
@@ -227,21 +253,29 @@ function ContactForm() {
         </div>
       </motion.fieldset>
 
-      <motion.div variants={formGroup} className="flex flex-col gap-2">
-        <Label htmlFor={fieldId("message")} className="inline-flex items-center gap-2">
-          <MessageSquareText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <motion.div variants={formGroup} className="group flex flex-col gap-2">
+        <Label
+          htmlFor={fieldId("message")}
+          className="inline-flex items-center gap-2 text-[0.7rem] font-medium tracking-[0.14em] uppercase text-foreground/60 transition-colors group-focus-within:text-foreground/90"
+        >
+          <MessageSquareText
+            className="size-4 shrink-0 text-[#60a5fa] [filter:drop-shadow(0_0_6px_rgba(96,165,250,0.45))] transition-colors group-focus-within:text-[#93c5fd]"
+            aria-hidden
+          />
           Contanos qué necesitás
         </Label>
         <Textarea
           id={fieldId("message")}
           name="message"
           maxLength={MESSAGE_MAX}
-          placeholder="Describí brevemente tu proyecto, problema u objetivo. Cuanto más claro sea el contexto, mejor vamos a poder orientarte."
+          placeholder="Contanos tu proyecto, problema u objetivo — con tus palabras alcanza."
           aria-invalid={Boolean(state.errors?.message)}
           aria-describedby={
             state.errors?.message ? `${fieldId("message")}-error` : undefined
           }
           onChange={(e) => setMessageLength(e.currentTarget.value.length)}
+          defaultValue={state.values?.message}
+          className={GLASS_FIELD}
         />
         <div className="flex items-start justify-between gap-3">
           {/* Helper de conversión (content-driven): baja la barrera de entrada */}
@@ -274,14 +308,19 @@ function ContactForm() {
         </p>
       ) : null}
 
-      <motion.div variants={formGroup} className="flex flex-col sm:flex-row sm:justify-end">
+      <motion.div variants={formGroup} className="flex flex-col gap-2.5 sm:items-end">
         <Button
           type="submit"
           variant="brand"
           size="xl"
           disabled={isPending}
-          className="w-full justify-center sm:w-auto sm:min-w-[12.5rem]"
+          className="group relative w-full justify-center overflow-hidden bg-gradient-to-b from-[#3b82f6] to-[#1d4ed8] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_14px_34px_-12px_rgba(37,99,235,0.7)] transition-shadow duration-300 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_18px_44px_-12px_rgba(37,99,235,0.9)] sm:w-auto sm:min-w-[12.5rem]"
         >
+          {/* Sheen de hover (transform-only, reduced-motion lo oculta) */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -translate-x-full bg-[linear-gradient(105deg,transparent,rgba(255,255,255,0.22),transparent)] transition-transform duration-700 ease-out group-hover:translate-x-full motion-reduce:hidden"
+          />
           {isPending ? "Enviando..." : "Enviar consulta"}
           {/* Ícono siempre presente: reserva su espacio para que el ancho no salte
               entre estados (CLS 0 en interacción). Se atenúa al enviar. */}
@@ -297,29 +336,42 @@ interface FieldProps {
   id: string;
   name: string;
   label: string;
-  /** Ícono lucide decorativo, inline antes del label (premium, neutro). */
+  /** Ícono lucide DENTRO del input (izquierda; muted → electric al focus). */
   icon?: React.ComponentType<{ className?: string }>;
   placeholder?: string;
   type?: string;
   autoComplete?: string;
   error?: string;
+  /** Eco del valor tipeado tras un error (React 19 resetea el form al volver la action). */
+  defaultValue?: string;
 }
 
 function Field({ id, name, label, icon: Icon, error, type = "text", ...rest }: FieldProps) {
   return (
-    <div className="flex flex-col gap-2">
-      <Label htmlFor={id} className="inline-flex items-center gap-2">
-        {Icon ? <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden /> : null}
+    <div className="group flex flex-col gap-2">
+      <Label
+        htmlFor={id}
+        className="text-[0.7rem] font-medium tracking-[0.14em] uppercase text-foreground/60 transition-colors group-focus-within:text-foreground/90"
+      >
         {label}
       </Label>
-      <Input
-        id={id}
-        name={name}
-        type={type}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${id}-error` : undefined}
-        {...rest}
-      />
+      <div className="relative">
+        {Icon ? (
+          <Icon
+            className="pointer-events-none absolute top-1/2 left-3.5 z-10 size-4 -translate-y-1/2 text-[#60a5fa] [filter:drop-shadow(0_0_6px_rgba(96,165,250,0.45))] transition-colors group-focus-within:text-[#93c5fd]"
+            aria-hidden
+          />
+        ) : null}
+        <Input
+          id={id}
+          name={name}
+          type={type}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
+          className={`${GLASS_FIELD} ${Icon ? "pl-10" : ""}`}
+          {...rest}
+        />
+      </div>
       {error ? (
         <p
           id={`${id}-error`}
