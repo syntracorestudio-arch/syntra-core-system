@@ -13,6 +13,7 @@ import {
   UserPlus,
   Moon,
   CreditCard,
+  MessageCircle,
 } from "lucide-react";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -134,6 +135,7 @@ export default async function SuperPage({
     { data: occRaw },
     { data: mpRaw },
     { data: resRaw },
+    { data: adminsRaw },
   ] = await Promise.all([
     admin.from("studios").select("id, name, slug, status, timezone, created_at").order("created_at", { ascending: false }),
     admin.from("members").select("studio_id, role, status, joined_at"),
@@ -146,6 +148,11 @@ export default async function SuperPage({
       .lt("starts_at", weekEndIso),
     admin.from("studio_payment_providers").select("studio_id, status"),
     admin.from("class_reservations").select("studio_id, created_at").gte("created_at", activityWindowIso),
+    admin
+      .from("members")
+      .select("studio_id, profiles(full_name, email, phone)")
+      .eq("role", "admin")
+      .eq("status", "active"),
   ]);
   const studios = (studiosRaw ?? []) as StudioRow[];
   const members = (membersRaw ?? []) as { studio_id: string; role: string; status: string; joined_at: string | null }[];
@@ -155,6 +162,15 @@ export default async function SuperPage({
     ((mpRaw ?? []) as { studio_id: string; status: string }[]).filter((r) => r.status === "connected").map((r) => r.studio_id),
   );
   const recentRes = (resRaw ?? []) as { studio_id: string; created_at: string }[];
+
+  // Contacto del dueño/admin por estudio (para soporte: el primero activo)
+  type AdmProf = { full_name: string; email: string | null; phone: string | null };
+  const adminByStudio = new Map<string, AdmProf>();
+  for (const a of (adminsRaw ?? []) as { studio_id: string; profiles: AdmProf | AdmProf[] | null }[]) {
+    if (adminByStudio.has(a.studio_id)) continue;
+    const prof = Array.isArray(a.profiles) ? a.profiles[0] : a.profiles;
+    if (prof) adminByStudio.set(a.studio_id, prof);
+  }
 
   // Filtro por estudio
   const studioFilter = studios.some((s) => s.id === studioParam) ? (studioParam as string) : "todos";
@@ -372,6 +388,32 @@ export default async function SuperPage({
                         <p className="truncate text-xs text-muted-foreground">
                           /{s.slug} · desde {fmtDate(s.created_at)}
                         </p>
+                        {(() => {
+                          const adm = adminByStudio.get(s.id);
+                          if (!adm) return <p className="text-xs text-warning">sin dueño/admin asignado</p>;
+                          const phone = (adm.phone ?? "").replace(/[^\d]/g, "");
+                          return (
+                            <p className="flex flex-wrap items-center gap-x-2 truncate text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground">{adm.full_name}</span>
+                              {adm.email ? (
+                                <a href={`mailto:${adm.email}`} className="hover:text-foreground hover:underline">
+                                  {adm.email}
+                                </a>
+                              ) : null}
+                              {phone ? (
+                                <a
+                                  href={`https://wa.me/${phone}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-0.5 text-success hover:underline"
+                                >
+                                  <MessageCircle className="size-3" aria-hidden />
+                                  WhatsApp
+                                </a>
+                              ) : null}
+                            </p>
+                          );
+                        })()}
                       </div>
                       <span className="hidden shrink-0 items-center gap-3 text-xs text-muted-foreground sm:flex">
                         <span className="inline-flex items-center gap-1">
