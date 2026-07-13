@@ -11,10 +11,13 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const origin = url.origin;
+  // Destino explícito (ej. recuperación de contraseña → /cuenta). Solo rutas internas.
+  const nextParam = url.searchParams.get("next");
+  const next = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : null;
 
   if (!code) {
     return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent("No se pudo completar el ingreso con Google.")}`,
+      `${origin}/login?error=${encodeURIComponent("No se pudo completar el ingreso.")}`,
     );
   }
 
@@ -22,9 +25,11 @@ export async function GET(req: Request) {
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error || !data.user) {
     return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent("No se pudo completar el ingreso con Google.")}`,
+      `${origin}/login?error=${encodeURIComponent("El link expiró o ya fue usado. Pedí uno nuevo.")}`,
     );
   }
+
+  if (next) return NextResponse.redirect(`${origin}${next}`);
 
   // Superadmin → panel SYNTRA.
   const { data: profile } = await supabase

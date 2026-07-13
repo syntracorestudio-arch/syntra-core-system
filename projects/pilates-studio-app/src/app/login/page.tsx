@@ -131,7 +131,15 @@ export default async function LoginPage({
             </label>
 
             <label className="grid gap-1.5 text-sm">
-              <span className="font-medium text-foreground">Contraseña</span>
+              <span className="flex items-center justify-between font-medium text-foreground">
+                Contraseña
+                <Link
+                  href="/recuperar"
+                  className="text-xs font-medium text-muted-foreground transition-colors hover:text-primary-ink"
+                >
+                  ¿la olvidaste?
+                </Link>
+              </span>
               <PasswordInput
                 name="password"
                 placeholder="••••••••"
