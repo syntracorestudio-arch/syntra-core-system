@@ -15,6 +15,7 @@ import {
   CalendarCheck,
   Bell,
   X,
+  UserRound,
 } from "lucide-react";
 import { markNotificationsRead } from "@/app/admin/notifications-actions";
 
@@ -140,18 +141,24 @@ export function AdminSidebar({
   );
 
   const userFooter = (
-    <div className="flex items-center gap-2.5 border-t border-sidebar-border px-4 py-3">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-active text-sm font-semibold text-sidebar-active-foreground">
-        {initials(userName)}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-sidebar-foreground">{userName}</p>
-        <p className="truncate text-xs text-sidebar-muted">{ROLE_LABEL[role] ?? "Equipo"}</p>
-      </div>
+    <div className="flex items-center gap-1 border-t border-sidebar-border px-3 py-3">
+      <Link
+        href="/cuenta"
+        title="Mi cuenta"
+        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-sidebar-hover"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-active text-sm font-semibold text-sidebar-active-foreground">
+          {initials(userName)}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-sidebar-foreground">{userName}</span>
+          <span className="block truncate text-xs text-sidebar-muted">{ROLE_LABEL[role] ?? "Equipo"}</span>
+        </span>
+      </Link>
       <a
         href="/logout"
         aria-label="Cerrar sesión"
-        className="flex size-9 items-center justify-center rounded-lg text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground"
+        className="flex size-9 shrink-0 items-center justify-center rounded-lg text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground"
       >
         <LogOut className="size-4" aria-hidden />
       </a>
@@ -312,6 +319,16 @@ export function AdminSidebar({
                   </li>
                 );
               })}
+              <li>
+                <Link
+                  href="/cuenta"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-foreground hover:bg-secondary"
+                >
+                  <UserRound className="size-5 text-muted-foreground" aria-hidden />
+                  Mi cuenta
+                </Link>
+              </li>
               <li>
                 <a
                   href="/logout"

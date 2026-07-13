@@ -1,4 +1,5 @@
 import { join } from "./actions";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export const metadata = { title: "Sumate a tu estudio" };
 
@@ -31,13 +32,16 @@ export default async function JoinPage({
         <form action={join} className="mt-6 grid gap-4">
           <Field label="Nombre" name="name" type="text" autoComplete="name" />
           <Field label="Email" name="email" type="email" autoComplete="email" />
-          <Field
-            label="Contraseña"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            hint="Mínimo 8 caracteres."
-          />
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium text-foreground">Contraseña</span>
+            <PasswordInput
+              name="password"
+              minLength={8}
+              autoComplete="new-password"
+              inputClassName="w-full rounded-md border border-input bg-card px-3 py-2 pr-11 text-foreground outline-none focus:ring-2 focus:ring-ring"
+            />
+            <span className="text-xs text-muted-foreground">Mínimo 8 caracteres.</span>
+          </label>
           <Field
             label="Código del estudio"
             name="code"

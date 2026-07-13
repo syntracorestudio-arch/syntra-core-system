@@ -1,4 +1,4 @@
-import { LogOut, Building2 } from "lucide-react";
+import { LogOut, Building2, UserRound } from "lucide-react";
 import { requireSuperadmin } from "@/lib/superadmin";
 
 export const metadata = { title: "Superadmin — StudioFlow" };
@@ -20,8 +20,16 @@ export default async function SuperLayout({ children }: { children: React.ReactN
               StudioFlow <span className="font-normal text-sidebar-muted">· Superadmin SYNTRA</span>
             </span>
           </p>
-          <div className="flex items-center gap-3">
-            {fullName ? <span className="hidden text-xs text-sidebar-muted sm:block">{fullName}</span> : null}
+          <div className="flex items-center gap-1.5">
+            {fullName ? <span className="mr-1.5 hidden text-xs text-sidebar-muted sm:block">{fullName}</span> : null}
+            <a
+              href="/cuenta"
+              aria-label="Mi cuenta"
+              title="Mi cuenta"
+              className="flex size-8 items-center justify-center rounded-lg text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground"
+            >
+              <UserRound className="size-4" aria-hidden />
+            </a>
             <a
               href="/logout"
               aria-label="Cerrar sesión"
