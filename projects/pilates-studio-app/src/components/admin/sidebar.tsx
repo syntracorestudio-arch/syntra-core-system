@@ -17,11 +17,27 @@ import {
   X,
   UserRound,
   Sun,
+  GraduationCap,
+  CalendarClock,
+  Wallet,
+  AlertCircle,
+  ChevronRight,
 } from "lucide-react";
 import { markNotificationsRead } from "@/app/admin/notifications-actions";
 
 type Item = { key: string; href: string; label: string; icon: typeof LayoutGrid; adminOnly: boolean };
 export type NotifItem = { id: string; title: string; body: string | null; link: string | null; read: boolean; createdAt: string };
+
+/** Pulso del día para el widget del sidebar (calculado en el layout, server-side). */
+export type TodayPulse = {
+  /** clase en curso o próxima de hoy (null si no quedan) */
+  focus: { label: "En curso" | "Próxima"; time: string; name: string; instructor: string | null; booked: number; capacity: number } | null;
+  classesCount: number;
+  bookedCount: number;
+  /** null para recepción (no ve financiero) */
+  collectedToday: number | null;
+  debtors: number;
+};
 
 const GROUPS: { group: string; items: Item[] }[] = [
   {
@@ -31,12 +47,14 @@ const GROUPS: { group: string; items: Item[] }[] = [
       { key: "hoy", href: "/admin/hoy", label: "Hoy", icon: Sun, adminOnly: false },
       { key: "clases", href: "/admin/clases", label: "Clases", icon: CalendarDays, adminOnly: false },
       { key: "alumnos", href: "/admin/alumnos", label: "Alumnos", icon: Users, adminOnly: false },
+      { key: "equipo", href: "/admin/equipo", label: "Equipo", icon: GraduationCap, adminOnly: false },
     ],
   },
   {
     group: "Gestión",
     items: [
       { key: "packs", href: "/admin/packs", label: "Packs", icon: Ticket, adminOnly: true },
+      { key: "planes", href: "/admin/planes", label: "Planes", icon: CalendarClock, adminOnly: true },
       { key: "reportes", href: "/admin/reportes", label: "Reportes", icon: BarChart3, adminOnly: true },
       { key: "configuracion", href: "/admin/configuracion", label: "Ajustes", icon: Settings, adminOnly: true },
     ],
@@ -99,6 +117,7 @@ export function AdminSidebar({
   userName,
   notifications = [],
   unreadCount = 0,
+  today = null,
 }: {
   role: string;
   studioName: string;
@@ -106,6 +125,7 @@ export function AdminSidebar({
   userName: string;
   notifications?: NotifItem[];
   unreadCount?: number;
+  today?: TodayPulse | null;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -232,6 +252,78 @@ export function AdminSidebar({
             );
           })}
         </nav>
+
+        {/* ── Hoy en tu estudio: pulso vivo del día (solo desktop) ── */}
+        {today ? (
+          <div className="border-t border-sidebar-border px-3 py-3">
+            {today.focus ? (
+              <Link
+                href="/admin/hoy"
+                className="block rounded-xl bg-sidebar-hover p-3 transition-colors hover:bg-sidebar-active"
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-sidebar-muted">
+                  {today.focus.label} · {today.focus.time}
+                </p>
+                <p className="mt-0.5 truncate text-sm font-semibold text-sidebar-foreground">
+                  {today.focus.name}
+                  {today.focus.instructor ? (
+                    <span className="font-normal text-sidebar-muted"> · {today.focus.instructor}</span>
+                  ) : null}
+                </p>
+                <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-sidebar-border">
+                  <span
+                    className="block h-full rounded-full bg-primary"
+                    style={{
+                      width: `${today.focus.capacity > 0 ? Math.min(Math.round((today.focus.booked / today.focus.capacity) * 100), 100) : 0}%`,
+                    }}
+                  />
+                </span>
+                <span className="mt-1 flex items-center justify-between text-[11px] text-sidebar-muted">
+                  <span>
+                    {today.focus.booked}/{today.focus.capacity} anotados
+                  </span>
+                  <span className="inline-flex items-center gap-0.5">
+                    ver Hoy <ChevronRight className="size-3" aria-hidden />
+                  </span>
+                </span>
+              </Link>
+            ) : (
+              <p className="rounded-xl bg-sidebar-hover p-3 text-xs text-sidebar-muted">
+                {today.classesCount > 0 ? "No quedan clases por hoy." : "Hoy no hay clases."}
+              </p>
+            )}
+
+            <dl className="mt-2 grid gap-1 px-1 text-[11px]">
+              <div className="flex items-center justify-between">
+                <dt className="text-sidebar-muted">Hoy</dt>
+                <dd className="font-medium tabular-nums text-sidebar-foreground">
+                  {today.classesCount} {today.classesCount === 1 ? "clase" : "clases"} · {today.bookedCount} reservas
+                </dd>
+              </div>
+              {today.collectedToday !== null ? (
+                <div className="flex items-center justify-between">
+                  <dt className="inline-flex items-center gap-1 text-sidebar-muted">
+                    <Wallet className="size-3" aria-hidden />
+                    Cobrado hoy
+                  </dt>
+                  <dd className="font-semibold tabular-nums text-sidebar-foreground">
+                    ${Math.round(today.collectedToday).toLocaleString("es-AR")}
+                  </dd>
+                </div>
+              ) : null}
+              {today.debtors > 0 ? (
+                <Link href="/admin" className="flex items-center justify-between transition-colors hover:text-sidebar-foreground">
+                  <dt className="inline-flex items-center gap-1 text-warning">
+                    <AlertCircle className="size-3" aria-hidden />
+                    Con deuda
+                  </dt>
+                  <dd className="font-semibold tabular-nums text-warning">{today.debtors}</dd>
+                </Link>
+              ) : null}
+            </dl>
+          </div>
+        ) : null}
+
         {userFooter}
       </aside>
 
