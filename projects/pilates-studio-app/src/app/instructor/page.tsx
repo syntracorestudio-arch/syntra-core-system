@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { LogOut, CalendarDays, Users, Clock3, CheckCircle2, Circle, UserRound } from "lucide-react";
+import { LogOut, CalendarDays, Users, Clock3, CheckCircle2, Circle, UserRound, UserX } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { setAttendance } from "./actions";
 import { SuspendedScreen } from "@/components/suspended-screen";
@@ -74,14 +74,18 @@ export default async function InstructorPage({
     return <SuspendedScreen studioName={studio.name} audience="member" />;
   }
 
-  const nowIso = new Date().toISOString();
+  // Desde 24 h atrás: la asistencia se marca durante/después de la clase, así que
+  // las ocurrencias recientes tienen que seguir visibles (no solo las futuras).
+  const from = new Date();
+  from.setHours(from.getHours() - 24);
+  const fromIso = from.toISOString();
 
-  // Mis próximas ocurrencias: clases donde soy el instructor asignado.
+  // Mis ocurrencias (recientes + próximas): clases donde soy el instructor asignado.
   const { data: occsRaw } = await supabase
     .from("class_occurrences")
     .select("id, starts_at, capacity, booked_count, classes!inner(id, name, instructor_id)")
     .eq("status", "scheduled")
-    .gte("starts_at", nowIso)
+    .gte("starts_at", fromIso)
     .eq("classes.instructor_id", myId)
     .order("starts_at", { ascending: true })
     .limit(40);
@@ -106,22 +110,25 @@ export default async function InstructorPage({
   const selectedId = occ && occs.some((o) => o.id === occ) ? occ : occs[0]?.id ?? null;
   const selected = occs.find((o) => o.id === selectedId) ?? null;
 
-  // Roster + presencia de la ocurrencia seleccionada. Vía RPC SECURITY DEFINER: el
+  // Roster + asistencia de la ocurrencia seleccionada. Vía RPC SECURITY DEFINER: el
   // instructor no tiene SELECT sobre members/profiles (RLS), así que el nombre + el
-  // check-in vienen de instructor_class_roster (autoriza al instructor de esa clase).
-  let roster: { id: string; name: string; present: boolean }[] = [];
+  // estado vienen de instructor_class_roster (autoriza al instructor de esa clase).
+  let roster: { id: string; name: string; att: "checked_in" | "no_show" | null }[] = [];
   if (selectedId) {
     const { data: rows } = await supabase.rpc("instructor_class_roster", {
       p_occurrence_id: selectedId,
     });
-    roster = ((rows ?? []) as { reservation_id: string; member_name: string; checked_in: boolean }[]).map((r) => ({
-      id: r.reservation_id,
-      name: r.member_name,
-      present: r.checked_in,
-    }));
+    roster = ((rows ?? []) as { reservation_id: string; member_name: string; attendance_status: string | null }[]).map(
+      (r) => ({
+        id: r.reservation_id,
+        name: r.member_name,
+        att: (r.attendance_status as "checked_in" | "no_show" | null) ?? null,
+      }),
+    );
   }
 
-  const presentCount = roster.filter((r) => r.present).length;
+  const presentCount = roster.filter((r) => r.att === "checked_in").length;
+  const classStarted = selected ? selected.startsAt <= new Date().toISOString() : false;
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-5xl px-5 pb-16 pt-8 lg:px-8">
@@ -220,38 +227,62 @@ export default async function InstructorPage({
               </div>
 
               {roster.length > 0 ? (
-                <ul className="mt-4 divide-y divide-border">
-                  {roster.map((r) => (
-                    <li key={r.id} className="flex items-center justify-between gap-3 py-2.5">
-                      <span className="text-sm text-foreground">{r.name}</span>
-                      <form action={setAttendance}>
-                        <input type="hidden" name="reservation" value={r.id} />
-                        <input type="hidden" name="occ" value={selected.id} />
-                        <input type="hidden" name="value" value={r.present ? "clear" : "checked_in"} />
-                        <button
-                          type="submit"
-                          className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                            r.present
-                              ? "border-success/40 bg-success/10 text-success hover:bg-success/15"
-                              : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
-                          }`}
-                        >
-                          {r.present ? (
-                            <>
-                              <CheckCircle2 className="size-4" aria-hidden />
+                <>
+                  {!classStarted ? (
+                    <p className="mt-3 rounded-lg bg-surface-sunken px-3 py-2 text-xs text-muted-foreground">
+                      La asistencia se marca cuando empieza la clase.
+                    </p>
+                  ) : null}
+                  <ul className="mt-4 divide-y divide-border">
+                    {roster.map((r) => (
+                      <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+                        <span className="text-sm text-foreground">{r.name}</span>
+                        <div className="flex items-center gap-1.5">
+                          {/* Presente (toggle) */}
+                          <form action={setAttendance}>
+                            <input type="hidden" name="reservation" value={r.id} />
+                            <input type="hidden" name="occ" value={selected.id} />
+                            <input type="hidden" name="value" value={r.att === "checked_in" ? "clear" : "checked_in"} />
+                            <button
+                              type="submit"
+                              disabled={!classStarted}
+                              className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                                r.att === "checked_in"
+                                  ? "border-success/40 bg-success/10 text-success hover:bg-success/15"
+                                  : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+                              }`}
+                            >
+                              {r.att === "checked_in" ? (
+                                <CheckCircle2 className="size-4" aria-hidden />
+                              ) : (
+                                <Circle className="size-4" aria-hidden />
+                              )}
                               Presente
-                            </>
-                          ) : (
-                            <>
-                              <Circle className="size-4" aria-hidden />
-                              Marcar
-                            </>
-                          )}
-                        </button>
-                      </form>
-                    </li>
-                  ))}
-                </ul>
+                            </button>
+                          </form>
+                          {/* Faltó (toggle) */}
+                          <form action={setAttendance}>
+                            <input type="hidden" name="reservation" value={r.id} />
+                            <input type="hidden" name="occ" value={selected.id} />
+                            <input type="hidden" name="value" value={r.att === "no_show" ? "clear" : "no_show"} />
+                            <button
+                              type="submit"
+                              disabled={!classStarted}
+                              className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                                r.att === "no_show"
+                                  ? "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15"
+                                  : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+                              }`}
+                            >
+                              <UserX className="size-4" aria-hidden />
+                              Faltó
+                            </button>
+                          </form>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               ) : (
                 <p className="mt-4 text-sm text-muted-foreground">Todavía no hay anotados en esta clase.</p>
               )}
