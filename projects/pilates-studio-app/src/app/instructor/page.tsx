@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { LogOut, CalendarDays, Users, Clock3, CheckCircle2, Circle, UserRound, UserX } from "lucide-react";
+import { LogOut, CalendarDays, Users, Clock3, CheckCircle2, Circle, UserRound, UserX, Sparkles, StickyNote } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { setAttendance } from "./actions";
 import { SuspendedScreen } from "@/components/suspended-screen";
@@ -113,18 +113,30 @@ export default async function InstructorPage({
   // Roster + asistencia de la ocurrencia seleccionada. Vía RPC SECURITY DEFINER: el
   // instructor no tiene SELECT sobre members/profiles (RLS), así que el nombre + el
   // estado vienen de instructor_class_roster (autoriza al instructor de esa clase).
-  let roster: { id: string; name: string; att: "checked_in" | "no_show" | null }[] = [];
+  let roster: {
+    id: string;
+    name: string;
+    att: "checked_in" | "no_show" | null;
+    note: string | null;
+    firstTime: boolean;
+  }[] = [];
   if (selectedId) {
     const { data: rows } = await supabase.rpc("instructor_class_roster", {
       p_occurrence_id: selectedId,
     });
-    roster = ((rows ?? []) as { reservation_id: string; member_name: string; attendance_status: string | null }[]).map(
-      (r) => ({
-        id: r.reservation_id,
-        name: r.member_name,
-        att: (r.attendance_status as "checked_in" | "no_show" | null) ?? null,
-      }),
-    );
+    roster = ((rows ?? []) as {
+      reservation_id: string;
+      member_name: string;
+      attendance_status: string | null;
+      member_note: string | null;
+      is_first_time: boolean;
+    }[]).map((r) => ({
+      id: r.reservation_id,
+      name: r.member_name,
+      att: (r.attendance_status as "checked_in" | "no_show" | null) ?? null,
+      note: r.member_note ?? null,
+      firstTime: Boolean(r.is_first_time),
+    }));
   }
 
   const presentCount = roster.filter((r) => r.att === "checked_in").length;
@@ -236,7 +248,23 @@ export default async function InstructorPage({
                   <ul className="mt-4 divide-y divide-border">
                     {roster.map((r) => (
                       <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
-                        <span className="text-sm text-foreground">{r.name}</span>
+                        <span className="min-w-0">
+                          <span className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+                            {r.name}
+                            {r.firstTime ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary-ink">
+                                <Sparkles className="size-3" aria-hidden />
+                                1ª clase
+                              </span>
+                            ) : null}
+                          </span>
+                          {r.note ? (
+                            <span className="mt-0.5 flex items-start gap-1 text-xs text-warning">
+                              <StickyNote className="mt-0.5 size-3 shrink-0" aria-hidden />
+                              {r.note}
+                            </span>
+                          ) : null}
+                        </span>
                         <div className="flex items-center gap-1.5">
                           {/* Presente (toggle) */}
                           <form action={setAttendance}>
