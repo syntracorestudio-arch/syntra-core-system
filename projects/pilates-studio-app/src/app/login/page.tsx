@@ -4,6 +4,7 @@ import { CalendarCheck, Mail, Lock, AlertCircle, KeyRound, CreditCard, Store } f
 import { login } from "./actions";
 import { LoginSubmit } from "./submit-button";
 import { buttonClass } from "@/components/ui/button";
+import { PasswordInput } from "@/components/ui/password-input";
 import { siteConfig } from "@/config/site";
 
 export const metadata = { title: "Ingresar" };
@@ -107,23 +108,21 @@ export default async function LoginPage({
 
             <label className="grid gap-1.5 text-sm">
               <span className="font-medium text-foreground">Contraseña</span>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                <input
-                  type="password"
-                  name="password"
-                  required
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className="w-full rounded-xl border border-input bg-card py-2.5 pl-10 pr-3 text-foreground outline-none transition-base placeholder:text-muted-foreground/60 focus:border-transparent focus:ring-2 focus:ring-ring"
-                />
-              </div>
+              <PasswordInput
+                name="password"
+                placeholder="••••••••"
+                autoComplete="current-password"
+                inputClassName="w-full rounded-xl border border-input bg-card py-2.5 pl-10 pr-11 text-foreground outline-none transition-base placeholder:text-muted-foreground/60 focus:border-transparent focus:ring-2 focus:ring-ring"
+                leadingIcon={
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                }
+              />
             </label>
 
             <LoginSubmit />
           </form>
 
-          {/* acceso por código del estudio */}
+          {/* alta por código del estudio */}
           <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="h-px flex-1 bg-border" />
             ¿primera vez?
@@ -131,8 +130,11 @@ export default async function LoginPage({
           </div>
           <Link href="/join" className={buttonClass("secondary", "md", "w-full")}>
             <KeyRound className="size-4" aria-hidden />
-            Tengo un código de mi estudio
+            Crear mi cuenta con el código del estudio
           </Link>
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            El código te lo da tu estudio — así tu cuenta queda vinculada a él.
+          </p>
         </div>
 
         {/* features + footer */}

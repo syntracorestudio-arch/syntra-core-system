@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { LogOut, CalendarDays, Users, Clock3, CheckCircle2, Circle } from "lucide-react";
+import { LogOut, CalendarDays, Users, Clock3, CheckCircle2, Circle, UserRound } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { setAttendance } from "./actions";
 import { SuspendedScreen } from "@/components/suspended-screen";
@@ -134,14 +134,24 @@ export default async function InstructorPage({
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">Tus próximas clases y quiénes están anotados.</p>
         </div>
-        <a
-          href="/logout"
-          aria-label="Cerrar sesión"
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
-        >
-          <LogOut className="size-3.5" aria-hidden />
-          Salir
-        </a>
+        <div className="flex shrink-0 items-center gap-2">
+          <a
+            href="/cuenta"
+            aria-label="Mi cuenta"
+            className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
+          >
+            <UserRound className="size-3.5" aria-hidden />
+            <span className="hidden sm:inline">Mi cuenta</span>
+          </a>
+          <a
+            href="/logout"
+            aria-label="Cerrar sesión"
+            className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
+          >
+            <LogOut className="size-3.5" aria-hidden />
+            Salir
+          </a>
+        </div>
       </header>
 
       {notice ? (

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { LogOut, CalendarDays, LayoutGrid, Wallet, CalendarCheck, Sparkles } from "lucide-react";
+import { LogOut, CalendarDays, LayoutGrid, Wallet, CalendarCheck, Sparkles, UserRound } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { ClassCard, type ClassCardData } from "@/components/calendar/class-card";
 import { buttonClass } from "@/components/ui/button";
@@ -213,6 +213,14 @@ export default async function AppPage({
               Panel
             </a>
           ) : null}
+          <a
+            href="/cuenta"
+            aria-label="Mi cuenta"
+            className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
+          >
+            <UserRound className="size-3.5" aria-hidden />
+            <span className="hidden sm:inline">Mi cuenta</span>
+          </a>
           <a
             href="/logout"
             aria-label="Cerrar sesión"
