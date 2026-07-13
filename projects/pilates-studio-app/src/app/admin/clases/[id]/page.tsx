@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, User2, Users, Clock3, UserPlus, X, CalendarX } from "lucide-react";
+import { ArrowLeft, User2, Users, Clock3, UserPlus, X, CalendarX, CheckCircle2, UserX } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { promoteWaitlist, removeReservation, cancelOccurrenceDetail } from "./actions";
+import { promoteWaitlist, removeReservation, cancelOccurrenceDetail, setOccurrenceAttendance } from "./actions";
 
 export const dynamic = "force-dynamic";
 const ADMIN_ROLES = ["admin", "reception"];
@@ -70,13 +70,16 @@ export default async function ClaseDetallePage({
     .maybeSingle();
   if (!klass) notFound();
 
-  const nowIso = new Date().toISOString();
+  // Desde 24 h atrás: la asistencia se marca durante/después de la clase.
+  const from = new Date();
+  from.setHours(from.getHours() - 24);
+  const fromIso = from.toISOString();
   const { data: occsRaw } = await supabase
     .from("class_occurrences")
     .select("id, starts_at, capacity, booked_count")
     .eq("class_id", id)
     .eq("status", "scheduled")
-    .gte("starts_at", nowIso)
+    .gte("starts_at", fromIso)
     .order("starts_at", { ascending: true })
     .limit(20);
   const occs = (occsRaw ?? []) as { id: string; starts_at: string; capacity: number; booked_count: number }[];
@@ -98,15 +101,15 @@ export default async function ClaseDetallePage({
   const selectedId = occ && occs.some((o) => o.id === occ) ? occ : occs[0]?.id ?? null;
   const selected = occs.find((o) => o.id === selectedId) ?? null;
 
-  let roster: { id: string; name: string }[] = [];
+  let roster: { id: string; name: string; att: "checked_in" | "no_show" | null }[] = [];
   let waiting: { id: string; name: string; position: number }[] = [];
   if (selectedId) {
     const [{ data: res }, { data: wl }] = await Promise.all([
       supabase
         .from("class_reservations")
-        .select("id, members(profiles(full_name))")
+        .select("id, members(profiles(full_name)), attendance(status)")
         .eq("occurrence_id", selectedId)
-        .eq("status", "booked"),
+        .in("status", ["booked", "attended", "no_show"]),
       supabase
         .from("waitlist")
         .select("id, position, members(profiles(full_name))")
@@ -114,10 +117,15 @@ export default async function ClaseDetallePage({
         .eq("status", "waiting")
         .order("position", { ascending: true }),
     ]);
-    roster = ((res ?? []) as { id: string; members: MemberRel | MemberRel[] | null }[]).map((r) => ({
-      id: r.id,
-      name: nameOf(r.members),
-    }));
+    type AttRel = { status: string } | { status: string }[] | null;
+    roster = ((res ?? []) as { id: string; members: MemberRel | MemberRel[] | null; attendance: AttRel }[]).map((r) => {
+      const a = Array.isArray(r.attendance) ? r.attendance[0] : r.attendance;
+      return {
+        id: r.id,
+        name: nameOf(r.members),
+        att: (a?.status as "checked_in" | "no_show" | undefined) ?? null,
+      };
+    });
     waiting = ((wl ?? []) as { id: string; position: number; members: MemberRel | MemberRel[] | null }[]).map((w) => ({
       id: w.id,
       name: nameOf(w.members),
@@ -126,6 +134,7 @@ export default async function ClaseDetallePage({
   }
 
   const selFull = selected ? selected.booked_count >= selected.capacity : false;
+  const selStarted = selected ? selected.starts_at <= new Date().toISOString() : false;
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
@@ -208,20 +217,62 @@ export default async function ClaseDetallePage({
                 {roster.length > 0 ? (
                   <ul className="mt-3 divide-y divide-border">
                     {roster.map((r) => (
-                      <li key={r.id} className="flex items-center justify-between gap-3 py-2.5">
+                      <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
                         <span className="text-sm text-foreground">{r.name}</span>
-                        <form action={removeReservation}>
-                          <input type="hidden" name="reservation" value={r.id} />
-                          <input type="hidden" name="classId" value={id} />
-                          <input type="hidden" name="occ" value={selected.id} />
-                          <button
-                            type="submit"
-                            className="inline-flex min-h-11 items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          >
-                            <X className="size-3.5" aria-hidden />
-                            Quitar
-                          </button>
-                        </form>
+                        <div className="flex items-center gap-1.5">
+                          {selStarted ? (
+                            <>
+                              {/* asistencia (clase ya empezada): presente / faltó, toggle */}
+                              <form action={setOccurrenceAttendance}>
+                                <input type="hidden" name="reservation" value={r.id} />
+                                <input type="hidden" name="classId" value={id} />
+                                <input type="hidden" name="occ" value={selected.id} />
+                                <input type="hidden" name="value" value={r.att === "checked_in" ? "clear" : "checked_in"} />
+                                <button
+                                  type="submit"
+                                  className={`inline-flex min-h-11 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                    r.att === "checked_in"
+                                      ? "border-success/40 bg-success/10 text-success hover:bg-success/15"
+                                      : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                  }`}
+                                >
+                                  <CheckCircle2 className="size-3.5" aria-hidden />
+                                  Presente
+                                </button>
+                              </form>
+                              <form action={setOccurrenceAttendance}>
+                                <input type="hidden" name="reservation" value={r.id} />
+                                <input type="hidden" name="classId" value={id} />
+                                <input type="hidden" name="occ" value={selected.id} />
+                                <input type="hidden" name="value" value={r.att === "no_show" ? "clear" : "no_show"} />
+                                <button
+                                  type="submit"
+                                  className={`inline-flex min-h-11 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                    r.att === "no_show"
+                                      ? "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15"
+                                      : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                  }`}
+                                >
+                                  <UserX className="size-3.5" aria-hidden />
+                                  Faltó
+                                </button>
+                              </form>
+                            </>
+                          ) : (
+                            <form action={removeReservation}>
+                              <input type="hidden" name="reservation" value={r.id} />
+                              <input type="hidden" name="classId" value={id} />
+                              <input type="hidden" name="occ" value={selected.id} />
+                              <button
+                                type="submit"
+                                className="inline-flex min-h-11 items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <X className="size-3.5" aria-hidden />
+                                Quitar
+                              </button>
+                            </form>
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>

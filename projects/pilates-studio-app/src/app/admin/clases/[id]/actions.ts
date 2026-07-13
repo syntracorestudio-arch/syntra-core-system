@@ -64,3 +64,25 @@ export async function cancelOccurrenceDetail(formData: FormData) {
   });
   backTo(classId, "", error ? { error: "No se pudo cancelar la clase." } : { notice: "Clase cancelada." });
 }
+
+/** Asistencia desde el panel (admin/recepción): presente / faltó / limpiar, vía RPC 020. */
+export async function setOccurrenceAttendance(formData: FormData) {
+  const supabase = await guard();
+  const classId = String(formData.get("classId") ?? "");
+  const occ = String(formData.get("occ") ?? "");
+  const value = String(formData.get("value") ?? "");
+  if (!["checked_in", "no_show", "clear"].includes(value)) {
+    backTo(classId, occ, { error: "Acción inválida." });
+  }
+  const { error } = await supabase.rpc("set_attendance", {
+    p_reservation_id: String(formData.get("reservation") ?? ""),
+    p_status: value,
+  });
+  backTo(
+    classId,
+    occ,
+    error
+      ? { error: error.message.includes("class_not_started") ? "La clase todavía no empezó." : "No se pudo guardar la asistencia." }
+      : {},
+  );
+}

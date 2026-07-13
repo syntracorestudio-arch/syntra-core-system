@@ -4,10 +4,9 @@ import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
 /**
- * Check-in del instructor: marca/desmarca "presente" (tabla attendance).
- * El instructor NO puede tocar class_reservations (RLS), pero SÍ attendance.
- * Valida que la reserva pertenezca a una clase SUYA (instructor_id = su member id).
- * value: "checked_in" → upsert presente · "clear" → borra la marca.
+ * Asistencia del instructor: presente / faltó / limpiar, vía RPC set_attendance
+ * (SECURITY DEFINER, migración 020) que valida que la clase sea SUYA y ya haya
+ * empezado, y escribe attendance + estado de la reserva (attended/no_show) juntos.
  */
 export async function setAttendance(formData: FormData) {
   const supabase = await createSupabaseServer();
@@ -16,44 +15,25 @@ export async function setAttendance(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: me } = await supabase
-    .from("members")
-    .select("id, role")
-    .eq("profile_id", user.id)
-    .limit(1)
-    .maybeSingle();
-  if (!me || me.role !== "instructor") redirect("/app");
-
   const reservationId = String(formData.get("reservation") ?? "");
   const occ = String(formData.get("occ") ?? "");
   const value = String(formData.get("value") ?? "");
   const back = (params: Record<string, string> = {}): never =>
     redirect(`/instructor?${new URLSearchParams({ occ, ...params }).toString()}`);
 
-  // la reserva debe pertenecer a una clase de este instructor
-  const { data: r } = await supabase
-    .from("class_reservations")
-    .select("id, studio_id, class_occurrences(classes(instructor_id))")
-    .eq("id", reservationId)
-    .maybeSingle();
-  if (!r) return back({ error: "Reserva no encontrada." });
+  if (!["checked_in", "no_show", "clear"].includes(value)) return back({ error: "Acción inválida." });
 
-  const occRel = Array.isArray(r.class_occurrences) ? r.class_occurrences[0] : r.class_occurrences;
-  const clsRel = occRel ? (Array.isArray(occRel.classes) ? occRel.classes[0] : occRel.classes) : null;
-  if (!clsRel || clsRel.instructor_id !== me.id) return back({ error: "No autorizado." });
-
-  if (value === "clear") {
-    await supabase.from("attendance").delete().eq("reservation_id", reservationId);
-  } else {
-    await supabase.from("attendance").upsert(
-      {
-        reservation_id: reservationId,
-        studio_id: r.studio_id as string,
-        status: "checked_in",
-        checked_in_at: new Date().toISOString(),
-      },
-      { onConflict: "reservation_id" },
-    );
+  const { error } = await supabase.rpc("set_attendance", {
+    p_reservation_id: reservationId,
+    p_status: value,
+  });
+  if (error) {
+    const msg = error.message.includes("class_not_started")
+      ? "La clase todavía no empezó."
+      : error.message.includes("not_authorized")
+        ? "No autorizado."
+        : "No se pudo guardar la asistencia.";
+    return back({ error: msg });
   }
   back();
 }

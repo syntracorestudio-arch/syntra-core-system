@@ -304,6 +304,12 @@ export default async function AppPage({
                 <dd className="font-semibold tabular-nums text-foreground">{reservedCount}</dd>
               </div>
             </dl>
+            <a
+              href="/app/historial"
+              className="mt-3 inline-block text-xs font-semibold text-primary-ink hover:underline"
+            >
+              ver mi historial →
+            </a>
           </div>
         </aside>
 
