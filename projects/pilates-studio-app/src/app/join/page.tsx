@@ -8,9 +8,10 @@ export const dynamic = "force-dynamic";
 export default async function JoinPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; code?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, code } = await searchParams;
+  const prefill = (code ?? "").trim().toUpperCase().slice(0, 24);
 
   // Si ya hay sesión (ej. entró con Google) solo falta VINCULAR por código.
   const supabase = await createSupabaseServer();
@@ -49,6 +50,7 @@ export default async function JoinPage({
                 name="code"
                 required
                 autoComplete="off"
+                defaultValue={prefill}
                 className="rounded-md border border-input bg-card px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-ring"
               />
             </label>
@@ -108,6 +110,7 @@ export default async function JoinPage({
             name="code"
             type="text"
             autoComplete="off"
+            defaultValue={prefill}
           />
           <button
             type="submit"
@@ -134,12 +137,14 @@ function Field({
   type,
   autoComplete,
   hint,
+  defaultValue,
 }: {
   label: string;
   name: string;
   type: string;
   autoComplete: string;
   hint?: string;
+  defaultValue?: string;
 }) {
   return (
     <label className="grid gap-1.5 text-sm">
@@ -149,6 +154,7 @@ function Field({
         name={name}
         required
         autoComplete={autoComplete}
+        defaultValue={defaultValue}
         className="rounded-md border border-input bg-card px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-ring"
       />
       {hint ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
