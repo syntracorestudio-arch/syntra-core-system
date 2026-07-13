@@ -1,8 +1,9 @@
 "use client";
 
+import * as React from "react";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { motion, useInView, useReducedMotion, type Variants } from "framer-motion";
 
 import { siteConfig } from "@/config/site";
 import { getIcon } from "@/lib/icons";
@@ -34,6 +35,11 @@ const HERO_ASSET_ALT =
 function HeroSection() {
   const { hero, cta } = siteConfig;
   const reduce = useReducedMotion() ?? false;
+
+  // Placa de vidrio (capability rail): el sheen especular solo corre con la placa
+  // en viewport (loop pausado fuera de vista) y nunca con reduced-motion.
+  const slabRef = React.useRef<HTMLDivElement | null>(null);
+  const slabInView = useInView(slabRef, { margin: "-10% 0px" });
 
   const rise = (i: number): Variants => ({
     hidden: reduce ? { opacity: 1 } : { opacity: 0, y: 16, filter: "blur(6px)" },
@@ -202,35 +208,84 @@ function HeroSection() {
             </Button>
           </motion.div>
 
-          {/* Premium capability rail (reemplaza los bullets básicos) */}
+          {/* Placa de vidrio (capability rail v2): UN objeto monolítico — un estrato
+              extraído del edificio del asset. Segmentos separados por costuras de luz
+              (no cajas), canto superior iluminado, sheen especular lento (mismo
+              lenguaje que el light sweep del asset) y cola de fusión hacia el
+              edificio en lg. Solo transform/opacity → CLS 0, LCP intacto. */}
           <motion.div
             variants={rise(4)}
             initial="hidden"
             animate="show"
-            className="w-full max-w-md border-t border-border/60 pt-6 lg:max-w-xl"
+            className="relative w-full max-w-md lg:max-w-xl"
           >
-            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-              {hero.capabilities.map((cap) => {
-                const Icon = getIcon(cap.icon);
-                return (
-                  <div
-                    key={cap.title}
-                    className="group rounded-xl border border-white/10 bg-white/[0.04] p-3 text-left shadow-[0_6px_20px_rgba(6,10,22,0.25)] backdrop-blur-sm transition-[transform,border-color,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-                  >
-                    <Icon
-                      className="size-4 text-[#60a5fa] transition-transform duration-200 ease-out group-hover:scale-110 motion-reduce:transform-none"
-                      aria-hidden="true"
-                    />
-                    <p className="mt-2 text-sm font-medium text-foreground">
-                      {cap.title}
-                    </p>
-                    <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                      {cap.copy}
-                    </p>
-                  </div>
-                );
-              })}
+            <div
+              ref={slabRef}
+              className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.07] via-white/[0.04] to-white/[0.02] shadow-[0_24px_60px_-28px_rgba(0,0,0,0.75)] backdrop-blur-md"
+            >
+              {/* Canto superior iluminado (el filo del estrato) */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent"
+              />
+              {/* Base interna: gradiente frío que asienta la placa contra el scrim */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-[radial-gradient(120%_150%_at_85%_-20%,rgba(96,165,250,0.10),transparent_60%)]"
+              />
+
+              {/* Sheen especular lento (pausado fuera de viewport; nunca con reduce) */}
+              {!reduce ? (
+                <motion.div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0"
+                  initial={{ x: "-70%" }}
+                  animate={slabInView ? { x: ["-70%", "170%"] } : { x: "-70%" }}
+                  transition={
+                    slabInView
+                      ? { duration: 2.8, repeat: Infinity, repeatDelay: 7, ease: "easeInOut", delay: 1.2 }
+                      : { duration: 0 }
+                  }
+                >
+                  <div className="absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.10),transparent)]" />
+                </motion.div>
+              ) : null}
+
+              <div className="relative grid sm:grid-cols-3">
+                {hero.capabilities.map((cap) => {
+                  const Icon = getIcon(cap.icon);
+                  return (
+                    <div
+                      key={cap.title}
+                      className="group relative p-5 text-left transition-colors duration-300 ease-out before:absolute before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:transition-opacity first:before:hidden hover:bg-white/[0.05] before:inset-x-5 before:top-0 before:h-px sm:before:inset-x-auto sm:before:inset-y-4 sm:before:left-0 sm:before:h-auto sm:before:w-px sm:before:bg-gradient-to-b sm:hover:before:via-[#60a5fa]/60"
+                    >
+                      <Icon
+                        className="size-5 text-[#60a5fa] transition-colors duration-300 ease-out group-hover:text-[#e7c8a0]"
+                        aria-hidden="true"
+                      />
+                      <p className="mt-2.5 text-base font-semibold text-foreground">
+                        {cap.title}
+                      </p>
+                      <p className="mt-1 text-sm leading-snug text-muted-foreground">
+                        {cap.copy}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Cola de fusión: la placa se funde hacia la zona del asset (solo lg) */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute top-0 bottom-0 left-full hidden w-44 lg:block"
+              style={{
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))",
+                maskImage: "linear-gradient(90deg, black, transparent 88%)",
+                WebkitMaskImage: "linear-gradient(90deg, black, transparent 88%)",
+              }}
+            />
           </motion.div>
         </div>
 
