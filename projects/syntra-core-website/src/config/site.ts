@@ -420,28 +420,32 @@ export const aboutPillars: AboutPillar[] = [
     ghost: "POSTURA",
     title: "Estudio, no agencia",
     description:
-      "Construimos sistemas que tu negocio usa todos los días, no solo una web que se ve bien.",
+      "Diseñamos el sistema completo: lo que ve tu cliente, los procesos que trabajan detrás y los datos que quedan en tu negocio.",
+    stance: "Web, procesos y datos: un solo sistema, pensado como un todo.",
   },
   {
     id: "criterio",
     ghost: "CRITERIO",
-    title: "Te recomendamos lo que sirve",
+    title: "Te decimos también lo que no conviene",
     description:
-      "Te decimos qué necesitás y qué no, aunque a veces sea menos trabajo para nosotros.",
+      "Antes de cotizar evaluamos qué necesita tu negocio y qué no, aunque eso implique un proyecto más chico.",
+    stance: "Preferimos recomendar menos y que sea lo correcto.",
   },
   {
     id: "cercania",
     ghost: "CERCANÍA",
     title: "Hablás con quien construye",
     description:
-      "Del otro lado hay una persona real que te responde y te acompaña en cada etapa.",
+      "Sin intermediarios ni gestores de cuenta: la persona que te responde es la misma que desarrolla tu sistema.",
+    stance: "Explicarlo en términos claros es parte del trabajo.",
   },
   {
     id: "compromiso",
     ghost: "COMPROMISO",
-    title: "No te dejamos solo después de lanzar",
+    title: "El lanzamiento es la mitad del camino",
     description:
-      "Seguimos con vos después del lanzamiento para que la solución siga dando resultados.",
+      "Después de lanzar seguimos trabajando: medición, ajustes y mejoras con el sistema en funcionamiento.",
+    stance: "Un sistema en producción se mantiene y se mejora.",
   },
 ];
 
@@ -461,13 +465,16 @@ export const aboutPillarVisuals: AboutPillarVisuals = {
   criterio: {
     options: [
       { label: "Web con turnos online", tag: "te sirve hoy", picked: true },
-      { label: "App a medida", tag: "de más, por ahora" },
-      { label: "E-commerce completo", tag: "todavía no" },
+      { label: "App a medida", tag: "todavía no" },
+      { label: "E-commerce completo", tag: "de más para tu etapa" },
     ],
   },
   cercania: {
-    question: "¿Esto se puede automatizar?",
+    question: "¿Puedo dejar de cargar los pedidos a mano?",
     typingLabel: "quien construye, escribiendo…",
+    // La conversación CIERRA (antes el typing quedaba infinito = chat roto).
+    answer: "Sí, esa carga se puede automatizar. Te preparo una propuesta concreta.",
+    answeredLabel: "quien construye, respondió",
     avatar: "SC",
   },
   compromiso: {

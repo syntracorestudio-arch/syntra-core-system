@@ -121,6 +121,8 @@ export interface AboutPillar {
   ghost?: string;
   title: string;
   description: string;
+  /** Pull-quote del principio (mini-manifiesto; formato carrusel 2026-07-13). */
+  stance?: string;
 }
 
 /**
@@ -133,8 +135,16 @@ export interface AboutPillarVisuals {
   postura: { modules: { icon: string; label: string }[] };
   /** criterio: opciones de recomendación; la elegida lleva picked. */
   criterio: { options: { label: string; tag: string; picked?: boolean }[] };
-  /** cercania: conversación (pregunta del cliente + typing de SC). */
-  cercania: { question: string; typingLabel: string; avatar: string };
+  /** cercania: conversación completa (pregunta + typing + RESPUESTA de SC). */
+  cercania: {
+    question: string;
+    typingLabel: string;
+    /** Respuesta que cierra la conversación (el typing no queda infinito). */
+    answer: string;
+    /** Label del estado respondido (reemplaza al typingLabel al llegar). */
+    answeredLabel: string;
+    avatar: string;
+  };
   /** compromiso: etiquetas de la ruta (nodo medio y chip final). */
   compromiso: { midLabel: string; endLabel: string };
 }

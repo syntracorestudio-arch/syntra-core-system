@@ -11,6 +11,7 @@ import { Container } from "@/components/layout/container";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { getIcon } from "@/lib/icons";
 import { EmberParticles } from "./ember-particles";
+import { NosotrosCarousel3D } from "./nosotros-carousel-3d";
 import { SpotlightCard } from "./spotlight-card";
 import { StatementText } from "./statement-text";
 import { PillarVisual, PILLAR_THEME, type PillarId } from "./pillar-visual";
@@ -92,9 +93,16 @@ function NosotrosSection() {
             />
           </motion.div>
 
-          {/* Cards premium en columnas ESCALONADAS: la columna derecha baja
-              medio paso → costuras diagonales por donde respira la atmósfera. */}
-          <div className="mt-12 grid gap-6 lg:mt-14 lg:grid-cols-2 lg:pb-14">
+          {/* PROTOTIPO carrusel cilíndrico 3D (desktop + motion): los 4 principios
+              en scroll circular continuo con dwell al frente. Referencia externa
+              del owner adaptada al lenguaje SYNTRA. */}
+          <div className="mt-6 motion-reduce:hidden lg:mt-8">
+            <NosotrosCarousel3D />
+          </div>
+
+          {/* Cards premium en columnas ESCALONADAS (mobile + reduced-motion;
+              en desktop con motion las reemplaza el carrusel 3D). */}
+          <div className="mt-12 grid gap-6 lg:mt-14 lg:hidden lg:grid-cols-2 lg:pb-14 motion-reduce:lg:grid">
             {aboutPillars.map((pillar, i) => {
               const offset = i % 2 === 1;
               return (
@@ -135,6 +143,18 @@ function NosotrosSection() {
                       <p className="mt-2 max-w-md text-[0.9375rem] leading-relaxed text-muted-foreground">
                         {pillar.description}
                       </p>
+                      {/* Pull-quote del principio (mini-manifiesto, copy owner) */}
+                      {pillar.stance ? (
+                        <p
+                          className="mt-3 border-l-2 pl-3 text-[0.8125rem] leading-snug italic"
+                          style={{
+                            borderColor: `rgba(${PILLAR_THEME[pillar.id as PillarId]?.rgb},0.55)`,
+                            color: `rgba(${PILLAR_THEME[pillar.id as PillarId]?.rgb},0.9)`,
+                          }}
+                        >
+                          {pillar.stance}
+                        </p>
+                      ) : null}
                       {/* Artefacto visual del principio (lo que hace premium la card) */}
                       <PillarVisual id={pillar.id} />
                     </div>
