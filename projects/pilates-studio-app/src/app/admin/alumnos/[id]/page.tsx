@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, Wallet, CreditCard, Ticket, CalendarClock, Phone, Mail, CheckCircle2, GraduationCap, Headset, UserCircle } from "lucide-react";
+import { ArrowLeft, Wallet, CreditCard, Ticket, CalendarClock, Phone, Mail, CheckCircle2, GraduationCap, Headset, UserCircle, MessageCircle } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
 import { PaymentForm, type PassOption } from "@/components/admin/payment-form";
@@ -192,6 +192,19 @@ export default async function FichaAlumnoPage({
               <Phone className="size-3.5" aria-hidden />
               {prof.phone}
             </span>
+          ) : null}
+          {prof?.phone ? (
+            <a
+              href={`https://wa.me/${prof.phone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(
+                `Hola ${(prof.full_name ?? "").split(" ")[0]}! Te escribimos del estudio 😊`,
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success transition-colors hover:bg-success/20"
+            >
+              <MessageCircle className="size-3.5" aria-hidden />
+              WhatsApp
+            </a>
           ) : null}
         </div>
       )}

@@ -11,6 +11,8 @@ import {
   CheckCircle2,
   Clock4,
   Activity,
+  MessageCircle,
+  UserMinus,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/page-header";
@@ -124,19 +126,24 @@ export default async function AdminDashboardPage() {
   const tomorrowStart = localToUtcISO(addDays(todayLocal, 1), "00:00", tz);
   const weekEnd = localToUtcISO(addDays(todayLocal, 7), "00:00", tz);
 
-  const [{ data: pays }, { data: mems }, { data: fins }, { data: mships }, { data: occ }] = await Promise.all([
-    supabase.from("payments").select("amount, concept, paid_at").eq("status", "confirmed"),
-    supabase.from("members").select("id, profiles(full_name)").eq("role", "client"),
-    supabase.from("member_financial_status").select("member_id, financial_status"),
-    supabase.from("memberships").select("valid_to, status").eq("status", "active"),
-    supabase
-      .from("class_occurrences")
-      .select("starts_at, capacity, booked_count, classes(name, instructor_name)")
-      .eq("status", "scheduled")
-      .gte("starts_at", todayStart)
-      .lt("starts_at", weekEnd)
-      .order("starts_at", { ascending: true }),
-  ]);
+  const limitIso = localToUtcISO(addDays(todayLocal, EXPIRY_WARNING_DAYS), "23:59", tz);
+  const [{ data: pays }, { data: mems }, { data: fins }, { data: mships }, { data: occ }, { data: allRes }, { data: expPasses }, { data: wl }] =
+    await Promise.all([
+      supabase.from("payments").select("amount, concept, paid_at").eq("status", "confirmed"),
+      supabase.from("members").select("id, joined_at, profiles(full_name, phone)").eq("role", "client"),
+      supabase.from("member_financial_status").select("member_id, financial_status"),
+      supabase.from("memberships").select("valid_to, status").eq("status", "active"),
+      supabase
+        .from("class_occurrences")
+        .select("id, starts_at, capacity, booked_count, classes(name, instructor_name)")
+        .eq("status", "scheduled")
+        .gte("starts_at", todayStart)
+        .lt("starts_at", weekEnd)
+        .order("starts_at", { ascending: true }),
+      supabase.from("class_reservations").select("member_id, created_at").neq("status", "cancelled"),
+      supabase.from("member_passes").select("id, member_id, expires_at").gt("expires_at", nowIso).lte("expires_at", limitIso),
+      supabase.from("waitlist").select("occurrence_id").eq("status", "waiting"),
+    ]);
 
   // ---- ingresos + comparativa ----
   const payments = (pays ?? []) as { amount: number; concept: string; paid_at: string }[];
@@ -163,25 +170,94 @@ export default async function AdminDashboardPage() {
   });
 
   // ---- alumnos / deuda (solo clients) ----
-  const nameById = new Map<string, string>(
-    ((mems ?? []) as { id: string; profiles: ProfileRel | ProfileRel[] | null }[]).map((m) => {
-      const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
-      return [m.id, prof?.full_name ?? "Alumno"];
-    }),
-  );
+  type MemRow = { id: string; joined_at: string; profiles: (ProfileRel & { phone?: string | null }) | (ProfileRel & { phone?: string | null })[] | null };
+  const nameById = new Map<string, string>();
+  const phoneById = new Map<string, string | null>();
+  const joinedById = new Map<string, string>();
+  for (const m of (mems ?? []) as MemRow[]) {
+    const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+    nameById.set(m.id, prof?.full_name ?? "Alumno");
+    phoneById.set(m.id, prof?.phone ?? null);
+    joinedById.set(m.id, m.joined_at);
+  }
+  const studioName = studio?.name ?? "tu estudio";
+  const waLink = (memberId: string, kind: "deuda" | "inactivo") => {
+    const phone = (phoneById.get(memberId) ?? "").replace(/[^\d]/g, "");
+    if (!phone) return null;
+    const nombre = (nameById.get(memberId) ?? "").split(" ")[0];
+    const text =
+      kind === "deuda"
+        ? `Hola ${nombre}! Te escribimos de ${studioName} 😊 Te recordamos que tenés un pago pendiente. ¿Lo coordinamos?`
+        : `Hola ${nombre}! Te extrañamos en ${studioName} 😊 ¿Reservamos una clase esta semana?`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+  };
   const finList = ((fins ?? []) as { member_id: string; financial_status: string }[]).filter((f) => nameById.has(f.member_id));
   const debtors = finList.filter((f) => f.financial_status !== "al_dia");
   const alDia = finList.length - debtors.length;
 
+  // membresías + packs (con saldo) que vencen en la ventana de aviso
   const limitDate = addDays(todayLocal, EXPIRY_WARNING_DAYS);
   const porVencer = ((mships ?? []) as { valid_to: string; status: string }[]).filter(
     (m) => m.valid_to >= todayLocal && m.valid_to <= limitDate,
   ).length;
-  const needsAttention = debtors.length > 0 || porVencer > 0;
+  const expiringPasses = (expPasses ?? []) as { id: string; member_id: string; expires_at: string }[];
+  let packsPorVencer: { memberId: string; credits: number; expiresAt: string }[] = [];
+  if (expiringPasses.length > 0) {
+    const { data: led } = await supabase
+      .from("credit_ledger")
+      .select("member_pass_id, delta")
+      .in("member_pass_id", expiringPasses.map((p) => p.id));
+    const balance = new Map<string, number>();
+    for (const l of (led ?? []) as { member_pass_id: string; delta: number }[]) {
+      balance.set(l.member_pass_id, (balance.get(l.member_pass_id) ?? 0) + l.delta);
+    }
+    packsPorVencer = expiringPasses
+      .filter((p) => (balance.get(p.id) ?? 0) > 0 && nameById.has(p.member_id))
+      .map((p) => ({ memberId: p.member_id, credits: balance.get(p.id) ?? 0, expiresAt: p.expires_at }))
+      .sort((a, b) => (a.expiresAt < b.expiresAt ? -1 : 1))
+      .slice(0, 4);
+  }
+
+  // alumnos inactivos: sin reservas en 21+ días (o nunca reservaron y entraron hace 21+)
+  const INACTIVE_DAYS = 21;
+  const inactiveCutIso = localToUtcISO(addDays(todayLocal, -INACTIVE_DAYS), "00:00", tz);
+  const lastResById = new Map<string, string>();
+  for (const r of (allRes ?? []) as { member_id: string; created_at: string }[]) {
+    const prev = lastResById.get(r.member_id);
+    if (!prev || r.created_at > prev) lastResById.set(r.member_id, r.created_at);
+  }
+  const inactivos = [...nameById.keys()]
+    .map((id) => ({ id, last: lastResById.get(id) ?? joinedById.get(id) ?? "" }))
+    .filter((x) => x.last && x.last < inactiveCutIso)
+    .sort((a, b) => (a.last < b.last ? -1 : 1))
+    .slice(0, 5)
+    .map((x) => ({
+      id: x.id,
+      days: Math.floor((Date.parse(nowIso) - Date.parse(x.last)) / 86_400_000),
+      neverBooked: !lastResById.has(x.id),
+    }));
+
+  const needsAttention = debtors.length > 0 || porVencer > 0 || packsPorVencer.length > 0 || inactivos.length > 0;
+
+  // demanda de lista de espera (próximos 7 días)
+  const waitByOcc = new Map<string, number>();
+  for (const w of (wl ?? []) as { occurrence_id: string }[]) {
+    waitByOcc.set(w.occurrence_id, (waitByOcc.get(w.occurrence_id) ?? 0) + 1);
+  }
 
   // ---- ocupación: semana + heatmap día×hora + clases de hoy ----
   type OccCls = { name: string; instructor_name: string | null };
-  const occs = (occ ?? []) as { starts_at: string; capacity: number; booked_count: number; classes: OccCls | OccCls[] | null }[];
+  const occs = (occ ?? []) as { id: string; starts_at: string; capacity: number; booked_count: number; classes: OccCls | OccCls[] | null }[];
+
+  // demanda de waitlist en la semana: total + pico (señal de abrir otra clase)
+  const weekWaits = occs
+    .map((o) => ({ o, n: waitByOcc.get(o.id) ?? 0 }))
+    .filter((x) => x.n > 0);
+  const waitTotal = weekWaits.reduce((s, x) => s + x.n, 0);
+  const waitTop = weekWaits.sort((a, b) => b.n - a.n)[0] ?? null;
+  const waitTopLabel = waitTop
+    ? `${new Intl.DateTimeFormat("es-AR", { timeZone: tz, weekday: "short" }).format(new Date(waitTop.o.starts_at)).replace(/\./g, "")} ${timeOf(waitTop.o.starts_at, tz)}`
+    : null;
   const weekCap = occs.reduce((s, o) => s + o.capacity, 0);
   const weekBooked = occs.reduce((s, o) => s + o.booked_count, 0);
   const weekOcc = weekCap > 0 ? Math.round((weekBooked / weekCap) * 100) : 0;
@@ -332,32 +408,49 @@ export default async function AdminDashboardPage() {
             </div>
 
             {needsAttention ? (
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 sm:items-start">
+              <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 sm:items-start">
+                {/* deudores + WhatsApp */}
                 <div>
                   <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
                     <Wallet className="size-4 text-destructive" aria-hidden />
-                    {debtors.length} {debtors.length === 1 ? "alumno con pago pendiente" : "alumnos con pago pendiente"}
+                    {debtors.length} {debtors.length === 1 ? "pago pendiente" : "pagos pendientes"}
                   </p>
                   {debtors.length > 0 ? (
                     <ul className="mt-2 divide-y divide-border">
-                      {debtors.slice(0, 5).map((d) => (
-                        <li key={d.member_id}>
-                          <Link
-                            href={`/admin/alumnos/${d.member_id}`}
-                            className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-secondary"
-                          >
-                            <span className="min-w-0">
-                              <span className="block truncate text-sm text-foreground">{nameById.get(d.member_id) ?? "Alumno"}</span>
+                      {debtors.slice(0, 5).map((d) => {
+                        const wa = waLink(d.member_id, "deuda");
+                        return (
+                          <li key={d.member_id} className="flex items-center justify-between gap-2 py-2">
+                            <Link href={`/admin/alumnos/${d.member_id}`} className="group min-w-0 flex-1">
+                              <span className="block truncate text-sm text-foreground group-hover:underline">
+                                {nameById.get(d.member_id) ?? "Alumno"}
+                              </span>
                               <span className="block text-[11px] text-muted-foreground">
                                 {DEBT_LABEL[d.financial_status] ?? d.financial_status}
                               </span>
+                            </Link>
+                            <span className="flex shrink-0 items-center gap-1">
+                              {wa ? (
+                                <a
+                                  href={wa}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="Recordar por WhatsApp"
+                                  className="flex size-8 items-center justify-center rounded-lg bg-success/10 text-success transition-colors hover:bg-success/20"
+                                >
+                                  <MessageCircle className="size-4" aria-hidden />
+                                </a>
+                              ) : null}
+                              <Link
+                                href={`/admin/alumnos/${d.member_id}`}
+                                className="inline-flex items-center gap-0.5 text-xs font-semibold text-primary-ink hover:underline"
+                              >
+                                cobrar <ChevronRight className="size-3.5" aria-hidden />
+                              </Link>
                             </span>
-                            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-primary-ink">
-                              cobrar <ChevronRight className="size-3.5" aria-hidden />
-                            </span>
-                          </Link>
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     <p className="mt-1 text-sm text-muted-foreground">Nadie con deuda.</p>
@@ -369,6 +462,7 @@ export default async function AdminDashboardPage() {
                   ) : null}
                 </div>
 
+                {/* vencimientos: membresías + packs con saldo */}
                 <div>
                   <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
                     <Clock4 className="size-4 text-warning" aria-hidden />
@@ -376,17 +470,75 @@ export default async function AdminDashboardPage() {
                   </p>
                   {porVencer > 0 ? (
                     <p className="mt-2 text-sm text-foreground">
-                      {porVencer} {porVencer === 1 ? "membresía vence" : "membresías vencen"} en los próximos {EXPIRY_WARNING_DAYS} días.
+                      {porVencer} {porVencer === 1 ? "membresía vence" : "membresías vencen"} en {EXPIRY_WARNING_DAYS} días.
                     </p>
-                  ) : (
+                  ) : null}
+                  {packsPorVencer.length > 0 ? (
+                    <ul className="mt-2 divide-y divide-border">
+                      {packsPorVencer.map((p) => (
+                        <li key={p.memberId + p.expiresAt}>
+                          <Link
+                            href={`/admin/alumnos/${p.memberId}`}
+                            className="-mx-2 flex items-center justify-between gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-secondary"
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm text-foreground">{nameById.get(p.memberId)}</span>
+                              <span className="block text-[11px] text-muted-foreground">
+                                {p.credits} {p.credits === 1 ? "clase sin usar" : "clases sin usar"} · vence el{" "}
+                                {new Intl.DateTimeFormat("es-AR", { timeZone: tz, day: "numeric", month: "short" })
+                                  .format(new Date(p.expiresAt))
+                                  .replace(/\./g, "")}
+                              </span>
+                            </span>
+                            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {porVencer === 0 && packsPorVencer.length === 0 ? (
                     <p className="mt-2 text-sm text-muted-foreground">Sin vencimientos en {EXPIRY_WARNING_DAYS} días.</p>
+                  ) : null}
+                </div>
+
+                {/* inactivos (riesgo de churn) */}
+                <div>
+                  <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                    <UserMinus className="size-4 text-muted-foreground" aria-hidden />
+                    Sin venir hace {INACTIVE_DAYS}+ días
+                  </p>
+                  {inactivos.length > 0 ? (
+                    <ul className="mt-2 divide-y divide-border">
+                      {inactivos.map((i) => {
+                        const wa = waLink(i.id, "inactivo");
+                        return (
+                          <li key={i.id} className="flex items-center justify-between gap-2 py-2">
+                            <Link href={`/admin/alumnos/${i.id}`} className="group min-w-0 flex-1">
+                              <span className="block truncate text-sm text-foreground group-hover:underline">
+                                {nameById.get(i.id)}
+                              </span>
+                              <span className="block text-[11px] text-muted-foreground">
+                                {i.neverBooked ? `sin reservas desde el alta (${i.days} d)` : `última reserva hace ${i.days} días`}
+                              </span>
+                            </Link>
+                            {wa ? (
+                              <a
+                                href={wa}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Invitar por WhatsApp"
+                                className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success transition-colors hover:bg-success/20"
+                              >
+                                <MessageCircle className="size-4" aria-hidden />
+                              </a>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-sm text-muted-foreground">Todos vinieron hace poco. 💪</p>
                   )}
-                  <Link
-                    href="/admin/alumnos"
-                    className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary-ink hover:underline"
-                  >
-                    ver alumnos <ChevronRight className="size-3.5" aria-hidden />
-                  </Link>
                 </div>
               </div>
             ) : (
@@ -429,6 +581,17 @@ export default async function AdminDashboardPage() {
                     ))}
                     más
                   </div>
+                  {waitTotal > 0 ? (
+                    <p className="mt-3 rounded-lg bg-warning/10 px-3 py-2 text-xs text-foreground">
+                      <span className="font-semibold">{waitTotal}</span> en lista de espera esta semana
+                      {waitTopLabel ? (
+                        <>
+                          {" "}· pico: <span className="font-semibold capitalize">{waitTopLabel}</span> ({waitTop!.n}) — señal
+                          de sumar otra clase en ese horario
+                        </>
+                      ) : null}
+                    </p>
+                  ) : null}
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-muted-foreground">No hay clases programadas esta semana.</p>
