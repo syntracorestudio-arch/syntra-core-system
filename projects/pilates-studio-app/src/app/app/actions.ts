@@ -81,3 +81,23 @@ export async function cancelReservation(formData: FormData) {
   }
   back(day, { notice: "Reserva cancelada." });
 }
+
+export async function leaveWaitlist(formData: FormData) {
+  const day = String(formData.get("day") ?? "");
+  const occ = String(formData.get("occ") ?? "");
+  const supabase = await createSupabaseServer();
+  const { error } = await supabase.rpc("leave_waitlist", { p_occurrence_id: occ });
+  if (error) {
+    back(day, { error: "No se pudo salir de la lista. Probá de nuevo." });
+  }
+  back(day, { notice: "Saliste de la lista de espera." });
+}
+
+/** Marca leída una notificación propia (RLS: update_own). */
+export async function markNotificationRead(formData: FormData) {
+  const day = String(formData.get("day") ?? "");
+  const id = String(formData.get("id") ?? "");
+  const supabase = await createSupabaseServer();
+  await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
+  redirect(day ? `/app?day=${day}` : "/app");
+}

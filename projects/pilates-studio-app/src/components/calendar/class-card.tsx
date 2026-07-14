@@ -1,5 +1,5 @@
 import { User2 } from "lucide-react";
-import { reserve, joinWaitlist, cancelReservation } from "@/app/app/actions";
+import { reserve, joinWaitlist, cancelReservation, leaveWaitlist } from "@/app/app/actions";
 
 export type ClassCardData = {
   occurrenceId: string;
@@ -108,9 +108,19 @@ export function ClassCard({
               ) : null}
             </form>
           ) : state === "waiting" ? (
-            <p className="rounded-lg bg-secondary px-4 py-2.5 text-center text-sm text-muted-foreground">
-              Te avisamos si se libera un lugar.
-            </p>
+            <form action={leaveWaitlist}>
+              <input type="hidden" name="occ" value={data.occurrenceId} />
+              <input type="hidden" name="day" value={day} />
+              <button
+                type="submit"
+                className="w-full rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+              >
+                Salir de la lista
+              </button>
+              <p className="mt-1.5 text-center text-xs text-muted-foreground">
+                Si se libera un lugar, tu reserva se confirma sola y la ves acá.
+              </p>
+            </form>
           ) : state === "full" ? (
             <form action={joinWaitlist}>
               <input type="hidden" name="occ" value={data.occurrenceId} />

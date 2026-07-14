@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { LogOut, CalendarDays, LayoutGrid, Wallet, CalendarCheck, Sparkles, UserRound } from "lucide-react";
+import { LogOut, CalendarDays, LayoutGrid, Wallet, CalendarCheck, Sparkles, UserRound, CalendarPlus, AlertCircle, BellRing, X } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cancelReservation, markNotificationRead } from "./actions";
 import { ClassCard, type ClassCardData } from "@/components/calendar/class-card";
 import { buttonClass } from "@/components/ui/button";
 import { SuspendedScreen } from "@/components/suspended-screen";
@@ -111,6 +112,31 @@ export default async function AppPage({
     .gte("valid_to", todayDate);
   const hasMembership = (mships ?? []).length > 0;
 
+  // Nudge de recompra: pack por vencer en < 5 días (solo si le queda saldo)
+  const expiresSoon =
+    credits > 0 && nearestExpiry ? new Date(nearestExpiry).getTime() - now.getTime() < 5 * 86_400_000 : false;
+  const expiryLabel = nearestExpiry
+    ? new Intl.DateTimeFormat("es-AR", { timeZone: tz, day: "numeric", month: "long" }).format(new Date(nearestExpiry))
+    : "";
+
+  // Avisos dirigidos al alumno (RLS select_own): p. ej. promoción de lista de espera.
+  const { data: notifRows } = await supabase
+    .from("notifications")
+    .select("id, title, body, link")
+    .is("read_at", null)
+    .not("member_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(3);
+  const myNotifications = (notifRows ?? []) as { id: string; title: string; body: string | null; link: string | null }[];
+
+  // Contador motivacional: clases asistidas en el año (RLS: solo las propias)
+  const { count: attendedCount } = await supabase
+    .from("class_reservations")
+    .select("id, class_occurrences!inner(starts_at)", { count: "exact", head: true })
+    .eq("status", "attended")
+    .gte("class_occurrences.starts_at", `${todayDate.slice(0, 4)}-01-01T00:00:00Z`);
+  const attendedYear = attendedCount ?? 0;
+
   // Ocurrencias de los próximos 8 días (RLS: las de mi estudio)
   const { data: occ } = await supabase
     .from("class_occurrences")
@@ -123,13 +149,18 @@ export default async function AppPage({
   // Mis reservas activas + mi waitlist (RLS: propias)
   const { data: myRes } = await supabase
     .from("class_reservations")
-    .select("id, occurrence_id")
+    .select("id, occurrence_id, promoted")
     .eq("status", "booked");
   const { data: myWait } = await supabase
     .from("waitlist")
     .select("occurrence_id, position")
     .eq("status", "waiting");
   const resByOcc = new Map((myRes ?? []).map((r) => [r.occurrence_id, r.id]));
+  const promotedByOcc = new Set(
+    ((myRes ?? []) as { occurrence_id: string; promoted: boolean | null }[])
+      .filter((r) => r.promoted)
+      .map((r) => r.occurrence_id),
+  );
   const waitPosByOcc = new Map(
     ((myWait ?? []) as { occurrence_id: string; position: number }[]).map((w) => [w.occurrence_id, w.position]),
   );
@@ -163,7 +194,15 @@ export default async function AppPage({
             : new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(
                 new Date(`${date}T12:00:00Z`),
               );
-        return { dayLabel, time, name: klass?.name ?? "Clase", instructor: klass?.instructor_name ?? null };
+        return {
+          dayLabel,
+          time,
+          name: klass?.name ?? "Clase",
+          instructor: klass?.instructor_name ?? null,
+          date,
+          occurrenceId: nextBookedOcc.id as string,
+          reservationId: resByOcc.get(nextBookedOcc.id as string) as string,
+        };
       })()
     : null;
 
@@ -175,16 +214,21 @@ export default async function AppPage({
       | { name: string; instructor_name: string | null; duration_min: number | null }
       | null;
     const myResId = resByOcc.get(o.id as string) ?? null;
-    // Deadline de cancelación sin costo (solo para MIS reservas)
+    // Deadline de cancelación sin costo (solo para MIS reservas). Las promovidas
+    // desde la lista de espera devuelven el crédito hasta el inicio de la clase.
     let cancelHint: string | null = null;
     if (myResId) {
-      const deadline = new Date(new Date(o.starts_at as string).getTime() - windowH * 3600_000);
-      cancelHint =
-        deadline.toISOString() > nowIso
-          ? `Cancelás sin costo hasta ${fmtDeadline(deadline.toISOString())}`
-          : refundLate
-            ? null
-            : "Fuera de ventana: si cancelás no se devuelve el crédito";
+      if (promotedByOcc.has(o.id as string)) {
+        cancelHint = "Te promovimos de la lista: cancelás sin costo hasta el inicio";
+      } else {
+        const deadline = new Date(new Date(o.starts_at as string).getTime() - windowH * 3600_000);
+        cancelHint =
+          deadline.toISOString() > nowIso
+            ? `Cancelás sin costo hasta ${fmtDeadline(deadline.toISOString())}`
+            : refundLate
+              ? null
+              : "Fuera de ventana: si cancelás no se devuelve el crédito";
+      }
     }
     const card: ClassCardData = {
       occurrenceId: o.id as string,
@@ -220,9 +264,11 @@ export default async function AppPage({
 
   const saldoText = hasMembership
     ? "Abono activo"
-    : credits > 0
-      ? `Te quedan ${credits} ${credits === 1 ? "clase" : "clases"}`
-      : "Sin créditos";
+    : credits > 1
+      ? `Te quedan ${credits} clases`
+      : credits === 1
+        ? "Te queda 1 clase"
+        : "Sin créditos";
 
   const selLabel = new Intl.DateTimeFormat("es-AR", {
     timeZone: "UTC",
@@ -287,7 +333,37 @@ export default async function AppPage({
         </p>
       ) : null}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+      {/* avisos dirigidos al alumno (waitlist promovida, etc.) */}
+      {myNotifications.map((n) => (
+        <div
+          key={n.id}
+          className="mt-5 flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3"
+        >
+          <BellRing className="mt-0.5 size-4 shrink-0 text-primary-ink" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">{n.title}</p>
+            {n.body ? <p className="mt-0.5 text-sm text-muted-foreground">{n.body}</p> : null}
+            {n.link ? (
+              <a href={n.link} className="mt-1 inline-block text-xs font-semibold text-primary-ink hover:underline">
+                ver la clase →
+              </a>
+            ) : null}
+          </div>
+          <form action={markNotificationRead}>
+            <input type="hidden" name="id" value={n.id} />
+            <input type="hidden" name="day" value={day ?? ""} />
+            <button
+              type="submit"
+              aria-label="Marcar como leída"
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+          </form>
+        </div>
+      ))}
+
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
         {/* resumen lateral (arriba en mobile, columna derecha en desktop) */}
         <aside className="order-1 grid gap-3 lg:order-2 lg:sticky lg:top-8">
           {/* saldo = héroe del aside */}
@@ -306,13 +382,15 @@ export default async function AppPage({
               {saldoText}
             </p>
             {!hasMembership && credits > 0 && nearestExpiry ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Vencen el{" "}
-                {new Intl.DateTimeFormat("es-AR", { timeZone: tz, day: "numeric", month: "long" }).format(
-                  new Date(nearestExpiry),
-                )}
-                .
-              </p>
+              expiresSoon || credits === 1 ? (
+                <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-warning">
+                  <AlertCircle className="size-3.5 shrink-0" aria-hidden />
+                  {credits === 1 ? "Es tu última clase" : `Vencen el ${expiryLabel}`}
+                  {credits === 1 && expiresSoon ? ` — vence el ${expiryLabel}.` : "."}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">Vencen el {expiryLabel}.</p>
+              )
             ) : null}
             {!hasMembership && credits === 0 ? (
               <p className="mt-1 text-xs text-muted-foreground">Comprá un pack para empezar a reservar.</p>
@@ -341,6 +419,32 @@ export default async function AppPage({
               {nextBooked.instructor ? (
                 <p className="mt-0.5 text-xs text-muted-foreground">con {nextBooked.instructor}</p>
               ) : null}
+              {/* accionable: calendario del teléfono · ver el día · cancelar (sin buscarla en la grilla) */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                <a
+                  href={`/app/calendario/${nextBooked.occurrenceId}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary"
+                >
+                  <CalendarPlus className="size-3" aria-hidden />
+                  Agendar
+                </a>
+                <a
+                  href={`/app?day=${nextBooked.date}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary"
+                >
+                  ver el día
+                </a>
+                <form action={cancelReservation} className="ml-auto">
+                  <input type="hidden" name="res" value={nextBooked.reservationId} />
+                  <input type="hidden" name="day" value={nextBooked.date} />
+                  <button
+                    type="submit"
+                    className="text-[11px] font-medium text-muted-foreground transition-colors hover:text-destructive"
+                  >
+                    Cancelar
+                  </button>
+                </form>
+              </div>
             </div>
           ) : null}
 
@@ -355,6 +459,12 @@ export default async function AppPage({
                 <dt className="text-muted-foreground">Tus reservas</dt>
                 <dd className="font-semibold tabular-nums text-foreground">{reservedCount}</dd>
               </div>
+              {attendedYear > 0 ? (
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted-foreground">Clases este año</dt>
+                  <dd className="font-semibold tabular-nums text-foreground">{attendedYear}</dd>
+                </div>
+              ) : null}
             </dl>
             <a
               href="/app/historial"
