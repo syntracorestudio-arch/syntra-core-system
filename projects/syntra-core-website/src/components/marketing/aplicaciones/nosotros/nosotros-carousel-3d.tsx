@@ -50,6 +50,17 @@ type MutState = {
   hover: boolean;
   /** Índice frontal del último frame (para disparar onFront solo al cambiar). */
   lastFront: number;
+  /** Drag activo (click + arrastre vertical pasa las cards a mano). */
+  dragging: boolean;
+  dragLastY: number;
+  /** Objetivo del drag: el progress lo PERSIGUE con inercia (drag suave). */
+  dragTarget: number;
+  /** Imán post-drag: al soltar, el progress se asienta en la card más cercana. */
+  snapTarget: number | null;
+  /** Velocidad efectiva (0..1): rampa suave al frenar/arrancar por hover. */
+  speed: number;
+  /** Mezcla de easing (1 = magnético pow4.2 · 0 = lineal 1:1 para el drag). */
+  easeMix: number;
 };
 
 /* El estado imperativo del loop vive en un objeto estable (ref); el loop y los
@@ -63,6 +74,12 @@ function makeMutState(): MutState {
     running: false,
     hover: false,
     lastFront: -1,
+    dragging: false,
+    dragLastY: 0,
+    dragTarget: 0,
+    snapTarget: null,
+    speed: 1,
+    easeMix: 1,
   };
 }
 
@@ -75,7 +92,7 @@ function makeMutState(): MutState {
  *  en diff −0.459 al inicio de salida en diff +0.325). Historia interna más
  *  larga = ~5.0s. Con CYCLE_S=11 → ventana 8.6s = historia completa (5.0s) +
  *  beat de lectura (~3.6s) → el pase arranca APENAS termina la animación. */
-const CYCLE_S = 6;
+const CYCLE_S = 5.5;
 
 function step(
   s: MutState,
@@ -86,9 +103,31 @@ function step(
   onFront: (idx: number) => void,
 ) {
   // TIME-BASED: avanza por tiempo real (dt), no por frame. Ciclo = CYCLE_S
-  // exactos en cualquier monitor. Pausado con el mouse encima.
+  // exactos en cualquier monitor. Pausado con el mouse encima; durante el drag
+  // el usuario mueve el progress a mano; al soltar, el IMÁN lo asienta en la
+  // card más cercana (sin esto quedaría congelado a mitad de transición).
   const dt = Math.min(dtMs, 64) / 1000; // clamp: tab switch no salta cards
-  if (!s.hover) s.progress += dt / CYCLE_S;
+  if (s.dragging) {
+    // Drag SUAVE: el progress persigue al dedo con inercia (sin esto las cards
+    // saltaban bruscas por la zona rápida del easing pow 4.2).
+    s.progress += (s.dragTarget - s.progress) * (1 - Math.pow(0.86, dtMs / 16.67));
+  } else {
+    // Freno/arranque con RAMPA (~400ms): el hard-stop del hover generaba un
+    // frenazo brusco. La velocidad desliza hacia 0 (hover) o 1 (libre).
+    const targetSpeed = s.hover ? 0 : 1;
+    s.speed += (targetSpeed - s.speed) * (1 - Math.pow(0.9, dtMs / 16.67));
+    s.progress += (dt / CYCLE_S) * s.speed;
+    // Imán (post-drag o freno a mitad de vuelo): completa hasta el reposo.
+    if (s.snapTarget !== null) {
+      const d = s.snapTarget - s.progress;
+      if (Math.abs(d) < 0.002) {
+        s.progress = s.snapTarget;
+        s.snapTarget = null;
+      } else {
+        s.progress += d * (1 - Math.pow(0.88, dtMs / 16.67));
+      }
+    }
+  }
   // Damping del tilt normalizado a dt (misma inercia a cualquier fps).
   const k = 1 - Math.pow(0.92, dtMs / 16.67);
   s.mouse.x += (s.mouse.targetX - s.mouse.x) * k;
@@ -96,9 +135,13 @@ function step(
 
   const rounded = Math.round(s.progress);
   const diff = s.progress - rounded;
-  // Dwell magnético: pausa breve al frente, aceleración entre cards.
+  // Dwell magnético: pausa breve al frente, aceleración entre cards. Durante el
+  // DRAG el mapeo se vuelve LINEAL 1:1 (blend suave): con el magnético, mover el
+  // progress a mano hacía atravesar la zona rápida a latigazo (feedback owner).
+  const mixTarget = s.dragging ? 0 : 1;
+  s.easeMix += (mixTarget - s.easeMix) * (1 - Math.pow(0.9, dtMs / 16.67));
   const eased = Math.sign(diff) * Math.pow(Math.abs(diff) * 2, 4.2) / 2;
-  const active = rounded + eased;
+  const active = rounded + eased * s.easeMix + diff * (1 - s.easeMix);
 
   // Card frontal: notifica al completarse el fade-in (|diff| < 0.46 — MEDIDO:
   // la card entrante alcanza opacity 1 en diff ≈ -0.459 con el easing pow 4.2).
@@ -240,21 +283,64 @@ function NosotrosCarousel3D() {
     // leer la card con el tilt vivo; al salir, continúa donde estaba.
     const onEnter = () => {
       s.hover = true;
+      // Si el freno agarra a la card EN PLENO VUELO, la transición se completa
+      // sola hasta el reposo más cercano (antes quedaba clavada a mitad de giro).
+      const r = Math.round(s.progress);
+      if (Math.abs(s.progress - r) > 0.32) s.snapTarget = r;
     };
     const onLeave = () => {
       s.hover = false;
+      s.snapTarget = null;
       s.mouse.targetX = 0;
       s.mouse.targetY = 0;
+    };
+    // DRAG (pedido owner): click + arrastre vertical pasa las cards a mano
+    // (el contenido sigue al cursor; ~340px = una card). Al soltar, imán a la
+    // card más cercana. Pointer capture → el drag no se corta al salir del stage.
+    const DRAG_PX = 340;
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      s.dragging = true;
+      s.dragLastY = e.clientY;
+      s.dragTarget = s.progress;
+      s.snapTarget = null;
+      try {
+        stage.setPointerCapture(e.pointerId);
+      } catch {
+        /* pointer sintético/inválido: el drag funciona igual sin captura */
+      }
+      stage.style.cursor = "grabbing";
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (!s.dragging) return;
+      const dy = e.clientY - s.dragLastY;
+      s.dragLastY = e.clientY;
+      s.dragTarget += dy / DRAG_PX;
+    };
+    const endDrag = (e: PointerEvent) => {
+      if (!s.dragging) return;
+      s.dragging = false;
+      s.snapTarget = Math.round(s.dragTarget);
+      if (stage.hasPointerCapture(e.pointerId)) stage.releasePointerCapture(e.pointerId);
+      stage.style.cursor = "";
     };
     stage.addEventListener("mouseenter", onEnter);
     stage.addEventListener("mousemove", onMove);
     stage.addEventListener("mouseleave", onLeave);
+    stage.addEventListener("pointerdown", onPointerDown);
+    stage.addEventListener("pointermove", onPointerMove);
+    stage.addEventListener("pointerup", endDrag);
+    stage.addEventListener("pointercancel", endDrag);
 
     return () => {
       io.disconnect();
       stage.removeEventListener("mouseenter", onEnter);
       stage.removeEventListener("mousemove", onMove);
       stage.removeEventListener("mouseleave", onLeave);
+      stage.removeEventListener("pointerdown", onPointerDown);
+      stage.removeEventListener("pointermove", onPointerMove);
+      stage.removeEventListener("pointerup", endDrag);
+      stage.removeEventListener("pointercancel", endDrag);
       if (s.running) {
         s.running = false;
         cancelAnimationFrame(frame);
@@ -265,7 +351,7 @@ function NosotrosCarousel3D() {
   return (
     <div
       ref={stageRef}
-      className="relative hidden h-[540px] items-center justify-center overflow-hidden lg:flex"
+      className="relative hidden h-[540px] cursor-grab touch-none items-center justify-center overflow-hidden select-none lg:flex"
       style={{ perspective: `${D}px` }}
     >
       <div

@@ -143,7 +143,8 @@ function VisualCriterio({ active }: { active: boolean }) {
             active
               ? o.picked
                 ? { opacity: 1, x: 0 }
-                : { opacity: [0, 1, 1, 0.55], x: 0 }
+                : // Atenuación LEVE (0.8): las no elegidas deben seguir legibles
+                  { opacity: [0, 1, 1, 0.8], x: 0 }
               : {}
           }
           transition={
@@ -236,7 +237,7 @@ function VisualCriterio({ active }: { active: boolean }) {
 
           <motion.span
             className="relative truncate text-xs font-medium"
-            initial={{ color: "rgba(203,213,225,0.7)" }}
+            initial={{ color: "rgba(226,232,240,0.88)" }}
             animate={active && o.picked ? { color: "#f3e3cc" } : {}}
             transition={{ delay: PICK_T, duration: 0.4 }}
           >
@@ -246,7 +247,7 @@ function VisualCriterio({ active }: { active: boolean }) {
           {/* Tag: se ESTAMPA después de la decisión (antes no hay veredicto) */}
           <motion.span
             className="relative ml-auto shrink-0 font-accent text-[0.58rem] tracking-[0.14em] uppercase"
-            style={{ color: o.picked ? hex : "rgba(148,163,184,0.55)" }}
+            style={{ color: o.picked ? hex : "rgba(203,213,225,0.8)" }}
             initial={{ opacity: 0, y: 3 }}
             animate={active ? { opacity: 1, y: 0 } : {}}
             transition={{
