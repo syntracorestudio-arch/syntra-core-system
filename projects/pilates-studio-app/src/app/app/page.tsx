@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { LogOut, CalendarDays, LayoutGrid, Wallet, CalendarCheck, Sparkles, UserRound, CalendarPlus, AlertCircle } from "lucide-react";
+import { LogOut, CalendarDays, LayoutGrid, Wallet, CalendarCheck, Sparkles, UserRound, CalendarPlus, AlertCircle, BellRing, X } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { cancelReservation } from "./actions";
+import { cancelReservation, markNotificationRead } from "./actions";
 import { ClassCard, type ClassCardData } from "@/components/calendar/class-card";
 import { buttonClass } from "@/components/ui/button";
 import { SuspendedScreen } from "@/components/suspended-screen";
@@ -119,6 +119,16 @@ export default async function AppPage({
     ? new Intl.DateTimeFormat("es-AR", { timeZone: tz, day: "numeric", month: "long" }).format(new Date(nearestExpiry))
     : "";
 
+  // Avisos dirigidos al alumno (RLS select_own): p. ej. promoción de lista de espera.
+  const { data: notifRows } = await supabase
+    .from("notifications")
+    .select("id, title, body, link")
+    .is("read_at", null)
+    .not("member_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(3);
+  const myNotifications = (notifRows ?? []) as { id: string; title: string; body: string | null; link: string | null }[];
+
   // Contador motivacional: clases asistidas en el año (RLS: solo las propias)
   const { count: attendedCount } = await supabase
     .from("class_reservations")
@@ -139,13 +149,18 @@ export default async function AppPage({
   // Mis reservas activas + mi waitlist (RLS: propias)
   const { data: myRes } = await supabase
     .from("class_reservations")
-    .select("id, occurrence_id")
+    .select("id, occurrence_id, promoted")
     .eq("status", "booked");
   const { data: myWait } = await supabase
     .from("waitlist")
     .select("occurrence_id, position")
     .eq("status", "waiting");
   const resByOcc = new Map((myRes ?? []).map((r) => [r.occurrence_id, r.id]));
+  const promotedByOcc = new Set(
+    ((myRes ?? []) as { occurrence_id: string; promoted: boolean | null }[])
+      .filter((r) => r.promoted)
+      .map((r) => r.occurrence_id),
+  );
   const waitPosByOcc = new Map(
     ((myWait ?? []) as { occurrence_id: string; position: number }[]).map((w) => [w.occurrence_id, w.position]),
   );
@@ -199,16 +214,21 @@ export default async function AppPage({
       | { name: string; instructor_name: string | null; duration_min: number | null }
       | null;
     const myResId = resByOcc.get(o.id as string) ?? null;
-    // Deadline de cancelación sin costo (solo para MIS reservas)
+    // Deadline de cancelación sin costo (solo para MIS reservas). Las promovidas
+    // desde la lista de espera devuelven el crédito hasta el inicio de la clase.
     let cancelHint: string | null = null;
     if (myResId) {
-      const deadline = new Date(new Date(o.starts_at as string).getTime() - windowH * 3600_000);
-      cancelHint =
-        deadline.toISOString() > nowIso
-          ? `Cancelás sin costo hasta ${fmtDeadline(deadline.toISOString())}`
-          : refundLate
-            ? null
-            : "Fuera de ventana: si cancelás no se devuelve el crédito";
+      if (promotedByOcc.has(o.id as string)) {
+        cancelHint = "Te promovimos de la lista: cancelás sin costo hasta el inicio";
+      } else {
+        const deadline = new Date(new Date(o.starts_at as string).getTime() - windowH * 3600_000);
+        cancelHint =
+          deadline.toISOString() > nowIso
+            ? `Cancelás sin costo hasta ${fmtDeadline(deadline.toISOString())}`
+            : refundLate
+              ? null
+              : "Fuera de ventana: si cancelás no se devuelve el crédito";
+      }
     }
     const card: ClassCardData = {
       occurrenceId: o.id as string,
@@ -312,6 +332,36 @@ export default async function AppPage({
           {error}
         </p>
       ) : null}
+
+      {/* avisos dirigidos al alumno (waitlist promovida, etc.) */}
+      {myNotifications.map((n) => (
+        <div
+          key={n.id}
+          className="mt-5 flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3"
+        >
+          <BellRing className="mt-0.5 size-4 shrink-0 text-primary-ink" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">{n.title}</p>
+            {n.body ? <p className="mt-0.5 text-sm text-muted-foreground">{n.body}</p> : null}
+            {n.link ? (
+              <a href={n.link} className="mt-1 inline-block text-xs font-semibold text-primary-ink hover:underline">
+                ver la clase →
+              </a>
+            ) : null}
+          </div>
+          <form action={markNotificationRead}>
+            <input type="hidden" name="id" value={n.id} />
+            <input type="hidden" name="day" value={day ?? ""} />
+            <button
+              type="submit"
+              aria-label="Marcar como leída"
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+          </form>
+        </div>
+      ))}
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
         {/* resumen lateral (arriba en mobile, columna derecha en desktop) */}
