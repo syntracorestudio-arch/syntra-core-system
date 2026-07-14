@@ -109,7 +109,7 @@ export function ClassCard({
             </form>
           ) : state === "waiting" ? (
             <p className="rounded-lg bg-secondary px-4 py-2.5 text-center text-sm text-muted-foreground">
-              Te avisamos si se libera un lugar.
+              Si se libera un lugar, tu reserva se confirma sola y la ves acá.
             </p>
           ) : state === "full" ? (
             <form action={joinWaitlist}>

@@ -72,6 +72,17 @@ export default async function HistorialPage() {
 
   const attended = rows.filter((r) => r.status === "attended").length;
   const noShows = rows.filter((r) => r.status === "no_show").length;
+  // Contador motivacional: asistencias del mes en curso (mes local del estudio)
+  const monthKey = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit" })
+    .format(new Date())
+    .slice(0, 7);
+  const attendedMonth = rows.filter(
+    (r) =>
+      r.status === "attended" &&
+      new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit" })
+        .format(new Date(r.startsAt as string))
+        .slice(0, 7) === monthKey,
+  ).length;
 
   return (
     <main className="canvas-aurora mx-auto min-h-dvh w-full max-w-2xl px-5 pb-16 pt-8 lg:px-8">
@@ -90,6 +101,7 @@ export default async function HistorialPage() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Mi historial</h1>
           <p className="text-sm text-muted-foreground">
             {attended} {attended === 1 ? "clase tomada" : "clases tomadas"}
+            {attendedMonth > 0 ? ` · ${attendedMonth} este mes` : ""}
             {noShows > 0 ? ` · ${noShows} ${noShows === 1 ? "ausencia" : "ausencias"}` : ""}
           </p>
         </div>

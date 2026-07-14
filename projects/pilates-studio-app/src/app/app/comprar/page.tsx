@@ -109,7 +109,7 @@ export default async function ComprarPage({
       {status === "pending" ? (
         <p className="mt-5 flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
           <Clock3 className="size-4 shrink-0" aria-hidden />
-          Tu pago quedó pendiente. Te avisamos cuando se acredite.
+          Tu pago quedó pendiente. Cuando se acredite lo vas a ver en tu saldo.
         </p>
       ) : null}
       {status === "fail" ? (
