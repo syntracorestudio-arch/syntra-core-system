@@ -1,30 +1,31 @@
 "use client";
 
 /**
- * PanelVidrio3D — el panel image-led de Contacto reconstruido en 3D VIVO (pedido
- * owner 2026-07-13): la imagen generada (estratos de vidrio verticales, luz
- * electric arriba, columna dorada centro-derecha, stardust) era el BOCETO; esta
- * escena la recrea en tiempo real para que el fondo respire:
+ * PanelVidrio3D v2 — "la imagen manda, la vida es puntual" (dirección B aprobada
+ * por el owner 2026-07-14, tras 3 fondos que competían con el texto).
  *
- *  1. COLUMNAS DE VIDRIO — quads verticales (geometría única pre-horneada, sin
- *     instancing ni updates de CPU) con shader propio: bandas de luz que RECORREN
- *     cada columna lentísimo (desfasadas), glow superior electric, filos laterales
- *     iluminados, y una minoría warm concentrada centro-derecha (la columna dorada).
- *  2. BRASAS — partículas finas ascendiendo con sway + twinkle (mismo lenguaje que
- *     el campo estelar del sitio).
+ * La ARQUITECTURA de la luz es la imagen aprobada (panel-vidrio.webp, composición
+ * y luminancia FIJAS → AA calculable de una vez, lección Servicios v5). Esta capa
+ * solo agrega la vida que no arriesga legibilidad:
+ *  1. BRASAS — partículas finas ascendiendo con sway + twinkle (baja frecuencia,
+ *     alphas bajas, mismo lenguaje que el campo estelar del sitio).
+ *  2. RESPIRACIÓN DORADA — glow CSS sobre la columna de luz de la imagen
+ *     (solo opacity, 8s, nunca más brillante que el botón Enviar).
  *
- * Disciplina atmosphere-field: determinista (mulberry32), TODO el movimiento en
- * shader (useFrame solo actualiza uTime), Canvas dpr [1,1.5], antialias off, sin
- * postprocesado, frameloop gateado por useInView (nunca 'never'), additive +
- * toneMapped:false. Módulo lazy (dynamic ssr:false desde panel-vida). La imagen
- * webp queda como poster para mobile/reduced-motion. Fondo propio opaco (gradiente
- * navy) para cubrir el poster mientras el canvas monta, sin doble exposición.
- * Sin cyan/violeta. Subordinado al CTA (alphas bajas). CLS 0 (absolute inset-0).
+ * El mesh de columnas de vidrio (GlassSlabs) MURIÓ acá: 60 slabs additive de alta
+ * frecuencia uniformes convertían todo el panel en figura y el peor caso de
+ * luminancia mutaba en el tiempo — ilegible por construcción, no por tuning.
+ *
+ * Disciplina: determinista (mulberry32), movimiento en shader (useFrame solo
+ * uTime), Canvas transparente dpr [1,1.5], frameloop gateado por useInView (nunca
+ * 'never'), additive + toneMapped:false, lazy vía panel-vida (desktop + motion).
+ * La imagen webp queda SIEMPRE visible como base (también bajo el canvas).
+ * Sin cyan/violeta. CLS 0 (absolute inset-0).
  */
 
 import * as React from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useInView } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import * as THREE from "three";
 
 /* PRNG determinístico (mulberry32) — puro; la escena queda estable entre re-mounts. */
@@ -40,161 +41,8 @@ function makeRng(seed: number) {
 
 const ELECTRIC = new THREE.Color(0.376, 0.647, 0.98); // #60a5fa
 const WARM = new THREE.Color(0.906, 0.784, 0.627); // #e7c8a0
-const DEEP = new THREE.Color(0.016, 0.035, 0.078); // base navy profunda
 
-/* ──────────────────── 1. Columnas de vidrio ────────────────────
- * Un solo BufferGeometry con un quad por columna (~60 quads): posición mundial
- * horneada + atributos por-vértice (uv del quad, mixWarm, phase, brightness).
- * Orden de generación: lejos → cerca (pintado correcto con additive). */
-function makeSlabsGeometry() {
-  const rng = makeRng(0x51ab5);
-  const COUNT = 60;
-  const slabs: Array<{
-    x: number; z: number; w: number; h: number; yC: number;
-    warm: number; phase: number; bright: number;
-  }> = [];
-  for (let i = 0; i < COUNT; i++) {
-    const z = -6 + rng() * 6; // -6 (fondo) .. 0 (frente)
-    const near = (z + 6) / 6; // 0..1
-    // Spread acotado al encuadre real del panel (~±2.6 world units visibles).
-    const x = (rng() * 2 - 1) * 2.8;
-    // Columna dorada: minoría warm concentrada centro-derecha (x ~ 0.4..1.6).
-    const inGoldBand = x > 0.4 && x < 1.6;
-    const warm = rng() < (inGoldBand ? 0.68 : 0.06) ? 1 : 0;
-    slabs.push({
-      x,
-      z,
-      w: 0.06 + rng() * 0.42,
-      h: 7 + rng() * 5,
-      yC: (rng() * 2 - 1) * 1.4,
-      warm,
-      phase: rng(),
-      bright: 0.35 + near * 0.65,
-    });
-  }
-  // Lejos primero (z menor) para el orden de pintado.
-  slabs.sort((a, b) => a.z - b.z);
-
-  const positions = new Float32Array(COUNT * 4 * 3);
-  const uvs = new Float32Array(COUNT * 4 * 2);
-  const infos = new Float32Array(COUNT * 4 * 3); // (mixWarm, phase, brightness)
-  const indices: number[] = [];
-  slabs.forEach((s, i) => {
-    const vi = i * 4;
-    const corners = [
-      [s.x - s.w / 2, s.yC - s.h / 2, s.z],
-      [s.x + s.w / 2, s.yC - s.h / 2, s.z],
-      [s.x + s.w / 2, s.yC + s.h / 2, s.z],
-      [s.x - s.w / 2, s.yC + s.h / 2, s.z],
-    ];
-    const uv = [
-      [0, 0],
-      [1, 0],
-      [1, 1],
-      [0, 1],
-    ];
-    for (let c = 0; c < 4; c++) {
-      positions.set(corners[c], (vi + c) * 3);
-      uvs.set(uv[c], (vi + c) * 2);
-      infos.set([s.warm, s.phase, s.bright], (vi + c) * 3);
-    }
-    indices.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3);
-  });
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-  geo.setAttribute("aInfo", new THREE.BufferAttribute(infos, 3));
-  geo.setIndex(indices);
-  return geo;
-}
-
-const SLABS_VERT = /* glsl */ `
-  attribute vec3 aInfo;
-  varying vec2 vUv;
-  varying vec3 vInfo;
-  void main() {
-    vUv = uv;
-    vInfo = aInfo;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-const SLABS_FRAG = /* glsl */ `
-  uniform float uTime;
-  uniform vec3 uElectric;
-  uniform vec3 uWarm;
-  varying vec2 vUv;
-  varying vec3 vInfo;
-
-  void main() {
-    float mixWarm = vInfo.x;
-    float phase = vInfo.y;
-    float bright = vInfo.z;
-
-    // Banda de luz que RECORRE la columna (sube lentísimo, desfasada por columna).
-    float band = sin(vUv.y * 2.6 - uTime * 0.14 + phase * 6.2831) * 0.5 + 0.5;
-    band = pow(band, 3.0);
-
-    // Glow superior: la luz "viene de arriba" (como en el boceto: electric arriba).
-    float topGlow = smoothstep(0.25, 1.0, vUv.y);
-
-    // Filos laterales del vidrio: 1 en los bordes del quad, 0 en el cuerpo.
-    float body = smoothstep(0.0, 0.09, vUv.x) * smoothstep(1.0, 0.91, vUv.x);
-    float edges = 1.0 - body;
-
-    // Desvanecer extremos verticales (las columnas no "cortan" arriba/abajo).
-    float capFade = smoothstep(0.0, 0.08, vUv.y) * smoothstep(1.0, 0.92, vUv.y);
-
-    vec3 tint = mix(uElectric, uWarm, mixWarm);
-    // Las warm brillan un toque más (la columna dorada es el foco del boceto).
-    float boost = 1.0 + mixWarm * 0.5;
-    vec3 col = tint * (0.14 + band * 0.55 + topGlow * 0.32) * boost;
-
-    float alpha =
-      (bright * (0.16 + band * 0.34 + topGlow * 0.13) + edges * bright * 0.32) *
-      capFade * boost;
-    if (alpha < 0.004) discard;
-    gl_FragColor = vec4(col, alpha);
-  }
-`;
-
-function GlassSlabs() {
-  const matRef = React.useRef<THREE.ShaderMaterial>(null);
-  const geometry = React.useMemo(() => makeSlabsGeometry(), []);
-  React.useEffect(() => () => geometry.dispose(), [geometry]);
-
-  const uniforms = React.useMemo(
-    () => ({
-      uTime: { value: 0 },
-      uElectric: { value: ELECTRIC.clone() },
-      uWarm: { value: WARM.clone() },
-    }),
-    [],
-  );
-
-  useFrame((state) => {
-    const m = matRef.current;
-    if (m) m.uniforms.uTime.value = state.clock.elapsedTime;
-  });
-
-  return (
-    <mesh geometry={geometry}>
-      <shaderMaterial
-        ref={matRef}
-        transparent
-        toneMapped={false}
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-        uniforms={uniforms}
-        vertexShader={SLABS_VERT}
-        fragmentShader={SLABS_FRAG}
-      />
-    </mesh>
-  );
-}
-
-/* ──────────────────── 2. Brasas ascendentes ──────────────────── */
+/* ──────────────────── Brasas ascendentes ──────────────────── */
 type EmberCfg = {
   seed: number;
   count: number;
@@ -339,21 +187,27 @@ function EmberLayer({ cfg }: { cfg: EmberCfg }) {
   );
 }
 
-/* ──────────────────── Escena + host ──────────────────── */
+/* ──────────────────── Host: brasas + respiración ──────────────────── */
 function PanelVidrio3D() {
   const ref = React.useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { margin: "200px" });
 
   return (
     <div ref={ref} aria-hidden="true" className="pointer-events-none absolute inset-0">
-      {/* Fondo propio opaco: cubre el poster webp mientras el canvas monta (sin
-          doble exposición) y da la base navy profunda de la escena. */}
-      <div
+      {/* Respiración dorada: glow que late sobre la luz de la LÁMPARA de la
+          imagen (asset "estudio de noche": lámpara arriba-derecha, su luz se
+          derrama sobre el escritorio abajo-derecha). Solo opacity; nunca
+          compite con el botón Enviar. */}
+      <motion.span
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(120% 90% at 60% 20%, #0c1526 0%, rgb(${DEEP.r * 255}, ${DEEP.g * 255}, ${DEEP.b * 255}) 70%)`,
+          background:
+            "radial-gradient(44% 40% at 48% 50%, rgba(231,200,160,0.14), transparent 70%)",
         }}
+        animate={{ opacity: [0.35, 0.85, 0.35] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
       />
+      {/* Canvas TRANSPARENTE: solo brasas sobre la imagen (la base es el webp). */}
       <Canvas
         frameloop={inView ? "always" : "demand"}
         dpr={[1, 1.5]}
@@ -361,7 +215,6 @@ function PanelVidrio3D() {
         gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
         style={{ position: "absolute", inset: 0 }}
       >
-        <GlassSlabs />
         {EMBER_LAYERS.map((cfg) => (
           <EmberLayer key={cfg.seed} cfg={cfg} />
         ))}

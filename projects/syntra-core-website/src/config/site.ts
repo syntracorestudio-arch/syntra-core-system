@@ -107,14 +107,31 @@ export const siteConfig: SiteConfig = {
       eyebrow: "Empecemos",
       title: "Hablemos de tu proyecto",
       subtitle:
-        "Contanos qué necesitás mejorar y te respondemos con una propuesta clara, viable y sin compromiso.",
+        "Contanos qué necesitás mejorar y te respondemos con una propuesta clara y viable.",
       messageHelper:
         "No hace falta que tengas todo definido — con el contexto que tengas, te orientamos.",
-      capabilities: [
-        { icon: "LayoutTemplate", label: "Webs modernas y escalables" },
-        { icon: "Workflow", label: "Automatización de procesos" },
-        { icon: "Sparkles", label: "IA e integraciones inteligentes" },
+      /** Bloque "Qué recibís" (PED 2026-07-14): reemplaza a las capacidades,
+       *  que duplicaban los chips de tipo de proyecto del propio form. El rail
+       *  responde la única pregunta abierta a esta altura: qué recibo si escribo. */
+      deliverablesHeading: "Qué recibís",
+      deliverables: [
+        {
+          icon: "Scale",
+          label:
+            "Una lectura honesta de tu caso — si algo no te conviene, también te lo decimos.",
+        },
+        {
+          icon: "Route",
+          label: "Una recomendación concreta: por dónde empezar y qué implica.",
+        },
+        {
+          icon: "ShieldCheck",
+          label:
+            "El primer paso definido, sin letra chica. La decisión queda de tu lado.",
+        },
       ],
+      /** Encuadre del mailto: cierra el rail con propósito, no como dato suelto. */
+      mailtoLead: "¿Preferís escribir directo?",
     },
   },
 };
