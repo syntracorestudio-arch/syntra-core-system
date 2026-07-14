@@ -35,9 +35,14 @@ function Footer() {
 
       <Container className="relative pb-8 pt-14 sm:pt-16">
         {/* === Grid de contenido: marca + 3 columnas (cascada de entrada) === */}
-        <div className="grid gap-10 text-center sm:grid-cols-2 sm:text-left lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] lg:gap-8">
-          {/* Col 1 — Marca */}
-          <BlurReveal className="flex flex-col items-center gap-4 sm:col-span-2 sm:items-start lg:col-span-1">
+        {/* lg: pistas de ancho FIJO + justify-between → espacios entre columnas
+            iguales, y la barra final (misma plantilla) alinea EXACTO con ellas.
+            (Subgrid descartado: Chromium no hereda la distribución del
+            justify-content del padre.) */}
+        <div className="grid gap-10 text-center sm:grid-cols-2 sm:text-left lg:grid-cols-[minmax(0,24rem)_7rem_9.5rem_9.5rem] lg:justify-between lg:gap-8">
+          {/* Col 1 — Marca: bloque CENTRADO (logo + tagline + social alineados
+              al mismo eje, pedido owner 2026-07-14) */}
+          <BlurReveal className="flex flex-col items-center gap-4 text-center sm:col-span-2 lg:col-span-1">
             <Image
               src="/logo.png"
               alt="SYNTRA CORE"
@@ -109,21 +114,25 @@ function Footer() {
               </li>
             </ul>
           </BlurReveal>
+
         </div>
 
-        {/* === Barra final: copyright · privacidad === */}
-        <BlurReveal delay={0.34}>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-border/40 pt-5 text-xs text-muted-foreground sm:justify-between">
-            <p>
-              © {year} {siteConfig.name} — Todos los derechos reservados
-            </p>
-            <Link
-              href="/privacidad"
-              className="transition-colors hover:text-foreground"
-            >
-              Política de privacidad
-            </Link>
-          </div>
+        {/* === Barra final: MISMA plantilla de pistas que las columnas → el ©
+            queda centrado bajo la marca y Política arranca exacto en la pista
+            de CONTACTO (pedido owner 2026-07-14). === */}
+        <BlurReveal
+          delay={0.34}
+          className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-border/40 pt-5 text-xs text-muted-foreground sm:justify-between lg:grid lg:grid-cols-[minmax(0,24rem)_7rem_9.5rem_9.5rem] lg:justify-between lg:gap-x-8"
+        >
+          <p className="lg:col-start-1 lg:text-center">
+            © {year} {siteConfig.name} — Todos los derechos reservados
+          </p>
+          <Link
+            href="/privacidad"
+            className="transition-colors hover:text-foreground lg:col-start-4 lg:justify-self-start"
+          >
+            Política de privacidad
+          </Link>
         </BlurReveal>
       </Container>
     </footer>
