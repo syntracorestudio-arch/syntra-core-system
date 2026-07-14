@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Users, Search } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/admin/page-header";
+import { PageHeader, HeaderStat } from "@/components/admin/page-header";
 import { PersonRow, type Person, type FinRow } from "@/components/admin/person-row";
 
 export const metadata = { title: "Alumnos — Panel" };
@@ -68,7 +68,28 @@ export default async function AlumnosPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
-      <PageHeader title="Alumnos" subtitle={studio?.name ?? "Tu estudio"} />
+      <PageHeader
+        title="Alumnos"
+        subtitle={studio?.name ?? "Tu estudio"}
+        icon={Users}
+        stat={
+          <HeaderStat
+            value={all.length}
+            caption={withDebt > 0 ? `${withDebt} con pago pendiente` : "alumnos activos"}
+          />
+        }
+      >
+        <form method="get" className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <input
+            type="search"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="Buscar por nombre o email"
+            className="w-full rounded-xl border border-input bg-card py-2 pl-9 pr-3 text-sm text-foreground outline-none transition-base placeholder:text-muted-foreground/60 focus:border-transparent focus:ring-2 focus:ring-ring sm:w-64"
+          />
+        </form>
+      </PageHeader>
 
       {notice ? (
         <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
@@ -81,28 +102,8 @@ export default async function AlumnosPage({
         </p>
       ) : null}
 
-      {/* header de lista + buscador (GET, sin JS) */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-foreground">
-          {all.length} {all.length === 1 ? "alumno" : "alumnos"}
-          {withDebt > 0 ? (
-            <span className="ml-2 text-xs font-normal text-muted-foreground">{withDebt} con pago pendiente</span>
-          ) : null}
-        </h2>
-        <form method="get" className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <input
-            type="search"
-            name="q"
-            defaultValue={q ?? ""}
-            placeholder="Buscar por nombre o email"
-            className="w-64 max-w-full rounded-xl border border-input bg-card py-2 pl-9 pr-3 text-sm text-foreground outline-none transition-base placeholder:text-muted-foreground/60 focus:border-transparent focus:ring-2 focus:ring-ring"
-          />
-        </form>
-      </div>
-
       {clients.length > 0 ? (
-        <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-sm duration-500 animate-in fade-in slide-in-from-bottom-2">
+        <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-card shadow-sm duration-500 animate-in fade-in slide-in-from-bottom-2">
           <div className="divide-y divide-border">
             {clients.map((p) => (
               <PersonRow key={p.id} p={p} />
@@ -110,7 +111,7 @@ export default async function AlumnosPage({
           </div>
         </div>
       ) : (
-        <div className="mt-3 rounded-2xl border border-dashed border-border bg-card/60 px-6 py-12 text-center">
+        <div className="mt-6 rounded-2xl border border-dashed border-border bg-card/60 px-6 py-12 text-center">
           <Users className="mx-auto size-6 text-muted-foreground" aria-hidden />
           <p className="mt-3 text-sm text-muted-foreground">
             {query

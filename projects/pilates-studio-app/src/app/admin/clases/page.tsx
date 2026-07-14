@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import { Plus, Pencil, LayoutGrid } from "lucide-react";
+import { Plus, Pencil, LayoutGrid, CalendarDays } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { ClassForm, type ClassFormInitial, type InstructorOption } from "@/components/admin/class-form";
 import { AdminClassCard, type AdminClassData } from "@/components/admin/admin-class-card";
-import { PageHeader } from "@/components/admin/page-header";
+import { PageHeader, HeaderStat } from "@/components/admin/page-header";
 
 export const metadata = { title: "Clases — Panel" };
 export const dynamic = "force-dynamic";
@@ -188,7 +188,7 @@ export default async function AdminClasesPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
-      <PageHeader title="Clases" subtitle={studio?.name ?? "Tu estudio"} />
+      <PageHeader title="Clases" subtitle={studio?.name ?? "Tu estudio"} icon={CalendarDays} stat={<HeaderStat value={classes.length} caption={classes.length === 1 ? "clase activa" : "clases activas"} />} />
 
       {/* avisos */}
       {notice ? (
@@ -206,11 +206,7 @@ export default async function AdminClasesPage({
         {/* lista de clases (primero en mobile y en desktop, columna izquierda) */}
         <section>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-foreground">
-              {classes.length > 0
-                ? `${classes.length} ${classes.length === 1 ? "clase activa" : "clases activas"}`
-                : "Clases"}
-            </h2>
+            <h2 className="text-base font-semibold text-foreground">Listado</h2>
             {/* CTA dominante en mobile → ancla al panel de creación */}
             <a
               href="#nueva-clase"

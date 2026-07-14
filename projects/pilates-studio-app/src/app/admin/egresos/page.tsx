@@ -15,7 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/admin/page-header";
+import { PageHeader, HeaderStat } from "@/components/admin/page-header";
 import { PeriodSelect } from "@/components/admin/period-select";
 import { createExpense, deleteExpense, saveRate, repeatLastMonth } from "./actions";
 import { ExpenseSubmit, RateSubmit } from "./submit-buttons";
@@ -223,7 +223,27 @@ export default async function EgresosPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
-      <PageHeader title="Egresos" subtitle={studio?.name ?? "Tu estudio"} />
+      <PageHeader
+        title="Egresos"
+        subtitle={studio?.name ?? "Tu estudio"}
+        icon={Receipt}
+        stat={<HeaderStat value={money(total)} caption={`en ${periodLabel}`} />}
+      >
+        {!isHistorico ? (
+          <form action={repeatLastMonth}>
+            <input type="hidden" name="ym" value={periodYm} />
+            <button
+              type="submit"
+              title="Copia los egresos del mes anterior con fecha de hoy"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <RotateCcw className="size-3.5" aria-hidden />
+              Repetir mes anterior
+            </button>
+          </form>
+        ) : null}
+        <PeriodSelect value={isHistorico ? "historico" : periodYm} options={options} basePath="/admin/egresos" />
+      </PageHeader>
 
       {notice ? (
         <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">{notice}</p>
@@ -232,29 +252,7 @@ export default async function EgresosPage({
         <p className="mt-5 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
       ) : null}
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-base font-semibold text-foreground">
-          {money(total)} <span className="text-xs font-normal text-muted-foreground">en {periodLabel}</span>
-        </p>
-        <div className="flex items-center gap-2">
-          {!isHistorico ? (
-            <form action={repeatLastMonth}>
-              <input type="hidden" name="ym" value={periodYm} />
-              <button
-                type="submit"
-                title="Copia los egresos del mes anterior con fecha de hoy"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              >
-                <RotateCcw className="size-3.5" aria-hidden />
-                Repetir mes anterior
-              </button>
-            </form>
-          ) : null}
-          <PeriodSelect value={isHistorico ? "historico" : periodYm} options={options} basePath="/admin/egresos" />
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         {/* ── lista de egresos ── */}
         <section>
           {expenses.length > 0 ? (

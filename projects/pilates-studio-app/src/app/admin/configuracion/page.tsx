@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { Ticket, ChevronRight, Wallet, CalendarClock, UserPlus, RefreshCw, Ban, KeyRound } from "lucide-react";
+import { Ticket, ChevronRight, Wallet, CalendarClock, UserPlus, RefreshCw, Ban, KeyRound, Settings } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/admin/page-header";
@@ -105,7 +105,7 @@ export default async function ConfiguracionPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-4xl px-5 pb-16 pt-8 lg:px-8">
-      <PageHeader title="Configuración" subtitle={studio?.name ?? "Tu estudio"} />
+      <PageHeader title="Configuración" subtitle={studio?.name ?? "Tu estudio"} icon={Settings} />
 
       {notice ? (
         <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">

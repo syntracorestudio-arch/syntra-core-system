@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Sun, Users, CheckCircle2, UserX, AlertCircle, MessageCircle, ChevronRight, StickyNote } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/admin/page-header";
+import { PageHeader, HeaderStat } from "@/components/admin/page-header";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
 import { RadialGauge } from "@/components/admin/radial-gauge";
 import { setTodayAttendance } from "./actions";
@@ -134,10 +134,21 @@ export default async function HoyPage({
   const dayLabel = new Intl.DateTimeFormat("es-AR", { timeZone: tz, weekday: "long", day: "numeric", month: "long" }).format(
     new Date(nowIso),
   );
+  const totalReservas = [...byOcc.values()].reduce((s, l) => s + l.length, 0);
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-4xl px-5 pb-16 pt-8 lg:px-8">
-      <PageHeader title="Hoy" subtitle={`${studio?.name ?? "Tu estudio"} · ${dayLabel}`} />
+      <PageHeader
+        title="Hoy"
+        subtitle={`${studio?.name ?? "Tu estudio"} · ${dayLabel}`}
+        icon={Sun}
+        stat={
+          <HeaderStat
+            value={`${occs.length} ${occs.length === 1 ? "clase" : "clases"}`}
+            caption={`${totalReservas} ${totalReservas === 1 ? "reserva" : "reservas"}`}
+          />
+        }
+      />
 
       {error ? (
         <p className="mt-5 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
