@@ -21,5 +21,6 @@ coverage
 # Casos use-cases: PNG fuente pesados (la web usa solo .webp optimizado)
 projects/syntra-core-website/public/visual-assets/syntra/use-cases/*.png
 
-# Playwright MCP — artefactos locales (snapshots, console logs, screenshots on-demand)
+# Playwright MCP / CLI — artefactos locales (snapshots, console logs, screenshots on-demand)
 .playwright-mcp/
+.playwright-cli/
