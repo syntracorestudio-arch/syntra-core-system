@@ -1,12 +1,16 @@
 "use server";
 
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
 const ADMIN_ROLES = ["admin", "reception"];
 
 function back(params: Record<string, string>): never {
+  // Revalida TODO el layout admin: el widget "Hoy" del sidebar refleja la clase
+  // nueva/editada sin recarga completa (los layouts no se re-renderizan al navegar).
+  revalidatePath("/admin", "layout");
   redirect(`/admin/clases?${new URLSearchParams(params).toString()}`);
 }
 

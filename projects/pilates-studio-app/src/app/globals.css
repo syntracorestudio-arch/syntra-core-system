@@ -156,6 +156,32 @@ h4 {
   background-attachment: fixed;
 }
 
+/* Micro-animaciones de datos (entran una vez, ease-out, 150-600ms; reduced-motion
+   las anula vía la regla global). Solo transform/opacity/stroke → CLS 0. */
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+@utility anim-grow-x {
+  transform-origin: left;
+  animation: grow-x 600ms var(--ease-out) backwards;
+}
+@keyframes gauge-in {
+  from {
+    stroke-dashoffset: var(--gauge-c, 0);
+  }
+}
+/* Foto del hero: zoom que se asienta al entrar (una vez, ease-out; nada infinito). */
+@keyframes hero-settle {
+  from {
+    transform: scale(1.07);
+  }
+}
+@utility anim-hero-settle {
+  animation: hero-settle 1400ms var(--ease-out) backwards;
+}
+
 /* Scroll horizontal sin barra visible (selector de días en mobile). */
 @utility no-scrollbar {
   scrollbar-width: none;

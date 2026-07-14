@@ -195,7 +195,13 @@ export function AdminSidebar({
   return (
     <>
       {/* ── Sidebar desktop ── */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar lg:flex">
+        {/* glow del acento en la cabecera — quita lo plano del carbón (white-label: respira con --primary) */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-28"
+          style={{ background: "radial-gradient(18rem 7rem at 20% 0%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 70%)" }}
+        />
         <div className="flex h-16 items-center justify-between gap-2 px-4">
           {brand}
           {bellBtn}
@@ -237,10 +243,10 @@ export function AdminSidebar({
                         <Link
                           href={it.href}
                           aria-current={active ? "page" : undefined}
-                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-base ${
                             active
-                              ? "bg-sidebar-active font-medium text-sidebar-active-foreground"
-                              : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-foreground"
+                              ? "bg-primary font-semibold text-primary-foreground"
+                              : "text-sidebar-muted hover:translate-x-0.5 hover:bg-sidebar-hover hover:text-sidebar-foreground"
                           }`}
                         >
                           <Icon className="size-4 shrink-0" aria-hidden />
@@ -263,7 +269,13 @@ export function AdminSidebar({
                 href="/admin/hoy"
                 className="block rounded-xl bg-sidebar-hover p-3 transition-colors hover:bg-sidebar-active"
               >
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-sidebar-muted">
+                <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-sidebar-muted">
+                  {today.focus.label === "En curso" ? (
+                    <span className="relative flex size-2" aria-hidden>
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+                      <span className="relative inline-flex size-2 rounded-full bg-primary" />
+                    </span>
+                  ) : null}
                   {today.focus.label} · {today.focus.time}
                 </p>
                 <p className="mt-0.5 truncate text-sm font-semibold text-sidebar-foreground">
@@ -339,11 +351,17 @@ export function AdminSidebar({
               key={it.key}
               href={it.href}
               aria-current={active ? "page" : undefined}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] ${
-                active ? "text-primary" : "text-muted-foreground"
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${
+                active ? "font-semibold text-primary" : "text-muted-foreground"
               }`}
             >
-              <Icon className="size-5" aria-hidden />
+              <span
+                className={`flex h-6 w-10 items-center justify-center rounded-full transition-base ${
+                  active ? "bg-primary text-primary-foreground shadow-sm" : ""
+                }`}
+              >
+                <Icon className="size-5" aria-hidden />
+              </span>
               {it.label}
             </Link>
           );
@@ -406,10 +424,10 @@ export function AdminSidebar({
                       href={it.href}
                       onClick={() => setOpen(false)}
                       className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm ${
-                        active ? "bg-primary/10 font-medium text-primary" : "text-foreground hover:bg-secondary"
+                        active ? "bg-primary font-semibold text-primary-foreground shadow-sm" : "text-foreground hover:bg-secondary"
                       }`}
                     >
-                      <Icon className="size-5 text-muted-foreground" aria-hidden />
+                      <Icon className={`size-5 ${active ? "" : "text-muted-foreground"}`} aria-hidden />
                       {it.label}
                     </Link>
                   </li>

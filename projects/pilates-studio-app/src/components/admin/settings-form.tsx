@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Check } from "lucide-react";
 import { buttonClass } from "@/components/ui/button";
+import { accentForeground } from "@/lib/accent";
 import { updateSettings } from "@/app/admin/configuracion/actions";
 
 export type SettingsInitial = {
@@ -63,8 +65,15 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 function Toggle({ name, defaultChecked, label, hint }: { name: string; defaultChecked: boolean; label: string; hint?: string }) {
   return (
-    <label className="flex items-start gap-3 text-sm">
-      <input type="checkbox" name={name} defaultChecked={defaultChecked} className="mt-0.5 size-4 accent-[var(--primary)]" />
+    <label className="flex cursor-pointer items-start gap-3 text-sm">
+      {/* checkbox custom: pinta el acento EXACTO (accent-color nativo lo sombrea el SO) */}
+      <input type="checkbox" name={name} defaultChecked={defaultChecked} className="peer sr-only" />
+      <span
+        aria-hidden
+        className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border border-input bg-card transition-base peer-checked:border-primary peer-checked:bg-primary [&>svg]:opacity-0 peer-checked:[&>svg]:opacity-100 peer-focus-visible:ring-2 peer-focus-visible:ring-ring"
+      >
+        <Check className="size-3 text-primary-foreground" strokeWidth={3} />
+      </span>
       <span>
         <span className="font-medium text-foreground">{label}</span>
         {hint ? <span className="block text-xs text-muted-foreground">{hint}</span> : null}
@@ -77,6 +86,16 @@ export function SettingsForm({ initial }: { initial: SettingsInitial }) {
   const [accent, setAccent] = useState(initial.accent);
   const [policy, setPolicy] = useState(initial.reservationPolicy);
 
+  // Vista previa EN VIVO: pinta toda la app (sidebar incluida) al elegir color.
+  // Se aplica sobre #admin-shell (donde el layout inyecta el acento del estudio).
+  useEffect(() => {
+    const shell = document.getElementById("admin-shell");
+    if (!shell || !/^#[0-9a-fA-F]{6}$/.test(accent)) return;
+    shell.style.setProperty("--primary", accent);
+    shell.style.setProperty("--ring", accent);
+    shell.style.setProperty("--primary-foreground", accentForeground(accent));
+  }, [accent]);
+
   return (
     <form action={updateSettings} className="grid gap-6">
       {/* Identidad + marca */}
@@ -88,13 +107,17 @@ export function SettingsForm({ initial }: { initial: SettingsInitial }) {
           </Field>
           <Field label="Color de acento" hint="Tu marca tiñe botones, foco y destacados de la app.">
             <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={accent}
-                onChange={(e) => setAccent(e.target.value)}
-                aria-label="Elegir color"
-                className="size-10 shrink-0 cursor-pointer rounded-md border border-input bg-card"
-              />
+              {/* swatch custom con el hex PURO (el input color nativo lo sombrea el SO) */}
+              <span className="relative size-10 shrink-0 overflow-hidden rounded-md border border-input">
+                <span className="absolute inset-0" style={{ backgroundColor: accent }} aria-hidden />
+                <input
+                  type="color"
+                  value={accent}
+                  onChange={(e) => setAccent(e.target.value)}
+                  aria-label="Elegir color"
+                  className="absolute inset-0 size-full cursor-pointer opacity-0"
+                />
+              </span>
               <input
                 name="accent"
                 value={accent}
@@ -102,11 +125,17 @@ export function SettingsForm({ initial }: { initial: SettingsInitial }) {
                 pattern="#[0-9a-fA-F]{6}"
                 className={`${inputCls} w-32 font-mono uppercase`}
               />
-              <span
-                className="ml-1 inline-flex items-center gap-1.5 rounded-md px-2.5 py-2 text-xs font-semibold text-white"
-                style={{ backgroundColor: accent }}
-              >
-                Vista previa
+              {/* mismo hex en ambos contextos: sobre claro parece un tono, sobre el carbón
+                  del menú parece otro — es percepción, no diferencia de color */}
+              <span className="ml-1 inline-flex overflow-hidden rounded-lg border border-border text-[11px] font-semibold">
+                <span className="inline-flex items-center gap-1 bg-card px-2 py-1.5">
+                  <span className="size-3.5 rounded-full" style={{ backgroundColor: accent }} aria-hidden />
+                  <span className="text-muted-foreground">panel</span>
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-1.5" style={{ backgroundColor: "#2b2b2f" }}>
+                  <span className="size-3.5 rounded-full" style={{ backgroundColor: accent }} aria-hidden />
+                  <span style={{ color: "#9d9ba0" }}>menú</span>
+                </span>
               </span>
             </div>
           </Field>

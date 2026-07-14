@@ -29,12 +29,13 @@ export function IncomeAreaChart({ data }: { data: Point[] }) {
   const renderLastDot = (props: LastDotProps) => {
     const { cx, cy, index, payload } = props;
     if (index !== data.length - 1 || cx == null || cy == null) return <g key={`d-${index}`} />;
+    // valor a la IZQUIERDA del dot, a su misma altura y con aire (nunca toca la línea)
     return (
       <g key={`d-${index}`}>
         <circle cx={cx} cy={cy} r={4.5} fill="var(--primary)" stroke="var(--card)" strokeWidth={2} />
         <text
-          x={cx - 10}
-          y={cy - 10}
+          x={cx - 16}
+          y={cy + 4}
           textAnchor="end"
           fontSize={12}
           fontWeight={700}
