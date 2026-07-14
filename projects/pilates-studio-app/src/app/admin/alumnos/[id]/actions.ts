@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
@@ -44,8 +45,11 @@ export async function registerPayment(formData: FormData) {
   });
 
   const memberId = String(formData.get("memberId") ?? "");
-  const back = (params: Record<string, string>): never =>
+  const back = (params: Record<string, string>): never => {
+    // refresca el widget del sidebar ("Cobrado hoy") sin recarga completa
+    revalidatePath("/admin", "layout");
     redirect(`/admin/alumnos/${memberId}?${new URLSearchParams(params).toString()}`);
+  };
 
   if (!parsed.success) return back({ error: "Revisá los datos del pago." });
   const p = parsed.data;
