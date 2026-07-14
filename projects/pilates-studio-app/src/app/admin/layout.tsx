@@ -183,7 +183,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         unreadCount={unreadCount}
         today={today}
       />
-      <div className="pb-20 lg:pb-0 lg:pl-60">{children}</div>
+      <div className="canvas-aurora min-h-dvh pb-20 lg:pb-0 lg:pl-60">{children}</div>
     </div>
   );
 }
