@@ -22,6 +22,7 @@ import {
   Wallet,
   AlertCircle,
   ChevronRight,
+  Receipt,
 } from "lucide-react";
 import { markNotificationsRead } from "@/app/admin/notifications-actions";
 
@@ -55,6 +56,7 @@ const GROUPS: { group: string; items: Item[] }[] = [
     items: [
       { key: "packs", href: "/admin/packs", label: "Packs", icon: Ticket, adminOnly: true },
       { key: "planes", href: "/admin/planes", label: "Planes", icon: CalendarClock, adminOnly: true },
+      { key: "egresos", href: "/admin/egresos", label: "Egresos", icon: Receipt, adminOnly: true },
       { key: "reportes", href: "/admin/reportes", label: "Reportes", icon: BarChart3, adminOnly: true },
       { key: "configuracion", href: "/admin/configuracion", label: "Ajustes", icon: Settings, adminOnly: true },
     ],
