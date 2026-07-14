@@ -365,13 +365,14 @@ export default async function ReportesPage({
           </p>
         ) : null}
 
-        <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+        {/* items estirados (sin items-start): las cards de cada fila quedan parejas, sin huecos */}
+        <div className="grid gap-5 lg:grid-cols-2">
           {/* Ingresos por concepto — DONUT (variedad visual vs barras/líneas) */}
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <section className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm">
             <h2 className="text-base font-semibold text-foreground">Ingresos por concepto</h2>
             <p className="text-xs capitalize text-muted-foreground">{periodLabel}</p>
             {ingresosTotal > 0 ? (
-              <div className="mt-4 flex flex-wrap items-center gap-5">
+              <div className="mt-4 flex flex-1 flex-wrap items-center gap-5">
                 <DonutChart
                   size={136}
                   stroke={20}
@@ -414,11 +415,11 @@ export default async function ReportesPage({
           <BreakdownCard title="Ingresos por método de pago" subtitle={periodLabel} rows={METHODS} data={byMethod} max={maxMethod} empty={ingresosTotal === 0} />
 
           {/* Egresos por categoría — donut espejo del de ingresos */}
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <section className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm">
             <h2 className="text-base font-semibold text-foreground">Egresos por categoría</h2>
             <p className="text-xs capitalize text-muted-foreground">{periodLabel}</p>
             {egresosTotal > 0 ? (
-              <div className="mt-4 flex flex-wrap items-center gap-5">
+              <div className="mt-4 flex flex-1 flex-wrap items-center gap-5">
                 <DonutChart
                   size={136}
                   stroke={20}
@@ -487,8 +488,8 @@ export default async function ReportesPage({
             )}
           </section>
 
-          {/* Retención */}
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          {/* Retención — full-width: 5 cards en grilla de 2 dejaban un hueco al cierre */}
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm lg:col-span-2">
             <h2 className="text-base font-semibold text-foreground">Retención</h2>
             <p className="text-xs text-muted-foreground">Cancelaciones y ausencias · {periodLabel}</p>
             <div className="mt-4 grid grid-cols-3 gap-3">

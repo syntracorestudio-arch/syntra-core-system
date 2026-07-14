@@ -298,7 +298,7 @@ export default async function EgresosPage({
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-border bg-card/60 px-6 py-12 text-center">
+            <div className="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/60 px-6 py-16 text-center">
               <Receipt className="mx-auto size-6 text-muted-foreground" aria-hidden />
               <p className="mt-3 text-sm text-muted-foreground">
                 Sin egresos en {periodLabel}. Registrá el primero con el panel de la derecha.
