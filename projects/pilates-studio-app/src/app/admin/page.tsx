@@ -15,10 +15,11 @@ import {
   UserMinus,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/admin/page-header";
 import { CountUp } from "@/components/admin/count-up";
 import { IncomeAreaChart } from "@/components/admin/income-area-chart";
 import { IconChip, type ChipTone } from "@/components/ui/icon-chip";
+import { Sparkline } from "@/components/admin/sparkline";
+import { RadialGauge } from "@/components/admin/radial-gauge";
 
 export const metadata = { title: "Resumen — Panel" };
 export const dynamic = "force-dynamic";
@@ -107,7 +108,7 @@ export default async function AdminDashboardPage() {
 
   const { data: member } = await supabase
     .from("members")
-    .select("role, studios(name, timezone)")
+    .select("role, profiles(full_name), studios(name, timezone)")
     .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -116,6 +117,8 @@ export default async function AdminDashboardPage() {
   const studioRel = (member.studios ?? null) as { name: string; timezone: string | null } | { name: string; timezone: string | null }[] | null;
   const studio = Array.isArray(studioRel) ? studioRel[0] : studioRel;
   const tz = studio?.timezone || DEFAULT_TZ;
+  const meProf = (Array.isArray(member.profiles) ? member.profiles[0] : member.profiles) as ProfileRel | null;
+  const firstName = (meProf?.full_name ?? "").split(" ")[0];
 
   const nowIso = new Date().toISOString();
   const todayLocal = tzDate(nowIso, tz);
@@ -266,6 +269,7 @@ export default async function AdminDashboardPage() {
     .map((o) => {
       const cls = Array.isArray(o.classes) ? o.classes[0] : o.classes;
       return {
+        id: o.id,
         time: timeOf(o.starts_at, tz),
         name: cls?.name ?? "Clase",
         instructor: cls?.instructor_name ?? null,
@@ -273,6 +277,26 @@ export default async function AdminDashboardPage() {
         capacity: o.capacity,
       };
     });
+
+  // Quiénes vienen hoy (para los avatares apilados de "Clases de hoy")
+  const attendeesByOcc = new Map<string, string[]>();
+  if (todayOccs.length > 0) {
+    const { data: todayRes } = await supabase
+      .from("class_reservations")
+      .select("occurrence_id, members(profiles(full_name))")
+      .in("occurrence_id", todayOccs.map((o) => o.id))
+      .in("status", ["booked", "attended", "no_show"]);
+    for (const r of (todayRes ?? []) as {
+      occurrence_id: string;
+      members: { profiles: ProfileRel | ProfileRel[] | null } | { profiles: ProfileRel | ProfileRel[] | null }[] | null;
+    }[]) {
+      const m = Array.isArray(r.members) ? r.members[0] : r.members;
+      const prof = m ? ((Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as ProfileRel | null) : null;
+      const list = attendeesByOcc.get(r.occurrence_id) ?? [];
+      list.push(prof?.full_name ?? "Alumno");
+      attendeesByOcc.set(r.occurrence_id, list);
+    }
+  }
 
   // heatmap: (weekday × hora) → ocupación
   const slots = new Map<string, { booked: number; cap: number }>();
@@ -295,7 +319,22 @@ export default async function AdminDashboardPage() {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
-      <PageHeader title="Resumen" subtitle={studio?.name ?? "Tu estudio"} />
+      {/* hero band: saludo con el acento del estudio (white-label) */}
+      <header className="flex flex-wrap items-end justify-between gap-3 rounded-3xl border border-border bg-gradient-to-br from-primary/15 via-accent/40 to-card p-6 shadow-sm">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            {new Intl.DateTimeFormat("es-AR", { timeZone: tz, weekday: "long", day: "numeric", month: "long" }).format(
+              new Date(nowIso),
+            )}
+          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Hola{firstName ? `, ${firstName}` : ""} 👋
+          </h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Así está <span className="font-semibold text-foreground">{studio?.name ?? "tu estudio"}</span> hoy.
+          </p>
+        </div>
+      </header>
 
       {isEmpty ? (
         <div className="mt-8 rounded-2xl border border-dashed border-border bg-card/60 px-6 py-14 text-center">
@@ -349,29 +388,52 @@ export default async function AdminDashboardPage() {
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {packsMes} {packsMes === 1 ? "pack" : "packs"} · {sueltasMes} {sueltasMes === 1 ? "suelta" : "sueltas"}
                 </p>
+                <div className="mt-2 text-primary">
+                  <Sparkline data={incomeSeries.map((x) => x.value)} className="h-9 w-full" />
+                </div>
               </Kpi>
             ) : null}
 
-            <Kpi icon={<Activity className="size-4" aria-hidden />} label="Ocupación semana">
-              <p className="text-2xl font-bold tabular-nums text-foreground">{weekOcc}%</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {weekBooked}/{weekCap} lugares
+            <Kpi
+              icon={<Activity className="size-4" aria-hidden />}
+              label="Ocupación semana"
+              wash="bg-gradient-to-br from-accent/50 via-card to-card"
+              aside={
+                <span className="relative inline-flex text-primary">
+                  <RadialGauge pct={weekOcc} size={52} stroke={6} />
+                  <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold tabular-nums text-foreground">
+                    {weekOcc}%
+                  </span>
+                </span>
+              }
+            >
+              <p className="text-2xl font-bold tabular-nums text-foreground">
+                {weekBooked}
+                <span className="text-sm font-medium text-muted-foreground">/{weekCap}</span>
               </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">lugares reservados</p>
             </Kpi>
 
-            <Kpi icon={<CheckCircle2 className="size-4" aria-hidden />} label="Alumnos al día" tone="success">
-              <p className="text-2xl font-bold tabular-nums text-foreground">{alDia}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">de {finList.length}</p>
+            <Kpi
+              icon={<CheckCircle2 className="size-4" aria-hidden />}
+              label="Alumnos al día"
+              tone="success"
+              wash="bg-gradient-to-br from-success/12 via-card to-card"
+            >
+              <p className="text-2xl font-bold tabular-nums text-foreground">
+                {alDia}
+                <span className="text-sm font-medium text-muted-foreground">/{finList.length}</span>
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">con saldo o abono</p>
             </Kpi>
 
             <Kpi
               icon={<AlertCircle className="size-4" aria-hidden />}
               label="Con deuda"
               tone={debtors.length > 0 ? "warning" : "muted"}
+              wash={debtors.length > 0 ? "bg-gradient-to-br from-warning/15 via-card to-card" : undefined}
             >
-              <p className={`text-2xl font-bold tabular-nums ${debtors.length > 0 ? "text-foreground" : "text-foreground"}`}>
-                {debtors.length}
-              </p>
+              <p className="text-2xl font-bold tabular-nums text-foreground">{debtors.length}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">a cobrar</p>
             </Kpi>
           </div>
@@ -613,6 +675,7 @@ export default async function AdminDashboardPage() {
                   {todayOccs.map((c, i) => {
                     const full = c.booked >= c.capacity;
                     const pct = c.capacity > 0 ? Math.round((c.booked / c.capacity) * 100) : 0;
+                    const attendees = attendeesByOcc.get(c.id) ?? [];
                     return (
                       <li key={i} className="flex items-center justify-between gap-3 py-2.5">
                         <div className="flex min-w-0 items-baseline gap-3">
@@ -625,6 +688,30 @@ export default async function AdminDashboardPage() {
                           </span>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
+                          {attendees.length > 0 ? (
+                            <span className="flex items-center">
+                              {attendees.slice(0, 4).map((n, j) => (
+                                <span
+                                  key={j}
+                                  title={n}
+                                  className={`flex size-6 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-primary-ink ring-2 ring-card ${
+                                    j > 0 ? "-ml-1.5" : ""
+                                  }`}
+                                >
+                                  {n
+                                    .split(/\s+/)
+                                    .slice(0, 2)
+                                    .map((p) => p[0]?.toUpperCase() ?? "")
+                                    .join("")}
+                                </span>
+                              ))}
+                              {attendees.length > 4 ? (
+                                <span className="-ml-1.5 flex size-6 items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-muted-foreground ring-2 ring-card">
+                                  +{attendees.length - 4}
+                                </span>
+                              ) : null}
+                            </span>
+                          ) : null}
                           <span
                             className="h-1.5 w-14 overflow-hidden rounded-full bg-surface-sunken"
                             role="img"
@@ -665,24 +752,35 @@ function Kpi({
   label,
   tone = "primary",
   hero = false,
+  wash,
+  aside,
   children,
 }: {
   icon: React.ReactNode;
   label: string;
   tone?: ChipTone;
   hero?: boolean;
+  /** fondo teñido de la card (gradiente por tono) — mata el "todo blanco parejo" */
+  wash?: string;
+  /** elemento a la derecha del header (ej. gauge radial) */
+  aside?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div
-      className={`rounded-2xl border border-border p-4 shadow-sm ${
-        hero ? "bg-gradient-to-br from-primary/10 via-card to-card sm:col-span-2 lg:col-span-1" : "bg-card"
+      className={`rounded-2xl border border-border p-4 shadow-sm transition-base hover:-translate-y-px hover:shadow-md ${
+        hero
+          ? "bg-gradient-to-br from-primary/15 via-card to-card sm:col-span-2 lg:col-span-1"
+          : wash ?? "bg-card"
       }`}
     >
-      <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <IconChip tone={tone}>{icon}</IconChip>
-        {label}
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <IconChip tone={tone}>{icon}</IconChip>
+          {label}
+        </p>
+        {aside}
+      </div>
       <div className="mt-2">{children}</div>
     </div>
   );

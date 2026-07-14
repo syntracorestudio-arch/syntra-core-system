@@ -4,6 +4,7 @@ import { Sun, Users, CheckCircle2, UserX, AlertCircle, MessageCircle, ChevronRig
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/page-header";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
+import { RadialGauge } from "@/components/admin/radial-gauge";
 import { setTodayAttendance } from "./actions";
 
 export const metadata = { title: "Hoy — Panel" };
@@ -169,10 +170,22 @@ export default async function HoyPage({
                       ) : null}
                     </div>
                   </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">
-                    <Users className="size-3.5" aria-hidden />
-                    {started ? `${present}/${roster.length} presentes` : `${roster.length} anotados`}
-                  </span>
+                  {started && roster.length > 0 ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="relative inline-flex text-success">
+                        <RadialGauge pct={(present / roster.length) * 100} size={40} stroke={5} />
+                        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold tabular-nums text-foreground">
+                          {present}/{roster.length}
+                        </span>
+                      </span>
+                      <span className="text-xs font-medium text-muted-foreground">presentes</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">
+                      <Users className="size-3.5" aria-hidden />
+                      {roster.length} anotados
+                    </span>
+                  )}
                 </div>
 
                 {roster.length > 0 ? (

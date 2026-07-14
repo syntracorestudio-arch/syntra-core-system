@@ -145,6 +145,17 @@ h4 {
   font-family: var(--font-sans);
 }
 
+/* Lienzo con vida: washes radiales suaves teñidos con los tokens (aurora cálida).
+   Token-driven → en cada estudio respira con SU acento white-label. Solo fondo,
+   sin capas nuevas → CLS 0 y cero costo de runtime. */
+@utility canvas-aurora {
+  background-image:
+    radial-gradient(52rem 32rem at 112% -8%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 62%),
+    radial-gradient(44rem 30rem at -18% 28%, color-mix(in srgb, var(--success) 7%, transparent), transparent 60%),
+    radial-gradient(40rem 26rem at 55% 125%, color-mix(in srgb, var(--warning) 6%, transparent), transparent 60%);
+  background-attachment: fixed;
+}
+
 /* Scroll horizontal sin barra visible (selector de días en mobile). */
 @utility no-scrollbar {
   scrollbar-width: none;

@@ -19,6 +19,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/page-header";
 import { PeriodSelect } from "@/components/admin/period-select";
 import { IconChip } from "@/components/ui/icon-chip";
+import { DonutChart } from "@/components/admin/donut-chart";
 
 export const metadata = { title: "Reportes — Panel" };
 export const dynamic = "force-dynamic";
@@ -82,18 +83,19 @@ function shortMonth(ym: string) {
     .replace(/\./g, "");
 }
 
+// Paleta categórica cálida (token-driven): cada segmento con identidad propia.
 const CONCEPTS = [
-  { key: "pack", label: "Packs", icon: Ticket },
-  { key: "drop_in", label: "Clases sueltas", icon: CalendarDays },
-  { key: "membership", label: "Membresías", icon: CreditCard },
-  { key: "abono", label: "Abonos", icon: Wallet },
+  { key: "pack", label: "Packs", icon: Ticket, color: "var(--primary)" },
+  { key: "drop_in", label: "Clases sueltas", icon: CalendarDays, color: "var(--warning)" },
+  { key: "membership", label: "Membresías", icon: CreditCard, color: "var(--success)" },
+  { key: "abono", label: "Abonos", icon: Wallet, color: "var(--muted-foreground)" },
 ] as const;
 
 const METHODS = [
-  { key: "cash", label: "Efectivo", icon: Banknote },
-  { key: "transfer", label: "Transferencia", icon: Landmark },
-  { key: "card_manual", label: "Tarjeta", icon: CreditCard },
-  { key: "mercadopago", label: "MercadoPago", icon: Wallet },
+  { key: "cash", label: "Efectivo", icon: Banknote, color: "var(--success)" },
+  { key: "transfer", label: "Transferencia", icon: Landmark, color: "var(--primary)" },
+  { key: "card_manual", label: "Tarjeta", icon: CreditCard, color: "var(--warning)" },
+  { key: "mercadopago", label: "MercadoPago", icon: Wallet, color: "var(--muted-foreground)" },
 ] as const;
 
 export default async function ReportesPage({
@@ -189,7 +191,6 @@ export default async function ReportesPage({
     mth.count += 1;
     byMethod.set(pay.method, mth);
   }
-  const maxConcept = Math.max(1, ...CONCEPTS.map((c) => byConcept.get(c.key)?.amount ?? 0));
   const maxMethod = Math.max(1, ...METHODS.map((m) => byMethod.get(m.key)?.amount ?? 0));
 
   // ---- ocupación por clase (período) ----
@@ -284,9 +285,51 @@ export default async function ReportesPage({
         </section>
 
         <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
-          {/* Ingresos por concepto */}
-          <BreakdownCard title="Ingresos por concepto" subtitle={periodLabel} rows={CONCEPTS} data={byConcept} max={maxConcept} empty={ingresosTotal === 0} />
-          {/* Ingresos por método de pago */}
+          {/* Ingresos por concepto — DONUT (variedad visual vs barras/líneas) */}
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-foreground">Ingresos por concepto</h2>
+            <p className="text-xs capitalize text-muted-foreground">{periodLabel}</p>
+            {ingresosTotal > 0 ? (
+              <div className="mt-4 flex flex-wrap items-center gap-5">
+                <DonutChart
+                  size={136}
+                  stroke={20}
+                  centerValue={money(ingresosTotal)}
+                  centerLabel="total"
+                  slices={CONCEPTS.map((cc) => ({
+                    label: cc.label,
+                    value: byConcept.get(cc.key)?.amount ?? 0,
+                    color: cc.color,
+                  }))}
+                />
+                <ul className="min-w-0 flex-1 grid gap-2">
+                  {CONCEPTS.map((cc) => {
+                    const v = byConcept.get(cc.key) ?? { amount: 0, count: 0 };
+                    const share = ingresosTotal > 0 ? Math.round((v.amount / ingresosTotal) * 100) : 0;
+                    return (
+                      <li
+                        key={cc.key}
+                        className={`flex items-center justify-between gap-2 text-sm ${v.amount === 0 ? "opacity-45" : ""}`}
+                      >
+                        <span className="inline-flex min-w-0 items-center gap-2">
+                          <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: cc.color }} aria-hidden />
+                          <span className="truncate text-foreground">{cc.label}</span>
+                        </span>
+                        <span className="shrink-0 tabular-nums">
+                          <span className="font-semibold text-foreground">{money(v.amount)}</span>
+                          <span className="ml-1.5 text-xs text-muted-foreground">{share}%</span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-muted-foreground">Sin ingresos en {periodLabel}.</p>
+            )}
+          </section>
+
+          {/* Ingresos por método de pago — barras horizontales multicolor */}
           <BreakdownCard title="Ingresos por método de pago" subtitle={periodLabel} rows={METHODS} data={byMethod} max={maxMethod} empty={ingresosTotal === 0} />
 
           {/* Ocupación por clase */}
@@ -340,8 +383,8 @@ export default async function ReportesPage({
 function PulseTile({ icon, label, value, hero = false }: { icon: React.ReactNode; label: string; value: string; hero?: boolean }) {
   return (
     <div
-      className={`rounded-2xl border border-border p-4 shadow-sm ${
-        hero ? "bg-gradient-to-br from-primary/12 via-card to-card" : "bg-card"
+      className={`rounded-2xl border border-border p-4 shadow-sm transition-base hover:-translate-y-px hover:shadow-md ${
+        hero ? "bg-gradient-to-br from-primary/15 via-card to-card" : "bg-gradient-to-br from-accent/30 via-card to-card"
       }`}
     >
       <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -363,7 +406,7 @@ function BreakdownCard({
 }: {
   title: string;
   subtitle: string;
-  rows: readonly { key: string; label: string; icon: typeof Ticket }[];
+  rows: readonly { key: string; label: string; icon: typeof Ticket; color?: string }[];
   data: Map<string, { amount: number; count: number }>;
   max: number;
   empty: boolean;
@@ -388,8 +431,11 @@ function BreakdownCard({
                 </div>
                 <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
                   <div
-                    className="h-full rounded-full bg-primary transition-base"
-                    style={{ width: `${Math.round((v.amount / max) * 100)}%` }}
+                    className="h-full rounded-full transition-base"
+                    style={{
+                      width: `${Math.round((v.amount / max) * 100)}%`,
+                      backgroundColor: r.color ?? "var(--primary)",
+                    }}
                     aria-hidden
                   />
                 </div>
@@ -424,8 +470,14 @@ function StatBox({
       : tone === "success"
         ? "bg-success/15 text-success"
         : "bg-secondary text-muted-foreground";
+  const wash =
+    tone === "warning"
+      ? "bg-gradient-to-br from-warning/12 via-card to-card"
+      : tone === "success"
+        ? "bg-gradient-to-br from-success/12 via-card to-card"
+        : "bg-gradient-to-br from-accent/40 via-card to-card";
   return (
-    <div className="rounded-xl border border-border/70 p-3 text-center">
+    <div className={`rounded-xl border border-border/70 p-3 text-center ${wash}`}>
       <span className={`mx-auto flex size-8 items-center justify-center rounded-full ${toneCls}`}>{icon}</span>
       <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{value}</p>
       <p className="text-[11px] leading-tight text-muted-foreground">{label}</p>
