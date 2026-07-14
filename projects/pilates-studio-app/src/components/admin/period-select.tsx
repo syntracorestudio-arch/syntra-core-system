@@ -7,9 +7,11 @@ import { ChevronDown } from "lucide-react";
 export function PeriodSelect({
   value,
   options,
+  basePath = "/admin/reportes",
 }: {
   value: string;
   options: { value: string; label: string }[];
+  basePath?: string;
 }) {
   const router = useRouter();
   return (
@@ -17,7 +19,7 @@ export function PeriodSelect({
       <span className="sr-only">Período</span>
       <select
         value={value}
-        onChange={(e) => router.push(`/admin/reportes?p=${e.target.value}`)}
+        onChange={(e) => router.push(`${basePath}?p=${e.target.value}`)}
         className="appearance-none rounded-lg border border-input bg-card py-2 pl-3 pr-9 text-sm font-medium text-foreground outline-none transition-colors hover:bg-secondary focus:ring-2 focus:ring-ring"
       >
         {options.map((o) => (
