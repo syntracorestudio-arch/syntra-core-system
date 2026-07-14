@@ -59,33 +59,42 @@ function FinalCtaSection() {
               />
             </div>
 
-            <div className="relative z-10 grid lg:grid-cols-[minmax(0,31rem)_minmax(0,1fr)]">
+            {/* Columna de IMAGEN protagonista a 33rem (calibrado owner). El
+                asset es un LIENZO vertical compuesto (escena completa del owner
+                sobre su propio ambiente difuminado) → cover casi sin recorte. */}
+            <div className="relative z-10 grid lg:grid-cols-[minmax(0,33rem)_minmax(0,1fr)]">
               {/* ===== Panel izquierdo IMAGE-LED: la imagen de marca es el fondo de
                   TODA la mitad (full-bleed hasta los bordes de la card); el cierre
                   narrativo + confianza componen encima, distribuidos a alto completo
                   (justify-between → sin espacio muerto). ===== */}
               <div className="relative overflow-hidden">
-                {/* Poster estático: SSR + mobile + reduced-motion. En desktop con
-                    motion, PanelVida lo cubre con la escena 3D viva. */}
+                {/* BASE: la imagen aprobada, SIEMPRE visible (composición y
+                    luminancia fijas → AA calculable de una vez). */}
                 <Image
                   src="/visual-assets/syntra/contacto/panel-vidrio.webp"
                   alt=""
                   fill
-                  sizes="(min-width: 1024px) 27rem, 100vw"
-                  className="object-cover object-[62%_center]"
+                  sizes="(min-width: 1024px) 33rem, 100vw"
+                  quality={90}
+                  className="object-cover object-center"
                 />
 
-                {/* FONDO 3D VIVO (desktop + motion; lazy): columnas de vidrio con
-                    luz recorriéndolas + brasas ascendiendo — recrea el poster en
-                    tiempo real. Va ANTES de los scrims: ellos garantizan la
-                    legibilidad del texto también sobre la escena animada. */}
+                {/* VIDA PUNTUAL (desktop + motion; lazy): brasas ascendiendo +
+                    respiración dorada SOBRE la imagen — dirección B aprobada
+                    2026-07-14 (muerte de las columnas 3D: alta frecuencia +
+                    brillo mutante = el texto se perdía por construcción). */}
                 <PanelVida />
 
-                {/* Scrims: legibilidad AA (abajo→arriba) + costura suave hacia el
-                    lado del form (borde derecho, solo lg) */}
+                {/* Scrims: columna de texto en CALMA (izq→der; H2/capacidades
+                    viven a la izquierda) + base abajo→arriba + costura suave
+                    hacia el lado del form (borde derecho, solo lg) */}
                 <div
                   aria-hidden="true"
-                  className="absolute inset-0 bg-gradient-to-t from-[#0b1120]/92 via-[#0b1120]/55 to-[#0b1120]/25"
+                  className="absolute inset-0 bg-gradient-to-r from-[#0b1120]/60 via-[#0b1120]/20 to-transparent"
+                />
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 bg-gradient-to-t from-[#0b1120]/80 via-[#0b1120]/28 to-[#0b1120]/15"
                 />
                 <div
                   aria-hidden="true"
@@ -93,7 +102,9 @@ function FinalCtaSection() {
                 />
 
                 <div className="relative z-10 flex h-full flex-col gap-10 px-6 py-12 text-center sm:px-10 sm:py-14 lg:justify-between lg:text-left">
-                  {/* Grupo arriba: cierre narrativo + capacidades */}
+                  {/* Grupo arriba COMPACTO: narrativa + capacidades juntas (sin
+                      espacio muerto); el tramo inferior del panel queda para la
+                      ESCENA del asset (el visual llena, no el texto). */}
                   <div className="flex flex-col gap-4">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#8ab6ff]">
                       {finalCta.eyebrow}
@@ -104,37 +115,42 @@ function FinalCtaSection() {
                     <p className="text-base leading-relaxed text-foreground/80 text-pretty sm:text-lg">
                       {finalCta.subtitle}
                     </p>
-                  </div>
 
-                  {/* Capacidades: ancladas al centro-bajo del panel, sobre la zona
-                      más oscura del scrim */}
-                  <ul className="flex flex-col gap-3 text-left">
-                    {finalCta.capabilities.map((cap) => {
-                      const Icon = getIcon(cap.icon);
+                  {/* "Qué recibís" (PED): la única pregunta abierta a esta altura.
+                      Reemplaza a las capacidades, que duplicaban los chips del form. */}
+                  <p className="mt-6 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[#e7c8a0]/85">
+                    {finalCta.deliverablesHeading}
+                  </p>
+                  <ul className="mt-3 flex flex-col gap-3 text-left">
+                    {finalCta.deliverables.map((item) => {
+                      const Icon = getIcon(item.icon);
                       return (
                         <li
-                          key={cap.label}
-                          className="flex items-center justify-center gap-3 lg:justify-start"
+                          key={item.icon}
+                          className="flex items-start justify-center gap-3 lg:justify-start"
                         >
-                          <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-white/15 bg-[#0b1120]/60 text-[#8ab6ff] backdrop-blur-sm">
+                          <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border border-white/15 bg-[#0b1120]/60 text-[#8ab6ff] backdrop-blur-sm">
                             <Icon
                               aria-hidden="true"
                               strokeWidth={1.75}
-                              className="size-[18px]"
+                              className="size-4"
                             />
                           </span>
-                          <span className="text-sm font-medium text-foreground/90">
-                            {cap.label}
+                          <span className="text-sm leading-snug text-foreground/90">
+                            {item.label}
                           </span>
                         </li>
                       );
                     })}
                   </ul>
+                  </div>
 
-                  {/* Grupo abajo: confianza (email + privacidad) al pie del panel */}
+                  {/* Grupo abajo: mailto con encuadre + privacidad al pie */}
                   <div className="flex flex-col gap-4">
                     <p className="text-sm text-foreground/75">
-                      También podés escribirnos a{" "}
+                      <span className="mr-1.5 font-medium text-foreground/90">
+                        {finalCta.mailtoLead}
+                      </span>
                       <TrackedLink
                         href={`mailto:${siteConfig.email}`}
                         className="text-[#8ab6ff] underline-offset-4 hover:underline"

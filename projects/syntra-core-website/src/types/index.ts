@@ -191,8 +191,12 @@ export interface SiteConfig {
       subtitle: string;
       /** Helper bajo el textarea: baja la barrera de entrada (content-driven). */
       messageHelper: string;
-      /** Capacidades del rail: íconos line tenues + label (content-driven). */
-      capabilities: ReadonlyArray<{ icon: string; label: string }>;
+      /** Micro-heading del bloque de entregables del rail ("Qué recibís"). */
+      deliverablesHeading: string;
+      /** Qué recibe quien escribe (reemplaza a las capacidades duplicadas). */
+      deliverables: ReadonlyArray<{ icon: string; label: string }>;
+      /** Línea de encuadre del mailto ("¿Preferís escribir directo?"). */
+      mailtoLead: string;
     };
   };
 }
