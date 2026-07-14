@@ -173,7 +173,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
 
   return (
-    <div style={style} className="min-h-dvh">
+    <div id="admin-shell" style={style} className="min-h-dvh">
       <AdminSidebar
         role={role}
         studioName={studioName}
