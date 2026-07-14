@@ -13,7 +13,9 @@ import {
   Sun,
   CalendarRange,
   Receipt,
+  ReceiptText,
   UserPlus,
+  Scale,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/page-header";
@@ -98,6 +100,18 @@ const METHODS = [
   { key: "mercadopago", label: "MercadoPago", icon: Wallet, color: "var(--muted-foreground)" },
 ] as const;
 
+// Categorías de egresos (mismo orden/labels que /admin/egresos)
+const EXP_CATS = [
+  { key: "staff", label: "Sueldos", color: "var(--primary)" },
+  { key: "rent", label: "Alquiler", color: "var(--destructive)" },
+  { key: "utilities", label: "Servicios", color: "var(--warning)" },
+  { key: "equipment", label: "Equipamiento", color: "var(--success)" },
+  { key: "supplies", label: "Insumos", color: "var(--primary-ink)" },
+  { key: "marketing", label: "Marketing", color: "var(--accent-foreground)" },
+  { key: "software", label: "Software", color: "var(--muted-foreground)" },
+  { key: "other", label: "Otros", color: "var(--border)" },
+] as const;
+
 export default async function ReportesPage({
   searchParams,
 }: {
@@ -146,12 +160,13 @@ export default async function ReportesPage({
   const weekStart = localToUtcISO(addDays(todayLocal, -((dow + 6) % 7)), "00:00", tz);
   const monthStart = firstOfMonthISO(thisYm, tz);
 
-  const [{ data: pays }, { data: occ }, { data: res }, { data: mships }, { data: newMems }] = await Promise.all([
+  const [{ data: pays }, { data: occ }, { data: res }, { data: mships }, { data: newMems }, { data: exps }] = await Promise.all([
     supabase.from("payments").select("amount, concept, method, paid_at").eq("status", "confirmed"),
     supabase.from("class_occurrences").select("starts_at, capacity, booked_count, classes(name)"),
     supabase.from("class_reservations").select("status, cancelled_at"),
     supabase.from("memberships").select("valid_to, status").eq("status", "active"),
     supabase.from("members").select("joined_at").eq("role", "client"),
+    supabase.from("expenses").select("amount, category, paid_at"),
   ]);
 
   const allPays = (pays ?? []) as { amount: number; concept: string; method: string; paid_at: string }[];
@@ -167,17 +182,40 @@ export default async function ReportesPage({
     const k = pay.paid_at.slice(0, 7);
     incomeByMonth.set(k, (incomeByMonth.get(k) ?? 0) + Number(pay.amount));
   }
+  // egresos: por mes (tendencia) + del período (balance/donut)
+  const allExps = (exps ?? []) as { amount: number; category: string; paid_at: string }[];
+  const expenseByMonth = new Map<string, number>();
+  for (const e of allExps) {
+    const k = e.paid_at.slice(0, 7);
+    expenseByMonth.set(k, (expenseByMonth.get(k) ?? 0) + Number(e.amount));
+  }
+
   const trend = Array.from({ length: 6 }, (_, i) => {
     const ym = shiftYm(thisYm, -(5 - i));
-    return { ym, value: incomeByMonth.get(ym) ?? 0, label: shortMonth(ym), current: ym === thisYm };
+    return {
+      ym,
+      value: incomeByMonth.get(ym) ?? 0,
+      exp: expenseByMonth.get(ym) ?? 0,
+      label: shortMonth(ym),
+      current: ym === thisYm,
+    };
   });
-  const maxTrend = Math.max(1, ...trend.map((t) => t.value));
+  const maxTrend = Math.max(1, ...trend.map((t) => Math.max(t.value, t.exp)));
 
   // ---- período: ingresos por concepto / método, ticket, nuevos ----
   const periodPays = allPays.filter((x) => inRange(x.paid_at));
   const ingresosTotal = periodPays.reduce((s, x) => s + Number(x.amount), 0);
   const ticketProm = periodPays.length > 0 ? ingresosTotal / periodPays.length : 0;
   const alumnosNuevos = ((newMems ?? []) as { joined_at: string }[]).filter((m) => inRange(m.joined_at)).length;
+
+  // ---- balance del período (rentabilidad) ----
+  const periodExps = allExps.filter((e) => inRange(e.paid_at));
+  const egresosTotal = periodExps.reduce((s, e) => s + Number(e.amount), 0);
+  const resultado = ingresosTotal - egresosTotal;
+  const margen = ingresosTotal > 0 ? Math.round((resultado / ingresosTotal) * 100) : null;
+  const ventasParaCubrir = egresosTotal > 0 && ticketProm > 0 ? Math.ceil(egresosTotal / ticketProm) : null;
+  const expByCat = new Map<string, number>();
+  for (const e of periodExps) expByCat.set(e.category, (expByCat.get(e.category) ?? 0) + Number(e.amount));
 
   const byConcept = new Map<string, { amount: number; count: number }>();
   const byMethod = new Map<string, { amount: number; count: number }>();
@@ -245,21 +283,38 @@ export default async function ReportesPage({
           <PulseTile icon={<TrendingUp className="size-4" aria-hidden />} label="Este mes" value={money(pulsoMes)} hero />
         </section>
 
-        {/* ── Tendencia de ingresos (6 meses, siempre actual) ── */}
+        {/* ── Tendencia ingresos vs egresos (6 meses, siempre actual) ── */}
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-foreground">Tendencia de ingresos</h2>
-          <p className="text-xs text-muted-foreground">Últimos 6 meses</p>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Ingresos vs egresos</h2>
+              <p className="text-xs text-muted-foreground">Últimos 6 meses</p>
+            </div>
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2.5 rounded-full bg-primary" aria-hidden /> ingresos
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2.5 rounded-full bg-warning/70" aria-hidden /> egresos
+              </span>
+            </div>
+          </div>
           <div className="mt-4 flex items-end justify-between gap-2 sm:gap-3">
             {trend.map((t) => (
               <div key={t.ym} className="flex flex-1 flex-col items-center gap-1.5">
                 <span className="text-[10px] tabular-nums text-muted-foreground">
                   {t.value > 0 ? `$${Math.round(t.value / 1000)}k` : ""}
                 </span>
-                {/* barra desde la línea base (sin track-contenedor: la altura ES el valor) */}
-                <div className="flex h-24 w-full items-end border-b border-border/70">
+                {/* barras pareadas desde la línea base (la altura ES el valor) */}
+                <div className="flex h-24 w-full items-end justify-center gap-1 border-b border-border/70">
                   <div
-                    className={`w-full rounded-t-md transition-base ${t.current ? "bg-primary" : "bg-primary/50"}`}
+                    className={`w-2/5 max-w-7 rounded-t-md transition-base ${t.current ? "bg-primary" : "bg-primary/50"}`}
                     style={{ height: `${Math.max(Math.round((t.value / maxTrend) * 100), t.value > 0 ? 4 : 1)}%` }}
+                    aria-hidden
+                  />
+                  <div
+                    className={`w-2/5 max-w-7 rounded-t-md transition-base ${t.current ? "bg-warning/80" : "bg-warning/45"}`}
+                    style={{ height: `${Math.max(Math.round((t.exp / maxTrend) * 100), t.exp > 0 ? 4 : 1)}%` }}
                     aria-hidden
                   />
                 </div>
@@ -277,12 +332,38 @@ export default async function ReportesPage({
           <PeriodSelect value={isHistorico ? "historico" : periodYm} options={options} />
         </div>
 
-        {/* KPIs del período */}
-        <section className="grid grid-cols-3 gap-3">
-          <PulseTile icon={<Wallet className="size-4" aria-hidden />} label={`Total ${periodLabel}`} value={money(ingresosTotal)} />
+        {/* Balance del período (ingresos − egresos = resultado) + KPIs */}
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <PulseTile icon={<Wallet className="size-4" aria-hidden />} label={`Ingresos ${periodLabel}`} value={money(ingresosTotal)} />
+          <PulseTile icon={<ReceiptText className="size-4" aria-hidden />} label="Egresos" value={money(egresosTotal)} />
+          <div
+            className={`rounded-2xl border border-border p-4 shadow-sm transition-base hover:-translate-y-px hover:shadow-md ${
+              resultado >= 0
+                ? "bg-gradient-to-br from-success/12 via-card to-card"
+                : "bg-gradient-to-br from-warning/15 via-card to-card"
+            }`}
+          >
+            <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <IconChip tone={resultado >= 0 ? "success" : "warning"}>
+                <Scale className="size-4" aria-hidden />
+              </IconChip>
+              Resultado
+            </p>
+            <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${resultado >= 0 ? "text-foreground" : "text-warning"}`}>
+              {resultado < 0 ? "−" : ""}
+              {money(Math.abs(resultado))}
+            </p>
+            {margen !== null ? <p className="mt-0.5 text-xs text-muted-foreground">margen {margen}%</p> : null}
+          </div>
           <PulseTile icon={<Receipt className="size-4" aria-hidden />} label="Ticket promedio" value={money(ticketProm)} />
           <PulseTile icon={<UserPlus className="size-4" aria-hidden />} label="Alumnos nuevos" value={String(alumnosNuevos)} />
         </section>
+        {ventasParaCubrir !== null ? (
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Para cubrir los egresos de {periodLabel} necesitás ~{ventasParaCubrir}{" "}
+            {ventasParaCubrir === 1 ? "venta" : "ventas"} al ticket promedio.
+          </p>
+        ) : null}
 
         <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
           {/* Ingresos por concepto — DONUT (variedad visual vs barras/líneas) */}
@@ -331,6 +412,51 @@ export default async function ReportesPage({
 
           {/* Ingresos por método de pago — barras horizontales multicolor */}
           <BreakdownCard title="Ingresos por método de pago" subtitle={periodLabel} rows={METHODS} data={byMethod} max={maxMethod} empty={ingresosTotal === 0} />
+
+          {/* Egresos por categoría — donut espejo del de ingresos */}
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-foreground">Egresos por categoría</h2>
+            <p className="text-xs capitalize text-muted-foreground">{periodLabel}</p>
+            {egresosTotal > 0 ? (
+              <div className="mt-4 flex flex-wrap items-center gap-5">
+                <DonutChart
+                  size={136}
+                  stroke={20}
+                  centerValue={money(egresosTotal)}
+                  centerLabel="total"
+                  slices={EXP_CATS.map((c) => ({
+                    label: c.label,
+                    value: expByCat.get(c.key) ?? 0,
+                    color: c.color,
+                  }))}
+                />
+                <ul className="grid min-w-0 flex-1 gap-2">
+                  {EXP_CATS.filter((c) => (expByCat.get(c.key) ?? 0) > 0)
+                    .sort((a, b) => (expByCat.get(b.key) ?? 0) - (expByCat.get(a.key) ?? 0))
+                    .map((c) => {
+                      const amt = expByCat.get(c.key) ?? 0;
+                      const share = Math.round((amt / egresosTotal) * 100);
+                      return (
+                        <li key={c.key} className="flex items-center justify-between gap-2 text-sm">
+                          <span className="inline-flex min-w-0 items-center gap-2">
+                            <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} aria-hidden />
+                            <span className="truncate text-foreground">{c.label}</span>
+                          </span>
+                          <span className="shrink-0 tabular-nums">
+                            <span className="font-semibold text-foreground">{money(amt)}</span>
+                            <span className="ml-1.5 text-xs text-muted-foreground">{share}%</span>
+                          </span>
+                        </li>
+                      );
+                    })}
+                </ul>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-muted-foreground">
+                Sin egresos en {periodLabel}. Registralos en la sección Egresos del menú.
+              </p>
+            )}
+          </section>
 
           {/* Ocupación por clase */}
           <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">

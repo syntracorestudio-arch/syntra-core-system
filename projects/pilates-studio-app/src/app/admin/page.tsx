@@ -13,6 +13,7 @@ import {
   Activity,
   MessageCircle,
   UserMinus,
+  Scale,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { CountUp } from "@/components/admin/count-up";
@@ -130,7 +131,7 @@ export default async function AdminDashboardPage() {
   const weekEnd = localToUtcISO(addDays(todayLocal, 7), "00:00", tz);
 
   const limitIso = localToUtcISO(addDays(todayLocal, EXPIRY_WARNING_DAYS), "23:59", tz);
-  const [{ data: pays }, { data: mems }, { data: fins }, { data: mships }, { data: occ }, { data: allRes }, { data: expPasses }, { data: wl }] =
+  const [{ data: pays }, { data: mems }, { data: fins }, { data: mships }, { data: occ }, { data: allRes }, { data: expPasses }, { data: wl }, { data: monthExp }] =
     await Promise.all([
       supabase.from("payments").select("amount, concept, paid_at").eq("status", "confirmed"),
       supabase.from("members").select("id, joined_at, profiles(full_name, phone)").eq("role", "client"),
@@ -146,6 +147,8 @@ export default async function AdminDashboardPage() {
       supabase.from("class_reservations").select("member_id, created_at").neq("status", "cancelled"),
       supabase.from("member_passes").select("id, member_id, expires_at").gt("expires_at", nowIso).lte("expires_at", limitIso),
       supabase.from("waitlist").select("occurrence_id").eq("status", "waiting"),
+      // egresos del mes (RLS solo-admin → para reception devuelve vacío, y el tile ni se muestra)
+      supabase.from("expenses").select("amount").gte("paid_at", monthStart),
     ]);
 
   // ---- ingresos + comparativa ----
@@ -158,6 +161,11 @@ export default async function AdminDashboardPage() {
     .reduce((s, p) => s + Number(p.amount), 0);
   const delta = ingresosPrevMes > 0 ? Math.round(((ingresosMes - ingresosPrevMes) / ingresosPrevMes) * 100) : null;
   const prevMonthLabel = shortMonth(prevMonth(thisYm));
+
+  // ---- rentabilidad del mes (ingresos − egresos) ----
+  const egresosMes = ((monthExp ?? []) as { amount: number }[]).reduce((s, e) => s + Number(e.amount), 0);
+  const resultadoMes = ingresosMes - egresosMes;
+  const margenMes = ingresosMes > 0 ? Math.round((resultadoMes / ingresosMes) * 100) : null;
   const packsMes = monthPays.filter((p) => p.concept === "pack").length;
   const sueltasMes = monthPays.filter((p) => p.concept === "drop_in").length;
 
@@ -363,7 +371,7 @@ export default async function AdminDashboardPage() {
       ) : (
         <div className="mt-6 grid gap-5 duration-500 animate-in fade-in slide-in-from-bottom-2">
           {/* ══ KPIs ══ */}
-          <div className={`grid grid-cols-2 gap-3 ${isReception ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
+          <div className={`grid grid-cols-2 gap-3 ${isReception ? "lg:grid-cols-3" : "lg:grid-cols-5"}`}>
             {!isReception ? (
               <Kpi
                 icon={<TrendingUp className="size-4" aria-hidden />}
@@ -391,6 +399,29 @@ export default async function AdminDashboardPage() {
                 <div className="mt-2 text-primary">
                   <Sparkline data={incomeSeries.map((x) => x.value)} className="h-9 w-full" />
                 </div>
+              </Kpi>
+            ) : null}
+
+            {!isReception ? (
+              <Kpi
+                icon={<Scale className="size-4" aria-hidden />}
+                label={`Resultado de ${monthLabel}`}
+                tone={resultadoMes >= 0 ? "success" : "warning"}
+                wash={
+                  resultadoMes >= 0
+                    ? "bg-gradient-to-br from-success/10 via-card to-card"
+                    : "bg-gradient-to-br from-warning/15 via-card to-card"
+                }
+              >
+                <p className={`text-2xl font-bold tabular-nums ${resultadoMes >= 0 ? "text-foreground" : "text-warning"}`}>
+                  {resultadoMes < 0 ? "−" : ""}
+                  {money(Math.abs(resultadoMes))}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {egresosMes > 0
+                    ? `egresos ${money(egresosMes)}${margenMes !== null ? ` · margen ${margenMes}%` : ""}`
+                    : "sin egresos cargados"}
+                </p>
               </Kpi>
             ) : null}
 
