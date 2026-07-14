@@ -487,8 +487,8 @@ export default async function ReportesPage({
             )}
           </section>
 
-          {/* Retención */}
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          {/* Retención — full-width: 5 cards en grilla de 2 dejaban un hueco al cierre */}
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm lg:col-span-2">
             <h2 className="text-base font-semibold text-foreground">Retención</h2>
             <p className="text-xs text-muted-foreground">Cancelaciones y ausencias · {periodLabel}</p>
             <div className="mt-4 grid grid-cols-3 gap-3">

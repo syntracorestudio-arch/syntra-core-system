@@ -456,6 +456,12 @@ export default async function AdminDashboardPage() {
                 <span className="text-sm font-medium text-muted-foreground">/{finList.length}</span>
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">con saldo o abono</p>
+              <span className="mt-2 block h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken" aria-hidden>
+                <span
+                  className="block h-full rounded-full bg-success"
+                  style={{ width: `${finList.length > 0 ? Math.round((alDia / finList.length) * 100) : 0}%` }}
+                />
+              </span>
             </Kpi>
 
             <Kpi
@@ -466,6 +472,12 @@ export default async function AdminDashboardPage() {
             >
               <p className="text-2xl font-bold tabular-nums text-foreground">{debtors.length}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">a cobrar</p>
+              <span className="mt-2 block h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken" aria-hidden>
+                <span
+                  className={`block h-full rounded-full ${debtors.length > 0 ? "bg-warning" : "bg-success"}`}
+                  style={{ width: `${finList.length > 0 ? Math.max(Math.round((debtors.length / finList.length) * 100), debtors.length > 0 ? 6 : 0) : 0}%` }}
+                />
+              </span>
             </Kpi>
           </div>
 
@@ -801,7 +813,7 @@ function Kpi({
     <div
       className={`rounded-2xl border border-border p-4 shadow-sm transition-base hover:-translate-y-px hover:shadow-md ${
         hero
-          ? "bg-gradient-to-br from-primary/15 via-card to-card sm:col-span-2 lg:col-span-1"
+          ? "col-span-2 bg-gradient-to-br from-primary/15 via-card to-card lg:col-span-1"
           : wash ?? "bg-card"
       }`}
     >
