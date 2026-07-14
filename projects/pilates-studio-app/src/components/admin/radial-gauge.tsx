@@ -34,6 +34,7 @@ export function RadialGauge({
         strokeLinecap="round"
         strokeDasharray={c}
         strokeDashoffset={off}
+        style={{ ["--gauge-c" as string]: c, animation: "gauge-in 800ms var(--ease-out) backwards" }}
       />
     </svg>
   );

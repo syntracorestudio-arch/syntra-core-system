@@ -327,9 +327,28 @@ export default async function AdminDashboardPage() {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
-      {/* hero band: saludo con el acento del estudio (white-label) */}
-      <header className="flex flex-wrap items-end justify-between gap-3 rounded-3xl border border-border bg-gradient-to-br from-primary/15 via-accent/40 to-card p-6 shadow-sm">
-        <div>
+      {/* hero band: saludo sobre la foto del estudio (overlay cálido → texto AA; CLS 0 por altura fija) */}
+      <header className="relative flex min-h-44 flex-wrap items-center justify-between gap-3 overflow-hidden rounded-3xl border border-border p-6 shadow-md sm:min-h-56">
+        {/* la foto ocupa solo el lado derecho (área menos apaisada → se ve ~80% de la altura
+            de la panorámica: camilla completa y profundidad) y se funde hacia el panel del texto */}
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-accent/60 via-card to-card" />
+        {/* 66% = máximo ancho donde la camilla del primer plano entra completa (visible = 528/ancho) */}
+        <div className="absolute inset-y-0 right-0 w-[68%] overflow-hidden sm:w-[66%]" aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/hero-bg.jpg"
+            alt=""
+            className="anim-hero-settle absolute inset-0 size-full object-cover object-[62%_74%]"
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(90deg, color-mix(in srgb, var(--card) 100%, transparent) 0%, transparent 34%)",
+            }}
+          />
+        </div>
+        <div className="relative">
           <p className="text-sm text-muted-foreground">
             {new Intl.DateTimeFormat("es-AR", { timeZone: tz, weekday: "long", day: "numeric", month: "long" }).format(
               new Date(nowIso),
@@ -369,9 +388,9 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
       ) : (
-        <div className="mt-6 grid gap-5 duration-500 animate-in fade-in slide-in-from-bottom-2">
+        <div className="mt-6 grid gap-5">
           {/* ══ KPIs ══ */}
-          <div className={`grid grid-cols-2 gap-3 ${isReception ? "lg:grid-cols-3" : "lg:grid-cols-5"}`}>
+          <div className={`grid grid-cols-2 gap-3 ${isReception ? "lg:grid-cols-3" : "lg:grid-cols-5"} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
             {!isReception ? (
               <Kpi
                 icon={<TrendingUp className="size-4" aria-hidden />}
@@ -458,7 +477,7 @@ export default async function AdminDashboardPage() {
               <p className="mt-0.5 text-xs text-muted-foreground">con saldo o abono</p>
               <span className="mt-2 block h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken" aria-hidden>
                 <span
-                  className="block h-full rounded-full bg-success"
+                  className="anim-grow-x block h-full rounded-full bg-success"
                   style={{ width: `${finList.length > 0 ? Math.round((alDia / finList.length) * 100) : 0}%` }}
                 />
               </span>
@@ -474,7 +493,7 @@ export default async function AdminDashboardPage() {
               <p className="mt-0.5 text-xs text-muted-foreground">a cobrar</p>
               <span className="mt-2 block h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken" aria-hidden>
                 <span
-                  className={`block h-full rounded-full ${debtors.length > 0 ? "bg-warning" : "bg-success"}`}
+                  className={`anim-grow-x block h-full rounded-full ${debtors.length > 0 ? "bg-warning" : "bg-success"}`}
                   style={{ width: `${finList.length > 0 ? Math.max(Math.round((debtors.length / finList.length) * 100), debtors.length > 0 ? 6 : 0) : 0}%` }}
                 />
               </span>
@@ -483,7 +502,7 @@ export default async function AdminDashboardPage() {
 
           {/* ══ Ingresos (protagonista, solo admin) ══ */}
           {!isReception ? (
-            <section className="rounded-2xl border border-border bg-card p-5 shadow-raised">
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-raised animate-in fade-in slide-in-from-bottom-2 duration-500 [animation-fill-mode:backwards]" style={{ animationDelay: "75ms" }}>
               <div className="flex items-baseline justify-between gap-3">
                 <h2 className="text-base font-semibold text-foreground">Ingresos</h2>
                 <span className="text-xs text-muted-foreground">
@@ -497,7 +516,10 @@ export default async function AdminDashboardPage() {
           ) : null}
 
           {/* ══ Necesita tu atención ══ */}
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <section
+            className="rounded-2xl border border-border bg-card p-5 shadow-sm duration-500 animate-in fade-in slide-in-from-bottom-2 [animation-fill-mode:backwards]"
+            style={{ animationDelay: "150ms" }}
+          >
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <h2 className="inline-flex items-center gap-1.5 text-base font-semibold text-foreground">
                 {needsAttention ? (
@@ -655,7 +677,10 @@ export default async function AdminDashboardPage() {
           </section>
 
           {/* ══ Operación: heatmap ocupación + clases de hoy ══ */}
-          <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+          <div
+            className="grid gap-5 duration-500 animate-in fade-in slide-in-from-bottom-2 [animation-fill-mode:backwards] lg:grid-cols-2 lg:items-start"
+            style={{ animationDelay: "225ms" }}
+          >
             <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-semibold text-foreground">Ocupación por horario</h2>
@@ -761,7 +786,7 @@ export default async function AdminDashboardPage() {
                             aria-label={`Ocupación ${pct}%`}
                           >
                             <span
-                              className={`block h-full rounded-full ${full ? "bg-destructive" : "bg-primary"}`}
+                              className={`anim-grow-x block h-full rounded-full ${full ? "bg-destructive" : "bg-primary"}`}
                               style={{ width: `${Math.min(pct, 100)}%` }}
                             />
                           </span>
