@@ -235,7 +235,7 @@ export default async function AppPage({
   const reservedCount = (myRes ?? []).length;
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-5xl px-5 pb-16 pt-8 lg:px-8">
+    <main className="canvas-aurora mx-auto min-h-dvh w-full max-w-5xl px-5 pb-16 pt-8 lg:px-8">
       {/* header — banda cálida que ancla la página */}
       <header className="flex items-center justify-between gap-4 rounded-3xl border border-border bg-gradient-to-br from-accent/70 via-card to-card p-5 shadow-sm sm:p-6">
         <div>

@@ -87,7 +87,7 @@ export default async function ComprarPage({
   const hasCatalog = passes.length > 0 || plans.length > 0;
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-2xl px-5 pb-16 pt-8 lg:px-8">
+    <main className="canvas-aurora mx-auto min-h-dvh w-full max-w-2xl px-5 pb-16 pt-8 lg:px-8">
       <Link
         href="/app"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"

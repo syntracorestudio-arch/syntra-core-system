@@ -39,7 +39,7 @@ export default async function CuentaPage({
         : "/app";
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-md px-5 pb-16 pt-8">
+    <main className="canvas-aurora mx-auto min-h-dvh w-full max-w-md px-5 pb-16 pt-8">
       <Link
         href={backHref}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
