@@ -37,11 +37,15 @@ async function adminStudio() {
   return { supabase, studioId: member.studio_id as string, meId: member.id as string };
 }
 
+// UUID laxo (forma 8-4-4-4-12): el .uuid() de Zod exige variante RFC y rechaza
+// ids válidos para Postgres (p. ej. los del seed demo).
+const zGuid = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+
 const ExpenseSchema = z.object({
   category: z.enum(EXPENSE_CATEGORIES),
   amount: z.coerce.number().positive().max(99_999_999),
   method: z.enum(["cash", "transfer", "other"]),
-  member_id: z.string().uuid().optional().or(z.literal("")),
+  member_id: zGuid.optional().or(z.literal("")),
   note: z.string().trim().max(200).optional().or(z.literal("")),
   paid_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   period_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
@@ -90,7 +94,7 @@ export async function deleteExpense(formData: FormData) {
 }
 
 const RateSchema = z.object({
-  member_id: z.string().uuid(),
+  member_id: zGuid,
   mode: z.enum(["per_class", "fixed_weekly", "fixed_monthly"]),
   amount: z.coerce.number().min(0).max(99_999_999),
 });
