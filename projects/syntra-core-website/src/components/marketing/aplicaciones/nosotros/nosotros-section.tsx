@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { MotionConfig, motion } from "framer-motion";
 
@@ -11,10 +12,32 @@ import { Container } from "@/components/layout/container";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { getIcon } from "@/lib/icons";
 import { EmberParticles } from "./ember-particles";
-import { NosotrosCarousel3D } from "./nosotros-carousel-3d";
 import { SpotlightCard } from "./spotlight-card";
 import { StatementText } from "./statement-text";
 import { PillarVisual, PILLAR_THEME, type PillarId } from "./pillar-visual";
+
+/* Carrusel 3D: SOLO desktop → code-split (perf mobile 2026-07-15). Mobile ni
+ * siquiera descarga su chunk (el grid 2×2 es el fallback completo); en desktop
+ * carga async post-hidratación con placeholder de la misma altura (CLS 0). */
+const NosotrosCarousel3D = dynamic(() => import("./nosotros-carousel-3d"), {
+  ssr: false,
+  loading: () => <div aria-hidden="true" className="hidden h-[540px] lg:block" />,
+});
+
+/* Media query reactiva (useSyncExternalStore — sin setState en effect). SSR e
+ * hidratación devuelven false → el chunk solo se pide en viewport lg+. */
+function useIsDesktop() {
+  const subscribe = React.useCallback((cb: () => void) => {
+    const mql = window.matchMedia("(min-width: 1024px)");
+    mql.addEventListener("change", cb);
+    return () => mql.removeEventListener("change", cb);
+  }, []);
+  return React.useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia("(min-width: 1024px)").matches,
+    () => false,
+  );
+}
 
 /** Íconos por principio, resueltos a nivel módulo (visual, no copy — no cliché). */
 const PILLAR_ICONS = {
@@ -51,6 +74,7 @@ const reveal = {
 
 function NosotrosSection() {
   const { eyebrow, title, subtitle } = siteConfig.sections.about;
+  const isDesktop = useIsDesktop();
 
   return (
     <MotionConfig reducedMotion="user">
@@ -93,12 +117,14 @@ function NosotrosSection() {
             />
           </motion.div>
 
-          {/* PROTOTIPO carrusel cilíndrico 3D (desktop + motion): los 4 principios
-              en scroll circular continuo con dwell al frente. Referencia externa
-              del owner adaptada al lenguaje SYNTRA. */}
-          <div className="mt-6 motion-reduce:hidden lg:mt-8">
-            <NosotrosCarousel3D />
-          </div>
+          {/* Carrusel cilíndrico 3D (desktop + motion): los 4 principios en
+              scroll circular continuo con dwell al frente. Gated por media query
+              → mobile no descarga el chunk (code-split). */}
+          {isDesktop ? (
+            <div className="mt-6 motion-reduce:hidden lg:mt-8">
+              <NosotrosCarousel3D />
+            </div>
+          ) : null}
 
           {/* Cards premium en columnas ESCALONADAS (mobile + reduced-motion;
               en desktop con motion las reemplaza el carrusel 3D). */}

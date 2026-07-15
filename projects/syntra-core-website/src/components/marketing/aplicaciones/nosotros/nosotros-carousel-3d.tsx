@@ -534,3 +534,4 @@ function NosotrosCarousel3D() {
 }
 
 export { NosotrosCarousel3D };
+export default NosotrosCarousel3D;
