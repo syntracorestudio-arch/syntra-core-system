@@ -64,7 +64,7 @@ export default async function LoginPage({
           src={BG}
           alt=""
           aria-hidden
-          className="absolute inset-0 size-full object-cover object-center md:object-bottom"
+          className="absolute inset-0 size-full object-cover object-[center_90%] md:object-bottom"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/30 to-foreground/5" />
         <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8 md:p-10 lg:p-12">
