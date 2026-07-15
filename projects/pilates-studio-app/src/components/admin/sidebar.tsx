@@ -44,7 +44,8 @@ const GROUPS: { group: string; items: Item[] }[] = [
   {
     group: "Principal",
     items: [
-      { key: "resumen", href: "/admin", label: "Resumen", icon: LayoutGrid, adminOnly: false },
+      // Resumen = dashboard del dueño; recepción vive en Hoy (su home redirige ahí)
+      { key: "resumen", href: "/admin", label: "Resumen", icon: LayoutGrid, adminOnly: true },
       { key: "hoy", href: "/admin/hoy", label: "Hoy", icon: Sun, adminOnly: false },
       { key: "clases", href: "/admin/clases", label: "Clases", icon: CalendarDays, adminOnly: false },
       { key: "alumnos", href: "/admin/alumnos", label: "Alumnos", icon: Users, adminOnly: false },
@@ -189,7 +190,7 @@ export function AdminSidebar({
     </div>
   );
 
-  const primary = GROUPS[0].items;
+  const primary = GROUPS[0].items.filter(canSee);
   const moreItems = GROUPS.flatMap((g) => g.items).filter((it) => canSee(it) && !primary.some((p) => p.key === it.key));
 
   return (
@@ -326,7 +327,10 @@ export function AdminSidebar({
                 </div>
               ) : null}
               {today.debtors > 0 ? (
-                <Link href="/admin" className="flex items-center justify-between transition-colors hover:text-sidebar-foreground">
+                <Link
+                  href={isAdmin ? "/admin" : "/admin/alumnos"}
+                  className="flex items-center justify-between transition-colors hover:text-sidebar-foreground"
+                >
                   <dt className="inline-flex items-center gap-1 text-warning">
                     <AlertCircle className="size-3" aria-hidden />
                     Con deuda

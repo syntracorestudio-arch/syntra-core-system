@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Sun, Users, CheckCircle2, UserX, AlertCircle, MessageCircle, ChevronRight, StickyNote } from "lucide-react";
+import { Sun, Users, CheckCircle2, UserX, AlertCircle, MessageCircle, ChevronRight, StickyNote, Wallet } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader, HeaderStat } from "@/components/admin/page-header";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
@@ -168,6 +168,9 @@ export default async function HoyPage({
             const cls = Array.isArray(o.classes) ? o.classes[0] : o.classes;
             const roster = (byOcc.get(o.id) ?? []).sort((a, b) => a.name.localeCompare(b.name));
             const started = o.starts_at <= nowIso;
+            // check-in de llegada: se habilita 20 min antes (la gente llega temprano);
+            // "Faltó" recién cuando la clase empezó
+            const checkinOpen = new Date(o.starts_at).getTime() - 20 * 60_000 <= new Date(nowIso).getTime();
             const present = roster.filter((r) => r.att === "checked_in").length;
             return (
               <section key={o.id} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -223,6 +226,15 @@ export default async function HoyPage({
                                   <MessageCircle className="size-3.5" aria-hidden />
                                 </a>
                               ) : null}
+                              {debtor ? (
+                                <Link
+                                  href={`/admin/alumnos/${r.memberId}`}
+                                  className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground transition-colors hover:opacity-90"
+                                >
+                                  <Wallet className="size-3" aria-hidden />
+                                  cobrar
+                                </Link>
+                              ) : null}
                             </span>
                             {r.note ? (
                               <span className="mt-0.5 flex items-start gap-1 text-xs text-warning">
@@ -231,7 +243,7 @@ export default async function HoyPage({
                               </span>
                             ) : null}
                           </span>
-                          {started ? (
+                          {checkinOpen ? (
                             <span className="flex items-center gap-1.5">
                               <form action={setTodayAttendance}>
                                 <input type="hidden" name="reservation" value={r.id} />
@@ -245,24 +257,26 @@ export default async function HoyPage({
                                   }`}
                                 >
                                   <CheckCircle2 className="size-3.5" aria-hidden />
-                                  Presente
+                                  {started ? "Presente" : "Llegó"}
                                 </button>
                               </form>
-                              <form action={setTodayAttendance}>
-                                <input type="hidden" name="reservation" value={r.id} />
-                                <input type="hidden" name="value" value={r.att === "no_show" ? "clear" : "no_show"} />
-                                <button
-                                  type="submit"
-                                  className={`inline-flex min-h-9 items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                                    r.att === "no_show"
-                                      ? "border-destructive/40 bg-destructive/10 text-destructive"
-                                      : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
-                                  }`}
-                                >
-                                  <UserX className="size-3.5" aria-hidden />
-                                  Faltó
-                                </button>
-                              </form>
+                              {started ? (
+                                <form action={setTodayAttendance}>
+                                  <input type="hidden" name="reservation" value={r.id} />
+                                  <input type="hidden" name="value" value={r.att === "no_show" ? "clear" : "no_show"} />
+                                  <button
+                                    type="submit"
+                                    className={`inline-flex min-h-9 items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                                      r.att === "no_show"
+                                        ? "border-destructive/40 bg-destructive/10 text-destructive"
+                                        : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                    }`}
+                                  >
+                                    <UserX className="size-3.5" aria-hidden />
+                                    Faltó
+                                  </button>
+                                </form>
+                              ) : null}
                             </span>
                           ) : (
                             <Link
