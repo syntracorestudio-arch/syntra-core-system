@@ -16,9 +16,10 @@ import {
   ReceiptText,
   UserPlus,
   Scale,
+  BarChart3,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/admin/page-header";
+import { PageHeader, HeaderStat } from "@/components/admin/page-header";
 import { PeriodSelect } from "@/components/admin/period-select";
 import { IconChip } from "@/components/ui/icon-chip";
 import { DonutChart } from "@/components/admin/donut-chart";
@@ -273,7 +274,7 @@ export default async function ReportesPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
-      <PageHeader title="Reportes" subtitle={studio?.name ?? "Tu estudio"} />
+      <PageHeader title="Reportes" subtitle={studio?.name ?? "Tu estudio"} icon={BarChart3} stat={<HeaderStat value={money(pulsoMes)} caption="cobrado este mes" />} />
 
       <div className="mt-6 grid gap-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
         {/* ── Pulso de caja (siempre actual) ── */}

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { GraduationCap } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/admin/page-header";
+import { PageHeader, HeaderStat } from "@/components/admin/page-header";
 import { PersonRow, type Person } from "@/components/admin/person-row";
 
 export const metadata = { title: "Equipo — Panel" };
@@ -52,7 +52,7 @@ export default async function EquipoPage() {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
-      <PageHeader title="Equipo" subtitle={studio?.name ?? "Tu estudio"} />
+      <PageHeader title="Equipo" subtitle={studio?.name ?? "Tu estudio"} icon={GraduationCap} stat={<HeaderStat value={staff.length} caption={`${instructores} instr. · ${recepcion} recep.`} />} />
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-foreground">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Plus, Pencil, Ticket, Power } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { PageHeader, HeaderStat } from "@/components/admin/page-header";
 import { PackForm, type PackInitial } from "@/components/admin/pack-form";
 import { togglePass } from "./actions";
 
@@ -70,12 +71,14 @@ export default async function PacksPage({
         <ArrowLeft className="size-4" aria-hidden />
         Configuración
       </Link>
-      <header className="mt-3">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Packs y precios</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Definí los packs que vendés. Aparecen al registrar un pago.
-        </p>
-      </header>
+      <div className="mt-3">
+        <PageHeader
+          title="Packs y precios"
+          subtitle="Definí los packs que vendés. Aparecen al registrar un pago."
+          icon={Ticket}
+          stat={<HeaderStat value={packs.length} caption={packs.length === 1 ? "pack" : "packs"} />}
+        />
+      </div>
 
       {notice ? (
         <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
@@ -91,9 +94,7 @@ export default async function PacksPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         {/* lista de packs */}
         <section>
-          <h2 className="text-base font-semibold text-foreground">
-            {packs.length > 0 ? `${packs.length} ${packs.length === 1 ? "pack" : "packs"}` : "Packs"}
-          </h2>
+          <h2 className="text-base font-semibold text-foreground">Listado</h2>
           <div className="mt-3 grid gap-3">
             {packs.length > 0 ? (
               packs.map((p) => (

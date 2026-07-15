@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Plus, Pencil, Power, Infinity as InfinityIcon, CalendarClock, Ticket } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { PageHeader, HeaderStat } from "@/components/admin/page-header";
 import { PlanForm, type PlanInitial, type PlanConcept } from "@/components/admin/plan-form";
 import { togglePlan } from "./actions";
 
@@ -75,12 +76,14 @@ export default async function PlanesPage({
         <ArrowLeft className="size-4" aria-hidden />
         Configuración
       </Link>
-      <header className="mt-3">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Abonos y membresías</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Definí membresías, abonos y clases sueltas con su precio. Se pueden cobrar online y al registrar un pago.
-        </p>
-      </header>
+      <div className="mt-3">
+        <PageHeader
+          title="Abonos y membresías"
+          subtitle="Definí membresías, abonos y clases sueltas con su precio."
+          icon={CalendarClock}
+          stat={<HeaderStat value={plans.length} caption={plans.length === 1 ? "plan" : "planes"} />}
+        />
+      </div>
 
       {notice ? (
         <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
@@ -95,9 +98,7 @@ export default async function PlanesPage({
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         <section>
-          <h2 className="text-base font-semibold text-foreground">
-            {plans.length > 0 ? `${plans.length} ${plans.length === 1 ? "plan" : "planes"}` : "Planes"}
-          </h2>
+          <h2 className="text-base font-semibold text-foreground">Listado</h2>
           <div className="mt-3 grid gap-3">
             {plans.length > 0 ? (
               plans.map((p) => {
