@@ -1,9 +1,18 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
-function back(day: string, params: Record<string, string>): never {
+/** Vuelve a la página de origen (`from`, p. ej. /app/actividad) o a /app?day=… */
+function back(day: string, params: Record<string, string>, from?: string): never {
+  // el saldo/novedades del sidebar viven en el LAYOUT → no se re-renderiza en
+  // navegación suave sin esto (mismo fix que /admin)
+  revalidatePath("/app", "layout");
+  if (from && from.startsWith("/app")) {
+    const qs = new URLSearchParams(params);
+    redirect(`${from}?${qs.toString()}`);
+  }
   const qs = new URLSearchParams({ day, ...params });
   redirect(`/app?${qs.toString()}`);
 }
@@ -74,23 +83,25 @@ export async function joinWaitlist(formData: FormData) {
 export async function cancelReservation(formData: FormData) {
   const day = String(formData.get("day") ?? "");
   const res = String(formData.get("res") ?? "");
+  const from = String(formData.get("from") ?? "");
   const supabase = await createSupabaseServer();
   const { error } = await supabase.rpc("cancel_reservation", { p_reservation_id: res });
   if (error) {
-    back(day, { error: "No se pudo cancelar. Probá de nuevo." });
+    back(day, { error: "No se pudo cancelar. Probá de nuevo." }, from);
   }
-  back(day, { notice: "Reserva cancelada." });
+  back(day, { notice: "Reserva cancelada." }, from);
 }
 
 export async function leaveWaitlist(formData: FormData) {
   const day = String(formData.get("day") ?? "");
   const occ = String(formData.get("occ") ?? "");
+  const from = String(formData.get("from") ?? "");
   const supabase = await createSupabaseServer();
   const { error } = await supabase.rpc("leave_waitlist", { p_occurrence_id: occ });
   if (error) {
-    back(day, { error: "No se pudo salir de la lista. Probá de nuevo." });
+    back(day, { error: "No se pudo salir de la lista. Probá de nuevo." }, from);
   }
-  back(day, { notice: "Saliste de la lista de espera." });
+  back(day, { notice: "Saliste de la lista de espera." }, from);
 }
 
 /** Marca leída una notificación propia (RLS: update_own). */
@@ -99,5 +110,17 @@ export async function markNotificationRead(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const supabase = await createSupabaseServer();
   await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
+  revalidatePath("/app", "layout");
   redirect(day ? `/app?day=${day}` : "/app");
+}
+
+/** Marca leídas TODAS las notificaciones propias (campana del shell del alumno). */
+export async function markMyNotificationsRead() {
+  const supabase = await createSupabaseServer();
+  await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .not("member_id", "is", null)
+    .is("read_at", null);
+  revalidatePath("/app", "layout");
 }
