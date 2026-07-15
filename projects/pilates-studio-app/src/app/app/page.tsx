@@ -4,6 +4,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ClassCard, type ClassCardData } from "@/components/calendar/class-card";
 import { buttonClass } from "@/components/ui/button";
+import { RoleHero } from "@/components/shell/role-hero";
 import { computeStreak, habitualSlot, WEEKDAY_LABEL, localDateOf } from "@/lib/streak";
 import { reserve } from "./actions";
 
@@ -268,38 +269,28 @@ export default async function AppPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-3xl px-5 pb-16 pt-8 lg:px-8">
-      {/* header — banda cálida que ancla la página (cuenta/salir viven en el shell) */}
-      <header className="flex items-center justify-between gap-4 rounded-3xl border border-border bg-gradient-to-br from-accent/70 via-card to-card p-5 shadow-sm duration-500 animate-in fade-in slide-in-from-bottom-2 sm:p-6">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            Hola, {firstName} · {todayLabel}
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            {studio?.name ?? "Tu estudio"}
-          </h1>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {/* racha: constancia visible sin invadir (solo con 2+ semanas al hilo) */}
-          {streak.current >= 2 ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary-ink">
-              <Flame className="size-3.5" aria-hidden />
-              {streak.current} semanas al hilo
-            </span>
-          ) : null}
-          {/* saldo a mano en mobile (en desktop vive en el sidebar) */}
-          <a
-            href="/app/comprar"
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors lg:hidden ${
-              !hasMembership && credits === 0
-                ? "border-warning/40 bg-warning/10 text-foreground"
-                : "border-border bg-card text-foreground hover:bg-secondary"
-            }`}
-          >
-            <Sparkles className="size-3.5 text-primary" aria-hidden />
-            {saldoChip}
-          </a>
-        </div>
-      </header>
+      {/* hero con la foto del estudio — mismo patrón aprobado del panel */}
+      <RoleHero kicker={`Hola, ${firstName} · ${todayLabel}`} title={studio?.name ?? "Tu estudio"}>
+        {/* racha: constancia visible sin invadir (solo con 2+ semanas al hilo) */}
+        {streak.current >= 2 ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary-ink">
+            <Flame className="size-3.5" aria-hidden />
+            {streak.current} semanas al hilo
+          </span>
+        ) : null}
+        {/* saldo a mano en mobile (en desktop vive en el sidebar) */}
+        <a
+          href="/app/comprar"
+          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors lg:hidden ${
+            !hasMembership && credits === 0
+              ? "border-warning/40 bg-warning/10 text-foreground"
+              : "border-border bg-card/90 text-foreground backdrop-blur hover:bg-secondary"
+          }`}
+        >
+          <Sparkles className="size-3.5 text-primary" aria-hidden />
+          {saldoChip}
+        </a>
+      </RoleHero>
 
       {/* avisos */}
       {notice ? (

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Sun, Users, CheckCircle2, UserX, AlertCircle, MessageCircle, ChevronRight, StickyNote, Wallet } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader, HeaderStat } from "@/components/admin/page-header";
+import { RoleHero } from "@/components/shell/role-hero";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
 import { RadialGauge } from "@/components/admin/radial-gauge";
 import { setTodayAttendance } from "./actions";
@@ -69,11 +70,13 @@ export default async function HoyPage({
 
   const { data: me } = await supabase
     .from("members")
-    .select("role, studios(name, timezone)")
+    .select("role, profiles(full_name), studios(name, timezone)")
     .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
   if (!me || !ADMIN_ROLES.includes(me.role)) redirect("/app");
+  const profRel = (me.profiles ?? null) as { full_name: string } | { full_name: string }[] | null;
+  const firstName = ((Array.isArray(profRel) ? profRel[0] : profRel)?.full_name ?? "").trim().split(/\s+/)[0] || "";
   const sRel = (me.studios ?? null) as { name: string; timezone: string | null } | { name: string; timezone: string | null }[] | null;
   const studio = Array.isArray(sRel) ? sRel[0] : sRel;
   const tz = studio?.timezone || DEFAULT_TZ;
@@ -138,17 +141,33 @@ export default async function HoyPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-4xl px-5 pb-16 pt-8 lg:px-8">
-      <PageHeader
-        title="Hoy"
-        subtitle={`${studio?.name ?? "Tu estudio"} · ${dayLabel}`}
-        icon={Sun}
-        stat={
-          <HeaderStat
-            value={`${occs.length} ${occs.length === 1 ? "clase" : "clases"}`}
-            caption={`${totalReservas} ${totalReservas === 1 ? "reserva" : "reservas"}`}
-          />
-        }
-      />
+      {me.role === "reception" ? (
+        /* recepción ATERRIZA acá → hero de bienvenida con la foto (patrón del panel);
+           el admin conserva la banda: su hero vive en Resumen */
+        <RoleHero
+          kicker={firstName ? `Hola, ${firstName}` : (studio?.name ?? "Tu estudio")}
+          title="Hoy"
+          subtitle={`${studio?.name ?? "Tu estudio"} · ${dayLabel}`}
+        >
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/90 px-3 py-1.5 text-xs font-semibold text-foreground backdrop-blur">
+            <Sun className="size-3.5 text-primary" aria-hidden />
+            {occs.length} {occs.length === 1 ? "clase" : "clases"} · {totalReservas}{" "}
+            {totalReservas === 1 ? "reserva" : "reservas"}
+          </span>
+        </RoleHero>
+      ) : (
+        <PageHeader
+          title="Hoy"
+          subtitle={`${studio?.name ?? "Tu estudio"} · ${dayLabel}`}
+          icon={Sun}
+          stat={
+            <HeaderStat
+              value={`${occs.length} ${occs.length === 1 ? "clase" : "clases"}`}
+              caption={`${totalReservas} ${totalReservas === 1 ? "reserva" : "reservas"}`}
+            />
+          }
+        />
+      )}
 
       {error ? (
         <p className="mt-5 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">

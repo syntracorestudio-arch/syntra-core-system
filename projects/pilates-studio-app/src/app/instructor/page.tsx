@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { setAttendance, markAllPresent, saveInstructorNote, reportIssue } from "./actions";
+import { RoleHero } from "@/components/shell/role-hero";
 
 export const metadata = { title: "Mis clases — Instructor" };
 export const dynamic = "force-dynamic";
@@ -249,16 +250,12 @@ export default async function InstructorPage({
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-5xl px-5 pb-16 pt-8 lg:px-8">
-      {/* header */}
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">{studio?.name ?? "Tu estudio"}</p>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Hola, {firstName(prof?.full_name)}
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Tus próximas clases y quiénes están anotados.</p>
-        </div>
-      </header>
+      {/* hero con la foto del estudio — mismo patrón aprobado del panel */}
+      <RoleHero
+        kicker={studio?.name ?? "Tu estudio"}
+        title={`Hola, ${firstName(prof?.full_name)}`}
+        subtitle="Tus próximas clases y quiénes están anotados."
+      />
 
       {notice ? (
         <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">{notice}</p>
