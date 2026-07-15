@@ -289,11 +289,29 @@ nosotros · faq · footer · **servicios (v5)**. Workflow vigente: **variantes v
   recortable sin sacrificar SSR/SEO de secciones. Re-medir en prod (Vercel/PSI) —
   con red real el grafo se despeja y el score debería acercarse a ~90.
 
+**Lighthouse en PROD (2026-07-15, syntra-core-system.vercel.app — post carrusel
+Nosotros + Contacto v3 + hero slab + leads Resend):**
+- Mobile **84** — CLS 0 · TBT 30ms · LCP 3.9s · SI 3.9s. (El 2026-07-13 prod
+  daba 87 con SI 2.6s: los ~3 pts los pagó el peso nuevo de la Home — carrusel
+  3D de Nosotros + panel image-led de Contacto. Esperable por web viva.)
+- Desktop **96** (LCP 1.3s · CLS 0).
+- Candidato de perf detectado: chunk de ~200KiB con **109KiB sin uso** en la
+  Home (probable carrusel/framer en bundle inicial) — recorte quirúrgico
+  pendiente si se quiere volver a ~87+.
+
+**Arco 2026-07-13/15 (merged):** carrusel cilíndrico 3D en Nosotros (PR #99,
+time-based, drag+hover, artefactos que actúan) · Contacto v3 (PR #105: panel
+image-led con foto vertical del owner + rail "Qué recibís") · footer alineado a
+retícula (#107) · hero capability slab (#86/#93) · **leads por email directo vía
+Resend — n8n FUERA del circuito de leads** (PR #110; template HTML marca, filas
+v1 + chips, reply-to al lead; recordar `RESEND_API_KEY`/`LEAD_NOTIFY_TO` en
+Vercel y apagar el workflow n8n). Re-locks al día: nosotros v4 · proceso v2.
+
 **Próxima acción:** a definir con el owner. Candidatos reales:
-- **Medir en prod (PageSpeed Insights)** tras el deploy del fix LCP para el número real.
-- **Re-lock de Proceso v2** (documentar el escenario evolutivo; el lock v1 describe el
-  cable eliminado).
+- **[MEDIA] Perf mobile 84→~88:** recortar el chunk 200KiB/109KiB sin uso de la
+  Home (code-split del carrusel de Nosotros bajo el fold).
 - **Redes sociales:** crear perfiles y completar `href` en `siteConfig.socialLinks`.
-- **Dominio `syntracore.dev`:** pendiente sin fecha (aún no comprado); prod sigue en
-  `syntra-core-system.vercel.app`.
+- **Dominio `syntracore.dev`:** pendiente sin fecha; además habilita enviar los
+  leads desde `hola@syntracore.dev` (hoy salen de onboarding@resend.dev).
+- **Apagar/archivar el workflow n8n de leads** (ya no recibe tráfico).
 - Hero `WEB-HERO-FUTURE` sigue FROZEN/DEFERRED.

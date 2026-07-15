@@ -2,91 +2,87 @@
 section: nosotros
 status: approved
 approved_by: "Matias / SYNTRA CORE (owner)"
-date: 2026-07-06
-decision: code-first con workflow de VARIANTES VIVAS (aprobación en navegador, en movimiento)
-supersedes: "v1 'Núcleo de Principios' (radial+orbe, rechazada 2026-07-02) · v2 'Manifiesto en Voz Alta' (tipográfica, rechazada 2026-07-06 en render real: espacio muerto, escala, apagado, colisiones de ghost words)"
+date: 2026-07-13
+decision: code-first con workflow de VARIANTES VIVAS (prototipo juzgado y calibrado EN VIVO por el owner en su navegador)
+supersedes: "v1 'Núcleo de Principios' (radial, rechazada) · v2 'Manifiesto' (tipográfica, rechazada) · v3 'Brasa' (grid 2×2 de cards premium, aprobada 2026-07-06 — su GRID sobrevive como fallback mobile/reduced-motion; sus tokens violeta/cyan murieron en el sweep 2026-07-09)"
 ---
 
-# Reference Lock — Nosotros v3 ("Brasa") — APROBADA E IMPLEMENTADA
+# Reference Lock — Nosotros v4 ("Carrusel cilíndrico 3D") — APROBADA E IMPLEMENTADA
 
-> Dirección elegida por el owner en el navegador (variantes vivas A/B en
-> `/dev/nosotros`, 2026-07-06) e iterada EN VIVO con su feedback hasta el
-> "ahora sí me gustó". Este lock documenta la dirección final construida.
+> El owner trajo la REFERENCIA él mismo (prompt externo de carrusel 3D de
+> tarjetas bancarias) y pidió adaptarlo a los 4 principios. Se construyó como
+> prototipo vivo y se calibró EN VIVO con ~10 iteraciones de su feedback
+> (tamaño, ritmo, legibilidad, drag). Merged en PR #99 (2026-07-13).
+> Lección que gobernó el cierre: el ritmo se calibra con MEDICIÓN REAL, no a
+> ojo — ver "Timing" abajo.
 
-## Lecciones que gobiernan este lock (de 2 rechazos previos)
+## Dirección final — deck cilíndrico vertical (CSS 3D, sin WebGL)
 
-1. **El gusto del owner = riqueza visible** (animaciones, 3D, imágenes, cards
-   premium — registro Raycast/Aceternity), NO minimalismo editorial. Memoria:
-   `owner-taste-vida-rich-visuals`.
-2. **Los gates visuales juzgan prototipos VIVOS en navegador**, nunca solo PNG.
-3. **Workflow variantes-vivas:** construir 2+ variantes reales con motion desde
-   el minuto uno → el owner elige viendo → se itera en vivo → el lock se firma
-   DESPUÉS documentando lo aprobado. (Reemplaza a "lock desde prosa".)
-4. Verificar SIEMPRE a 1920 además de 1440/390 (el owner ve 1920).
+- **Mecánica:** 4 cards (una por principio) en carrusel cilíndrico VERTICAL
+  con `perspective: 1350px` + `preserve-3d`. Una card al frente por vez; las
+  demás se disuelven (opacity) al salir del arco visible — nunca se ve el
+  "viaje" de recirculación (feedback owner). Espesor físico real: 5 slices
+  apiladas en Z (dorso con ghost-word + firma, NO texto espejado).
+- **Timing (time-based, NO frame-based):** el avance usa `dt` real →
+  **ciclo = 5.5s exactos en cualquier monitor**. Bug raíz que costó 4
+  iteraciones: el avance por frame corría 2.4× más rápido en monitores de
+  144Hz y pisaba las animaciones internas (que van en segundos). La secuencia
+  interna dispara al completarse el fade-in de la card (umbral |diff| < 0.46).
+- **Interacción:** tilt 3D por mouse con inercia (damping normalizado por dt)
+  · **hover = freno con RAMPA** (~400ms, nunca hard-stop; si agarra la card en
+  vuelo, un imán completa hasta el reposo) · **drag vertical con click** —
+  mapeo LINEAL 1:1 con blend suave hacia el easing magnético (sin latigazos por
+  la zona rápida del pow 4.2) + imán a la card más cercana al soltar ·
+  `setPointerCapture` blindado.
+- **Card (440×372, compacta):** icon-tile tintado + ghost label + contador
+  `0X / 04` · título · descripción · **stance** (pull-quote sobria con
+  borde-l del tema) · artefacto vivo (PillarVisual) · firma `SYNTRA CORE` ·
+  hairline de progreso del dwell al pie (se congela en hover).
+- **Artefactos v2 — ACTÚAN al llegar al frente (isFront, re-actúan por
+  ciclo):** POSTURA → los módulos se conectan (SVG pathLength) y un dato viaja
+  entre ellos · CRITERIO → la recomendación SE DECIDE en vivo (opciones
+  neutras → highlight recorre → check dorado + las otras se atenúan a 0.8,
+  legibles) · CERCANÍA → la respuesta LLEGA (typing → palabras en stagger,
+  burbuja de tamaño fijo) · COMPROMISO → la ruta se dibuja hasta "lanzamiento",
+  FRENA, y SIGUE (el stop-and-continue es el mensaje).
+- **Copy (tono profesional, sin sonar a IA):** títulos/descripciones/stances
+  en `site.ts#aboutPillars` — p. ej. CRITERIO "Te decimos también lo que no
+  conviene" / stance "Preferimos recomendar menos y que sea lo correcto".
+- **Fallback:** mobile (<lg) y reduced-motion conservan el **grid 2×2 de v3**
+  (cards premium con spotlight) — el carrusel es progressive enhancement.
 
-## Dirección final — "Brasa" (vida por capas)
+## Paleta (post-sweep no-violeta/cyan 2026-07-09)
 
-- **Capa 1 — Atmósfera generada:** imagen AI (Pollinations/Flux) de nebulosa
-  cálida sobre navy (`public/backgrounds/nosotros-atmosphere.jpg`, 25KB),
-  opacity 0.75 + máscara radial. La sección es **la cálida** de la Home.
-- **Capa 2 — Brasas:** canvas de partículas ámbar en deriva ascendente lenta
-  (NO interactivas — diferenciadas del campo azul gravitacional de Contacto).
-  Pausa por IntersectionObserver; reduced-motion → sin canvas.
-- **Capa 3 — Cards premium** (anatomía Raycast/Resend, refs en
-  `assets/nosotros-v2/ref-raycast-features.jpeg` y `ref-resend-cards2.jpeg`):
-  borde gradiente cenital (p-px) · cuerpo gradiente TRASLÚCIDO + backdrop-blur
-  (la atmósfera se filtra) · campo de color propio al pie · icon-tile tintado ·
-  spotlight de hover que sigue el cursor EN EL COLOR de la card · lift+sombra.
-- **Artefactos visuales por principio** (contenido REAL, no skeletons —
-  microcopy content-driven en `site.ts#aboutPillarVisuals`):
-  · POSTURA → módulos con ícono+nombre (web·sistema·datos), central flotando
-  · CRITERIO → recomendación legible: "Web con turnos online — te sirve hoy" ✓
-    vs "App a medida — de más, por ahora" / "E-commerce — todavía no"
-  · CERCANÍA → chat real: pregunta del cliente + avatar SC + typing latiendo
-  · COMPROMISO → ruta neón: se dibuja → nodo "lanzamiento" → pulso que SIGUE
-    viajando → chip "seguimos con vos"
-- **Layout:** header editorial izquierda · cards 2×2 con **columnas
-  escalonadas** (derecha baja medio paso → costuras diagonales muestran la
-  atmósfera) · statement clímax con "SYNTRA" en gradiente warm + subrayado que
-  se dibuja.
-- **Motion:** reveals escalonados (blur+y, `EASE_PREMIUM`, once) + loops suaves
-  gated por `useInView` (flotación, shimmer, typing, pulso). NO scroll-scrub.
-
-## Paleta — excepción declarada (per-card, con semántica de tokens)
-
-Cada card usa SU token de marca con significado literal:
-- POSTURA = **electric** #3b82f6 (construcción/web) · CRITERIO = **warm**
-  #e7c8a0 (criterio humano) · CERCANÍA = **accent-ai** #6d5dfb (conversación
-  viva) · COMPROMISO = **cyan** #38bdf8 (**HECHO/resultado** — "que siga dando
-  resultados" es semántica de resultado, uso justificado del token reservado).
-Límites: color solo en glows/bordes/artefactos de su card; texto de cuerpo
-muted; base slate intacta. Aprobado por el owner en render vivo.
+`PILLAR_THEME`: POSTURA electric #3b82f6 · CRITERIO warm #e7c8a0 · CERCANÍA
+electric claro #60a5fa · COMPROMISO warm #e7c8a0 (resultado = dorado). Cero
+violeta/cyan. Atmósfera cálida de fondo (v3) intacta detrás del carrusel.
 
 ## Archivos
 
-- `src/components/sections/about-section.tsx` (wrapper del contrato de la Home)
-- `src/components/marketing/aplicaciones/nosotros/nosotros-section.tsx`
-- `.../nosotros/{spotlight-card,pillar-visual,ember-particles,statement-text}.tsx`
-- `src/config/site.ts` → `aboutPillars` (+ ghost) · `aboutPillarVisuals`
-- `public/backgrounds/nosotros-atmosphere.jpg`
+- `src/components/marketing/aplicaciones/nosotros/nosotros-carousel-3d.tsx`
+  (mecánica completa: CYCLE_S, step(), drag, snap, rampa de hover)
+- `.../nosotros/pillar-visual.tsx` (artefactos v2 con isFront + secuencias)
+- `.../nosotros/nosotros-section.tsx` (decider carrusel/grid)
+- `src/config/site.ts` → `aboutPillars` (+stance) · `aboutPillarVisuals`
+  (+answer/answeredLabel de cercanía, tags de criterio diferenciados)
+- `src/types/index.ts` → `AboutPillar.stance` · visuales de cercanía
 
-## Criterios binarios (verificados en render vivo 1920 + QA)
+## Criterios binarios (verificados en vivo por el owner + QA)
 
-- [x] Vida visible: imagen + partículas + loops + hover interactivo (sin 3D
-      pesado; WebGL no necesario acá).
-- [x] Cards con artefacto de contenido REAL (texto/íconos), cero skeletons.
-- [x] Color e identidad propia por card (anatomía Raycast) dentro de tokens.
-- [x] Atmósfera visible alrededor/entre/a través de las cards (stagger+blur).
-- [x] Diferenciación: brasas ≠ partículas de Contacto; sin orbe; sin clon de
-      Proceso; statement clímax se mantiene.
-- [x] Honestidad: la recomendación de CRITERIO es ilustrativa (declarada en
-      site.ts), sin clientes/métricas inventadas.
-- [x] reduced-motion safe (canvas off; framer via MotionConfig user) · loops
-      pausan fuera de viewport · solo transform/opacity/pathLength → CLS 0.
-- [x] `tsc`/`lint`/`build` verdes · 0 errores de consola · imagen 25KB.
+- [x] Una card protagonista por vez; el resto se disuelve (no hay "viaje"
+      visible de recirculación ni card de fondo asomando).
+- [x] El pase NUNCA interrumpe la historia interna: secuencia completa
+      (~4.5s) + beat de lectura antes de que arranque la salida — en
+      cualquier refresh rate (time-based).
+- [x] Hover frena con rampa suave; drag arrastra sin brusquedad; al soltar
+      asienta en una card.
+- [x] Textos AA legibles incluso en opciones "apagadas" (Criterio a 0.8).
+- [x] Copy profesional sobrio (sin aforismos IA); stance por principio.
+- [x] Mobile/reduced-motion = grid v3 completo; CLS 0; solo transform/opacity;
+      loop pausado fuera de viewport (IntersectionObserver).
+- [x] Sin violeta/cyan; warm = resultado; consola 0 errores; tsc/lint/build ✓.
 
 ## Owner approval
 
-**Aprobada por el owner en navegador (variantes vivas + 3 iteraciones de
-feedback en vivo), 2026-07-06.** Pipeline restante: capturas finales → commit
-atómico → PR → merge manual del owner.
+**Aprobada por el owner en navegador tras calibración en vivo (tamaño → ritmo
+→ medición time-based → legibilidad → drag), 2026-07-13. Merged PR #99.**
