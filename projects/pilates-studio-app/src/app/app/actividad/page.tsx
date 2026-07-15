@@ -8,8 +8,11 @@ import {
   CalendarDays,
   Hourglass,
   Sparkles,
+  Flame,
+  Trophy,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { computeStreak } from "@/lib/streak";
 import { cancelReservation, leaveWaitlist } from "../actions";
 
 export const metadata = { title: "Mi actividad" };
@@ -73,8 +76,8 @@ export default async function ActividadPage({
   const tz = (Array.isArray(sRel) ? sRel[0] : sRel)?.timezone || DEFAULT_TZ;
   const nowIso = new Date().toISOString();
 
-  // Reservas activas futuras + waitlist + historial (RLS: propias)
-  const [{ data: bookedRaw }, { data: waitRaw }, { data: histRaw }] = await Promise.all([
+  // Reservas activas futuras + waitlist + historial + asistidas para la racha (RLS: propias)
+  const [{ data: bookedRaw }, { data: waitRaw }, { data: histRaw }, { data: attendedRaw }] = await Promise.all([
     supabase
       .from("class_reservations")
       .select("id, occurrence_id, promoted, class_occurrences(starts_at, classes(name, instructor_name))")
@@ -88,6 +91,12 @@ export default async function ActividadPage({
       .select("id, status, created_at, class_occurrences(starts_at, classes(name))")
       .order("created_at", { ascending: false })
       .limit(60),
+    supabase
+      .from("class_reservations")
+      .select("class_occurrences(starts_at)")
+      .eq("status", "attended")
+      .order("created_at", { ascending: false })
+      .limit(200),
   ]);
 
   const upcoming = ((bookedRaw ?? []) as { id: string; occurrence_id: string; promoted: boolean | null; class_occurrences: OccRel | OccRel[] | null }[])
@@ -129,6 +138,12 @@ export default async function ActividadPage({
     .filter((r) => r.startsAt && (r.status !== "booked" || (r.startsAt as string) < nowIso))
     .sort((a, b) => ((a.startsAt as string) < (b.startsAt as string) ? 1 : -1));
 
+  // Racha: semanas seguidas con al menos una asistencia (motiva la constancia)
+  const attendedIsos = ((attendedRaw ?? []) as { class_occurrences: OccRel | OccRel[] | null }[])
+    .map((r) => relOcc(r.class_occurrences)?.starts_at)
+    .filter((s): s is string => Boolean(s));
+  const streak = computeStreak(attendedIsos, tz, nowIso);
+
   const attended = history.filter((r) => r.status === "attended").length;
   const noShows = history.filter((r) => r.status === "no_show").length;
   const monthKey = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit" })
@@ -145,7 +160,7 @@ export default async function ActividadPage({
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Mi actividad</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {attended > 0
-              ? `${attended} ${attended === 1 ? "clase tomada" : "clases tomadas"}${attendedMonth > 0 ? ` · ${attendedMonth} este mes` : ""}${noShows > 0 ? ` · ${noShows} ${noShows === 1 ? "ausencia" : "ausencias"}` : ""}`
+              ? `${attended} ${attended === 1 ? "clase tomada" : "clases tomadas"}${noShows > 0 ? ` · ${noShows} ${noShows === 1 ? "ausencia" : "ausencias"}` : ""}`
               : "Tus reservas, tu lista de espera y tu historial."}
           </p>
         </div>
@@ -153,6 +168,58 @@ export default async function ActividadPage({
           <CalendarCheck className="size-5" aria-hidden />
         </span>
       </header>
+
+      {/* constancia: la racha convierte asistir en un juego que el alumno no quiere cortar */}
+      {attended > 0 ? (
+        <dl className="mt-5 grid grid-cols-3 gap-3">
+          <div
+            className={`rounded-xl border px-4 py-3 shadow-sm duration-500 animate-in fade-in slide-in-from-bottom-2 [animation-fill-mode:backwards] ${
+              streak.current >= 2 ? "border-primary/25 bg-primary/5" : "border-border bg-card"
+            }`}
+          >
+            <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Flame className={`size-3.5 ${streak.current >= 2 ? "text-primary" : ""}`} aria-hidden />
+              Racha
+            </dt>
+            <dd className="mt-0.5 text-xl font-bold tabular-nums text-foreground">
+              {streak.current}
+              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                {streak.current === 1 ? "semana" : "semanas"}
+              </span>
+            </dd>
+          </div>
+          <div
+            style={{ animationDelay: "60ms" }}
+            className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm duration-500 animate-in fade-in slide-in-from-bottom-2 [animation-fill-mode:backwards]"
+          >
+            <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Trophy className="size-3.5" aria-hidden />
+              Tu récord
+            </dt>
+            <dd className="mt-0.5 text-xl font-bold tabular-nums text-foreground">
+              {streak.best}
+              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                {streak.best === 1 ? "semana" : "semanas"}
+              </span>
+            </dd>
+          </div>
+          <div
+            style={{ animationDelay: "120ms" }}
+            className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm duration-500 animate-in fade-in slide-in-from-bottom-2 [animation-fill-mode:backwards]"
+          >
+            <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+              <CheckCircle2 className="size-3.5" aria-hidden />
+              Este mes
+            </dt>
+            <dd className="mt-0.5 text-xl font-bold tabular-nums text-foreground">
+              {attendedMonth}
+              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                {attendedMonth === 1 ? "clase" : "clases"}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      ) : null}
 
       {notice ? (
         <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">{notice}</p>

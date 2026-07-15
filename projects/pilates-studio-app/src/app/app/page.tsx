@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
-import { CalendarDays, Wallet, AlertCircle, Sparkles } from "lucide-react";
+import { CalendarDays, Wallet, AlertCircle, Sparkles, Flame, Clock3 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ClassCard, type ClassCardData } from "@/components/calendar/class-card";
 import { buttonClass } from "@/components/ui/button";
+import { computeStreak, habitualSlot, WEEKDAY_LABEL, localDateOf } from "@/lib/streak";
+import { reserve } from "./actions";
 
 export const metadata = { title: "Reservá tu clase" };
 export const dynamic = "force-dynamic";
@@ -114,11 +116,34 @@ export default async function AppPage({
   // Ocurrencias de los próximos 8 días (RLS: las de mi estudio)
   const { data: occ } = await supabase
     .from("class_occurrences")
-    .select("id, starts_at, capacity, booked_count, classes(name, instructor_name, duration_min)")
+    .select("id, class_id, starts_at, capacity, booked_count, classes(name, instructor_name, duration_min)")
     .eq("status", "scheduled")
     .gte("starts_at", nowIso)
     .lt("starts_at", endIso)
     .order("starts_at", { ascending: true });
+
+  // Asistencias pasadas → racha + "tu horario" (la franja que más repite; RLS propias)
+  const { data: attendedRaw } = await supabase
+    .from("class_reservations")
+    .select("class_occurrences(class_id, starts_at, classes(name))")
+    .eq("status", "attended")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  type AttRel = {
+    class_id: string;
+    starts_at: string;
+    classes: { name: string } | { name: string }[] | null;
+  };
+  const attendedRows = ((attendedRaw ?? []) as { class_occurrences: AttRel | AttRel[] | null }[])
+    .map((r) => (Array.isArray(r.class_occurrences) ? r.class_occurrences[0] : r.class_occurrences))
+    .filter((o): o is AttRel => Boolean(o))
+    .map((o) => ({
+      classId: o.class_id,
+      className: (Array.isArray(o.classes) ? o.classes[0] : o.classes)?.name ?? "Clase",
+      startsAt: o.starts_at,
+    }));
+  const streak = computeStreak(attendedRows.map((r) => r.startsAt), tz, nowIso);
+  const habitual = habitualSlot(attendedRows, tz);
 
   // Mis reservas activas + mi waitlist (RLS: propias)
   const { data: myRes } = await supabase
@@ -138,6 +163,25 @@ export default async function AppPage({
   const waitPosByOcc = new Map(
     ((myWait ?? []) as { occurrence_id: string; position: number }[]).map((w) => [w.occurrence_id, w.position]),
   );
+
+  // Próxima ocurrencia de "tu horario" con lugar y sin reserva mía → reservar en 1 toque
+  const habitualNext = habitual
+    ? ((occ ?? []) as { id: string; class_id: string; starts_at: string; capacity: number; booked_count: number }[]).find(
+        (o) => {
+          if (o.class_id !== habitual.classId) return false;
+          if (resByOcc.has(o.id) || waitPosByOcc.has(o.id)) return false;
+          if (o.booked_count >= o.capacity) return false;
+          const local = tzParts(o.starts_at, tz);
+          const wd = new Date(`${local.date}T12:00:00Z`).getUTCDay();
+          return wd === habitual.weekday && local.time === habitual.time;
+        },
+      ) ?? null
+    : null;
+  const habitualNextLabel = habitualNext
+    ? new Intl.DateTimeFormat("es-AR", { timeZone: tz, weekday: "long", day: "numeric" }).format(
+        new Date(habitualNext.starts_at),
+      )
+    : null;
 
   // Política de cancelación del estudio (el alumno no lee settings por RLS → server).
   const adminDb = createAdminClient();
@@ -234,18 +278,27 @@ export default async function AppPage({
             {studio?.name ?? "Tu estudio"}
           </h1>
         </div>
-        {/* saldo a mano en mobile (en desktop vive en el sidebar) */}
-        <a
-          href="/app/comprar"
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors lg:hidden ${
-            !hasMembership && credits === 0
-              ? "border-warning/40 bg-warning/10 text-foreground"
-              : "border-border bg-card text-foreground hover:bg-secondary"
-          }`}
-        >
-          <Sparkles className="size-3.5 text-primary" aria-hidden />
-          {saldoChip}
-        </a>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* racha: constancia visible sin invadir (solo con 2+ semanas al hilo) */}
+          {streak.current >= 2 ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary-ink">
+              <Flame className="size-3.5" aria-hidden />
+              {streak.current} semanas al hilo
+            </span>
+          ) : null}
+          {/* saldo a mano en mobile (en desktop vive en el sidebar) */}
+          <a
+            href="/app/comprar"
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors lg:hidden ${
+              !hasMembership && credits === 0
+                ? "border-warning/40 bg-warning/10 text-foreground"
+                : "border-border bg-card text-foreground hover:bg-secondary"
+            }`}
+          >
+            <Sparkles className="size-3.5 text-primary" aria-hidden />
+            {saldoChip}
+          </a>
+        </div>
       </header>
 
       {/* avisos */}
@@ -274,6 +327,28 @@ export default async function AppPage({
             <Wallet className="size-4" aria-hidden />
             Comprar
           </a>
+        </div>
+      ) : null}
+
+      {/* "tu horario": la franja que más repite, con lugar → reservar sin buscar */}
+      {habitualNext && habitual && (hasMembership || credits > 0) ? (
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 duration-500 animate-in fade-in slide-in-from-bottom-2">
+          <p className="flex items-center gap-2 text-sm text-foreground">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+              <Clock3 className="size-4" aria-hidden />
+            </span>
+            <span>
+              <span className="font-semibold">Tu horario:</span> {habitual.className} · {WEEKDAY_LABEL[habitual.weekday]}{" "}
+              {habitual.time}
+            </span>
+          </p>
+          <form action={reserve}>
+            <input type="hidden" name="occ" value={habitualNext.id} />
+            <input type="hidden" name="day" value={localDateOf(habitualNext.starts_at, tz)} />
+            <button type="submit" className={buttonClass("primary", "sm")}>
+              Reservar el {habitualNextLabel}
+            </button>
+          </form>
         </div>
       ) : null}
 
