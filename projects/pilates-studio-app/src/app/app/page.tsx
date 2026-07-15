@@ -1,11 +1,9 @@
 import { redirect } from "next/navigation";
-import { LogOut, CalendarDays, LayoutGrid, Wallet, CalendarCheck, Sparkles, UserRound, CalendarPlus, AlertCircle, BellRing, X } from "lucide-react";
+import { CalendarDays, Wallet, AlertCircle, Sparkles } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { cancelReservation, markNotificationRead } from "./actions";
 import { ClassCard, type ClassCardData } from "@/components/calendar/class-card";
 import { buttonClass } from "@/components/ui/button";
-import { SuspendedScreen } from "@/components/suspended-screen";
 
 export const metadata = { title: "Reservá tu clase" };
 export const dynamic = "force-dynamic";
@@ -66,12 +64,6 @@ export default async function AppPage({
   const studioRel = (member?.studios ?? null) as StudioRel | StudioRel[] | null;
   const studio = Array.isArray(studioRel) ? studioRel[0] : studioRel;
   const tz = studio?.timezone || DEFAULT_TZ;
-  const isStaff = member?.role === "admin" || member?.role === "reception";
-
-  // Estudio suspendido (Fase 5): la app del alumno queda en pausa.
-  if (studio?.status === "suspended") {
-    return <SuspendedScreen studioName={studio.name} audience="member" />;
-  }
 
   const now = new Date();
   const nowIso = now.toISOString();
@@ -119,24 +111,6 @@ export default async function AppPage({
     ? new Intl.DateTimeFormat("es-AR", { timeZone: tz, day: "numeric", month: "long" }).format(new Date(nearestExpiry))
     : "";
 
-  // Avisos dirigidos al alumno (RLS select_own): p. ej. promoción de lista de espera.
-  const { data: notifRows } = await supabase
-    .from("notifications")
-    .select("id, title, body, link")
-    .is("read_at", null)
-    .not("member_id", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(3);
-  const myNotifications = (notifRows ?? []) as { id: string; title: string; body: string | null; link: string | null }[];
-
-  // Contador motivacional: clases asistidas en el año (RLS: solo las propias)
-  const { count: attendedCount } = await supabase
-    .from("class_reservations")
-    .select("id, class_occurrences!inner(starts_at)", { count: "exact", head: true })
-    .eq("status", "attended")
-    .gte("class_occurrences.starts_at", `${todayDate.slice(0, 4)}-01-01T00:00:00Z`);
-  const attendedYear = attendedCount ?? 0;
-
   // Ocurrencias de los próximos 8 días (RLS: las de mi estudio)
   const { data: occ } = await supabase
     .from("class_occurrences")
@@ -178,33 +152,6 @@ export default async function AppPage({
     new Intl.DateTimeFormat("es-AR", { timeZone: tz, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
       .format(new Date(iso))
       .replace(/\./g, "");
-
-  // Próxima clase reservada (occ viene ordenado por starts_at asc)
-  const nextBookedOcc = (occ ?? []).find((o) => resByOcc.has(o.id as string));
-  const nextBooked = nextBookedOcc
-    ? (() => {
-        const { date, time } = tzParts(nextBookedOcc.starts_at as string, tz);
-        const klass = (Array.isArray(nextBookedOcc.classes) ? nextBookedOcc.classes[0] : nextBookedOcc.classes) as
-          | { name: string; instructor_name: string | null }
-          | null;
-        const todayKey = tzParts(new Date().toISOString(), tz).date;
-        const dayLabel =
-          date === todayKey
-            ? "Hoy"
-            : new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(
-                new Date(`${date}T12:00:00Z`),
-              );
-        return {
-          dayLabel,
-          time,
-          name: klass?.name ?? "Clase",
-          instructor: klass?.instructor_name ?? null,
-          date,
-          occurrenceId: nextBookedOcc.id as string,
-          reservationId: resByOcc.get(nextBookedOcc.id as string) as string,
-        };
-      })()
-    : null;
 
   // Agrupar ocurrencias por día local
   const byDay = new Map<string, ClassCardData[]>();
@@ -262,13 +209,11 @@ export default async function AppPage({
     month: "long",
   }).format(now);
 
-  const saldoText = hasMembership
+  const saldoChip = hasMembership
     ? "Abono activo"
-    : credits > 1
-      ? `Te quedan ${credits} clases`
-      : credits === 1
-        ? "Te queda 1 clase"
-        : "Sin créditos";
+    : credits === 1
+      ? "1 clase"
+      : `${credits} clases`;
 
   const selLabel = new Intl.DateTimeFormat("es-AR", {
     timeZone: "UTC",
@@ -277,13 +222,10 @@ export default async function AppPage({
     month: "long",
   }).format(new Date(selected + "T12:00:00Z"));
 
-  const weekTotal = (occ ?? []).length;
-  const reservedCount = (myRes ?? []).length;
-
   return (
-    <main className="canvas-aurora mx-auto min-h-dvh w-full max-w-5xl px-5 pb-16 pt-8 lg:px-8">
-      {/* header — banda cálida que ancla la página */}
-      <header className="flex items-center justify-between gap-4 rounded-3xl border border-border bg-gradient-to-br from-accent/70 via-card to-card p-5 shadow-sm sm:p-6">
+    <main className="mx-auto min-h-dvh w-full max-w-3xl px-5 pb-16 pt-8 lg:px-8">
+      {/* header — banda cálida que ancla la página (cuenta/salir viven en el shell) */}
+      <header className="flex items-center justify-between gap-4 rounded-3xl border border-border bg-gradient-to-br from-accent/70 via-card to-card p-5 shadow-sm duration-500 animate-in fade-in slide-in-from-bottom-2 sm:p-6">
         <div>
           <p className="text-sm text-muted-foreground">
             Hola, {firstName} · {todayLabel}
@@ -292,33 +234,18 @@ export default async function AppPage({
             {studio?.name ?? "Tu estudio"}
           </h1>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {isStaff ? (
-            <a
-              href="/admin"
-              className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-            >
-              <LayoutGrid className="size-3.5" aria-hidden />
-              Panel
-            </a>
-          ) : null}
-          <a
-            href="/cuenta"
-            aria-label="Mi cuenta"
-            className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
-          >
-            <UserRound className="size-3.5" aria-hidden />
-            <span className="hidden sm:inline">Mi cuenta</span>
-          </a>
-          <a
-            href="/logout"
-            aria-label="Cerrar sesión"
-            className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
-          >
-            <LogOut className="size-3.5" aria-hidden />
-            Salir
-          </a>
-        </div>
+        {/* saldo a mano en mobile (en desktop vive en el sidebar) */}
+        <a
+          href="/app/comprar"
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors lg:hidden ${
+            !hasMembership && credits === 0
+              ? "border-warning/40 bg-warning/10 text-foreground"
+              : "border-border bg-card text-foreground hover:bg-secondary"
+          }`}
+        >
+          <Sparkles className="size-3.5 text-primary" aria-hidden />
+          {saldoChip}
+        </a>
       </header>
 
       {/* avisos */}
@@ -333,212 +260,84 @@ export default async function AppPage({
         </p>
       ) : null}
 
-      {/* avisos dirigidos al alumno (waitlist promovida, etc.) */}
-      {myNotifications.map((n) => (
-        <div
-          key={n.id}
-          className="mt-5 flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3"
-        >
-          <BellRing className="mt-0.5 size-4 shrink-0 text-primary-ink" aria-hidden />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">{n.title}</p>
-            {n.body ? <p className="mt-0.5 text-sm text-muted-foreground">{n.body}</p> : null}
-            {n.link ? (
-              <a href={n.link} className="mt-1 inline-block text-xs font-semibold text-primary-ink hover:underline">
-                ver la clase →
-              </a>
-            ) : null}
-          </div>
-          <form action={markNotificationRead}>
-            <input type="hidden" name="id" value={n.id} />
-            <input type="hidden" name="day" value={day ?? ""} />
-            <button
-              type="submit"
-              aria-label="Marcar como leída"
-              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <X className="size-4" aria-hidden />
-            </button>
-          </form>
+      {/* Nudge de recompra: solo lo que el saldo del shell NO dice ya (saldo al límite o
+          pack por vencer). Con saldo 0 el widget "Sin créditos" + su CTA cubren el caso. */}
+      {!hasMembership && credits > 0 && (credits === 1 || expiresSoon) ? (
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3">
+          <p className="flex items-center gap-2 text-sm text-foreground">
+            <AlertCircle className="size-4 shrink-0 text-warning" aria-hidden />
+            {credits === 1
+              ? `Te queda 1 clase.${expiresSoon ? ` Y tu pack vence el ${expiryLabel}.` : ""}`
+              : `Tu pack vence el ${expiryLabel} — te quedan ${credits} clases.`}
+          </p>
+          <a href="/app/comprar" className={buttonClass("primary", "sm")}>
+            <Wallet className="size-4" aria-hidden />
+            Comprar
+          </a>
         </div>
-      ))}
+      ) : null}
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
-        {/* resumen lateral (arriba en mobile, columna derecha en desktop) */}
-        <aside className="order-1 grid gap-3 lg:order-2 lg:sticky lg:top-8">
-          {/* saldo = héroe del aside */}
-          <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-5 shadow-raised">
-            <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-primary">
-                <Sparkles className="size-3.5" aria-hidden />
-              </span>
-              Tu saldo
-            </p>
-            <p
-              className={`mt-2 text-2xl font-bold ${
-                !hasMembership && credits === 0 ? "text-destructive" : "text-foreground"
-              }`}
-            >
-              {saldoText}
-            </p>
-            {!hasMembership && credits > 0 && nearestExpiry ? (
-              expiresSoon || credits === 1 ? (
-                <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-warning">
-                  <AlertCircle className="size-3.5 shrink-0" aria-hidden />
-                  {credits === 1 ? "Es tu última clase" : `Vencen el ${expiryLabel}`}
-                  {credits === 1 && expiresSoon ? ` — vence el ${expiryLabel}.` : "."}
-                </p>
-              ) : (
-                <p className="mt-1 text-xs text-muted-foreground">Vencen el {expiryLabel}.</p>
-              )
-            ) : null}
-            {!hasMembership && credits === 0 ? (
-              <p className="mt-1 text-xs text-muted-foreground">Comprá un pack para empezar a reservar.</p>
-            ) : null}
-            <a href="/app/comprar" className={buttonClass("primary", "sm", "mt-3 w-full")}>
-              <Wallet className="size-4" aria-hidden />
-              Comprar
-            </a>
-          </div>
-
-          {/* próxima clase reservada */}
-          {nextBooked ? (
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <span className="flex size-7 items-center justify-center rounded-full bg-success/15 text-success">
-                  <CalendarCheck className="size-3.5" aria-hidden />
-                </span>
-                Tu próxima clase
-              </p>
-              <p className="mt-2 text-lg font-bold text-foreground">
-                {nextBooked.name} · {nextBooked.time}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {nextBooked.dayLabel.charAt(0).toUpperCase() + nextBooked.dayLabel.slice(1)}
-              </p>
-              {nextBooked.instructor ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">con {nextBooked.instructor}</p>
-              ) : null}
-              {/* accionable: calendario del teléfono · ver el día · cancelar (sin buscarla en la grilla) */}
-              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+      {/* selector de día — protagonista, full width */}
+      <nav className="-mx-5 mt-6 px-5 lg:mx-0 lg:px-0">
+        <ul className="no-scrollbar flex gap-2 overflow-x-auto sm:grid sm:grid-cols-7 sm:overflow-visible">
+          {strip.map((d) => {
+            const active = d.key === selected;
+            const has = byDay.has(d.key);
+            return (
+              <li key={d.key} className="shrink-0 sm:shrink">
                 <a
-                  href={`/app/calendario/${nextBooked.occurrenceId}`}
-                  className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary"
+                  href={`/app?day=${d.key}`}
+                  className={`flex w-14 flex-col items-center rounded-xl border px-3 py-2.5 transition-colors sm:w-full ${
+                    active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-foreground hover:bg-secondary"
+                  }`}
                 >
-                  <CalendarPlus className="size-3" aria-hidden />
-                  Agendar
-                </a>
-                <a
-                  href={`/app?day=${nextBooked.date}`}
-                  className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary"
-                >
-                  ver el día
-                </a>
-                <form action={cancelReservation} className="ml-auto">
-                  <input type="hidden" name="res" value={nextBooked.reservationId} />
-                  <input type="hidden" name="day" value={nextBooked.date} />
-                  <button
-                    type="submit"
-                    className="text-[11px] font-medium text-muted-foreground transition-colors hover:text-destructive"
-                  >
-                    Cancelar
-                  </button>
-                </form>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-            <p className="text-xs font-medium text-muted-foreground">Tu semana</p>
-            <dl className="mt-2 grid gap-1.5 text-sm">
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">Clases disponibles</dt>
-                <dd className="font-semibold tabular-nums text-foreground">{weekTotal}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">Tus reservas</dt>
-                <dd className="font-semibold tabular-nums text-foreground">{reservedCount}</dd>
-              </div>
-              {attendedYear > 0 ? (
-                <div className="flex items-center justify-between">
-                  <dt className="text-muted-foreground">Clases este año</dt>
-                  <dd className="font-semibold tabular-nums text-foreground">{attendedYear}</dd>
-                </div>
-              ) : null}
-            </dl>
-            <a
-              href="/app/historial"
-              className="mt-3 inline-block text-xs font-semibold text-primary-ink hover:underline"
-            >
-              ver mi historial →
-            </a>
-          </div>
-        </aside>
-
-        {/* columna principal: selector de día + clases */}
-        <div className="order-2 lg:order-1">
-          {/* selector de día */}
-          <nav className="-mx-5 px-5 lg:mx-0 lg:px-0">
-            <ul className="no-scrollbar flex gap-2 overflow-x-auto sm:grid sm:grid-cols-7 sm:overflow-visible">
-              {strip.map((d) => {
-                const active = d.key === selected;
-                const has = byDay.has(d.key);
-                return (
-                  <li key={d.key} className="shrink-0 sm:shrink">
-                    <a
-                      href={`/app?day=${d.key}`}
-                      className={`flex w-14 flex-col items-center rounded-xl border px-3 py-2.5 transition-colors sm:w-full ${
-                        active
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-card text-foreground hover:bg-secondary"
-                      }`}
-                    >
-                      <span className="text-[11px] capitalize">
-                        {d.isToday ? "Hoy" : d.weekday}
-                      </span>
-                      <span className="text-base font-bold">{d.dayNum}</span>
-                      <span
-                        className={`mt-1 size-1.5 rounded-full ${
-                          has
-                            ? active
-                              ? "bg-primary-foreground"
-                              : "bg-primary"
-                            : "bg-transparent"
-                        }`}
-                        aria-hidden
-                      />
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-
-          {/* clases del día */}
-          <section className="mt-6">
-            <h2 className="text-base font-semibold capitalize text-foreground">{selLabel}</h2>
-            <div className="mt-3 grid gap-3">
-              {dayCards.length > 0 ? (
-                dayCards.map((c) => (
-                  <ClassCard
-                    key={c.occurrenceId}
-                    data={c}
-                    day={selected}
-                    showCreditHint={!hasMembership && credits > 0}
+                  <span className="text-[11px] capitalize">
+                    {d.isToday ? "Hoy" : d.weekday}
+                  </span>
+                  <span className="text-base font-bold">{d.dayNum}</span>
+                  <span
+                    className={`mt-1 size-1.5 rounded-full ${
+                      has
+                        ? active
+                          ? "bg-primary-foreground"
+                          : "bg-primary"
+                        : "bg-transparent"
+                    }`}
+                    aria-hidden
                   />
-                ))
-              ) : (
-                <div className="rounded-2xl border border-dashed border-border bg-card/60 px-6 py-12 text-center">
-                  <CalendarDays className="mx-auto size-6 text-muted-foreground" aria-hidden />
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    No hay clases este día. Probá con otro.
-                  </p>
-                </div>
-              )}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* clases del día */}
+      <section className="mt-6">
+        <h2 className="text-base font-semibold capitalize text-foreground">{selLabel}</h2>
+        <div className="mt-3 grid gap-3">
+          {dayCards.length > 0 ? (
+            dayCards.map((c, i) => (
+              <div
+                key={c.occurrenceId}
+                style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+                className="duration-500 animate-in fade-in slide-in-from-bottom-2 [animation-fill-mode:backwards]"
+              >
+                <ClassCard data={c} day={selected} showCreditHint={!hasMembership && credits > 0} />
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-border bg-card/60 px-6 py-12 text-center">
+              <CalendarDays className="mx-auto size-6 text-muted-foreground" aria-hidden />
+              <p className="mt-3 text-sm text-muted-foreground">
+                No hay clases este día. Probá con otro.
+              </p>
             </div>
-          </section>
+          )}
         </div>
-      </div>
+      </section>
     </main>
   );
 }

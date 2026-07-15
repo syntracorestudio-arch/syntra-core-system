@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import {
-  ArrowLeft,
   Ticket,
   Clock3,
   CheckCircle2,
@@ -9,6 +7,7 @@ import {
   Wallet,
   Infinity as InfinityIcon,
   CalendarClock,
+  Sparkles,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -16,14 +15,14 @@ import { startCheckout } from "./actions";
 import { BuyButton } from "./buy-button";
 import { SuspendedScreen } from "@/components/suspended-screen";
 
-export const metadata = { title: "Comprar" };
+export const metadata = { title: "Mi saldo" };
 export const dynamic = "force-dynamic";
 
 function money(n: number) {
   return `$${Number(n).toLocaleString("es-AR")}`;
 }
 
-type StudioRel = { name: string; status: string };
+type StudioRel = { name: string; status: string; timezone: string | null };
 type Pass = { id: string; name: string; credits: number; validity_days: number; price: number };
 type PlanConcept = "membership" | "abono" | "drop_in";
 type Plan = { id: string; name: string; concept: PlanConcept; price: number; duration_days: number | null };
@@ -49,7 +48,7 @@ export default async function ComprarPage({
 
   const { data: member } = await supabase
     .from("members")
-    .select("studio_id, studios(name, status)")
+    .select("studio_id, studios(name, status, timezone)")
     .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -61,6 +60,39 @@ export default async function ComprarPage({
   if (studio?.status === "suspended") {
     return <SuspendedScreen studioName={studio.name} audience="member" />;
   }
+
+  // ── Saldo actual (tablas base, RLS del alumno — mismo criterio que /app) ──
+  const tz = studio?.timezone || "America/Argentina/Buenos_Aires";
+  const nowIso = new Date().toISOString();
+  const todayDate = new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
+  const [{ data: myPasses }, { data: myMships }] = await Promise.all([
+    supabase.from("member_passes").select("id, expires_at").gt("expires_at", nowIso),
+    supabase.from("memberships").select("valid_to").eq("status", "active").gte("valid_to", todayDate),
+  ]);
+  const validPasses = (myPasses ?? []) as { id: string; expires_at: string }[];
+  let credits = 0;
+  let nearestExpiry: string | null = null;
+  if (validPasses.length > 0) {
+    const { data: ledger } = await supabase
+      .from("credit_ledger")
+      .select("delta, member_pass_id")
+      .in("member_pass_id", validPasses.map((p) => p.id));
+    const byPass = new Map<string, number>();
+    for (const l of (ledger ?? []) as { delta: number; member_pass_id: string }[]) {
+      byPass.set(l.member_pass_id, (byPass.get(l.member_pass_id) ?? 0) + l.delta);
+      credits += l.delta;
+    }
+    nearestExpiry =
+      validPasses
+        .filter((p) => (byPass.get(p.id) ?? 0) > 0)
+        .map((p) => p.expires_at)
+        .sort()[0] ?? null;
+  }
+  const membershipUntil = ((myMships ?? []) as { valid_to: string }[]).map((m) => m.valid_to).sort().at(-1) ?? null;
+  const fmtDay = (isoOrDate: string) =>
+    new Intl.DateTimeFormat("es-AR", { timeZone: tz, day: "numeric", month: "long" }).format(
+      new Date(isoOrDate.length === 10 ? `${isoOrDate}T12:00:00Z` : isoOrDate),
+    );
 
   const { data: passesRaw } = await supabase
     .from("passes")
@@ -87,17 +119,31 @@ export default async function ComprarPage({
   const hasCatalog = passes.length > 0 || plans.length > 0;
 
   return (
-    <main className="canvas-aurora mx-auto min-h-dvh w-full max-w-2xl px-5 pb-16 pt-8 lg:px-8">
-      <Link
-        href="/app"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        Volver
-      </Link>
-      <header className="mt-3">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Comprar</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">{studio?.name ?? "Tu estudio"}</p>
+    <main className="mx-auto min-h-dvh w-full max-w-2xl px-5 pb-16 pt-8 lg:px-8">
+      {/* hero de saldo — la respuesta a "¿cuántas clases me quedan?" antes de vender */}
+      <header className="rounded-3xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-5 shadow-raised duration-500 animate-in fade-in slide-in-from-bottom-2 sm:p-6">
+        <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-primary">
+            <Sparkles className="size-3.5" aria-hidden />
+          </span>
+          Mi saldo · {studio?.name ?? "Tu estudio"}
+        </p>
+        <p className={`mt-2 text-3xl font-bold ${membershipUntil || credits > 0 ? "text-foreground" : "text-destructive"}`}>
+          {membershipUntil
+            ? "Abono activo"
+            : credits === 1
+              ? "Te queda 1 clase"
+              : credits > 0
+                ? `Te quedan ${credits} clases`
+                : "Sin créditos"}
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {membershipUntil
+            ? `Válido hasta el ${fmtDay(membershipUntil)}.`
+            : credits > 0 && nearestExpiry
+              ? `Vencen el ${fmtDay(nearestExpiry)}.`
+              : "Comprá un pack o abono para empezar a reservar."}
+        </p>
       </header>
 
       {status === "ok" ? (
