@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
 /**
@@ -18,8 +19,11 @@ export async function setAttendance(formData: FormData) {
   const reservationId = String(formData.get("reservation") ?? "");
   const occ = String(formData.get("occ") ?? "");
   const value = String(formData.get("value") ?? "");
-  const back = (params: Record<string, string> = {}): never =>
+  const back = (params: Record<string, string> = {}): never => {
+    // el pulso del sidebar (próxima clase + sin cerrar) vive en el layout
+    revalidatePath("/instructor", "layout");
     redirect(`/instructor?${new URLSearchParams({ occ, ...params }).toString()}`);
+  };
 
   if (!["checked_in", "no_show", "clear"].includes(value)) return back({ error: "Acción inválida." });
 
@@ -51,8 +55,11 @@ export async function markAllPresent(formData: FormData) {
   if (!user) redirect("/login");
 
   const occ = String(formData.get("occ") ?? "");
-  const back = (params: Record<string, string> = {}): never =>
+  const back = (params: Record<string, string> = {}): never => {
+    // el pulso del sidebar (próxima clase + sin cerrar) vive en el layout
+    revalidatePath("/instructor", "layout");
     redirect(`/instructor?${new URLSearchParams({ occ, ...params }).toString()}`);
+  };
 
   const { data: rows, error: rosterError } = await supabase.rpc("instructor_class_roster", {
     p_occurrence_id: occ,
@@ -92,8 +99,11 @@ export async function saveInstructorNote(formData: FormData) {
   const occ = String(formData.get("occ") ?? "");
   const memberId = String(formData.get("member") ?? "");
   const note = String(formData.get("note") ?? "").trim().slice(0, 500);
-  const back = (params: Record<string, string> = {}): never =>
+  const back = (params: Record<string, string> = {}): never => {
+    // el pulso del sidebar (próxima clase + sin cerrar) vive en el layout
+    revalidatePath("/instructor", "layout");
     redirect(`/instructor?${new URLSearchParams({ occ, ...params }).toString()}`);
+  };
 
   const { error } = await supabase.rpc("save_instructor_note", {
     p_member_id: memberId,
@@ -119,8 +129,11 @@ export async function reportIssue(formData: FormData) {
 
   const occ = String(formData.get("occ") ?? "");
   const message = String(formData.get("message") ?? "").trim();
-  const back = (params: Record<string, string> = {}): never =>
+  const back = (params: Record<string, string> = {}): never => {
+    // el pulso del sidebar (próxima clase + sin cerrar) vive en el layout
+    revalidatePath("/instructor", "layout");
     redirect(`/instructor?${new URLSearchParams({ occ, ...params }).toString()}`);
+  };
 
   if (message === "") return back({ error: "Contanos qué pasó para avisarle al estudio." });
 
