@@ -114,6 +114,8 @@ export default async function AdminDashboardPage() {
     .limit(1)
     .maybeSingle();
   if (!member || !ADMIN_ROLES.includes(member.role)) redirect("/app");
+  // El home de recepción es la operación del día, no el dashboard del dueño.
+  if (member.role === "reception") redirect("/admin/hoy");
   const isReception = member.role === "reception";
   const studioRel = (member.studios ?? null) as { name: string; timezone: string | null } | { name: string; timezone: string | null }[] | null;
   const studio = Array.isArray(studioRel) ? studioRel[0] : studioRel;

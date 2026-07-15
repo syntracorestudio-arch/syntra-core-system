@@ -1,27 +1,22 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
-  LogOut,
   CalendarDays,
   Users,
   Clock3,
   CheckCircle2,
   Circle,
-  UserRound,
   UserX,
   Sparkles,
   StickyNote,
   AlertCircle,
-  History,
   CheckCheck,
   Hourglass,
   NotebookPen,
   Megaphone,
-  Wallet,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { setAttendance, markAllPresent, saveInstructorNote, reportIssue } from "./actions";
-import { SuspendedScreen } from "@/components/suspended-screen";
 
 export const metadata = { title: "Mis clases — Instructor" };
 export const dynamic = "force-dynamic";
@@ -115,11 +110,6 @@ export default async function InstructorPage({
   const studio = Array.isArray(sRel) ? sRel[0] : sRel;
   const tz = studio?.timezone || DEFAULT_TZ;
 
-  // Estudio suspendido (Fase 5): la vista del instructor también se pausa.
-  if (studio?.status === "suspended") {
-    return <SuspendedScreen studioName={studio.name} audience="member" />;
-  }
-
   const now = new Date();
   const nowIso = now.toISOString();
   // Desde 24 h atrás: la asistencia se marca durante/después de la clase.
@@ -148,7 +138,7 @@ export default async function InstructorPage({
       .lt("starts_at", nowIso)
       .eq("classes.instructor_id", myId)
       .order("starts_at", { ascending: false })
-      .limit(60),
+      .limit(120),
   ]);
 
   const mapOcc = (o: OccRow) => {
@@ -174,14 +164,24 @@ export default async function InstructorPage({
   const upcomingIds = new Set(upcoming.map((o) => o.id));
   const pendientes = past.filter((o) => o.startsAt < staleIso && o.unmarked > 0 && !upcomingIds.has(o.id));
 
-  // Métricas personales del mes (solo agregados propios).
-  const monthKey = localDate(nowIso, tz).slice(0, 7);
-  const monthPast = past.filter((o) => localDate(o.startsAt, tz).slice(0, 7) === monthKey);
-  const clasesDadas = monthPast.length;
-  const alumnosUnicos = new Set(monthPast.flatMap((o) => o.reservations.map((r) => r.member_id))).size;
-  const marked = monthPast.reduce((a, o) => a + o.reservations.filter((r) => r.status !== "booked").length, 0);
-  const asistencia = marked > 0 ? Math.round((monthPast.reduce((a, o) => a + o.attended, 0) / marked) * 100) : null;
-  const monthLabel = new Intl.DateTimeFormat("es-AR", { timeZone: tz, month: "long" }).format(now);
+  // Ficha rápida por alumno: cómo viene CONMIGO (asistencias / total y última vez),
+  // derivada de mis clases pasadas ya cargadas — cero queries extra.
+  const memberStats = new Map<string, { attended: number; total: number; lastAttended: string | null }>();
+  for (const o of past) {
+    for (const r of o.reservations) {
+      const s = memberStats.get(r.member_id) ?? { attended: 0, total: 0, lastAttended: null };
+      if (r.status !== "booked") s.total += 1;
+      if (r.status === "attended") {
+        s.attended += 1;
+        if (!s.lastAttended || o.startsAt > s.lastAttended) s.lastAttended = o.startsAt;
+      }
+      memberStats.set(r.member_id, s);
+    }
+  }
+  const fmtShortDay = (iso: string) =>
+    new Intl.DateTimeFormat("es-AR", { timeZone: tz, day: "numeric", month: "short" })
+      .format(new Date(iso))
+      .replace(/\./g, "");
 
   // Lista de espera por ocurrencia próxima (RPC 024 — solo números, nunca nombres).
   const waitByOcc = new Map<string, number>();
@@ -193,12 +193,6 @@ export default async function InstructorPage({
       waitByOcc.set(w.occurrence_id, w.waiting_count);
     }
   }
-
-  // Pago estimado del mes (RPC 025): solo si el estudio habilitó show_instructor_pay
-  // y hay tarifa vigente — si no, la RPC devuelve vacío y no se muestra nada.
-  const { data: payRows } = await supabase.rpc("instructor_month_pay");
-  const pay = ((payRows ?? []) as { mode: string; amount: number; classes_count: number; estimated: number }[])[0] ?? null;
-  const money = (n: number) => `$${Number(n).toLocaleString("es-AR")}`;
 
   // Selección: ?occ válido entre próximas o sin-cerrar; default = primera próxima.
   const selectable = [...upcoming, ...pendientes];
@@ -264,59 +258,7 @@ export default async function InstructorPage({
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">Tus próximas clases y quiénes están anotados.</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <a
-            href="/cuenta"
-            aria-label="Mi cuenta"
-            className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
-          >
-            <UserRound className="size-3.5" aria-hidden />
-            <span className="hidden sm:inline">Mi cuenta</span>
-          </a>
-          <a
-            href="/logout"
-            aria-label="Cerrar sesión"
-            className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
-          >
-            <LogOut className="size-3.5" aria-hidden />
-            Salir
-          </a>
-        </div>
       </header>
-
-      {/* tu mes (agregados propios; el pago solo si el estudio lo habilitó) */}
-      {clasesDadas > 0 || pay ? (
-        <dl className={`mt-5 grid grid-cols-2 gap-3 ${pay ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
-          <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
-            <dt className="text-xs text-muted-foreground">Clases en {monthLabel}</dt>
-            <dd className="mt-0.5 text-xl font-bold tabular-nums text-foreground">{clasesDadas}</dd>
-          </div>
-          <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
-            <dt className="text-xs text-muted-foreground">Alumnos únicos</dt>
-            <dd className="mt-0.5 text-xl font-bold tabular-nums text-foreground">{alumnosUnicos}</dd>
-          </div>
-          <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
-            <dt className="text-xs text-muted-foreground">Asistencia</dt>
-            <dd className="mt-0.5 text-xl font-bold tabular-nums text-foreground">
-              {asistencia !== null ? `${asistencia}%` : "—"}
-            </dd>
-          </div>
-          {pay ? (
-            <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 shadow-sm">
-              <dt className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Wallet className="size-3" aria-hidden />
-                {pay.mode === "per_class" ? "Estimado del mes" : pay.mode === "fixed_weekly" ? "Tu tarifa semanal" : "Tu tarifa mensual"}
-              </dt>
-              <dd className="mt-0.5 text-xl font-bold tabular-nums text-foreground">{money(pay.estimated)}</dd>
-              {pay.mode === "per_class" ? (
-                <p className="text-[11px] text-muted-foreground">
-                  {money(pay.amount)} × {pay.classes_count} {pay.classes_count === 1 ? "clase" : "clases"} · orientativo
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-        </dl>
-      ) : null}
 
       {notice ? (
         <p className="mt-5 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">{notice}</p>
@@ -408,34 +350,6 @@ export default async function InstructorPage({
               ))}
             </nav>
 
-            {/* historial: mis clases dadas (verificable contra su pago por clase) */}
-            {past.length > 0 ? (
-              <details className="rounded-xl border border-border bg-card shadow-sm">
-                <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-                  <History className="size-4 text-muted-foreground" aria-hidden />
-                  Mis clases dadas
-                  <span className="ml-auto text-xs font-normal text-muted-foreground">últimos 60 días</span>
-                </summary>
-                <ul className="max-h-80 divide-y divide-border overflow-y-auto border-t border-border">
-                  {past.map((o) => {
-                    const { day, time } = fmtDateTime(o.startsAt, tz);
-                    return (
-                      <li key={o.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-foreground">{o.className}</p>
-                          <p className="text-xs capitalize text-muted-foreground">
-                            {day} · {time} hs
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {o.attended}/{o.reservations.length} presentes
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </details>
-            ) : null}
           </div>
 
           {/* roster + check-in de la ocurrencia seleccionada */}
@@ -517,6 +431,16 @@ export default async function InstructorPage({
                                 1ª clase
                               </span>
                             ) : null}
+                            {/* ficha rápida: cómo viene CONMIGO (a partir de 2 clases cerradas) */}
+                            {(() => {
+                              const s = memberStats.get(r.memberId);
+                              return s && s.total >= 2 ? (
+                                <span className="text-[11px] text-muted-foreground">
+                                  {Math.round((s.attended / s.total) * 100)}% asistencia conmigo
+                                  {s.lastAttended ? ` · última vez ${fmtShortDay(s.lastAttended)}` : ""}
+                                </span>
+                              ) : null;
+                            })()}
                           </span>
                           {r.note ? (
                             <span className="mt-0.5 flex items-start gap-1 text-xs text-warning">
