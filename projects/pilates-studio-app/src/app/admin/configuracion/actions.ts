@@ -130,6 +130,7 @@ export async function updateSettings(formData: FormData) {
   const s = parsed.data;
   const refund = formData.get("refund_on_late_cancel") === "on";
   const waitlist = formData.get("waitlist_enabled") === "on";
+  const showInstructorPay = formData.get("show_instructor_pay") === "on";
 
   const studioRel = member!.studios as { branding: Record<string, unknown> | null } | { branding: Record<string, unknown> | null }[] | null;
   const branding = (Array.isArray(studioRel) ? studioRel[0] : studioRel)?.branding ?? {};
@@ -159,6 +160,7 @@ export async function updateSettings(formData: FormData) {
       default_capacity: s.default_capacity,
       waitlist_enabled: waitlist,
       expiry_warning_days: s.expiry_warning_days,
+      show_instructor_pay: showInstructorPay,
     })
     .eq("studio_id", member!.studio_id);
 

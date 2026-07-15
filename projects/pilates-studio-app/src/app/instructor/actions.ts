@@ -76,3 +76,65 @@ export async function markAllPresent(formData: FormData) {
   }
   back({ notice: pending.length > 0 ? `${pending.length} marcados presentes.` : "No había nadie sin marcar." });
 }
+
+/**
+ * Nota PRIVADA del instructor sobre un alumno (campo propio, separado de la nota
+ * operativa del admin). Upsert directo: la RLS de instructor_notes garantiza que
+ * solo escribe sobre su propio instructor_member_id y su estudio.
+ */
+export async function saveInstructorNote(formData: FormData) {
+  const supabase = await createSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const occ = String(formData.get("occ") ?? "");
+  const memberId = String(formData.get("member") ?? "");
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500);
+  const back = (params: Record<string, string> = {}): never =>
+    redirect(`/instructor?${new URLSearchParams({ occ, ...params }).toString()}`);
+
+  const { error } = await supabase.rpc("save_instructor_note", {
+    p_member_id: memberId,
+    p_note: note,
+  });
+  if (error) {
+    const msg = error.message.includes("forbidden") ? "No autorizado." : "No se pudo guardar la nota.";
+    return back({ error: msg });
+  }
+  back({ notice: note === "" ? "Nota borrada." : "Nota guardada." });
+}
+
+/**
+ * Aviso de imprevisto sobre una clase futura PROPIA → notificación in-app al panel
+ * (admin/recepción). Validación real en la RPC instructor_report_issue (025).
+ */
+export async function reportIssue(formData: FormData) {
+  const supabase = await createSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const occ = String(formData.get("occ") ?? "");
+  const message = String(formData.get("message") ?? "").trim();
+  const back = (params: Record<string, string> = {}): never =>
+    redirect(`/instructor?${new URLSearchParams({ occ, ...params }).toString()}`);
+
+  if (message === "") return back({ error: "Contanos qué pasó para avisarle al estudio." });
+
+  const { error } = await supabase.rpc("instructor_report_issue", {
+    p_occurrence_id: occ,
+    p_message: message,
+  });
+  if (error) {
+    const msg = error.message.includes("not_reportable")
+      ? "Esta clase ya empezó o no está programada."
+      : error.message.includes("forbidden")
+        ? "No autorizado."
+        : "No se pudo enviar el aviso.";
+    return back({ error: msg });
+  }
+  back({ notice: "Aviso enviado al estudio." });
+}

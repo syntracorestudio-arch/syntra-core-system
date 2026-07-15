@@ -15,9 +15,12 @@ import {
   History,
   CheckCheck,
   Hourglass,
+  NotebookPen,
+  Megaphone,
+  Wallet,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { setAttendance, markAllPresent } from "./actions";
+import { setAttendance, markAllPresent, saveInstructorNote, reportIssue } from "./actions";
 import { SuspendedScreen } from "@/components/suspended-screen";
 
 export const metadata = { title: "Mis clases — Instructor" };
@@ -191,6 +194,12 @@ export default async function InstructorPage({
     }
   }
 
+  // Pago estimado del mes (RPC 025): solo si el estudio habilitó show_instructor_pay
+  // y hay tarifa vigente — si no, la RPC devuelve vacío y no se muestra nada.
+  const { data: payRows } = await supabase.rpc("instructor_month_pay");
+  const pay = ((payRows ?? []) as { mode: string; amount: number; classes_count: number; estimated: number }[])[0] ?? null;
+  const money = (n: number) => `$${Number(n).toLocaleString("es-AR")}`;
+
   // Selección: ?occ válido entre próximas o sin-cerrar; default = primera próxima.
   const selectable = [...upcoming, ...pendientes];
   const selectedId = occ && selectable.some((o) => o.id === occ) ? occ : upcoming[0]?.id ?? pendientes[0]?.id ?? null;
@@ -199,10 +208,12 @@ export default async function InstructorPage({
   // Roster + asistencia de la ocurrencia seleccionada (RPC SECURITY DEFINER).
   let roster: {
     id: string;
+    memberId: string;
     name: string;
     att: "checked_in" | "no_show" | null;
     note: string | null;
     firstTime: boolean;
+    myNote: string | null;
   }[] = [];
   if (selectedId) {
     const { data: rows } = await supabase.rpc("instructor_class_roster", {
@@ -210,16 +221,20 @@ export default async function InstructorPage({
     });
     roster = ((rows ?? []) as {
       reservation_id: string;
+      member_id: string;
       member_name: string;
       attendance_status: string | null;
       member_note: string | null;
       is_first_time: boolean;
+      instructor_note: string | null;
     }[]).map((r) => ({
       id: r.reservation_id,
+      memberId: r.member_id,
       name: r.member_name,
       att: (r.attendance_status as "checked_in" | "no_show" | null) ?? null,
       note: r.member_note ?? null,
       firstTime: Boolean(r.is_first_time),
+      myNote: r.instructor_note ?? null,
     }));
   }
 
@@ -269,9 +284,9 @@ export default async function InstructorPage({
         </div>
       </header>
 
-      {/* tu mes (agregados propios, sin plata) */}
-      {clasesDadas > 0 ? (
-        <dl className="mt-5 grid grid-cols-3 gap-3">
+      {/* tu mes (agregados propios; el pago solo si el estudio lo habilitó) */}
+      {clasesDadas > 0 || pay ? (
+        <dl className={`mt-5 grid grid-cols-2 gap-3 ${pay ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
           <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
             <dt className="text-xs text-muted-foreground">Clases en {monthLabel}</dt>
             <dd className="mt-0.5 text-xl font-bold tabular-nums text-foreground">{clasesDadas}</dd>
@@ -286,6 +301,20 @@ export default async function InstructorPage({
               {asistencia !== null ? `${asistencia}%` : "—"}
             </dd>
           </div>
+          {pay ? (
+            <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 shadow-sm">
+              <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Wallet className="size-3" aria-hidden />
+                {pay.mode === "per_class" ? "Estimado del mes" : pay.mode === "fixed_weekly" ? "Tu tarifa semanal" : "Tu tarifa mensual"}
+              </dt>
+              <dd className="mt-0.5 text-xl font-bold tabular-nums text-foreground">{money(pay.estimated)}</dd>
+              {pay.mode === "per_class" ? (
+                <p className="text-[11px] text-muted-foreground">
+                  {money(pay.amount)} × {pay.classes_count} {pay.classes_count === 1 ? "clase" : "clases"} · orientativo
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </dl>
       ) : null}
 
@@ -429,6 +458,33 @@ export default async function InstructorPage({
                 </span>
               </div>
 
+              {/* imprevisto: solo clases futuras — avisa al panel del estudio */}
+              {!classStarted ? (
+                <details className="mt-3 rounded-lg border border-border bg-surface-sunken/60">
+                  <summary className="flex cursor-pointer items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                    <Megaphone className="size-3.5" aria-hidden />
+                    ¿No podés dar esta clase? Avisale al estudio
+                  </summary>
+                  <form action={reportIssue} className="grid gap-2 border-t border-border p-3">
+                    <input type="hidden" name="occ" value={selected.id} />
+                    <textarea
+                      name="message"
+                      required
+                      maxLength={300}
+                      rows={2}
+                      placeholder="Contá brevemente qué pasó (ej.: estoy enfermo, no llego a las 18)…"
+                      className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <button
+                      type="submit"
+                      className="justify-self-start rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:opacity-90"
+                    >
+                      Enviar aviso
+                    </button>
+                  </form>
+                </details>
+              ) : null}
+
               {roster.length > 0 ? (
                 <>
                   {!classStarted ? (
@@ -450,7 +506,8 @@ export default async function InstructorPage({
                   ) : null}
                   <ul className="mt-4 divide-y divide-border">
                     {roster.map((r) => (
-                      <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+                      <li key={r.id} className="py-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                         <span className="min-w-0">
                           <span className="flex flex-wrap items-center gap-2 text-sm text-foreground">
                             {r.name}
@@ -465,6 +522,12 @@ export default async function InstructorPage({
                             <span className="mt-0.5 flex items-start gap-1 text-xs text-warning">
                               <StickyNote className="mt-0.5 size-3 shrink-0" aria-hidden />
                               {r.note}
+                            </span>
+                          ) : null}
+                          {r.myNote ? (
+                            <span className="mt-0.5 flex items-start gap-1 text-xs text-primary-ink">
+                              <NotebookPen className="mt-0.5 size-3 shrink-0" aria-hidden />
+                              {r.myNote}
                             </span>
                           ) : null}
                         </span>
@@ -510,6 +573,33 @@ export default async function InstructorPage({
                             </button>
                           </form>
                         </div>
+                        </div>
+
+                        {/* mi nota (privada, solo la ve este instructor) */}
+                        <details className="mt-1.5">
+                          <summary className="inline-flex cursor-pointer items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                            <NotebookPen className="size-3" aria-hidden />
+                            {r.myNote ? "Editar mi nota" : "Mi nota"}
+                          </summary>
+                          <form action={saveInstructorNote} className="mt-2 flex items-start gap-2">
+                            <input type="hidden" name="occ" value={selected.id} />
+                            <input type="hidden" name="member" value={r.memberId} />
+                            <textarea
+                              name="note"
+                              maxLength={500}
+                              rows={2}
+                              defaultValue={r.myNote ?? ""}
+                              placeholder="Solo la ves vos (ej.: progresó en plancha, cuidar rodilla derecha)…"
+                              className="w-full resize-none rounded-lg border border-border bg-surface-sunken/60 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                            <button
+                              type="submit"
+                              className="shrink-0 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
+                            >
+                              Guardar
+                            </button>
+                          </form>
+                        </details>
                       </li>
                     ))}
                   </ul>
