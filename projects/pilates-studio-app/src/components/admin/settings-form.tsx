@@ -18,6 +18,7 @@ export type SettingsInitial = {
   defaultCapacity: number;
   waitlistEnabled: boolean;
   expiryWarningDays: number;
+  showInstructorPay: boolean;
   // landing pública (branding)
   subtitle: string;
   whatsapp: string;
@@ -226,6 +227,12 @@ export function SettingsForm({ initial }: { initial: SettingsInitial }) {
             defaultChecked={initial.waitlistEnabled}
             label="Habilitar lista de espera"
             hint="Los alumnos pueden anotarse cuando una clase está llena."
+          />
+          <Toggle
+            name="show_instructor_pay"
+            defaultChecked={initial.showInstructorPay}
+            label="Mostrar pago estimado a los instructores"
+            hint="Cada instructor ve SU estimado del mes según su tarifa (nunca la de otros)."
           />
         </div>
       </section>

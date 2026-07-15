@@ -46,7 +46,7 @@ export default async function ConfiguracionPage({
   const { data: settings } = await supabase
     .from("studio_settings")
     .select(
-      "cancellation_window_hours, reservation_policy, grace_n, refund_on_late_cancel, default_capacity, waitlist_enabled, expiry_warning_days",
+      "cancellation_window_hours, reservation_policy, grace_n, refund_on_late_cancel, default_capacity, waitlist_enabled, expiry_warning_days, show_instructor_pay",
     )
     .eq("studio_id", member.studio_id)
     .maybeSingle();
@@ -97,6 +97,7 @@ export default async function ConfiguracionPage({
     defaultCapacity: settings?.default_capacity ?? 8,
     waitlistEnabled: settings?.waitlist_enabled ?? true,
     expiryWarningDays: settings?.expiry_warning_days ?? 7,
+    showInstructorPay: settings?.show_instructor_pay ?? false,
     subtitle: bstr("subtitle"),
     whatsapp: bstr("whatsapp"),
     address: bstr("address"),
