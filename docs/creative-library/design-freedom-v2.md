@@ -54,16 +54,30 @@ son **técnicos, no morales**:
 Auroras, beams, partículas, glass, 3D decorativo, nodos, spotlights, wordmarks:
 **todo permitido** — la vara es la calidad de ejecución, no la categoría.
 
-## 4. Workflow oficial: VARIANTES VIVAS
+## 4. Workflow oficial: VARIANTES VIVAS (enmendado 2026-07-15: reference-first)
 
 El ceremonial "concepto → reference-lock → código" queda reemplazado por lo que
 demostró funcionar (Nosotros v3, FAQ, Footer):
 
+0. **REFERENCE-FIRST POR DEFECTO (enmienda 2026-07-15).** Ningún objeto visual
+   NUEVO (protagonista de sección, asset, artefacto firma) arranca en código:
+   arranca con **2-3 candidatos visuales baratos** — imágenes generadas
+   (Pollinations/ChatGPT/Gemini), moodboard o referencias reales — que el owner
+   elige en minutos. El código llega DESPUÉS de elegida la dirección visual
+   concreta. Evidencia: TODOS los destrabes de retrabajo largo (Servicios v5,
+   Contacto v3, Nosotros v4, Proceso v2) vinieron de una referencia concreta —
+   suya o real —, nunca de iterar código desde adjetivos. Si el owner tiene una
+   referencia propia, esa manda (pedírsela es válido desde la PRIMERA iteración,
+   no desde la segunda). Excepción razonable: ajustes sobre lenguaje ya aprobado
+   (variantes de una card existente, pulido, responsive) van directo a código.
 1. **Análisis** (opcional según complejidad): `design-director` +
-   `product-experience-designer` en paralelo — dirección + contenido.
-2. **Construir 1-3 prototipos VIVOS directamente** (motion desde el minuto uno;
-   componentes premium de @magicui/@aceternity/shadcn + Pollinations para assets
-   como materia prima, siempre adaptados a tokens).
+   `product-experience-designer` en paralelo — dirección + contenido. Ambos
+   calibran con la **biblioteca de gusto** (`docs/creative-library/taste/`).
+2. **Construir prototipos VIVOS** (motion desde el minuto uno; componentes
+   premium de @magicui/@aceternity/shadcn + assets aprobados en el paso 0,
+   siempre adaptados a tokens). **Para piezas firma: 2 variantes MÍNIMO** —
+   la variante extra cuesta menos que una ronda de retrabajo (regla dura;
+   antes era "1-3" y en la práctica fue 1).
 3. **El owner juzga EN SU NAVEGADOR** (nunca prosa, nunca solo PNGs) e itera en
    vivo — máx. sensato ~3 rondas antes de replantear dirección.
 4. **Gate de commit = el OK del owner sobre el prototipo vivo.** El
@@ -73,7 +87,9 @@ demostró funcionar (Nosotros v3, FAQ, Footer):
    (dirección, decisiones del owner, criterios verificados) — no antes como permiso.
 
 Verificación mínima antes de mostrar al owner: `tsc` · `lint` · consola limpia ·
-mirar el render con visión a **1920** + 390 (1440 si aplica).
+mirar el render con visión a **1920** + 390 (1440 si aplica) · **correr la
+pre-show checklist** (`docs/creative-library/pre-show-checklist.md` — los
+patrones de rechazo históricos del owner, verificados con visión, en binario).
 
 ## 5. Norte estético
 
