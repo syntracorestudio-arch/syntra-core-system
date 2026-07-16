@@ -307,9 +307,15 @@ Resend — n8n FUERA del circuito de leads** (PR #110; template HTML marca, fila
 v1 + chips, reply-to al lead; recordar `RESEND_API_KEY`/`LEAD_NOTIFY_TO` en
 Vercel y apagar el workflow n8n). Re-locks al día: nosotros v4 · proceso v2.
 
+**Lighthouse (2026-07-16, PROD Vercel, post code-split #113 + login v2 #115):**
+- Mobile **84** — CLS 0 · TBT 20ms · SI 3.6s · LCP 4.0s. El code-split rindió:
+  JS sin uso 109KiB → **26KiB** (solo framework). Los ~3 pts vs el 87 del 07-13
+  son el costo real de las secciones nuevas (carrusel Nosotros, Contacto v3,
+  login hi-res) + varianza de medir prod. Sin palanca barata restante: el LCP
+  simulado es framework en slow-4G. Perf cerrada salvo pedido explícito.
+- Desktop **97** (LCP 1.2s).
+
 **Próxima acción:** a definir con el owner. Candidatos reales:
-- **[MEDIA] Perf mobile 84→~88:** recortar el chunk 200KiB/109KiB sin uso de la
-  Home (code-split del carrusel de Nosotros bajo el fold).
 - **Redes sociales:** crear perfiles y completar `href` en `siteConfig.socialLinks`.
 - **Dominio `syntracore.dev`:** pendiente sin fecha; además habilita enviar los
   leads desde `hola@syntracore.dev` (hoy salen de onboarding@resend.dev).
