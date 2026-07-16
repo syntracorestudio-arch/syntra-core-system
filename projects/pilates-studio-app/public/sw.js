@@ -31,7 +31,14 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(data.title || "Tu estudio", {
       body: data.body || "",
       icon: "/icon-192.png",
-      badge: "/icon-192.png",
+      // badge: monocromo sobre transparente — Android lo tiñe para la barra de
+      // estado (un ícono a color termina como cuadrado blanco)
+      badge: "/badge-96.png",
+      // alerta perceptible: vibración y no-silenciosa (el volumen final lo
+      // decide el canal de notificaciones del teléfono)
+      vibrate: [200, 100, 200],
+      silent: false,
+      renotify: Boolean(data.tag),
       data: { link: data.link || "/app" },
       tag: data.tag || undefined,
     }),
