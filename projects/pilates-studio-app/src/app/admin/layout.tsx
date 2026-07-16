@@ -42,6 +42,7 @@ function timeOf(iso: string, tz: string) {
   return `${p.hour}:${p.minute}`;
 }
 import { SuspendedScreen } from "@/components/suspended-screen";
+import { PushPrompt } from "@/components/push-prompt";
 
 export const dynamic = "force-dynamic";
 
@@ -184,6 +185,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         today={today}
       />
       <div className="canvas-aurora min-h-dvh pb-20 lg:pb-0 lg:pl-60">{children}</div>
+      <PushPrompt />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { accentForeground } from "@/lib/accent";
 import { InstructorSidebar, type InstructorPulse } from "@/components/shell/instructor-sidebar";
 import { SuspendedScreen } from "@/components/suspended-screen";
+import { PushPrompt } from "@/components/push-prompt";
 
 export const dynamic = "force-dynamic";
 
@@ -124,6 +125,7 @@ export default async function InstructorLayout({ children }: { children: ReactNo
     <div id="instructor-shell" style={style} className="min-h-dvh">
       <InstructorSidebar studioName={studioName} logo={logo} userName={userName} pulse={pulse} />
       <div className="canvas-aurora min-h-dvh pb-20 lg:pb-0 lg:pl-60">{children}</div>
+      <PushPrompt />
     </div>
   );
 }
