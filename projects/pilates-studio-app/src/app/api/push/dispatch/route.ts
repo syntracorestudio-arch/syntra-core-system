@@ -78,6 +78,9 @@ export async function POST(req: Request) {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           message,
+          // urgencia alta = entrega inmediata con alerta (heads-up) en Android,
+          // como una app de mensajería; TTL 24 h si el teléfono está apagado
+          { urgency: "high", TTL: 86_400 },
         );
         sent += 1;
       } catch (err) {
