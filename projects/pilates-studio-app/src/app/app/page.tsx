@@ -123,6 +123,18 @@ export default async function AppPage({
     .lt("starts_at", endIso)
     .order("starts_at", { ascending: true });
 
+  // Cuántos esperan por clase (RPC 027, solo números): expectativa honesta en llenas
+  // y "puesto N de M" cuando ya está anotado.
+  const waitCountByOcc = new Map<string, number>();
+  if ((occ ?? []).length > 0) {
+    const { data: wc } = await supabase.rpc("waitlist_counts", {
+      p_occurrence_ids: (occ ?? []).map((o) => o.id as string),
+    });
+    for (const w of (wc ?? []) as { occurrence_id: string; waiting_count: number }[]) {
+      waitCountByOcc.set(w.occurrence_id, w.waiting_count);
+    }
+  }
+
   // Asistencias pasadas → racha + "tu horario" (la franja que más repite; RLS propias)
   const { data: attendedRaw } = await supabase
     .from("class_reservations")
@@ -233,6 +245,7 @@ export default async function AppPage({
       myReservationId: myResId,
       isWaiting: waitPosByOcc.has(o.id as string),
       waitPosition: waitPosByOcc.get(o.id as string) ?? null,
+      waitingCount: waitCountByOcc.get(o.id as string) ?? 0,
       cancelHint,
     };
     (byDay.get(date) ?? byDay.set(date, []).get(date)!).push(card);

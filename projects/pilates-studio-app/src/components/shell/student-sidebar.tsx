@@ -158,7 +158,7 @@ export function StudentSidebar({
         </div>
 
         {notifOpen ? (
-          <div className="absolute left-3 top-16 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-3 shadow-lg">
+          <div className="fixed left-3 top-16 z-50 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-3 shadow-lg">
             <div className="mb-1 flex items-center justify-between">
               <p className="text-sm font-semibold text-foreground">Novedades</p>
               {markReadBtn}

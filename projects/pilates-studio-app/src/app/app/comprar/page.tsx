@@ -139,11 +139,18 @@ export default async function ComprarPage({
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
           {membershipUntil
-            ? `Válido hasta el ${fmtDay(membershipUntil)}.`
+            ? `Válido hasta el ${fmtDay(membershipUntil)} · reservás sin consumir créditos.`
             : credits > 0 && nearestExpiry
               ? `Vencen el ${fmtDay(nearestExpiry)}.`
               : "Comprá un pack o abono para empezar a reservar."}
         </p>
+        {/* si además del abono tiene créditos de pack, no se los escondemos */}
+        {membershipUntil && credits > 0 ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            Además tenés {credits} {credits === 1 ? "clase" : "clases"} de pack
+            {nearestExpiry ? ` (vencen el ${fmtDay(nearestExpiry)})` : ""}.
+          </p>
+        ) : null}
       </header>
 
       {status === "ok" ? (
