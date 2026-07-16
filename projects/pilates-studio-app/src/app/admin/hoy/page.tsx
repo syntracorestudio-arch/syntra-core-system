@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Sun, Users, CheckCircle2, UserX, AlertCircle, MessageCircle, ChevronRight, StickyNote, Wallet } from "lucide-react";
+import { Sun, Users, CheckCircle2, UserX, AlertCircle, MessageCircle, ChevronRight, StickyNote, Wallet, Hourglass, ArrowUp } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { PageHeader, HeaderStat } from "@/components/admin/page-header";
 import { RoleHero } from "@/components/shell/role-hero";
 import { FinancialBadge, type FinancialStatus } from "@/components/admin/financial-badge";
 import { RadialGauge } from "@/components/admin/radial-gauge";
-import { setTodayAttendance } from "./actions";
+import { setTodayAttendance, promoteToday } from "./actions";
 
 export const metadata = { title: "Hoy — Panel" };
 export const dynamic = "force-dynamic";
@@ -114,6 +114,27 @@ export default async function HoyPage({
       .in("status", ["booked", "attended", "no_show"]);
     resRows = (data ?? []) as unknown as ResRow[];
   }
+  // Cola de espera EN ORDEN por clase (RLS: admin/recepción ven la waitlist del estudio)
+  type WaitRow = { id: string; occurrence_id: string; position: number; members: MemberRel | MemberRel[] | null };
+  let waitRows: WaitRow[] = [];
+  if (occIds.length > 0) {
+    const { data } = await supabase
+      .from("waitlist")
+      .select("id, occurrence_id, position, members(id, notes, profiles(full_name, phone))")
+      .in("occurrence_id", occIds)
+      .eq("status", "waiting")
+      .order("position", { ascending: true });
+    waitRows = (data ?? []) as unknown as WaitRow[];
+  }
+  const waitByOcc = new Map<string, { id: string; name: string; phone: string | null }[]>();
+  for (const w of waitRows) {
+    const m = Array.isArray(w.members) ? w.members[0] : w.members;
+    const prof = m ? (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) : null;
+    const list = waitByOcc.get(w.occurrence_id) ?? [];
+    list.push({ id: w.id, name: prof?.full_name ?? "Alumno", phone: prof?.phone ?? null });
+    waitByOcc.set(w.occurrence_id, list);
+  }
+
   const byOcc = new Map<
     string,
     { id: string; memberId: string; name: string; phone: string | null; note: string | null; att: "checked_in" | "no_show" | null }[]
@@ -312,6 +333,55 @@ export default async function HoyPage({
                 ) : (
                   <p className="mt-3 text-sm text-muted-foreground">Sin anotados por ahora.</p>
                 )}
+
+                {/* cola de espera EN ORDEN — "Subir" solo con lugar libre (si está llena,
+                    la cola se ve igual: recepción sabe a quién llamar si alguien avisa) */}
+                {(waitByOcc.get(o.id) ?? []).length > 0 ? (
+                  <div className="mt-3 rounded-xl border border-warning/25 bg-warning/5 px-3.5 py-2.5">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                      <Hourglass className="size-3.5 text-warning" aria-hidden />
+                      En espera · {(waitByOcc.get(o.id) ?? []).length}
+                    </p>
+                    <ul className="mt-1.5 divide-y divide-warning/15">
+                      {(waitByOcc.get(o.id) ?? []).map((w, i) => {
+                        const wphone = (w.phone ?? "").replace(/[^\d]/g, "");
+                        return (
+                          <li key={w.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+                            <span className="flex items-center gap-2 text-sm text-foreground">
+                              <span className="flex size-5 items-center justify-center rounded-full bg-warning/15 text-[11px] font-bold tabular-nums text-foreground">
+                                {i + 1}
+                              </span>
+                              {w.name}
+                              {wphone ? (
+                                <a
+                                  href={`https://wa.me/${wphone}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="WhatsApp"
+                                  className="flex size-6 items-center justify-center rounded-lg bg-success/10 text-success transition-colors hover:bg-success/20"
+                                >
+                                  <MessageCircle className="size-3" aria-hidden />
+                                </a>
+                              ) : null}
+                            </span>
+                            {o.booked_count < o.capacity && !started ? (
+                              <form action={promoteToday}>
+                                <input type="hidden" name="waitlist" value={w.id} />
+                                <button
+                                  type="submit"
+                                  className="inline-flex min-h-8 items-center gap-1 rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground transition-colors hover:opacity-90"
+                                >
+                                  <ArrowUp className="size-3" aria-hidden />
+                                  Subir
+                                </button>
+                              </form>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ) : null}
               </section>
             );
           })}

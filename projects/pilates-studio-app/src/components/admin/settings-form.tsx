@@ -17,6 +17,7 @@ export type SettingsInitial = {
   refundOnLateCancel: boolean;
   defaultCapacity: number;
   waitlistEnabled: boolean;
+  waitlistAutoPromote: string;
   expiryWarningDays: number;
   showInstructorPay: boolean;
   // landing pública (branding)
@@ -228,6 +229,16 @@ export function SettingsForm({ initial }: { initial: SettingsInitial }) {
             label="Habilitar lista de espera"
             hint="Los alumnos pueden anotarse cuando una clase está llena."
           />
+          <Field
+            label="Promoción automática de la lista"
+            hint="Cuando se libera un lugar, sube solo el primero con saldo y le avisamos. El botón «Subir» del panel queda siempre disponible."
+          >
+            <select name="waitlist_auto_promote" defaultValue={initial.waitlistAutoPromote} className={inputCls}>
+              <option value="until_start">Hasta el inicio de la clase (recomendado)</option>
+              <option value="until_window">Hasta la ventana de cancelación</option>
+              <option value="manual">Nunca — solo manual desde el panel</option>
+            </select>
+          </Field>
           <Toggle
             name="show_instructor_pay"
             defaultChecked={initial.showInstructorPay}

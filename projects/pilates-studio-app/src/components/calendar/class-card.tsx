@@ -14,6 +14,8 @@ export type ClassCardData = {
   isWaiting: boolean;
   /** posición en la lista de espera (si está anotado) */
   waitPosition: number | null;
+  /** cuántos esperan un lugar en esta clase (0 si nadie) */
+  waitingCount: number;
   /** aviso de ventana de cancelación para MI reserva ("sin costo hasta…" / fuera de ventana) */
   cancelHint: string | null;
 };
@@ -80,11 +82,19 @@ export function ClassCard({
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium text-foreground ${badge.tint}`}
               >
                 <span className={`size-1.5 rounded-full ${badge.dot}`} aria-hidden />
-                {state === "waiting" && data.waitPosition ? `En espera · puesto ${data.waitPosition}` : badge.text}
+                {state === "waiting" && data.waitPosition
+                  ? `En espera · puesto ${data.waitPosition}${data.waitingCount > 1 ? ` de ${data.waitingCount}` : ""}`
+                  : badge.text}
               </span>
-              {state !== "full" && state !== "reserved" ? (
+              {state !== "full" && state !== "reserved" && state !== "waiting" ? (
                 <span className="text-xs text-muted-foreground">
                   {available} {available === 1 ? "lugar" : "lugares"}
+                </span>
+              ) : null}
+              {/* expectativa honesta: cuántos esperan, antes de anotarse */}
+              {state === "full" && data.waitingCount > 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  {data.waitingCount} {data.waitingCount === 1 ? "espera un lugar" : "esperan un lugar"}
                 </span>
               ) : null}
             </div>

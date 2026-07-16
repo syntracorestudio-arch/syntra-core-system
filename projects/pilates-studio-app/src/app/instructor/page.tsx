@@ -233,6 +233,16 @@ export default async function InstructorPage({
     }));
   }
 
+  // Cola de espera EN ORDEN de la clase seleccionada (RPC 027: solo su clase, solo nombres)
+  let waitQueue: { position: number; name: string }[] = [];
+  if (selectedId && (waitByOcc.get(selectedId) ?? 0) > 0) {
+    const { data: wq } = await supabase.rpc("instructor_waitlist", { p_occurrence_id: selectedId });
+    waitQueue = ((wq ?? []) as { queue_position: number; member_name: string }[]).map((w) => ({
+      position: w.queue_position,
+      name: w.member_name,
+    }));
+  }
+
   const presentCount = roster.filter((r) => r.att === "checked_in").length;
   const unmarkedCount = roster.filter((r) => r.att === null).length;
   const classStarted = selected ? selected.startsAt <= nowIso : false;
@@ -528,6 +538,29 @@ export default async function InstructorPage({
               ) : (
                 <p className="mt-4 text-sm text-muted-foreground">Todavía no hay anotados en esta clase.</p>
               )}
+
+              {/* cola de espera en orden (solo lectura: promueve el sistema o recepción) */}
+              {waitQueue.length > 0 ? (
+                <div className="mt-4 rounded-xl border border-warning/25 bg-warning/5 px-3.5 py-2.5">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Hourglass className="size-3.5 text-warning" aria-hidden />
+                    En espera · {waitQueue.length}
+                  </p>
+                  <ul className="mt-1.5 grid gap-1">
+                    {waitQueue.map((w) => (
+                      <li key={w.position} className="flex items-center gap-2 text-sm text-foreground">
+                        <span className="flex size-5 items-center justify-center rounded-full bg-warning/15 text-[11px] font-bold tabular-nums">
+                          {w.position}
+                        </span>
+                        {w.name}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Si se libera un lugar, sube el primero automáticamente.
+                  </p>
+                </div>
+              ) : null}
             </section>
           ) : null}
         </div>

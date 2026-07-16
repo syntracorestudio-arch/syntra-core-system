@@ -87,6 +87,7 @@ const Schema = z.object({
     "block_if_debt",
   ]),
   grace_n: z.coerce.number().int().min(0).max(20),
+  waitlist_auto_promote: z.enum(["until_start", "until_window", "manual"]),
   default_capacity: z.coerce.number().int().min(1).max(200),
   expiry_warning_days: z.coerce.number().int().min(0).max(90),
   // landing pública (branding)
@@ -119,6 +120,7 @@ export async function updateSettings(formData: FormData) {
     cancellation_window_hours: formData.get("cancellation_window_hours"),
     reservation_policy: formData.get("reservation_policy"),
     grace_n: formData.get("grace_n") || 0,
+    waitlist_auto_promote: formData.get("waitlist_auto_promote"),
     default_capacity: formData.get("default_capacity"),
     expiry_warning_days: formData.get("expiry_warning_days"),
     subtitle: formData.get("subtitle") ?? "",
@@ -159,6 +161,7 @@ export async function updateSettings(formData: FormData) {
       refund_on_late_cancel: refund,
       default_capacity: s.default_capacity,
       waitlist_enabled: waitlist,
+      waitlist_auto_promote: s.waitlist_auto_promote,
       expiry_warning_days: s.expiry_warning_days,
       show_instructor_pay: showInstructorPay,
     })

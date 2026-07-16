@@ -74,6 +74,10 @@ export async function joinWaitlist(formData: FormData) {
   }
   const { error } = await supabase.rpc("join_waitlist", { p_occurrence_id: occ });
   if (error) {
+    // Cola honesta (028): sin saldo no hay lugar en la fila — mensaje propio con CTA
+    if (error.message.includes("no_credit")) {
+      back(day, { error: "Para anotarte a la espera necesitás saldo o abono: si se libera un lugar, tu reserva se confirma automáticamente. Cargá tu pack en Mi saldo." });
+    }
     const m = messageFor(error.message);
     back(day, { [m.kind]: m.text });
   }

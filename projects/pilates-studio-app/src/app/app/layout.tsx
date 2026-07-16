@@ -111,7 +111,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         : false;
 
     saldo = hasMembership
-      ? { text: "Abono activo", hint: null, warn: false }
+      ? {
+          text: "Abono activo",
+          // el abono no consume créditos; si además tiene pack, que el saldo no desaparezca
+          hint: credits > 0 ? `+ ${credits} ${credits === 1 ? "clase" : "clases"} de pack` : "Clases sin límite",
+          warn: false,
+        }
       : credits > 0
         ? {
             text: credits === 1 ? "1 clase" : `${credits} clases`,
