@@ -16,3 +16,40 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(fetch(event.request));
   }
 });
+
+// ── Web Push (029): burbuja nativa en el teléfono ──
+// El servidor manda { title, body, link, tag }; al tocar la burbuja se abre la
+// pantalla indicada (o se enfoca la app si ya está abierta).
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: "Tu estudio", body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Tu estudio", {
+      body: data.body || "",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { link: data.link || "/app" },
+      tag: data.tag || undefined,
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const link = (event.notification.data && event.notification.data.link) || "/app";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) {
+          client.navigate(link);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(link);
+    }),
+  );
+});

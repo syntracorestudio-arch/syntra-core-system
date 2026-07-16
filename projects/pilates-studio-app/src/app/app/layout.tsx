@@ -3,6 +3,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { accentForeground } from "@/lib/accent";
 import { StudentSidebar, type SaldoWidget, type StudentNotif } from "@/components/shell/student-sidebar";
 import { SuspendedScreen } from "@/components/suspended-screen";
+import { PushPrompt } from "@/components/push-prompt";
 
 export const dynamic = "force-dynamic";
 
@@ -142,6 +143,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         unreadCount={unreadCount}
       />
       <div className="canvas-aurora min-h-dvh pb-20 lg:pb-0 lg:pl-60">{children}</div>
+      <PushPrompt />
     </div>
   );
 }
