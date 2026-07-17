@@ -3,6 +3,8 @@ import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
+// Headroom para ráfagas de envíos (el default de Vercel puede cortar un burst grande).
+export const maxDuration = 60;
 
 /**
  * Despacho de Web Push. Lo invoca el Database Webhook de Supabase en cada INSERT

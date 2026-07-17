@@ -1,6 +1,7 @@
 "use server";
 
 import { createHash } from "node:crypto";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServer } from "@/lib/supabase/server";
@@ -32,6 +33,18 @@ export async function join(formData: FormData) {
   }
 
   const admin = createAdminClient();
+
+  // 0. Freno anti fuerza-bruta de códigos (RPC 033): 10 intentos por IP cada 10 min.
+  //    Fail-open: si la RPC falla (p.ej. migración no corrida), el alta no se bloquea.
+  const ip = ((await headers()).get("x-forwarded-for") ?? "local").split(",")[0].trim();
+  const { data: allowed, error: rlError } = await admin.rpc("check_rate_limit", {
+    p_key: `join:${ip}`,
+    p_max: 10,
+    p_window_seconds: 600,
+  });
+  if (!rlError && allowed === false) {
+    joinError("Demasiados intentos. Esperá unos minutos y probá de nuevo.");
+  }
 
   // 1. Pre-validar el código (sin crear usuario si es inválido) — error genérico.
   const { data: codeRow } = await admin
