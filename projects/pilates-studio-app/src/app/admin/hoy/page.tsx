@@ -160,6 +160,18 @@ export default async function HoyPage({
   );
   const totalReservas = [...byOcc.values()].reduce((s, l) => s + l.length, 0);
 
+  // 🎂 Cumpleaños de HOY en todo el estudio (alumnos y equipo — motivo de contacto humano)
+  const { data: bdayRaw } = await supabase
+    .from("members")
+    .select("id, profiles(full_name, birthday)")
+    .eq("status", "active");
+  const todayMD = todayLocal.slice(5); // MM-DD local del estudio
+  const birthdays = ((bdayRaw ?? []) as { id: string; profiles: { full_name: string; birthday: string | null } | { full_name: string; birthday: string | null }[] | null }[])
+    .map((m) => (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles))
+    .filter((p): p is { full_name: string; birthday: string } => Boolean(p?.birthday))
+    .filter((p) => p.birthday.slice(5) === todayMD)
+    .map((p) => p.full_name);
+
   return (
     <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
       {me.role === "reception" ? (
@@ -194,6 +206,15 @@ export default async function HoyPage({
         <p className="mt-5 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           <AlertCircle className="size-4 shrink-0" aria-hidden />
           {error}
+        </p>
+      ) : null}
+
+      {/* 🎂 la app ya los saludó a las 8; esto es para el saludo EN PERSONA */}
+      {birthdays.length > 0 ? (
+        <p className="mt-5 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-foreground">
+          🎂 <span className="font-semibold">{birthdays.length === 1 ? "Cumple años hoy" : "Cumplen años hoy"}:</span>{" "}
+          {birthdays.join(" · ")} — un saludo cuando {birthdays.length === 1 ? "pase" : "pasen"} por el estudio suma un
+          montón.
         </p>
       ) : null}
 
