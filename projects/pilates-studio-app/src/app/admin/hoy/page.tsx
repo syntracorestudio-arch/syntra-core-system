@@ -161,7 +161,7 @@ export default async function HoyPage({
   const totalReservas = [...byOcc.values()].reduce((s, l) => s + l.length, 0);
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-4xl px-5 pb-16 pt-8 lg:px-8">
+    <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
       {me.role === "reception" ? (
         /* recepción ATERRIZA acá → hero de bienvenida con la foto (patrón del panel);
            el admin conserva la banda: su hero vive en Resumen */
@@ -203,7 +203,7 @@ export default async function HoyPage({
           <p className="mt-3 text-sm text-muted-foreground">Hoy no hay clases programadas.</p>
         </div>
       ) : (
-        <div className="mt-6 grid gap-4">
+        <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:items-start">
           {occs.map((o) => {
             const cls = Array.isArray(o.classes) ? o.classes[0] : o.classes;
             const roster = (byOcc.get(o.id) ?? []).sort((a, b) => a.name.localeCompare(b.name));

@@ -154,7 +154,7 @@ export default async function ActividadPage({
   ).length;
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-3xl px-5 pb-16 pt-8 lg:px-8">
+    <main className="mx-auto min-h-dvh w-full max-w-5xl px-5 pb-16 pt-8 lg:px-8">
       <header className="flex items-center justify-between gap-4 rounded-3xl border border-border bg-gradient-to-br from-accent/70 via-card to-card p-5 shadow-sm duration-500 animate-in fade-in slide-in-from-bottom-2 sm:p-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Mi actividad</h1>
@@ -230,8 +230,11 @@ export default async function ActividadPage({
         </p>
       ) : null}
 
+      {/* 2 columnas en desktop: lo accionable (próximas + espera) | historial */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:items-start">
+      <div className="grid gap-6">
       {/* próximas reservas */}
-      <section className="mt-6">
+      <section>
         <h2 className="text-base font-semibold text-foreground">Próximas reservas</h2>
         {upcoming.length > 0 ? (
           <ul className="mt-3 grid gap-3">
@@ -298,7 +301,7 @@ export default async function ActividadPage({
 
       {/* lista de espera */}
       {waiting.length > 0 ? (
-        <section className="mt-6">
+        <section>
           <h2 className="text-base font-semibold text-foreground">En lista de espera</h2>
           <ul className="mt-3 grid gap-3">
             {waiting.map((w) => (
@@ -330,8 +333,10 @@ export default async function ActividadPage({
         </section>
       ) : null}
 
+      </div>
+
       {/* historial */}
-      <section className="mt-6">
+      <section>
         <h2 className="text-base font-semibold text-foreground">Historial</h2>
         {history.length > 0 ? (
           <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -365,6 +370,7 @@ export default async function ActividadPage({
           </div>
         )}
       </section>
+      </div>
     </main>
   );
 }

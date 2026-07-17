@@ -284,7 +284,7 @@ export default async function AppPage({
   }).format(new Date(selected + "T12:00:00Z"));
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-3xl px-5 pb-16 pt-8 lg:px-8">
+    <main className="mx-auto min-h-dvh w-full max-w-5xl px-5 pb-16 pt-8 lg:px-8">
       {/* hero con la foto del estudio — mismo patrón aprobado del panel */}
       <RoleHero kicker={`Hola, ${firstName} · ${todayLabel}`} title={studio?.name ?? "Tu estudio"}>
         {/* racha: constancia visible sin invadir (solo con 2+ semanas al hilo) */}
@@ -408,7 +408,7 @@ export default async function AppPage({
       {/* clases del día */}
       <section className="mt-6">
         <h2 className="text-base font-semibold capitalize text-foreground">{selLabel}</h2>
-        <div className="mt-3 grid gap-3">
+        <div className="mt-3 grid gap-3 lg:grid-cols-2">
           {dayCards.length > 0 ? (
             dayCards.map((c, i) => (
               <div
