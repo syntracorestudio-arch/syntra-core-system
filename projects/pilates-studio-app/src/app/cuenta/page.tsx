@@ -51,7 +51,7 @@ export default async function CuentaPage({
 
   // Volver al panel que corresponda según el perfil.
   const [{ data: profile }, { data: member }] = await Promise.all([
-    supabase.from("profiles").select("full_name, phone, is_superadmin").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, phone, birthday, is_superadmin").eq("id", user.id).maybeSingle(),
     supabase.from("members").select("role, studios(timezone)").eq("profile_id", user.id).limit(1).maybeSingle(),
   ]);
   const backHref = profile?.is_superadmin
@@ -156,6 +156,19 @@ export default async function CuentaPage({
               className={inputCls}
             />
             <span className="text-xs text-muted-foreground">Opcional.</span>
+          </label>
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium text-foreground">Fecha de cumpleaños</span>
+            <input
+              name="birthday"
+              type="date"
+              defaultValue={(profile as { birthday?: string | null } | null)?.birthday ?? ""}
+              max={new Date().toISOString().slice(0, 10)}
+              className={inputCls}
+            />
+            <span className="text-xs text-muted-foreground">
+              Opcional — el día de tu cumple te saludamos desde la app 🎂
+            </span>
           </label>
           <SaveButton label="Guardar mis datos" icon="check" />
         </form>

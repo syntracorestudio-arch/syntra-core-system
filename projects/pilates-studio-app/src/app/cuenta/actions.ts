@@ -17,16 +17,20 @@ export async function updateProfile(formData: FormData) {
 
   const fullName = String(formData.get("full_name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
+  const birthday = String(formData.get("birthday") ?? "").trim();
   if (fullName.length < 2 || fullName.length > 80) {
     back({ error: "Ingresá tu nombre (2 a 80 caracteres)." });
   }
   if (phone && !/^[+\d][\d\s-]{5,19}$/.test(phone)) {
     back({ error: "El teléfono no parece válido. Usá solo números, espacios o guiones." });
   }
+  if (birthday && (!/^\d{4}-\d{2}-\d{2}$/.test(birthday) || birthday >= new Date().toISOString().slice(0, 10) || birthday <= "1920-01-01")) {
+    back({ error: "La fecha de cumpleaños no parece válida." });
+  }
 
   const { error } = await supabase
     .from("profiles")
-    .update({ full_name: fullName, phone: phone || null })
+    .update({ full_name: fullName, phone: phone || null, birthday: birthday || null })
     .eq("id", user.id);
   if (error) back({ error: "No se pudieron guardar tus datos. Reintentá." });
   back({ notice: "Datos actualizados." });
