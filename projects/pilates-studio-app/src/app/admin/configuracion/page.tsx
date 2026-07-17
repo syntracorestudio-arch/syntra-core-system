@@ -106,7 +106,7 @@ export default async function ConfiguracionPage({
   };
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-4xl px-5 pb-16 pt-8 lg:px-8">
+    <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
       <PageHeader title="Configuración" subtitle={studio?.name ?? "Tu estudio"} icon={Settings} />
 
       {notice ? (

@@ -119,7 +119,7 @@ export default async function ComprarPage({
   const hasCatalog = passes.length > 0 || plans.length > 0;
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-2xl px-5 pb-16 pt-8 lg:px-8">
+    <main className="mx-auto min-h-dvh w-full max-w-5xl px-5 pb-16 pt-8 lg:px-8">
       {/* hero de saldo — la respuesta a "¿cuántas clases me quedan?" antes de vender */}
       <header className="rounded-3xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-5 shadow-raised duration-500 animate-in fade-in slide-in-from-bottom-2 sm:p-6">
         <p className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -195,11 +195,11 @@ export default async function ComprarPage({
           {passes.length > 0 ? (
             <section>
               <h2 className="text-sm font-semibold text-foreground">Packs de clases</h2>
-              <ul className="mt-3 grid gap-3">
+              <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {passes.map((p) => (
                   <li
                     key={p.id}
-                    className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col justify-between gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm"
                   >
                     <div className="flex items-start gap-3">
                       <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -212,7 +212,7 @@ export default async function ComprarPage({
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">
+                    <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
                       <span className="text-lg font-bold tabular-nums text-foreground">{money(p.price)}</span>
                       <form action={startCheckout}>
                         <input type="hidden" name="passId" value={p.id} />
@@ -228,14 +228,14 @@ export default async function ComprarPage({
           {plans.length > 0 ? (
             <section>
               <h2 className="text-sm font-semibold text-foreground">Abonos y membresías</h2>
-              <ul className="mt-3 grid gap-3">
+              <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {plans.map((p) => {
                   const meta = PLAN_META[p.concept];
                   const Icon = meta.icon;
                   return (
                     <li
                       key={p.id}
-                      className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col justify-between gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm"
                     >
                       <div className="flex items-start gap-3">
                         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -246,7 +246,7 @@ export default async function ComprarPage({
                           <p className="text-sm text-muted-foreground">{meta.detail(p.duration_days)}</p>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">
+                      <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
                         <span className="text-lg font-bold tabular-nums text-foreground">{money(p.price)}</span>
                         <form action={startCheckout}>
                           <input type="hidden" name="productId" value={p.id} />

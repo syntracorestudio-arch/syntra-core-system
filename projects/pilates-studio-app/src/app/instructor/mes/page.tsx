@@ -91,7 +91,7 @@ export default async function InstructorMesPage() {
       | undefined) ?? null;
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-3xl px-5 pb-16 pt-8 lg:px-8">
+    <main className="mx-auto min-h-dvh w-full max-w-5xl px-5 pb-16 pt-8 lg:px-8">
       <header className="flex items-center justify-between gap-4 rounded-3xl border border-border bg-gradient-to-br from-accent/70 via-card to-card p-5 shadow-sm duration-500 animate-in fade-in slide-in-from-bottom-2 sm:p-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Mi mes</h1>
