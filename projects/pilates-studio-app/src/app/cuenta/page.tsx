@@ -51,7 +51,7 @@ export default async function CuentaPage({
 
   // Volver al panel que corresponda según el perfil.
   const [{ data: profile }, { data: member }] = await Promise.all([
-    supabase.from("profiles").select("full_name, phone, is_superadmin").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, phone, birthday, is_superadmin").eq("id", user.id).maybeSingle(),
     supabase.from("members").select("role, studios(timezone)").eq("profile_id", user.id).limit(1).maybeSingle(),
   ]);
   const backHref = profile?.is_superadmin
@@ -89,7 +89,7 @@ export default async function CuentaPage({
   const pendingAttempts = (attRows ?? []) as { id: string; amount: number; concept: string; created_at: string }[];
 
   return (
-    <main className="canvas-aurora mx-auto min-h-dvh w-full max-w-md px-5 pb-16 pt-8">
+    <main className="canvas-aurora mx-auto min-h-dvh w-full max-w-5xl px-5 pb-16 pt-8 lg:px-8">
       <Link
         href={backHref}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -123,8 +123,10 @@ export default async function CuentaPage({
         </p>
       ) : null}
 
+      <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:items-start">
+      <div className="grid gap-4">
       {/* Mis datos */}
-      <section className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <h2 className="inline-flex items-center gap-1.5 text-base font-semibold text-foreground">
           <UserRound className="size-4 text-muted-foreground" aria-hidden />
           Mis datos
@@ -155,13 +157,26 @@ export default async function CuentaPage({
             />
             <span className="text-xs text-muted-foreground">Opcional.</span>
           </label>
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-medium text-foreground">Fecha de cumpleaños</span>
+            <input
+              name="birthday"
+              type="date"
+              defaultValue={(profile as { birthday?: string | null } | null)?.birthday ?? ""}
+              max={new Date().toISOString().slice(0, 10)}
+              className={inputCls}
+            />
+            <span className="text-xs text-muted-foreground">
+              Opcional — el día de tu cumple te saludamos desde la app 🎂
+            </span>
+          </label>
           <SaveButton label="Guardar mis datos" icon="check" />
         </form>
       </section>
 
       {/* Mis pagos (solo si hay algo que mostrar) */}
       {payments.length > 0 || pendingAttempts.length > 0 ? (
-        <section className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm lg:order-last">
           <h2 className="inline-flex items-center gap-1.5 text-base font-semibold text-foreground">
             <Wallet className="size-4 text-muted-foreground" aria-hidden />
             Mis pagos
@@ -205,7 +220,8 @@ export default async function CuentaPage({
         </section>
       ) : null}
 
-      <section className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+      </div>
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <h2 className="inline-flex items-center gap-1.5 text-base font-semibold text-foreground">
           <KeyRound className="size-4 text-muted-foreground" aria-hidden />
           Cambiar contraseña
@@ -226,6 +242,7 @@ export default async function CuentaPage({
           <SaveButton />
         </form>
       </section>
+      </div>
     </main>
   );
 }

@@ -160,8 +160,20 @@ export default async function HoyPage({
   );
   const totalReservas = [...byOcc.values()].reduce((s, l) => s + l.length, 0);
 
+  // 🎂 Cumpleaños de HOY en todo el estudio (alumnos y equipo — motivo de contacto humano)
+  const { data: bdayRaw } = await supabase
+    .from("members")
+    .select("id, profiles(full_name, birthday)")
+    .eq("status", "active");
+  const todayMD = todayLocal.slice(5); // MM-DD local del estudio
+  const birthdays = ((bdayRaw ?? []) as { id: string; profiles: { full_name: string; birthday: string | null } | { full_name: string; birthday: string | null }[] | null }[])
+    .map((m) => (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles))
+    .filter((p): p is { full_name: string; birthday: string } => Boolean(p?.birthday))
+    .filter((p) => p.birthday.slice(5) === todayMD)
+    .map((p) => p.full_name);
+
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-4xl px-5 pb-16 pt-8 lg:px-8">
+    <main className="mx-auto min-h-dvh w-full max-w-6xl px-5 pb-16 pt-8 lg:px-8">
       {me.role === "reception" ? (
         /* recepción ATERRIZA acá → hero de bienvenida con la foto (patrón del panel);
            el admin conserva la banda: su hero vive en Resumen */
@@ -197,13 +209,22 @@ export default async function HoyPage({
         </p>
       ) : null}
 
+      {/* 🎂 la app ya los saludó a las 8; esto es para el saludo EN PERSONA */}
+      {birthdays.length > 0 ? (
+        <p className="mt-5 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-foreground">
+          🎂 <span className="font-semibold">{birthdays.length === 1 ? "Cumple años hoy" : "Cumplen años hoy"}:</span>{" "}
+          {birthdays.join(" · ")} — un saludo cuando {birthdays.length === 1 ? "pase" : "pasen"} por el estudio suma un
+          montón.
+        </p>
+      ) : null}
+
       {occs.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-border bg-card/60 px-6 py-14 text-center">
           <Sun className="mx-auto size-6 text-muted-foreground" aria-hidden />
           <p className="mt-3 text-sm text-muted-foreground">Hoy no hay clases programadas.</p>
         </div>
       ) : (
-        <div className="mt-6 grid gap-4">
+        <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:items-start">
           {occs.map((o) => {
             const cls = Array.isArray(o.classes) ? o.classes[0] : o.classes;
             const roster = (byOcc.get(o.id) ?? []).sort((a, b) => a.name.localeCompare(b.name));

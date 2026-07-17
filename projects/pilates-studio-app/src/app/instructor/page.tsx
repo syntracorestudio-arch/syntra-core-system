@@ -209,6 +209,7 @@ export default async function InstructorPage({
     note: string | null;
     firstTime: boolean;
     myNote: string | null;
+    birthday: boolean;
   }[] = [];
   if (selectedId) {
     const { data: rows } = await supabase.rpc("instructor_class_roster", {
@@ -222,6 +223,7 @@ export default async function InstructorPage({
       member_note: string | null;
       is_first_time: boolean;
       instructor_note: string | null;
+      is_birthday: boolean;
     }[]).map((r) => ({
       id: r.reservation_id,
       memberId: r.member_id,
@@ -230,6 +232,7 @@ export default async function InstructorPage({
       note: r.member_note ?? null,
       firstTime: Boolean(r.is_first_time),
       myNote: r.instructor_note ?? null,
+      birthday: Boolean(r.is_birthday),
     }));
   }
 
@@ -432,6 +435,14 @@ export default async function InstructorPage({
                         <span className="min-w-0">
                           <span className="flex flex-wrap items-center gap-2 text-sm text-foreground">
                             {r.name}
+                            {r.birthday ? (
+                              <span
+                                title="¡Hoy cumple años!"
+                                className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-foreground"
+                              >
+                                🎂 cumple hoy
+                              </span>
+                            ) : null}
                             {r.firstTime ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary-ink">
                                 <Sparkles className="size-3" aria-hidden />
