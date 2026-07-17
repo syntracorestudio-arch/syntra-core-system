@@ -1,90 +1,99 @@
-# StudioFlow — Guion de demo comercial (10 min)
+# StudioFlow — Guion de demo comercial (12 min, v2)
 
-> **Estado:** Fase 0 · Guion para vender StudioFlow a un dueño de estudio. Usa un estudio
-> ficticio con datos seed para que el dashboard "se vea vivo". La demo navegable se construye
-> en Fase 1; este documento define **qué** mostrar y **con qué datos**.
-
----
-
-## 1. Estudio demo ficticio
-
-**"Estudio Reforma"** — estudio de pilates boutique, 1 sala con reformers.
-
-- **Marca demo:** nombre "Estudio Reforma", color primario sobrio, logo placeholder.
-- **Zona horaria:** America/Argentina/Buenos_Aires.
-- **Política:** `reservation_policy = require_credit_or_membership`,
-  `cancellation_window_hours = 24`, `refund_on_late_cancel = false`.
-
-## 2. Datos seed sugeridos
-
-Pensados para que las métricas tengan sentido en pantalla:
-
-- **Alumnos:** ~30 (con nombres ficticios), de los cuales:
-  - ~20 **al día** (con pack vigente o membresía activa),
-  - ~5 **con deuda** (sin crédito y sin membresía),
-  - ~3 con **membresía próxima a vencer**,
-  - ~2 con **membresía vencida**.
-- **Instructores:** 3 (ej. Caro, Meli, Flor).
-- **Clases recurrentes:** Reformer y Mat, varias franjas (mañana/tarde), cupo 6–8.
-- **Ocurrencias:** semana actual + próxima materializadas; algunas **llenas** (para mostrar
-  lista de espera) y otras con lugares.
-- **Packs/membresías:** packs de 4/8/12 clases repartidos; algunas membresías mensuales.
-- **Pagos del mes:** mezcla de conceptos (suelta/pack/membresía), método manual, para que
-  **ingresos del mes** muestre un número realista.
-- **Reservas:** varias por clase; **1–2 no-shows** y **1–2 cancelaciones** para poblar
-  métricas.
-- **Lista de espera:** 2–3 alumnos anotados en una clase llena.
-
-## 3. Qué mostrar primero (apertura, ~1 min)
-
-Abrir el **dashboard del admin** ya poblado: "Esto es lo que ve el dueño cada mañana —
-ingresos del mes, ocupación de hoy, alumnos con deuda. Sin tocar un Excel." Enganchar con el
-número de ingresos y la lista de deuda.
-
-## 4. Flujo alumno (~3 min)
-
-Desde el celular (vista mobile):
-1. **Login** del alumno (ya invitado por el estudio).
-2. **Calendario semanal:** se ve el cupo en vivo (ej. "Reformer 18 h — 6/8").
-3. **Reservar** una clase → confirmación inmediata → aparece en "Mis clases".
-4. Mostrar **su saldo** ("te quedan 5 clases de tu pack").
-5. **Clase llena:** intentar reservar → ofrece **lista de espera** (orden respetado).
-6. **Cancelar** una reserva dentro de las 24 h → se devuelve el crédito y se libera el cupo.
-
-*Mensaje:* "El alumno se gestiona solo. Cero WhatsApp para reservar."
-
-## 5. Flujo admin (~3 min)
-
-En el panel (desktop):
-1. **Crear una clase recurrente** (día/hora/cupo) → se generan las ocurrencias.
-2. Abrir **una clase** → ver **anotados** + **lista de espera** → **promover** manual a
-   alguien de la espera.
-3. **Registrar un pago manual** de un alumno (ej. "Pack 8 clases") → asignar el pack.
-4. Mostrar cómo **el saldo del alumno** y **los ingresos del mes** se actualizan al instante.
-
-*Mensaje:* "Cargás un pago y el sistema actualiza saldo, deuda e ingresos solo."
-
-## 6. Dashboard financiero (~2 min)
-
-Recorrer las tarjetas: **ingresos del mes / total**, **alumnos al día / con deuda**,
-**membresías vencidas / por vencer**, **packs y clases sueltas vendidas**, **ocupación**.
-
-*Mensaje:* "Esta es la foto de tu negocio. Sabés qué entró, quién debe y qué se vende —
-en cualquier momento."
-
-## 7. Cierre comercial (~1 min)
-
-- Recordar diferenciadores: **app con tu marca**, **la plata entra a tu cuenta** (cuando
-  sumemos cobro online), **soporte SYNTRA en español**.
-- Presentar **paquetes** (Starter / Studio Pro / SYNTRA Managed) y **setup inicial**.
-- Pregunta de cierre: *"¿Arrancamos con el setup de tu estudio esta semana?"*
-- Dejar claro el roadmap: hoy reservas + cobranza manual; el cobro online (tu MercadoPago)
-  llega en una etapa siguiente.
+> **Estado:** 2026-07-17 · La demo es **real y navegable**:
+> `https://syntra-flow-system.vercel.app` con el estudio "Estudio Reforma" (DB dev
+> compartida). Usuarios demo: `admin@` / `recepcion@` / `caro@` / `sofia@` /
+> `tomas@reforma.test` — contraseña `password123`.
+> **Preparación previa:** ver §7 (checklist pre-demo). El teléfono del vendedor debe
+> tener la PWA instalada con avisos activados (para el momento burbuja).
 
 ---
 
-### Notas para quien hace la demo
-- Tener el seed cargado y la sesión lista antes de empezar (no improvisar datos en vivo).
-- Mostrar SIEMPRE desde la marca del estudio demo, nunca "SYNTRA" en primer plano.
-- Si el dueño pregunta por algo fuera de MVP (cobro online, recordatorios), ubicarlo en el
-  roadmap con naturalidad, no prometer fecha.
+## 0. Apertura (1 min) — el dolor
+
+"¿Cómo sabés hoy cuántos lugares quedan mañana a las 19? ¿Y cuánta plata te dejó el
+mes pasado, descontando lo que le pagás a tus profes?" → dejar que conteste. La
+respuesta siempre es Excel/WhatsApp/no sé. "Te muestro cómo lo resuelve tu propia app."
+
+## 1. El alumno (3 min) — celular en mano del PROSPECTO
+
+Login `sofia@reforma.test` (mobile o su propio teléfono):
+
+1. **Hero con la foto del estudio + su nombre** → "esto es TU marca, no la nuestra".
+2. **Reservar en 2 toques**: día → Reservar. Mostrar cupo en vivo y el chip de saldo.
+3. **Racha + "Tu horario"**: "la app aprende que Sofía viene los martes 19 y le ofrece
+   reservarlo en un toque. Y la racha de semanas la empuja a no cortar."
+4. **Mi entrenamiento**: objetivo mensual con gauge, barras por semana, análisis en
+   prosa ("tu mejor mes fue julio…"). *"Ningún sistema local le muestra esto al
+   alumno — esto fideliza."*
+5. **Mi saldo**: packs con precio → botón Comprar → checkout MercadoPago real.
+   *"La plata va directo a TU cuenta. Nosotros no tocamos un peso."*
+
+## 2. El momento burbuja 📲 (2 min) — el cierre emocional
+
+Preparado de antemano (§7): una clase de HOY llena, con Tomás primero en la lista de
+espera y el teléfono del vendedor logueado como Tomás, **bloqueado sobre la mesa**.
+
+1. Como Sofía (u otro alumno con reserva), **cancelar la reserva** de esa clase.
+2. En segundos, el teléfono sobre la mesa **suena y vibra**: "🎉 ¡Te conseguimos
+   lugar! Tu reserva quedó confirmada."
+3. *"Esto pasó solo: nadie del estudio tocó nada. El lugar no se pierde, el alumno no
+   se lo pierde, y vos no atendiste ningún WhatsApp."*
+
+## 3. El instructor (2 min)
+
+Login `caro@reforma.test` (desktop):
+
+- Su agenda por día + roster: **marcar todos presentes** en un toque, notas privadas
+  por alumno, "1ª clase" y "🎂 cumple hoy" marcados solos.
+- **Mi mes**: clases dadas, alumnos únicos, % asistencia — y si el estudio lo
+  habilita, su pago estimado. *"El profe deja de anotar en un cuaderno."*
+- **Aviso de imprevisto** → le llega al panel del estudio al instante.
+
+## 4. Recepción (1 min — si aplica al prospecto)
+
+Login `recepcion@reforma.test`: el día de hoy con cada clase, su lista y su cola de
+espera EN ORDEN, check-in de llegada 20 min antes, chip "Debe" con **cobro rápido**
+prellenado y WhatsApp directo. *"Si no tenés recepcionista, esta pantalla ni hace
+falta: todo lo anterior corre solo."*
+
+## 5. El dueño (2.5 min) — el cierre racional
+
+Login `admin@reforma.test` (desktop):
+
+1. **Dashboard**: hero con su foto + ingresos del mes con tendencia, **resultado del
+   mes** (ingresos − egresos), ocupación, al día vs deuda.
+2. **Egresos**: categorías + tarifas del equipo (por clase/semana/mes) con **pago
+   sugerido** calculado de las clases realmente dictadas.
+3. **Reportes**: 6 meses de ingresos/egresos, retención, packs más vendidos.
+4. **Ajustes**: cambiar el **color de acento** en vivo → toda la app cambia al
+   instante, incluida la del alumno. *"Es tu marca de punta a punta."*
+5. Cerrar con **Alumnos** → ficha con saldo, pagos, notas. *"Todo lo que hoy está en
+   tu cabeza, acá, ordenado."*
+
+## 6. Cierre (30 s)
+
+"Setup lo hacemos nosotros: cargamos tus clases, tus packs y tu marca, y arrancás con
+todo andando. ¿Querés que te arme el estudio esta semana?" → hablar de paquetes
+(`pitch.md`).
+
+## 7. Checklist pre-demo (hacer 30 min antes)
+
+- [ ] Demo carga y logueo con los 5 usuarios OK.
+- [ ] Hay clases HOY y mañana con lugares; **una clase de hoy llena** con Tomás 1º en
+      la lista de espera y otro alumno con reserva activa (para cancelar en vivo).
+- [ ] Teléfono del vendedor: PWA instalada como Tomás, avisos activados, canal en
+      "Alertar" (probar con una notificación de prueba), volumen arriba.
+- [ ] Sofía con saldo > 0, racha visible y objetivo mensual cargado.
+- [ ] MercadoPago conectado en el estudio demo (checkout abre).
+- [ ] Un alumno con deuda visible (para el chip "cobrar" de recepción).
+- [ ] Dashboard con ingresos y egresos del mes cargados (resultado ≠ 0).
+- [ ] Cerrar sesiones ajenas / pestañas sueltas; zoom 100%; modo no molestar del
+      navegador apagado.
+
+## 8. Reglas de la demo
+
+- Nunca prometer features no construidas; todo lo del guion existe hoy.
+- Si el prospecto pregunta por recordatorios de WhatsApp/email: "se ofrece como
+  servicio de automatización aparte, a medida" (decisión owner 2026-07-16).
+- Si algo falla en vivo: seguir con el guion en otra pantalla y anotar el issue.
