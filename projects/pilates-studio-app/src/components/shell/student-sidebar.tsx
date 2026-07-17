@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CalendarCheck,
   Wallet,
+  TrendingUp,
   LogOut,
   MoreHorizontal,
   Bell,
@@ -33,6 +34,7 @@ export type SaldoWidget = {
 const ITEMS: Item[] = [
   { key: "reservar", href: "/app", label: "Reservar", icon: CalendarDays },
   { key: "actividad", href: "/app/actividad", label: "Mi actividad", icon: CalendarCheck },
+  { key: "entrenamiento", href: "/app/entrenamiento", label: "Entrenamiento", icon: TrendingUp },
   { key: "saldo", href: "/app/comprar", label: "Mi saldo", icon: Wallet },
 ];
 
