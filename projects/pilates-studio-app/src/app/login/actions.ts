@@ -1,8 +1,10 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /** Server Action de login con email + password (Supabase Auth, anon + cookies). */
 export async function login(formData: FormData) {
@@ -11,6 +13,19 @@ export async function login(formData: FormData) {
 
   if (!email || !password) {
     redirect("/login?error=" + encodeURIComponent("Completá email y contraseña."));
+  }
+
+  // Freno anti fuerza-bruta (RPC 033), refuerzo del rate limit propio de Supabase Auth:
+  // 10 intentos por IP+email cada 5 min. Fail-open si la RPC no existe todavía.
+  const ip = ((await headers()).get("x-forwarded-for") ?? "local").split(",")[0].trim();
+  const emailKey = createHash("sha256").update(email.toLowerCase()).digest("hex").slice(0, 16);
+  const { data: allowed, error: rlError } = await createAdminClient().rpc("check_rate_limit", {
+    p_key: `login:${ip}:${emailKey}`,
+    p_max: 10,
+    p_window_seconds: 300,
+  });
+  if (!rlError && allowed === false) {
+    redirect("/login?error=" + encodeURIComponent("Demasiados intentos. Esperá unos minutos y probá de nuevo."));
   }
 
   const supabase = await createSupabaseServer();

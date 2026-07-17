@@ -30,14 +30,30 @@ export async function updateSession(request: NextRequest) {
   );
 
   // IMPORTANTE: getUser() revalida el token contra Supabase (no confiar en getSession en server).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // try/catch: si Supabase Auth parpadea, la app NO debe devolver 500 en cada request —
+  // lo público sigue andando y lo protegido degrada a /login con aviso.
+  let user: { id: string } | null = null;
+  let authDown = false;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    authDown = true;
+  }
 
   const path = request.nextUrl.pathname;
-  if (!user && (path.startsWith("/app") || path.startsWith("/admin"))) {
+  const isProtected =
+    path.startsWith("/app") ||
+    path.startsWith("/admin") ||
+    path.startsWith("/instructor") ||
+    path.startsWith("/super") ||
+    path.startsWith("/cuenta");
+  if (!user && isProtected) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    if (authDown) {
+      url.searchParams.set("error", "Servicio momentáneamente no disponible. Probá de nuevo en un minuto.");
+    }
     return NextResponse.redirect(url);
   }
 

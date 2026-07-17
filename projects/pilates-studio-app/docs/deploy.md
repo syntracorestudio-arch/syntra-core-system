@@ -89,7 +89,28 @@ Todavía no hay superadmin (Fase 5), así que el alta del primer estudio es manu
 4. El dueño ya puede entrar en `/login`. Desde el panel crea clases, packs, y genera el
    **código de alta** (Ajustes/alumnos) para que sus alumnos se unan en `/join`.
 
-## 8. Smoke test en prod
+## 8. Monitoreo mínimo (para enterarse de un problema antes que el cliente)
+
+Sin esto, un error a las 3 AM no lo ve nadie (auditoría 2026-07-17):
+
+1. **Sentry (free tier, 5k errores/mes)** — crear cuenta en sentry.io → proyecto
+   Next.js → `npx @sentry/wizard@latest -i nextjs` en el repo (agrega la dep y el
+   DSN como env var; hacerlo CON aprobación de deps). Captura crashes de server
+   actions y páginas con stack trace y aviso por email.
+2. **Uptime externo (gratis)** — UptimeRobot o BetterStack free: monitor HTTP a
+   `https://<dominio>/login` cada 5 min con alerta por email. Detecta caída total
+   (incluida la de Vercel mismo, que Vercel no te puede avisar).
+3. **Alertas de Vercel** — Project → Settings → Notifications: activar avisos de
+   deploy fallido y de errores de función.
+4. **Heartbeats de los automatismos** (pg_cron cumpleaños + Database Webhook push):
+   si dejan de correr, fallan en silencio. Chequeo manual semanal en Supabase →
+   Integrations → Webhooks (log de entregas) y `select * from cron.job_run_details
+   order by start_time desc limit 5;` — o construir la tabla `job_heartbeats`
+   cuando haya tracción (P1 de la auditoría).
+5. **Supabase Pro ($25/mes) al primer cliente pago** — no por performance: por los
+   backups diarios y porque el free tier PAUSA el proyecto por inactividad.
+
+## 9. Smoke test en prod
 - `/login` → entra el admin → `/admin` (dashboard vacío pero sin errores).
 - Crear una clase, un pack, registrar un pago manual.
 - (MercadoPago) conectar Access Token de producción del estudio en *Ajustes → Cobro online*;
