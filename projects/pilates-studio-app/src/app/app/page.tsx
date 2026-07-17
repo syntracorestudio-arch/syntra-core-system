@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { CalendarDays, Wallet, AlertCircle, Sparkles, Flame, Clock3 } from "lucide-react";
+import { CalendarDays, Wallet, AlertCircle, Sparkles, Flame, Clock3, Target } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ClassCard, type ClassCardData } from "@/components/calendar/class-card";
@@ -59,7 +59,7 @@ export default async function AppPage({
   // Vínculo + estudio (RLS: el alumno ve su propio member + su estudio)
   const { data: member } = await supabase
     .from("members")
-    .select("role, studio_id, studios(name, timezone, slug, status)")
+    .select("role, studio_id, monthly_goal, studios(name, timezone, slug, status)")
     .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -156,6 +156,9 @@ export default async function AppPage({
       startsAt: o.starts_at,
     }));
   const streak = computeStreak(attendedRows.map((r) => r.startsAt), tz, nowIso);
+  // mini-progreso del objetivo mensual (la meta vive en Mi entrenamiento)
+  const monthlyGoal = ((member as { monthly_goal?: number | null } | null)?.monthly_goal as number | null) ?? null;
+  const attendedThisMonth = attendedRows.filter((r) => localDateOf(r.startsAt, tz).slice(0, 7) === todayDate.slice(0, 7)).length;
   const habitual = habitualSlot(attendedRows, tz);
 
   // Mis reservas activas + mi waitlist (RLS: propias)
@@ -285,6 +288,15 @@ export default async function AppPage({
       {/* hero con la foto del estudio — mismo patrón aprobado del panel */}
       <RoleHero kicker={`Hola, ${firstName} · ${todayLabel}`} title={studio?.name ?? "Tu estudio"}>
         {/* racha: constancia visible sin invadir (solo con 2+ semanas al hilo) */}
+        {monthlyGoal ? (
+          <a
+            href="/app/entrenamiento"
+            className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary-ink transition-colors hover:bg-primary/15"
+          >
+            <Target className="size-3.5" aria-hidden />
+            {Math.min(attendedThisMonth, monthlyGoal)}/{monthlyGoal} este mes
+          </a>
+        ) : null}
         {streak.current >= 2 ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary-ink">
             <Flame className="size-3.5" aria-hidden />

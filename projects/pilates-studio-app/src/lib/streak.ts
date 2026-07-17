@@ -86,3 +86,18 @@ export function habitualSlot(
 }
 
 export const WEEKDAY_LABEL = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+
+/**
+ * Clases asistidas por semana (lunes-domingo, tz del estudio) para las últimas
+ * `weeks` semanas, ordenadas de la más vieja a la actual (la actual es la última).
+ */
+export function weeklyCounts(attendedIsos: string[], tz: string, nowIso: string, weeks = 12): number[] {
+  const thisWeek = weekIndex(localDateOf(nowIso, tz));
+  const counts = new Array<number>(weeks).fill(0);
+  for (const iso of attendedIsos) {
+    const w = weekIndex(localDateOf(iso, tz));
+    const slot = weeks - 1 - (thisWeek - w);
+    if (slot >= 0 && slot < weeks) counts[slot] += 1;
+  }
+  return counts;
+}
