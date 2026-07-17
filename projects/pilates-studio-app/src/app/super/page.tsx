@@ -125,6 +125,9 @@ export default async function SuperPage({
     !!iso && (periodStart === null || iso >= periodStart) && (periodEnd === null || iso < periodEnd);
   const weekEndIso = new Date(now.getTime() + 7 * 86_400_000).toISOString();
   const activityWindowIso = new Date(now.getTime() - 30 * 86_400_000).toISOString();
+  // Ventana de pagos: 12 meses — es una query CROSS-ESTUDIO (service role, sin RLS
+  // que la acote); sin cota crece con toda la plataforma (auditoría 2026-07-17).
+  const paysWindowIso = new Date(now.getTime() - 370 * 86_400_000).toISOString();
 
   // Datos globales vía service-role (el gate ya validó superadmin).
   const admin = createAdminClient();
@@ -139,7 +142,7 @@ export default async function SuperPage({
   ] = await Promise.all([
     admin.from("studios").select("id, name, slug, status, timezone, created_at").order("created_at", { ascending: false }),
     admin.from("members").select("studio_id, role, status, joined_at"),
-    admin.from("payments").select("studio_id, amount, paid_at").eq("status", "confirmed"),
+    admin.from("payments").select("studio_id, amount, paid_at").eq("status", "confirmed").gte("paid_at", paysWindowIso),
     admin
       .from("class_occurrences")
       .select("studio_id, booked_count, capacity")

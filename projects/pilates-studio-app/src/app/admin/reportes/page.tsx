@@ -153,7 +153,7 @@ export default async function ReportesPage({
   }
   const inRange = (iso: string | null) =>
     !!iso && (start === null || iso >= start) && (end === null || iso < end);
-  const periodLabel = isHistorico ? "histórico" : monthLabel(periodYm).toLowerCase();
+  const periodLabel = isHistorico ? "últimos 2 años" : monthLabel(periodYm).toLowerCase();
 
   // ventanas del "pulso de caja" (siempre actuales)
   const todayStart = localToUtcISO(todayLocal, "00:00", tz);
@@ -161,13 +161,19 @@ export default async function ReportesPage({
   const weekStart = localToUtcISO(addDays(todayLocal, -((dow + 6) % 7)), "00:00", tz);
   const monthStart = firstOfMonthISO(thisYm, tz);
 
+  // Ventana de datos: 24 meses — cubre el selector de período completo ("Últimos 2 años"
+  // incluido) sin leer la historia entera en cada render (auditoría 2026-07-17).
+  const dataStart = firstOfMonthISO(shiftYm(thisYm, -23), tz);
   const [{ data: pays }, { data: occ }, { data: res }, { data: mships }, { data: newMems }, { data: exps }] = await Promise.all([
-    supabase.from("payments").select("amount, concept, method, paid_at").eq("status", "confirmed"),
-    supabase.from("class_occurrences").select("starts_at, capacity, booked_count, classes(name)"),
-    supabase.from("class_reservations").select("status, cancelled_at"),
+    supabase.from("payments").select("amount, concept, method, paid_at").eq("status", "confirmed").gte("paid_at", dataStart),
+    supabase
+      .from("class_occurrences")
+      .select("starts_at, capacity, booked_count, classes(name)")
+      .gte("starts_at", dataStart),
+    supabase.from("class_reservations").select("status, cancelled_at").gte("created_at", dataStart),
     supabase.from("memberships").select("valid_to, status").eq("status", "active"),
     supabase.from("members").select("joined_at").eq("role", "client"),
-    supabase.from("expenses").select("amount, category, paid_at"),
+    supabase.from("expenses").select("amount, category, paid_at").gte("paid_at", dataStart),
   ]);
 
   const allPays = (pays ?? []) as { amount: number; concept: string; method: string; paid_at: string }[];
@@ -269,7 +275,7 @@ export default async function ReportesPage({
       const ym = shiftYm(thisYm, -i);
       return { value: ym, label: monthLabel(ym) };
     }),
-    { value: "historico", label: "Histórico" },
+    { value: "historico", label: "Últimos 2 años" },
   ];
 
   return (
