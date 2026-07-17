@@ -63,25 +63,23 @@ export default async function ClaseDetallePage({
   const sRel = (me.studios ?? null) as { timezone: string | null } | { timezone: string | null }[] | null;
   const tz = (Array.isArray(sRel) ? sRel[0] : sRel)?.timezone || DEFAULT_TZ;
 
-  const { data: klass } = await supabase
-    .from("classes")
-    .select("id, name, instructor_name")
-    .eq("id", id)
-    .maybeSingle();
-  if (!klass) notFound();
-
   // Desde 24 h atrás: la asistencia se marca durante/después de la clase.
   const from = new Date();
   from.setHours(from.getHours() - 24);
   const fromIso = from.toISOString();
-  const { data: occsRaw } = await supabase
-    .from("class_occurrences")
-    .select("id, starts_at, capacity, booked_count")
-    .eq("class_id", id)
-    .eq("status", "scheduled")
-    .gte("starts_at", fromIso)
-    .order("starts_at", { ascending: true })
-    .limit(20);
+  // Clase + ocurrencias en paralelo (independientes; si la clase no existe → 404 igual)
+  const [{ data: klass }, { data: occsRaw }] = await Promise.all([
+    supabase.from("classes").select("id, name, instructor_name").eq("id", id).maybeSingle(),
+    supabase
+      .from("class_occurrences")
+      .select("id, starts_at, capacity, booked_count")
+      .eq("class_id", id)
+      .eq("status", "scheduled")
+      .gte("starts_at", fromIso)
+      .order("starts_at", { ascending: true })
+      .limit(20),
+  ]);
+  if (!klass) notFound();
   const occs = (occsRaw ?? []) as { id: string; starts_at: string; capacity: number; booked_count: number }[];
 
   // contar waitlist por ocurrencia (para el badge en la lista)

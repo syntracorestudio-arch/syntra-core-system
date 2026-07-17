@@ -35,14 +35,14 @@ export default async function AlumnosPage({
   const studioRel = (member.studios ?? null) as { name: string } | { name: string }[] | null;
   const studio = Array.isArray(studioRel) ? studioRel[0] : studioRel;
 
-  const { data: mems } = await supabase
-    .from("members")
-    .select("id, status, role, profiles(full_name, email, phone)")
-    .eq("role", "client")
-    .order("joined_at", { ascending: false });
-  const { data: fins } = await supabase
-    .from("member_financial_status")
-    .select("member_id, credits_available, has_active_membership, financial_status");
+  const [{ data: mems }, { data: fins }] = await Promise.all([
+    supabase
+      .from("members")
+      .select("id, status, role, profiles(full_name, email, phone)")
+      .eq("role", "client")
+      .order("joined_at", { ascending: false }),
+    supabase.from("member_financial_status").select("member_id, credits_available, has_active_membership, financial_status"),
+  ]);
 
   const finByMember = new Map<string, FinRow>(
     ((fins ?? []) as unknown as FinRow[]).map((f) => [f.member_id, f]),

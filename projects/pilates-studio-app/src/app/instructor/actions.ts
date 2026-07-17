@@ -69,17 +69,17 @@ export async function markAllPresent(formData: FormData) {
   const pending = ((rows ?? []) as { reservation_id: string; attendance_status: string | null }[]).filter(
     (r) => !r.attendance_status,
   );
-  for (const r of pending) {
-    const { error } = await supabase.rpc("set_attendance", {
-      p_reservation_id: r.reservation_id,
-      p_status: "checked_in",
-    });
-    if (error) {
-      const msg = error.message.includes("class_not_started")
-        ? "La clase todavía no empezó."
-        : "No se pudo marcar a todos. Revisá la lista.";
-      return back({ error: msg });
-    }
+  // En paralelo (antes: en serie = un RTT por alumno). La RPC valida por reserva;
+  // si alguna falla se reporta una vez — las demás quedan marcadas y reintentar es barato.
+  const results = await Promise.all(
+    pending.map((r) => supabase.rpc("set_attendance", { p_reservation_id: r.reservation_id, p_status: "checked_in" })),
+  );
+  const firstError = results.find((r) => r.error)?.error;
+  if (firstError) {
+    const msg = firstError.message.includes("class_not_started")
+      ? "La clase todavía no empezó."
+      : "No se pudo marcar a todos. Revisá la lista.";
+    return back({ error: msg });
   }
   back({ notice: pending.length > 0 ? `${pending.length} marcados presentes.` : "No había nadie sin marcar." });
 }
