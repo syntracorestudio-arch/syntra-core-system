@@ -20,8 +20,11 @@ ejecución — no improvisar:
 - **Agents** (routing tarea→agente, abajo): diagnóstico, dirección y QA con el subagent correcto.
 - **Skills** SYNTRA: `ui-ux-pro-max` (research estándar del design-director),
   `syntra-living-motion` + `syntra-premium-motion-system` (implementación de motion),
-  `syntra-copy-system`, `syntra-safe-commit-gate`; `syntra-reference-lock` =
-  documentación POST-aprobación; `syntra-premium-section-design` = análisis opcional.
+  `syntra-copy-system`, `syntra-safe-commit-gate`,
+  `syntra-scale-security-baseline` (**normativa en todo backend/data**: cotas de fecha,
+  índices, async, rate limiting, headers, gate de load-test pre-clientes);
+  `syntra-reference-lock` = documentación POST-aprobación;
+  `syntra-premium-section-design` = análisis opcional.
 - **MCP**: `shadcn` (componentes) y `playwright` (loop visual — ver "Herramientas / MCP").
 - **Plugins**: `superpowers` de forma SELECTIVA y subordinada (ver "Plugins / superpowers").
 
