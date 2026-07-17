@@ -133,9 +133,12 @@ export default async function AdminDashboardPage() {
   const weekEnd = localToUtcISO(addDays(todayLocal, 7), "00:00", tz);
 
   const limitIso = localToUtcISO(addDays(todayLocal, EXPIRY_WARNING_DAYS), "23:59", tz);
+  // Ventana de datos: 6 meses (serie + comparativa). Sin esta cota, pagos y reservas
+  // se leían COMPLETOS en cada render y crecían para siempre (auditoría 2026-07-17).
+  const sixMonthsStart = localToUtcISO(`${shiftYm(thisYm, -5)}-01`, "00:00", tz);
   const [{ data: pays }, { data: mems }, { data: fins }, { data: mships }, { data: occ }, { data: allRes }, { data: expPasses }, { data: wl }, { data: monthExp }] =
     await Promise.all([
-      supabase.from("payments").select("amount, concept, paid_at").eq("status", "confirmed"),
+      supabase.from("payments").select("amount, concept, paid_at").eq("status", "confirmed").gte("paid_at", sixMonthsStart),
       supabase.from("members").select("id, joined_at, profiles(full_name, phone)").eq("role", "client"),
       supabase.from("member_financial_status").select("member_id, financial_status"),
       supabase.from("memberships").select("valid_to, status").eq("status", "active"),
@@ -146,7 +149,11 @@ export default async function AdminDashboardPage() {
         .gte("starts_at", todayStart)
         .lt("starts_at", weekEnd)
         .order("starts_at", { ascending: true }),
-      supabase.from("class_reservations").select("member_id, created_at").neq("status", "cancelled"),
+      supabase
+        .from("class_reservations")
+        .select("member_id, created_at")
+        .neq("status", "cancelled")
+        .gte("created_at", sixMonthsStart),
       supabase.from("member_passes").select("id, member_id, expires_at").gt("expires_at", nowIso).lte("expires_at", limitIso),
       supabase.from("waitlist").select("occurrence_id").eq("status", "waiting"),
       // egresos del mes (RLS solo-admin → para reception devuelve vacío, y el tile ni se muestra)
@@ -239,6 +246,8 @@ export default async function AdminDashboardPage() {
     const prev = lastResById.get(r.member_id);
     if (!prev || r.created_at > prev) lastResById.set(r.member_id, r.created_at);
   }
+  // Con la ventana de 6 meses, "sin filas" puede ser reserva más vieja o nunca reservó:
+  // se distingue por la fecha de alta y los días se capean en 180 ("más de 6 meses").
   const inactivos = [...nameById.keys()]
     .map((id) => ({ id, last: lastResById.get(id) ?? joinedById.get(id) ?? "" }))
     .filter((x) => x.last && x.last < inactiveCutIso)
@@ -246,8 +255,8 @@ export default async function AdminDashboardPage() {
     .slice(0, 5)
     .map((x) => ({
       id: x.id,
-      days: Math.floor((Date.parse(nowIso) - Date.parse(x.last)) / 86_400_000),
-      neverBooked: !lastResById.has(x.id),
+      days: Math.min(Math.floor((Date.parse(nowIso) - Date.parse(x.last)) / 86_400_000), 180),
+      neverBooked: !lastResById.has(x.id) && (joinedById.get(x.id) ?? "") >= sixMonthsStart,
     }));
 
   const needsAttention = debtors.length > 0 || porVencer > 0 || packsPorVencer.length > 0 || inactivos.length > 0;
@@ -647,7 +656,11 @@ export default async function AdminDashboardPage() {
                                 {nameById.get(i.id)}
                               </span>
                               <span className="block text-[11px] text-muted-foreground">
-                                {i.neverBooked ? `sin reservas desde el alta (${i.days} d)` : `última reserva hace ${i.days} días`}
+                                {i.neverBooked
+                                  ? `sin reservas desde el alta (${i.days} d)`
+                                  : i.days >= 180
+                                    ? "sin actividad hace más de 6 meses"
+                                    : `última reserva hace ${i.days} días`}
                               </span>
                             </Link>
                             {wa ? (
