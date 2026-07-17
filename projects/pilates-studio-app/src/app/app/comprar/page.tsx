@@ -65,9 +65,16 @@ export default async function ComprarPage({
   const tz = studio?.timezone || "America/Argentina/Buenos_Aires";
   const nowIso = new Date().toISOString();
   const todayDate = new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
-  const [{ data: myPasses }, { data: myMships }] = await Promise.all([
+  // Saldo + catálogos en paralelo (los catálogos no dependen del saldo)
+  const [{ data: myPasses }, { data: myMships }, { data: passesRaw }, { data: plansRaw }] = await Promise.all([
     supabase.from("member_passes").select("id, expires_at").gt("expires_at", nowIso),
     supabase.from("memberships").select("valid_to").eq("status", "active").gte("valid_to", todayDate),
+    supabase.from("passes").select("id, name, credits, validity_days, price").eq("active", true).order("price", { ascending: true }),
+    supabase
+      .from("sale_products")
+      .select("id, name, concept, price, duration_days")
+      .eq("active", true)
+      .order("price", { ascending: true }),
   ]);
   const validPasses = (myPasses ?? []) as { id: string; expires_at: string }[];
   let credits = 0;
@@ -94,18 +101,7 @@ export default async function ComprarPage({
       new Date(isoOrDate.length === 10 ? `${isoOrDate}T12:00:00Z` : isoOrDate),
     );
 
-  const { data: passesRaw } = await supabase
-    .from("passes")
-    .select("id, name, credits, validity_days, price")
-    .eq("active", true)
-    .order("price", { ascending: true });
   const passes = (passesRaw ?? []) as Pass[];
-
-  const { data: plansRaw } = await supabase
-    .from("sale_products")
-    .select("id, name, concept, price, duration_days")
-    .eq("active", true)
-    .order("price", { ascending: true });
   const plans = (plansRaw ?? []) as Plan[];
 
   // Estado de cobro online del estudio (campo no-secreto vía service-role).

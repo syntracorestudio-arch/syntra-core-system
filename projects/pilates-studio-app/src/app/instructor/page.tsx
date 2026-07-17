@@ -184,21 +184,29 @@ export default async function InstructorPage({
       .format(new Date(iso))
       .replace(/\./g, "");
 
-  // Lista de espera por ocurrencia próxima (RPC 024 — solo números, nunca nombres).
-  const waitByOcc = new Map<string, number>();
-  if (upcoming.length > 0) {
-    const { data: wl } = await supabase.rpc("instructor_waitlist_counts", {
-      p_occurrence_ids: upcoming.map((o) => o.id),
-    });
-    for (const w of (wl ?? []) as { occurrence_id: string; waiting_count: number }[]) {
-      waitByOcc.set(w.occurrence_id, w.waiting_count);
-    }
-  }
-
   // Selección: ?occ válido entre próximas o sin-cerrar; default = primera próxima.
   const selectable = [...upcoming, ...pendientes];
   const selectedId = occ && selectable.some((o) => o.id === occ) ? occ : upcoming[0]?.id ?? pendientes[0]?.id ?? null;
   const selected = selectable.find((o) => o.id === selectedId) ?? null;
+
+  // Las 3 RPCs son independientes → en paralelo (antes: 3 RTT en serie).
+  const [wlCountsRes, rosterRes, wqRes] = await Promise.all([
+    upcoming.length > 0
+      ? supabase.rpc("instructor_waitlist_counts", { p_occurrence_ids: upcoming.map((o) => o.id) })
+      : Promise.resolve({ data: null }),
+    selectedId
+      ? supabase.rpc("instructor_class_roster", { p_occurrence_id: selectedId })
+      : Promise.resolve({ data: null }),
+    selectedId
+      ? supabase.rpc("instructor_waitlist", { p_occurrence_id: selectedId })
+      : Promise.resolve({ data: null }),
+  ]);
+
+  // Lista de espera por ocurrencia próxima (RPC 024 — solo números, nunca nombres).
+  const waitByOcc = new Map<string, number>();
+  for (const w of (wlCountsRes.data ?? []) as { occurrence_id: string; waiting_count: number }[]) {
+    waitByOcc.set(w.occurrence_id, w.waiting_count);
+  }
 
   // Roster + asistencia de la ocurrencia seleccionada (RPC SECURITY DEFINER).
   let roster: {
@@ -212,9 +220,7 @@ export default async function InstructorPage({
     birthday: boolean;
   }[] = [];
   if (selectedId) {
-    const { data: rows } = await supabase.rpc("instructor_class_roster", {
-      p_occurrence_id: selectedId,
-    });
+    const rows = rosterRes.data;
     roster = ((rows ?? []) as {
       reservation_id: string;
       member_id: string;
@@ -237,14 +243,10 @@ export default async function InstructorPage({
   }
 
   // Cola de espera EN ORDEN de la clase seleccionada (RPC 027: solo su clase, solo nombres)
-  let waitQueue: { position: number; name: string }[] = [];
-  if (selectedId && (waitByOcc.get(selectedId) ?? 0) > 0) {
-    const { data: wq } = await supabase.rpc("instructor_waitlist", { p_occurrence_id: selectedId });
-    waitQueue = ((wq ?? []) as { queue_position: number; member_name: string }[]).map((w) => ({
-      position: w.queue_position,
-      name: w.member_name,
-    }));
-  }
+  const waitQueue: { position: number; name: string }[] = ((wqRes.data ?? []) as {
+    queue_position: number;
+    member_name: string;
+  }[]).map((w) => ({ position: w.queue_position, name: w.member_name }));
 
   const presentCount = roster.filter((r) => r.att === "checked_in").length;
   const unmarkedCount = roster.filter((r) => r.att === null).length;

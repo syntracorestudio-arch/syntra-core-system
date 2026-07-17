@@ -73,23 +73,63 @@ export default async function AppPage({
   const endIso = new Date(now.getTime() + 8 * 86_400_000).toISOString();
   const todayDate = tzParts(nowIso, tz).date;
 
-  // Saldo desde TABLAS BASE (respeta RLS; NO usamos la vista member_financial_status,
-  // que es security-definer y filtraría mal / fugaría datos de otros alumnos).
-  const { data: passes } = await supabase
-    .from("member_passes")
-    .select("id, expires_at")
-    .gt("expires_at", nowIso);
+  // ── Tanda 1: todas las lecturas independientes en paralelo (antes: 9 RTT en serie;
+  // es la página del pico de reservas). El saldo sale de TABLAS BASE (respeta RLS;
+  // NO usamos la vista member_financial_status, que filtraría mal para el alumno).
+  const adminDb = createAdminClient();
+  const [
+    { data: passes },
+    { data: mships },
+    { data: occ },
+    { data: attendedRaw },
+    { data: myRes },
+    { data: myWait },
+    { data: st },
+  ] = await Promise.all([
+    supabase.from("member_passes").select("id, expires_at").gt("expires_at", nowIso),
+    supabase.from("memberships").select("id").eq("status", "active").gte("valid_to", todayDate),
+    supabase
+      .from("class_occurrences")
+      .select("id, class_id, starts_at, capacity, booked_count, classes(name, instructor_name, duration_min)")
+      .eq("status", "scheduled")
+      .gte("starts_at", nowIso)
+      .lt("starts_at", endIso)
+      .order("starts_at", { ascending: true }),
+    supabase
+      .from("class_reservations")
+      .select("class_occurrences(class_id, starts_at, classes(name))")
+      .eq("status", "attended")
+      .order("created_at", { ascending: false })
+      .limit(200),
+    supabase.from("class_reservations").select("id, occurrence_id, promoted").eq("status", "booked"),
+    supabase.from("waitlist").select("occurrence_id, position").eq("status", "waiting"),
+    // política de cancelación (el alumno no lee settings por RLS → server)
+    adminDb
+      .from("studio_settings")
+      .select("cancellation_window_hours, refund_on_late_cancel")
+      .eq("studio_id", (member as { studio_id?: string } | null)?.studio_id ?? "")
+      .maybeSingle(),
+  ]);
+
   const validPasses = (passes ?? []) as { id: string; expires_at: string }[];
   const validPassIds = validPasses.map((p) => p.id);
+  const hasMembership = (mships ?? []).length > 0;
+
+  // ── Tanda 2: lo que depende de la tanda 1 (ledger de MIS passes + cola por clase)
+  const [ledgerRes, wcRes] = await Promise.all([
+    validPassIds.length > 0
+      ? supabase.from("credit_ledger").select("delta, member_pass_id").in("member_pass_id", validPassIds)
+      : Promise.resolve({ data: null }),
+    (occ ?? []).length > 0
+      ? supabase.rpc("waitlist_counts", { p_occurrence_ids: (occ ?? []).map((o) => o.id as string) })
+      : Promise.resolve({ data: null }),
+  ]);
+
   let credits = 0;
   let nearestExpiry: string | null = null;
   if (validPassIds.length > 0) {
-    const { data: ledger } = await supabase
-      .from("credit_ledger")
-      .select("delta, member_pass_id")
-      .in("member_pass_id", validPassIds);
     const byPass = new Map<string, number>();
-    for (const l of (ledger ?? []) as { delta: number; member_pass_id: string }[]) {
+    for (const l of (ledgerRes.data ?? []) as { delta: number; member_pass_id: string }[]) {
       byPass.set(l.member_pass_id, (byPass.get(l.member_pass_id) ?? 0) + l.delta);
       credits += l.delta;
     }
@@ -100,12 +140,6 @@ export default async function AppPage({
         .map((p) => p.expires_at)
         .sort()[0] ?? null;
   }
-  const { data: mships } = await supabase
-    .from("memberships")
-    .select("id")
-    .eq("status", "active")
-    .gte("valid_to", todayDate);
-  const hasMembership = (mships ?? []).length > 0;
 
   // Nudge de recompra: pack por vencer en < 5 días (solo si le queda saldo)
   const expiresSoon =
@@ -114,34 +148,13 @@ export default async function AppPage({
     ? new Intl.DateTimeFormat("es-AR", { timeZone: tz, day: "numeric", month: "long" }).format(new Date(nearestExpiry))
     : "";
 
-  // Ocurrencias de los próximos 8 días (RLS: las de mi estudio)
-  const { data: occ } = await supabase
-    .from("class_occurrences")
-    .select("id, class_id, starts_at, capacity, booked_count, classes(name, instructor_name, duration_min)")
-    .eq("status", "scheduled")
-    .gte("starts_at", nowIso)
-    .lt("starts_at", endIso)
-    .order("starts_at", { ascending: true });
-
   // Cuántos esperan por clase (RPC 027, solo números): expectativa honesta en llenas
   // y "puesto N de M" cuando ya está anotado.
   const waitCountByOcc = new Map<string, number>();
-  if ((occ ?? []).length > 0) {
-    const { data: wc } = await supabase.rpc("waitlist_counts", {
-      p_occurrence_ids: (occ ?? []).map((o) => o.id as string),
-    });
-    for (const w of (wc ?? []) as { occurrence_id: string; waiting_count: number }[]) {
-      waitCountByOcc.set(w.occurrence_id, w.waiting_count);
-    }
+  for (const w of (wcRes.data ?? []) as { occurrence_id: string; waiting_count: number }[]) {
+    waitCountByOcc.set(w.occurrence_id, w.waiting_count);
   }
 
-  // Asistencias pasadas → racha + "tu horario" (la franja que más repite; RLS propias)
-  const { data: attendedRaw } = await supabase
-    .from("class_reservations")
-    .select("class_occurrences(class_id, starts_at, classes(name))")
-    .eq("status", "attended")
-    .order("created_at", { ascending: false })
-    .limit(200);
   type AttRel = {
     class_id: string;
     starts_at: string;
@@ -161,15 +174,7 @@ export default async function AppPage({
   const attendedThisMonth = attendedRows.filter((r) => localDateOf(r.startsAt, tz).slice(0, 7) === todayDate.slice(0, 7)).length;
   const habitual = habitualSlot(attendedRows, tz);
 
-  // Mis reservas activas + mi waitlist (RLS: propias)
-  const { data: myRes } = await supabase
-    .from("class_reservations")
-    .select("id, occurrence_id, promoted")
-    .eq("status", "booked");
-  const { data: myWait } = await supabase
-    .from("waitlist")
-    .select("occurrence_id, position")
-    .eq("status", "waiting");
+  // Mis reservas activas + mi waitlist (leídas en la tanda 1)
   const resByOcc = new Map((myRes ?? []).map((r) => [r.occurrence_id, r.id]));
   const promotedByOcc = new Set(
     ((myRes ?? []) as { occurrence_id: string; promoted: boolean | null }[])
@@ -199,13 +204,7 @@ export default async function AppPage({
       )
     : null;
 
-  // Política de cancelación del estudio (el alumno no lee settings por RLS → server).
-  const adminDb = createAdminClient();
-  const { data: st } = await adminDb
-    .from("studio_settings")
-    .select("cancellation_window_hours, refund_on_late_cancel")
-    .eq("studio_id", (member as { studio_id?: string } | null)?.studio_id ?? "")
-    .maybeSingle();
+  // Política de cancelación (leída en la tanda 1 vía server).
   const windowH = (st?.cancellation_window_hours as number | undefined) ?? 24;
   const refundLate = Boolean(st?.refund_on_late_cancel);
   const fmtDeadline = (iso: string) =>

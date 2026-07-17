@@ -102,30 +102,29 @@ export default async function HoyPage({
     ((finsRaw ?? []) as { member_id: string; financial_status: FinancialStatus }[]).map((f) => [f.member_id, f.financial_status]),
   );
 
-  // Rosters de todas las clases de hoy en una sola query
+  // Rosters + colas de espera de todas las clases de hoy — en paralelo (independientes)
   const occIds = occs.map((o) => o.id);
   type ResRow = { id: string; occurrence_id: string; member_id: string; members: MemberRel | MemberRel[] | null; attendance: AttRel };
-  let resRows: ResRow[] = [];
-  if (occIds.length > 0) {
-    const { data } = await supabase
-      .from("class_reservations")
-      .select("id, occurrence_id, member_id, members(id, notes, profiles(full_name, phone)), attendance(status)")
-      .in("occurrence_id", occIds)
-      .in("status", ["booked", "attended", "no_show"]);
-    resRows = (data ?? []) as unknown as ResRow[];
-  }
-  // Cola de espera EN ORDEN por clase (RLS: admin/recepción ven la waitlist del estudio)
   type WaitRow = { id: string; occurrence_id: string; position: number; members: MemberRel | MemberRel[] | null };
-  let waitRows: WaitRow[] = [];
-  if (occIds.length > 0) {
-    const { data } = await supabase
-      .from("waitlist")
-      .select("id, occurrence_id, position, members(id, notes, profiles(full_name, phone))")
-      .in("occurrence_id", occIds)
-      .eq("status", "waiting")
-      .order("position", { ascending: true });
-    waitRows = (data ?? []) as unknown as WaitRow[];
-  }
+  const [resRes, waitRes] = await Promise.all([
+    occIds.length > 0
+      ? supabase
+          .from("class_reservations")
+          .select("id, occurrence_id, member_id, members(id, notes, profiles(full_name, phone)), attendance(status)")
+          .in("occurrence_id", occIds)
+          .in("status", ["booked", "attended", "no_show"])
+      : Promise.resolve({ data: null }),
+    occIds.length > 0
+      ? supabase
+          .from("waitlist")
+          .select("id, occurrence_id, position, members(id, notes, profiles(full_name, phone))")
+          .in("occurrence_id", occIds)
+          .eq("status", "waiting")
+          .order("position", { ascending: true })
+      : Promise.resolve({ data: null }),
+  ]);
+  const resRows = (resRes.data ?? []) as unknown as ResRow[];
+  const waitRows = (waitRes.data ?? []) as unknown as WaitRow[];
   const waitByOcc = new Map<string, { id: string; name: string; phone: string | null }[]>();
   for (const w of waitRows) {
     const m = Array.isArray(w.members) ? w.members[0] : w.members;
