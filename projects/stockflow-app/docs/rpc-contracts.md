@@ -133,6 +133,17 @@ Solo owner. Actualiza `price` de products activos del alcance con redondeo
 inserta notificación de auditoría ("remarcaste N productos +X%"). La preview la
 hace la UI (misma fórmula, client-side, sin RPC).
 
+## create_store — alta de negocio (tanda 1C)
+
+```
+create_store(p_name text, p_slug text, p_owner_profile uuid) returns stores
+```
+`stores` no tiene policy de INSERT y `members` exige ser ya owner → un usuario nuevo
+no puede crearse un negocio solo. Es **deliberado**: el onboarding es un acto de
+SYNTRA, no self-service. Esta RPC (invocada con `service_role` desde una action de
+alta) crea el store, su fila de settings (la pone el trigger) y el `members` owner
+en una transacción. Hasta que exista, los negocios se dan de alta por seed.
+
 ## check_rate_limit — baseline (tanda 1B, migración 001/002)
 
 Clon del contrato StudioFlow 033: `check_rate_limit(p_key text, p_max int,

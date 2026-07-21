@@ -20,7 +20,7 @@ export async function checkRateLimit(
     const { data, error } = await admin.rpc("check_rate_limit", {
       p_key: key,
       p_max: max,
-      p_window: `${windowSeconds} seconds`,
+      p_window_seconds: windowSeconds,
     });
     if (error) return true; /* fail-open */
     return data !== false;
