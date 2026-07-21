@@ -1,0 +1,152 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ============================================================
+   StockFlow — Design Tokens (tanda 1A)
+   Dirección: "Slate operativo" — dark frío, alto contraste,
+   el color ES información. Aprobada por el owner 2026-07-21.
+   Fuente de verdad: docs/reference-locks/paleta-dark.md
+
+   Dos reglas que NO se negocian:
+   1. `--primary` es el ÚNICO token white-label (lo pisa cada
+      negocio en runtime). Los semánticos son léxico de retail,
+      no marca: verde = plata, ámbar = cuidado, rojo = pérdida.
+   2. El color nunca informa solo: todo estado lleva ícono +
+      signo (daltonismo — verde-ganancia vs rojo-pérdida son los
+      dos datos más críticos de la caja).
+
+   App dark-only: no hay variante light. Un POS se opera en un
+   mostrador, no se alterna de tema.
+   ============================================================ */
+
+:root {
+  --radius: 0.75rem;
+
+  /* Neutros — near-black azulado, superficies elevadas nítidas */
+  --background: #0a0d13; /* lienzo POS/dashboard */
+  --foreground: #f1f5fb; /* ~16:1 sobre background */
+  --card: #111621; /* superficie de card */
+  --card-foreground: #f1f5fb;
+  --popover: #171d2a; /* elevado: popover / modal / sheet */
+  --popover-foreground: #f1f5fb;
+
+  /* Acento de marca — WHITE-LABEL (default azul eléctrico) */
+  --primary: #2e6bff;
+  --primary-foreground: #ffffff; /* ~4.6:1 sobre el fill — AA */
+  --primary-ink: #6d9bff; /* el acento como TEXTO/link sobre dark */
+
+  --secondary: #1a2130;
+  --secondary-foreground: #dce3ef;
+  --muted: #1a2130;
+  --muted-foreground: #94a1b6; /* ~6.8:1 — AA */
+  --accent: #16233c; /* item seleccionado (azul-teñido) */
+  --accent-foreground: #dce7ff;
+
+  /* Semánticos FIJOS — léxico de retail, NO white-label.
+     `-ink` = versión clareada para texto sobre dark.
+     `-foreground` = texto oscuro sobre el fill de color. */
+  --success: #22c55e; /* ganancia / cobrado / HECHO */
+  --success-ink: #4ade80;
+  --success-foreground: #052e14;
+  --warning: #f59e0b; /* stock bajo / por vencer */
+  --warning-ink: #fbbf24;
+  --warning-foreground: #2a1a02;
+  --danger: #ef4444; /* sin stock / vencido / fiado atrasado */
+  --danger-ink: #f87171;
+  --danger-foreground: #300a0a;
+  --info: #818cf8; /* aviso neutral (indigo, no cyan) */
+  --info-ink: #a5b0ff;
+
+  --border: #232b3a;
+  --input: #2a3444; /* 1 paso sobre border = affordance de campo */
+  --ring: var(--primary);
+
+  /* Chips de categoría de producto (grilla de "rápidos" del POS).
+     Los hex puros de semántica quedan reservados: acá van vecinos
+     para que un chip nunca se lea como un estado. */
+  --cat-bebidas: #3b82f6;
+  --cat-golosinas: #ec4899;
+  --cat-cigarrillos: #f59e0b;
+  --cat-almacen: #10b981;
+  --cat-limpieza: #06b6d4;
+  --cat-varios: #8b5cf6;
+  --cat-fiambres: #f43f5e;
+  --cat-panaderia: #84cc16;
+
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-slow: 300ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-ink: var(--primary-ink);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-ink: var(--success-ink);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-info: var(--info);
+  --color-info-ink: var(--info-ink);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-sans);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Foco visible siempre (baseline a11y) */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Plata: los números de dinero no deben "bailar" al actualizarse */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
