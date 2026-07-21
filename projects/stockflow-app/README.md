@@ -1,9 +1,22 @@
 # StockFlow — stock y ventas para negocios chicos
 
-> **Estado: Fase 0** (docs, sin código). SaaS white-label multi-tenant de SYNTRA para
-> kioscos y almacenes: POS con escáner, stock como ledger, fiado, vencimientos y
-> avisos push al teléfono del dueño. Hermano de StudioFlow
+> **Estado: tanda 1A** (scaffold + tokens + shells). SaaS white-label multi-tenant de
+> SYNTRA para kioscos y almacenes: POS con escáner, stock como ledger, fiado,
+> vencimientos y avisos push al teléfono del dueño. Hermano de StudioFlow
 > (`projects/pilates-studio-app`), del que clona stack y patrones probados.
+
+## Correr el proyecto
+
+```bash
+npm install
+cp .env.example .env.local   # completar con el proyecto Supabase de StockFlow
+npm run dev
+```
+
+Sin `.env.local` la app **igual levanta en desarrollo** (para revisar la UI) y el
+`proxy` deja pasar; en producción la falta de credenciales revienta al arrancar, que
+es lo correcto. Las pantallas del dueño (`/admin`) y de caja (`/pos`) usan un fixture
+local hasta la tanda 1H/1D.
 
 ## Qué es
 
