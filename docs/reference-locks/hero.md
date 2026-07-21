@@ -2,178 +2,137 @@
 section: hero
 status: approved
 approved_by: owner (Matias / SYNTRA CORE)
-date: 2026-06-19
-decision: asset-first
+date: 2026-07-17
+decision: código nativo contra una referencia externa aprobada (workflow variantes vivas)
+supersedes: "v1 'Estratos Luminosos' (asset estático image-first, 2026-06-19) — el asset sobrevive en /e/[slug] y OG; el hero ya no lo usa"
 ---
 
-# Reference Lock — hero
+# Reference Lock — Hero v2 · "El Vórtice"
 
-> **APPROVED.** Asset final aprobado:
-> `docs/reference-locks/assets/hero-a1-stratos-luminosos-final.png`.
-> El Hero se implementa **contra este asset** (image-first). NO reinventar un
-> protagonista visual desde código.
+> **APROBADO E IMPLEMENTADO** (PR #141, merged 2026-07-17). Este lock documenta
+> lo que el owner aprobó en su navegador tras una jornada con 8 direcciones
+> descartadas. Se escribe DESPUÉS de la aprobación (workflow variantes vivas).
 
-## Objetivo comercial / rol en la landing
-Primera impresión y `<h1>` único. Debe vender en ~2s: **SYNTRA crea sistemas
-digitales premium para negocios reales**. Es la **pieza-firma** de la marca: la
-sección más impactante de la landing (más que Casos). Emoción: premium, viva,
-memorable, tecnológica, confiable, sofisticada. KPI: reflejo del valor <2s +
-deseo de seguir + clic en CTA primario.
+## Objetivo comercial / rol
 
-## Referencias aprobadas
+Primera impresión y `<h1>` único. Debe vender en ~2s: **SYNTRA construye
+sistemas digitales premium para negocios reales**. Es la **pieza-firma**: la
+sección más impactante del sitio. KPI: reflejo del valor <2s + deseo de seguir
++ clic en el CTA primario.
 
-### ✅ Asset final aprobado (referencia principal de producción)
-![hero-final](assets/hero-a1-stratos-luminosos-final.png)
-`docs/reference-locks/assets/hero-a1-stratos-luminosos-final.png` — 1672×941 (16:9).
-Estructura de **estratos de vidrio/plata luminosos** a la derecha, **espacio negativo
-navy a la izquierda**, reflejos electric/cyan como filo. **Este es el protagonista
-visual del Hero.** El código lo **compone y anima** (image-first); no lo reemplaza.
+## Qué es (v2)
 
-**Qué se toma del asset final:**
-- la imagen tal cual como protagonista (estratos de vidrio/plata, luz blanca/plata);
-- la masa visual a la derecha;
-- el espacio negativo a la izquierda (para el texto);
-- los reflejos electric/cyan sutiles como filo;
-- la base navy / fondo oscuro premium.
+El protagonista es un **objeto 3D real** (R3F) en la zona derecha: un **nudo
+trenzado de vidrio negro con luz violeta interna** que gira lento, sigue al
+cursor y se puede **rotar 360° arrastrando con el mouse**.
 
-**Qué NO se toma / NO se hace:**
-- NO reinventar un protagonista visual desde código (tubos, waves, glass cores,
-  cápsulas, objetos 3D nuevos, dashboards, abstractos nuevos);
-- NO recortar el asset perdiendo la masa derecha o el espacio negativo izquierdo;
-- NO tapar el asset con UI/elementos que compitan;
-- NO romper la legibilidad del texto sobre la zona negativa.
+Reemplaza al asset estático "Estratos Luminosos" (v1): el hero era la sección
+más estática del sitio y el owner pidió que fuera la más viva.
 
-### Boards de contexto (dirección, NO assets de producción)
-**Board 1 — moodboard de dirección (owner eligió A1 — Premium Digital Architecture):**
-![board](assets/hero-premium-digital-architecture-board.png)
-`docs/reference-locks/assets/hero-premium-digital-architecture-board.png`
+## Origen y decisión clave: réplica NATIVA, no runtime de terceros
 
-**Board 2 — variantes finales de A1 (owner eligió A1.1):**
-![variant-board](assets/hero-a1-variant-board.png)
-`docs/reference-locks/assets/hero-a1-variant-board.png`
+La dirección salió de una escena de la comunidad de Spline elegida por el owner
+("Glass Knot Vortex"). Tras validar que ese ERA el objeto (embebiendo la escena
+real), se decidió **replicarla en three.js puro**:
 
-- **Variante elegida: A1.1 — Estratos Luminosos** (cuadrante sup-izq): planos de
-  vidrio/plata estratificados, luz blanca/plata dominante, masa visual a la
-  derecha, espacio negativo limpio a la izquierda, estructura digital elegante,
-  reflejos electric/cyan muy sutiles, estética editorial premium.
-- **Inspiración secundaria: A1.4 — Arquitectura Modular** (cuadrante inf-der):
-  solo como inspiración de precisión modular, capas ordenadas, arquitectura
-  digital y profundidad.
-- **Descartadas:** A1.2 — Ensamble de Planes (demasiado skyline/edificio) ·
-  A1.3 — Flujo Estratificado (demasiado wave/cinta). No usar.
+- El runtime de Spline pesa ~1.8MB y estampa un **badge "Built with Spline"**
+  (quitarlo requiere plan pago).
+- Spline corre sobre three.js ⇒ los mismos valores en el mismo motor dan los
+  mismos píxeles. Se extrajeron del runtime en memoria y se transcribieron.
 
-> Los boards son **referencia de dirección**, NO el asset final de producción. El
-> lock queda en `draft`: falta generar el **asset final individual limpio** de
-> A1.1 y que el owner lo apruebe (ver "Próximos assets necesarios").
+**Ground truth del rig (extraído del runtime, 2026-07-17) — no tocar sin motivo:**
 
-Anti-referencias (en `stash@{0}` y memoria de la sesión, NO aplicar):
-- SVG arc (plano, sin wow).
-- R3F tube (palo/tubo negro).
-- R3F wave field (cintas gruesas/oscuras + cápsulas básicas).
-- R3F glass core (objeto oscuro poco visible, fondo apagado).
+| Elemento | Valores |
+| --- | --- |
+| Geometría | `TorusKnotGeometry(165, 28, 500, 50, p=4, q=10)` (trenzado doble) |
+| Cámara | fov 45 · position [0, 0, 1000] |
+| Renderer | **NoToneMapping** · exposure 1 · shadowMap PCF |
+| Luz 1 | Hemisférica sky `#d3d3d3` / ground `#828282` @ 0.75 |
+| Luz 2 | Direccional `#ffffff` @ 1 · pos [0, 790, 445] · castShadow |
+| Luz 3 | Direccional `#ffffff` @ 2 · pos [0, -814, 256] · castShadow |
+| Luz 4 | Point **violeta `#7136ff`** @ 2.8 (6.5 en nuestra escala) · **decay 0** · distance 2000 · pos [96.5, 0, 0] · **SIN castShadow** |
+| Material | Phong · color `#2d2d2d` · specular `#404040` · shininess 30 · envMap de estudio (`spline-matcap.png`, extraída) · `combine: AddOperation` · reflectivity 0.55 |
 
-## Qué se toma de cada referencia
-**De A1.1 — Estratos Luminosos (elegida):**
-- planos de vidrio/plata estratificados;
-- luz blanca/plata dominante;
-- masa visual clara a la derecha;
-- espacio negativo limpio a la izquierda;
-- estructura digital elegante;
-- reflejos electric/cyan muy sutiles;
-- sensación de sistema diseñado;
-- estética editorial premium.
+Dos correcciones que costaron iteraciones y hay que **preservar**:
 
-**De A1.4 — Arquitectura Modular (solo inspiración secundaria):**
-- precisión modular;
-- capas ordenadas;
-- sensación de arquitectura digital;
-- profundidad.
+1. **La point violeta NO proyecta sombra**: su sombra PCF cortaba el recorrido
+   del violeta en parches duros (en la referencia el violeta fluye continuo).
+2. **NoToneMapping**: la curva fílmica por defecto de three comprimía TODOS los
+   brillos — era la causa del "le falta luz" que el owner marcaba.
 
-## Qué NO se toma
-**Del artefacto board (NO replicar):** títulos · labels · board layout · marcos ·
-footer · íconos.
-**Visual:** edificios literales · torres · ventanas · UI · dashboard · personas ·
-wave/cintas protagonistas · exceso de cyan · (además: nodos/circuitos, tubos
-negros, cápsulas flotantes, orbes/cubos AI, gamer/crypto, fondo todo azul oscuro).
+## Interacción (aprobada)
 
-## Dirección visual elegida
-**Premium Digital Architecture — Estructura Estratificada (A1).** Protagonista =
-asset visual premium (planos de vidrio/plata estratificados) aprobado antes del
-código y compuesto/animado en capas (motion sutil); A4 como inspiración de
-ensamble/profundidad. Texto limpio a la izquierda, masa a la derecha, luz
-blanca/plata dominante. Code-first descartado como camino del protagonista.
+- **Idle:** gira en el plano (período 44s) + bamboleo en dos ejes desfasados
+  (27s / 33s) → nunca se lee un loop.
+- **Cursor:** se desplaza e inclina hacia el mouse, amortiguado.
+- **Drag:** click + arrastre lo rota **360° libre**, con inercia al soltar.
+  **El seguimiento del cursor se SUSPENDE mientras arrastrás** (si no, la
+  traslación enmascara la rotación y el drag "no se siente").
+- Sensibilidad calibrada por el owner: 0.0045 / 0.0035 · decaimiento 0.93.
 
-## Decisión asset-first / code-first
-**asset-first (image-first), híbrido-capaz.** El protagonista NO se inventa desde
-código. Se aprueba el asset/referencia ANTES de codear; el código solo compone y
-anima (capas, parallax sutil, reveal, motion premium). Upgrade opcional a 3D
-asset-first (`.glb` modelado en herramienta externa) si el owner lo autoriza.
+## Disciplina técnica (invariantes)
 
-## Signature Palette Exception
+- Lazy (`dynamic ssr:false`) vía decider; monta **solo desktop lg+ y sin
+  `prefers-reduced-motion`**. En mobile no se descarga ni se renderiza 3D.
+- `frameloop` gateado por `useInView` (pausa fuera de viewport, nunca `"never"`).
+- dpr capado [1, 1.5] · antialias off · CLS 0 (capa `absolute inset-0`).
+- **La capa del objeto NO puede vivir dentro del contenedor de fondo (`-z-20`)**:
+  ahí no recibe eventos de puntero y el drag deja de funcionar. Vive en su propia
+  capa con hit-testing real.
+- Estado del puntero a **nivel módulo** con funciones puras (`stepInertia`,
+  `trackPointer`, `beginDrag`…): el React Compiler prohíbe mutar props/args de
+  hooks dentro de `useFrame`.
+- **El H1 sigue siendo el LCP**: entrada palabra por palabra SOLO en desktop; en
+  mobile/SSR pinta estático.
 
-**¿Aplica excepción de paleta?** sí
+## Excepción de paleta declarada
 
-**Justificación:** el Hero es pieza-firma; forzar el 90/10 azul + near-black fue
-causa directa de objetos oscuros/apagados. Necesita poder brillar.
+El **violeta `#7136ff`** está habilitado **solo como luz interna del vórtice**,
+por decisión explícita del owner (2026-07-17), como excepción de pieza-firma. NO
+se extiende al resto del sitio ni al fondo: la paleta sigue siendo
+navy/near-black + electric (#2563eb/#60a5fa) + warm (#e7c8a0/#d97706).
+Ver `docs/creative-library/signature-palette-exception.md`.
 
-**Colores/materiales habilitados:** blanco/luz dominante, plata, vidrio /
-translúcidos, reflejos eléctricos, gradientes más ricos, un acento no-azul
-controlado (a definir en la referencia aprobada).
+## Archivos
 
-**Límites de uso:** electric + blanco dominantes; cyan solo como filo/acento
-(no masa, no neón múltiple); un solo acento no-azul máximo; sin arcoíris, sin
-glow excesivo, sin partículas/starfield.
+- `src/components/marketing/hero/hero-anillos-3d.tsx` — escena (rig + material + interacción).
+- `src/components/marketing/hero/hero-anillos.tsx` — decider lazy (desktop + motion).
+- `src/components/sections/hero-section.tsx` — composición: copy izquierda, objeto derecha, capas de fondo.
+- `public/visual-assets/syntra/hero/spline-matcap.png` — entorno de estudio (80KB) que genera las planchas de reflejo.
 
-**Cómo se mantiene la marca SYNTRA:** base navy/slate del sitio, electric como
-estructura, sobriedad y mucho espacio negativo (ancla Linear/Vercel/Stripe).
+## Criterios binarios (verificados en el prototipo aprobado)
 
-**Cómo se protege la legibilidad:** scrim/zona de calma para el texto; contraste
-AA del H1, subcopy y CTAs garantizado sobre el asset.
+- [x] El objeto lee **vidrio negro** (cuerpo negro + planchas de reflejo blanco líquido), no plástico ni grafito.
+- [x] El violeta **recorre continuo** las caras internas, sin cortes ni parches.
+- [x] Idle perceptible sin marear; nunca se detiene.
+- [x] Drag rota 360° con inercia y **se siente** (sin traslación que lo enmascare).
+- [x] No compite con H1/subtítulo/CTAs (scrim izquierdo intacto, AA).
+- [x] Mobile/reduced-motion: hero limpio, 0 bytes de 3D, sin CLS.
+- [x] `tsc` · `lint` · `build` verdes · consola sin errores.
+- [x] Sin dependencias de terceros ni badge de marca ajena.
 
-Referencia: `docs/creative-library/signature-palette-exception.md`
+## Anti-loop: lecciones de la jornada (8 direcciones descartadas)
 
-## Criterios binarios de aprobación
-- [ ] El protagonista se lee **premium y luminoso**, NO oscuro/pesado, en screenshot estático.
-- [ ] Hay **un** protagonista con foco, borde y masa que balancea el H1 (no textura difusa).
-- [ ] Vende el valor en <2s; H1 legible inmediato (LCP rápido).
-- [ ] No parece dashboard/chat/browser/nodos/cápsulas/tubos.
-- [ ] No parece gamer/crypto/AI-template; no es "todo azul".
-- [ ] Excepción de paleta respetada (electric+blanco dominantes, cyan filo, 1 acento máx).
-- [ ] Legibilidad AA de H1/subcopy/CTAs sobre el asset.
-- [ ] 1920 no desaprovechado; 1024–1279 resuelto; 390/360 con presencia real.
-- [ ] reduced-motion = estado final estático; CLS 0.
-- [ ] Lighthouse mobile +95 (o explicación clara).
-- [ ] El asset protagonista está aprobado por el owner ANTES de implementar.
+Se probaron y rechazaron: monolito de estratos · chip/placa tipo Blendr · red
+plexus · video de fondo (placeholder) · anillos entrelazados (3 materiales) ·
+nudo esculpido en Blender · render offline en Cycles. Qué dejó:
 
-## Riesgos visuales
-Asset stocky/AI-genérico si no se cura; perder "SYNTRA" por sobre-libertad de
-paleta; protagonista que compite con el H1 en vez de balancearlo.
+1. **La referencia del owner se REPLICA, no se interpreta.** Cuando pide
+   "exactamente igual", las versiones "inspiradas en" no sirven.
+2. **Pedir los VALORES, no describir el look.** Las capturas del editor de
+   Spline (luces, material) destrabaron en minutos lo que horas de tuning a ojo
+   no lograron.
+3. **Si la referencia es una escena real, embeberla primero para validar el
+   objeto**; recién después decidir cómo replicarla. Separa "¿es este el objeto?"
+   de "¿cómo lo construimos?".
+4. **Los renders offline (Cycles) no son comparables a lo que ve el usuario**:
+   el runtime tiene otro presupuesto. Si el destino es la web, iterar en la web.
+5. Un objeto 3D protagonista se juzga **en movimiento y en el navegador del
+   owner**, nunca en un frame quieto.
 
-## Riesgos técnicos / performance
-Above-the-fold: peso del asset (optimizar `.webp`/`.avif`), LCP, motion en capas
-sin CLS; si se va a 3D `.glb`: WebGL desktop-only + fallback mobile + DPR cap +
-dynamic ssr:false.
+## Pendiente (no bloquea)
 
-## Próximos assets necesarios
-Los boards son referencia de dirección, NO el asset de producción. Falta generar
-el **asset final individual limpio** de A1.1:
-```
-Archivo: docs/reference-locks/assets/hero-a1-stratos-luminosos-final.png
-Premium Digital Architecture — Estratos Luminosos.
-Imagen 16:9 limpia.
-Planos translúcidos de vidrio/plata.
-Luz blanca/plata dominante.
-Masa visual a la derecha.
-Espacio negativo limpio a la izquierda.
-Reflejos electric/cyan solo como filo.
-Sin texto · sin UI · sin dashboard · sin personas · sin edificio literal ·
-sin logo · sin marco · sin labels.
-```
-Optimizar a `.webp/.avif` antes de cualquier código, y que el owner apruebe el
-asset final. (También: variante 1:1/9:16 para fallback mobile.)
-
-## Owner approval
-
-Estado: draft
-
-<!-- Solo el owner pasa a 'approved'. Pendiente: generar y aprobar el asset final de A1. -->
+- **Fondo del Hero:** hoy usa `SectionAtmosphere accent="dual"` (el sistema común
+  de la Home). El owner pidió (2026-07-18) un fondo **propio y distinto** del
+  resto de las secciones, que haga del hero el acto de apertura sin repetir
+  stardust/auroras. Dirección en definición → se documenta acá al aprobarse.
