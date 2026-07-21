@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { motion, useInView, useReducedMotion, type Variants } from "framer-motion";
 
@@ -11,30 +10,82 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/layout/section";
 import { TrackedLink } from "@/components/shared/tracked-link";
+import { HeroAnillos } from "@/components/marketing/hero/hero-anillos";
+import { SectionAtmosphere } from "@/components/marketing/living/section-atmosphere";
 import { EASE_PREMIUM, DURATION } from "@/lib/motion";
 
 /**
- * HeroSection — primera impresión y <h1> único (HERO-REDESIGN, image-first).
- * Protagonista = asset aprobado en el reference-lock (`docs/reference-locks/hero.md`):
- * "Premium Digital Architecture — Estratos Luminosos" (estratos de vidrio/plata,
- * masa a la derecha, espacio negativo a la izquierda). El código COMPONE y ANIMA
- * el asset; NO reinventa un protagonista desde código (sin tubos/waves/glass/3D).
+ * HeroSection — primera impresión y <h1> único (WEB-HERO-RED, ref owner 2026-07-16).
+ * Protagonista = "LA RED": esfera-red 3D real-time (nodos + líneas plexus con núcleo
+ * dorado y Bloom) que vive en la zona derecha; el fondo nunca es un navy plano. Texto a
+ * la izquierda sobre scrim; H1 con entrada palabra-por-palabra SOLO desktop (en
+ * mobile/SSR queda estático → LCP intacto). Reemplaza el VIDEO placeholder.
  *
- * Composición: 2 columnas desde lg (texto izquierda sobre el espacio negativo,
- * asset a la derecha sangrando al borde y fundido al fondo). Mobile: asset
- * full-bleed con scrim para legibilidad. H1 estático → LCP rápido; el resto entra
- * en cascada sutil. reduced-motion → estado final inmediato. Signature Palette
- * Exception declarada en el lock (luz/plata dominante; cyan/electric solo filo).
+ * La red: lazy (decider desktop+motion, ssr:false), frameloop pausado fuera de viewport,
+ * fade-in que nunca bloquea el paint del H1. Mobile/reduced → radial navy limpio.
  */
 
-/** Asset protagonista aprobado (reference-lock: A1.1 Estratos Luminosos). */
-const HERO_ASSET = "/visual-assets/syntra/hero/hero-stratos.webp";
-const HERO_ASSET_ALT =
-  "Arquitectura digital de estratos de vidrio y luz — sistema SYNTRA.";
+/** Easing de la referencia (fade-up editorial). */
+const EASE_WORDS = [0.22, 1, 0.36, 1] as const;
+
+/** Palabras del H1 con stagger (solo cuando `animate`; si no, estático = SSR/LCP). */
+function TitleWords({
+  text,
+  animate,
+  startIndex,
+  gradient = false,
+}: {
+  text: string;
+  animate: boolean;
+  startIndex: number;
+  gradient?: boolean;
+}) {
+  const words = text.split(" ");
+  return (
+    <>
+      {words.map((w, i) => (
+        <motion.span
+          key={`${w}-${i}`}
+          className={`inline-block ${gradient ? "text-gradient-brand" : ""}`}
+          initial={animate ? { opacity: 0, y: 32 } : false}
+          animate={animate ? { opacity: 1, y: 0 } : undefined}
+          transition={{
+            duration: 0.7,
+            delay: 0.15 + (startIndex + i) * 0.08,
+            ease: EASE_WORDS,
+          }}
+        >
+          {w}
+          {i < words.length - 1 ? " " : ""}
+        </motion.span>
+      ))}
+    </>
+  );
+}
+
+/** Media query reactiva (useSyncExternalStore — SSR false → H1 estático en server). */
+function useDesktop() {
+  const subscribe = React.useCallback((cb: () => void) => {
+    const mql = window.matchMedia("(min-width: 1024px)");
+    mql.addEventListener("change", cb);
+    return () => mql.removeEventListener("change", cb);
+  }, []);
+  return React.useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia("(min-width: 1024px)").matches,
+    () => false,
+  );
+}
 
 function HeroSection() {
   const { hero, cta } = siteConfig;
   const reduce = useReducedMotion() ?? false;
+  const desktop = useDesktop();
+  // Stagger de palabras SOLO desktop sin reduce: en mobile el H1 es el LCP y debe
+  // pintar estático desde el SSR (lección WEB-PERF-A).
+  const animateTitle = desktop && !reduce;
+  const leadWords = hero.titleLead.split(" ").length;
+  const highlightWords = hero.titleHighlight.split(" ").length;
 
   // Placa de vidrio (capability rail): el sheen especular solo corre con la placa
   // en viewport (loop pausado fuera de vista) y nunca con reduced-motion.
@@ -61,81 +112,22 @@ function HeroSection() {
       contained={false}
       className="relative flex items-center overflow-hidden md:min-h-[88svh] lg:min-h-[100svh]"
     >
-      {/* === Fondo premium (acompaña, no compite) === */}
+      {/* === Fondo: "LA RED" — esfera-red 3D real-time (desktop) sobre base navy === */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-20">
-        <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_70%_35%,#101c34,#0b1120_62%)]" />
-        <div className="absolute top-1/2 right-[8%] size-[44rem] max-w-[90vw] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(37,99,235,0.14),rgba(96,165,250,0.06)_46%,transparent_70%)] blur-[100px]" />
+        {/* La PELÍCULA de la Home entra desde el hero: atmósfera unificada
+            (stardust + auroras térmicas) — el hero era la única sección con
+            fondo plano fuera del sistema (feedback owner 2026-07-17). */}
+        <SectionAtmosphere accent="dual" />
+        {/* Scrim de legibilidad: izquierda (texto) → transparente (la red vive a la derecha) */}
+        <div className="absolute inset-0 hidden bg-gradient-to-r from-[#0b1120]/90 via-[#0b1120]/45 to-transparent lg:block" />
+        {/* Fundido inferior: asienta la escena contra la siguiente sección */}
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#05070c] to-transparent" />
       </div>
 
-      {/* === Asset protagonista full-bleed (image-first, sin costuras) === */}
-      <div className="group pointer-events-none absolute inset-0 -z-10 overflow-hidden [perspective:1400px] lg:pointer-events-auto">
-        <motion.div
-          initial={reduce ? false : { opacity: 0, scale: 1.04 }}
-          animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1 }}
-          transition={{ duration: reduce ? 0 : DURATION.hero, ease: EASE_PREMIUM }}
-          className="absolute inset-0"
-        >
-          {/* Wrapper 2.5D: profundidad del ASSET COMPLETO en hover (no bloques
-              individuales — es imagen plana). Reposo = identidad. */}
-          <div className="absolute inset-0 [transform-style:preserve-3d] transition-transform duration-700 ease-out will-change-transform group-hover:[transform:scale(1.02)_translate3d(10px,-7px,0)_rotateX(0.6deg)_rotateY(-1deg)] motion-reduce:transition-none motion-reduce:group-hover:[transform:none]">
-            <motion.div
-              animate={reduce ? undefined : { y: [0, -16, 0], x: [0, 8, 0] }}
-              transition={
-                reduce ? undefined : { duration: 13, repeat: Infinity, ease: "easeInOut" }
-              }
-              className="absolute inset-0"
-            >
-              <Image
-                src={HERO_ASSET}
-                alt={HERO_ASSET_ALT}
-                fill
-                priority
-                sizes="100vw"
-                // Mobile: foco al CUERPO del vidrio (no al borde derecho, que se ve cortado
-                // en aspect angosto). Desktop conserva el encuadre aprobado (72%).
-                className="object-cover object-[54%_center] lg:object-[72%_center]"
-              />
-            </motion.div>
-          </div>
-        </motion.div>
-
-        {/* Light response al hover: sheen diagonal + glow electric claro sutil (desktop).
-            Solo opacity → no lava la imagen, sin costura. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 hidden opacity-0 transition-opacity duration-700 ease-out group-hover:opacity-100 motion-reduce:transition-none lg:block"
-        >
-          <div className="absolute inset-0 bg-[linear-gradient(115deg,transparent_45%,rgba(150,195,255,0.10)_60%,transparent_72%)]" />
-          <div className="absolute top-1/2 right-[20%] size-[26rem] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(96,165,250,0.12),transparent_66%)] blur-3xl" />
-        </div>
-
-        {/* Light sweep cinematográfico (desktop, transform/opacity; sin hard-stop,
-            sin lavar la imagen). Banda blanca difusa que cruza muy de vez en cuando. */}
-        {!reduce ? (
-          <motion.div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 hidden lg:block"
-            initial={{ x: "-45%", opacity: 0 }}
-            animate={{ x: ["-45%", "145%"], opacity: [0, 0.52, 0] }}
-            transition={{
-              duration: 9,
-              repeat: Infinity,
-              repeatDelay: 2.5,
-              ease: "easeInOut",
-            }}
-          >
-            <div className="absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.13),transparent)] blur-xl" />
-          </motion.div>
-        ) : null}
-
-        {/* Scrim de legibilidad: un solo gradiente suave de izq→der, sin hard-stop
-            ni borde → no genera línea divisoria. Más fuerte en mobile. */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0b1120] via-[#0b1120]/82 to-[#0b1120]/10 lg:via-[#0b1120]/45 lg:to-transparent" />
-        {/* Fundido inferior para asentar la sección */}
-        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#0b1120] to-transparent" />
-        {/* Calma suave en la zona baja-izquierda (detrás de bullets/CTAs); radial
-            con falloff suave → sin hard-stop ni línea divisoria */}
-        <div className="absolute bottom-0 left-0 h-2/3 w-3/4 bg-[radial-gradient(60%_80%_at_18%_92%,rgba(11,17,32,0.55),transparent_72%)]" />
+      {/* === El Vórtice: capa PROPIA (fuera del fondo -z-20, que se traga los
+          eventos de mouse — el drag necesita hit-testing real) === */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
+        <HeroAnillos />
       </div>
 
       {/* === Contenido === */}
@@ -152,14 +144,28 @@ function HeroSection() {
               </Badge>
             </motion.div>
 
-            {/* H1: estático, visible desde el SSR (sin gating de hidratación) →
-                es el elemento LCP, debe pintarse instantáneo. */}
+            {/* H1: en mobile/SSR pinta ESTÁTICO (es el LCP); en desktop las
+                palabras entran escalonadas (patrón referencia, fade-up 0.08s). */}
             <h1 className="font-heading text-4xl leading-[1.08] font-bold tracking-tight text-balance sm:text-5xl xl:text-6xl">
-              <span className="lg:block">{hero.titleLead}</span>{" "}
               <span className="lg:block">
-                que <span className="text-gradient-brand">{hero.titleHighlight}</span>
+                <TitleWords text={hero.titleLead} animate={animateTitle} startIndex={0} />
               </span>{" "}
-              <span className="lg:block">{hero.titleTail}</span>
+              <span className="lg:block">
+                <TitleWords text="que" animate={animateTitle} startIndex={leadWords} />{" "}
+                <TitleWords
+                  text={hero.titleHighlight}
+                  animate={animateTitle}
+                  startIndex={leadWords + 1}
+                  gradient
+                />
+              </span>{" "}
+              <span className="lg:block">
+                <TitleWords
+                  text={hero.titleTail}
+                  animate={animateTitle}
+                  startIndex={leadWords + 1 + highlightWords}
+                />
+              </span>
             </h1>
 
             <motion.p
@@ -274,22 +280,11 @@ function HeroSection() {
                 })}
               </div>
             </div>
-
-            {/* Cola de fusión: la placa se funde hacia la zona del asset (solo lg) */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute top-0 bottom-0 left-full hidden w-44 lg:block"
-              style={{
-                background:
-                  "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))",
-                maskImage: "linear-gradient(90deg, black, transparent 88%)",
-                WebkitMaskImage: "linear-gradient(90deg, black, transparent 88%)",
-              }}
-            />
           </motion.div>
         </div>
 
-        {/* Columna derecha: vacía a propósito; el asset vive en el fondo a la derecha */}
+        {/* Columna derecha: vacía a propósito — la esfera-red 3D del fondo vive en
+            esta zona (el scrim la deja despejada). */}
         <div className="hidden lg:block" aria-hidden="true" />
       </div>
     </Section>
