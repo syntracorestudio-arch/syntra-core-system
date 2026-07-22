@@ -2,7 +2,7 @@
 section: hero
 status: approved
 approved_by: owner (Matias / SYNTRA CORE)
-date: 2026-07-17
+date: 2026-07-17 (objeto) · 2026-07-22 (fondo "La Tinta")
 decision: código nativo contra una referencia externa aprobada (workflow variantes vivas)
 supersedes: "v1 'Estratos Luminosos' (asset estático image-first, 2026-06-19) — el asset sobrevive en /e/[slug] y OG; el hero ya no lo usa"
 ---
@@ -130,9 +130,101 @@ nudo esculpido en Blender · render offline en Cycles. Qué dejó:
 5. Un objeto 3D protagonista se juzga **en movimiento y en el navegador del
    owner**, nunca en un frame quieto.
 
-## Pendiente (no bloquea)
+---
 
-- **Fondo del Hero:** hoy usa `SectionAtmosphere accent="dual"` (el sistema común
-  de la Home). El owner pidió (2026-07-18) un fondo **propio y distinto** del
-  resto de las secciones, que haga del hero el acto de apertura sin repetir
-  stardust/auroras. Dirección en definición → se documenta acá al aprobarse.
+# Reference Lock — Hero, FONDO v3 · "La Tinta"
+
+> **APROBADO POR EL OWNER EN SU NAVEGADOR** (2026-07-22). Cierra el pendiente
+> que este lock arrastraba desde 2026-07-18: el hero ya tiene fondo propio.
+> Deroga los intentos no aprobados de la saga (placas de vidrio azules,
+> estructura, cámara con horizonte).
+
+## Qué es
+
+El fondo dejó de ser un objeto con silueta y pasó a ser **luz**: la atmósfera
+del espacio donde vive el vórtice. Masas de tinta azul que se difunden en un
+campo casi negro, sin un solo borde duro, recorriendo la sección completa.
+
+**Referencia del owner:** escena "Liquid Gradient Abstract Background" de Spline
+Community (remix oscuro). Dato que destrabó la paleta: al muestrear sus píxeles
+reales, el gradiente entero vive entre `#000000` y `#0a2655` (p99) — el "azul
+eléctrico" que uno percibe es **contraste local contra el campo casi negro**,
+no luminancia real. Copiar el azul percibido habría dado un fondo 5× más
+brillante que la referencia.
+
+## Paleta aprobada (hue lock 214-224°)
+
+| Rol | Hex |
+| --- | --- |
+| Vacío / costura con Servicios | `#04070E` |
+| Aire oscuro | `#060B14` |
+| Primera insinuación (ya es azul, no gris) | `#09182F` |
+| Masa en sombra | `#0F2A5C` |
+| Cuerpo iluminado (promedio del área azul) | `#17459E` |
+| Cresta | `#1D4ED8` |
+| Núcleo | `#2563EB` — **≤1,5% del encuadre** |
+
+Por debajo de 210° lee teal/cyan (prohibido en la web); por encima de 228°
+entra en índigo → cliché IA. **El eléctrico `#2563EB` no es "un azul" en esta
+web: es el token del CTA.** Si el fondo lo ocupa a gran área, el botón primario
+deja de ser el azul más brillante de la pantalla y se cae la jerarquía de
+acción — ahí es donde el hero empieza a leer como SaaS genérico.
+
+## Criterios binarios (medidos, no a ojo)
+
+| Criterio | Umbral | Medido 2026-07-22 |
+| --- | --- | --- |
+| Contraste H1 sobre el peor píxel de su columna | ≥14:1 | **15,3:1** (peor momento de la serie) |
+| Contraste subtítulo | ≥7:1 | **9,0:1** |
+| Materia visible (cobertura de la sección) | ≥85% | **87%** |
+| Se lee como azul (`>#0F2A5C`) | ≤34% | **12,5-35,2%** según el momento |
+| Cuerpo luminoso (`>#17459E`) | ≤12% | **4,6%** |
+| Núcleo `#2563EB` | ≤1,5% | **0,7%** |
+| Esquina superior izquierda | no debe quedarse oscura | **12,4 → 28,8** de luminancia |
+| Perf | 60 FPS · CLS 0 | **cumple** |
+
+## Decisiones de composición (no reabrir sin pedido del owner)
+
+1. **El foco luminoso NO va donde está el nudo.** El vórtice es vidrio negro
+   con reflejos blancos: sobre azul brillante se vuelve un recorte plano. Lleva
+   un **pozo oscuro** sobre su mitad superior para que esos reflejos existan.
+2. **La irregularidad no puede venir de la posición en X.** Una rampa lateral
+   produce, por construcción, la lectura "mitad azul / mitad oscura" que el
+   owner rechazó. La densidad desigual la dan **baches negativos salpicados**.
+3. **Ningún blob anclado en una esquina.** Un bache fijo deja esa zona
+   permanentemente oscura — fue exactamente el defecto que el owner detectó en
+   el margen superior izquierdo. Todo orbita salvo el bache que protege el H1.
+4. **El grano va ENCIMA del gradiente**, no debajo: es lo que lo convierte en
+   atmósfera fotografiada en vez de render limpio de plantilla.
+5. **La point light violeta del rig queda en 3.0** (era 6.5). Sobre negro puro
+   separaba el nudo del vacío; con azul detrás el fondo ya hace ese trabajo, y
+   azul + violeta juntos son la firma cromática del render de IA genérico.
+   Solo puede verse DENTRO de la silueta del nudo.
+6. **El mouse mueve el fondo por VELOCIDAD, nunca por posición.** El vórtice ya
+   responde a la posición del puntero; si el fondo hiciera lo mismo, las dos
+   respuestas se sumarían y todo se sentiría pegado al cursor.
+
+## Anti-loop: lecciones del fondo (además de las del objeto)
+
+1. **Muestrear la referencia, no describirla.** La descripción a ojo ("azul
+   eléctrico saturado") era falsa; los píxeles decían `#0a2655`. Una spec de
+   color escrita sobre la percepción habría mandado a implementar mal.
+2. **Un fondo no puede usar el mismo material que el protagonista.** Las placas
+   fallaron por eso: vidrio contra vidrio, el ojo compara y el fondo pierde.
+3. **Cuando el resultado tiene una lectura estructural equivocada, el problema
+   es la estructura, no los valores.** El "mitad y mitad" no se arreglaba
+   calibrando: había que sacar la rampa en X.
+4. **Con fondo en movimiento, un frame no prueba nada.** Las garantías
+   (contraste, cobertura, % de azul) se verifican con una serie temporal; el
+   pico manda sobre el promedio.
+
+## Archivos
+
+- `src/components/marketing/hero/hero-liquido.tsx` — el shader (props expuestas:
+  `speed`, `scale`, `focus`, `well`, `ceilLeft`, `intensity`, `contrast`,
+  `warp`, `dither`, `pointer`).
+- `src/components/marketing/hero/hero-camara.tsx` — base CSS + eco estático en
+  mesh-gradient para mobile / reduced-motion.
+- `src/components/marketing/hero/hero-anillos-3d.tsx` — canvas, rig y nitidez.
+- `src/components/sections/hero-section.tsx` — orden de capas (el quad es opaco:
+  grano, scrim y costura van encima del canvas; el contenido necesita `z-10`).
