@@ -34,6 +34,30 @@ Complementa al Hook 1 protegiendo el `git commit` (alineado con `syntra-safe-com
 - **Permite:** commits normales con staging explícito y sin prohibidos.
 - **Qué es:** Claude Code hook (`PreToolUse`/`Bash`), no un Git hook global.
 
+## syntra-structure-radar.mjs — Hook 3: radar de estructura
+Inyección de salience (lección codegraph 2026-07-22: "adapt the tool to the
+agent" — el wording en system prompts largos es low-salience; contexto inyectado
+junto al prompt del usuario sí mueve comportamiento).
+
+- **Qué es:** hook `UserPromptSubmit` — antes de cada prompt del owner, si el
+  texto matchea un dominio con disparador automático (visual/backend/commit/
+  copy/rechazo-iterativo), imprime 1-3 líneas `[SYNTRA-RADAR]` que Claude Code
+  agrega como contexto del turno.
+- **Targeted, no wallpaper:** si el prompt no matchea ningún dominio (o es un
+  comando slash), no inyecta NADA — costo cero. Máximo 3 líneas por turno.
+- **Nunca bloquea:** siempre `exit 0`, todo envuelto en try/catch. Un fallo del
+  script jamás frena el prompt.
+- **Mantenimiento:** las reglas (regex→línea) viven en el propio script y deben
+  reflejar los "Disparadores AUTOMÁTICOS" de CLAUDE.md — una línea por dominio,
+  sin duplicar el detalle (single source of truth: CLAUDE.md manda).
+
+## Diseño de mensajes de deny (lección codegraph: "errors teach abandonment")
+Un bloqueo seco enseña al agente a abandonar o rodear la herramienta. Por eso
+todo mensaje de deny de estos hooks debe: (1) decir que es comportamiento
+ESPERADO del gate, no un error del entorno; (2) enseñar el camino correcto
+exacto (comandos concretos para reintentar); (3) cubrir el falso positivo con
+su salida. Al editar mensajes, mantener las tres partes.
+
 ## Activación local (wiring)
 Los scripts ya están versionados, pero los hooks **no se activan** hasta cablearlos
 en `.claude/settings.json` (local, no commitear). Pegá la clave `hooks` (Hook 1 +
@@ -53,6 +77,16 @@ Hook 2 en la misma cadena Bash, en orden):
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-forbidden-commit.mjs\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/syntra-structure-radar.mjs\""
           }
         ]
       }
@@ -103,6 +137,12 @@ Validación directa del script:
 ```bash
 echo '{"tool_input":{"command":"git commit -am x"}}' | node .claude/hooks/guard-forbidden-commit.mjs ; echo "exit=$?"  # exit=2
 echo '{"tool_input":{"command":"git commit -m x"}}'  | node .claude/hooks/guard-forbidden-commit.mjs ; echo "exit=$?"  # exit=0 (si no hay prohibidos staged)
+```
+
+**Hook 3** — validación directa del script:
+```bash
+echo '{"prompt":"quiero redisenar el hero"}' | node .claude/hooks/syntra-structure-radar.mjs   # imprime [SYNTRA-RADAR] visual
+echo '{"prompt":"arregla este typo"}' | node .claude/hooks/syntra-structure-radar.mjs ; echo "exit=$?"  # sin output, exit=0
 ```
 
 ## Alcance / límites

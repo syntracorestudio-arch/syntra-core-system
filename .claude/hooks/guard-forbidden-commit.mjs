@@ -28,13 +28,13 @@ const usesCommitAll =
 if (usesCommitAll) {
   console.error(
     [
-      "[SYNTRA] Bloqueado por safe-commit-gate: `git commit -a / -am / --all`.",
+      "[SYNTRA] Bloqueado por safe-commit-gate: `git commit -a / -am / --all` (comportamiento esperado, NO es un error del entorno).",
       "Commitea archivos tracked modificados sin staging explícito",
       "(riesgo: arrastrar .claude/settings.json u otros).",
       "",
-      "Usá staging explícito por archivo y luego un commit normal:",
-      "  git add <ruta>",
-      "  git commit -m \"...\"",
+      "Camino correcto (reintentá así, mismo mensaje de commit):",
+      "  git add <ruta> <ruta>      # SOLO los archivos de ESTE tema",
+      "  git commit -m \"...\"       # sin -a (--amend sí está permitido)",
     ].join("\n"),
   );
   process.exit(2);
@@ -65,11 +65,13 @@ const bad = staged.filter((f) => FORBIDDEN.some((re) => re.test(norm(f))));
 if (bad.length) {
   console.error(
     [
-      "[SYNTRA] Commit bloqueado — archivos prohibidos staged:",
+      "[SYNTRA] Commit bloqueado — archivos prohibidos staged (comportamiento esperado, NO es un error del entorno):",
       ...bad.map((f) => "  - " + f),
       "",
-      "Quitalos del staging y reintentá:",
+      "Camino correcto: quitalos del staging y reintentá EL MISMO commit:",
       ...bad.map((f) => "  git restore --staged " + f),
+      "",
+      "Nota: .claude/settings.json NUNCA se commitea — dejalo modificado sin stagear; el resto del commit sigue siendo válido.",
     ].join("\n"),
   );
   process.exit(2);

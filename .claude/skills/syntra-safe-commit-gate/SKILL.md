@@ -7,6 +7,25 @@ description: Use before ANY git commit in the SYNTRA repo. Enforces git status +
 
 **Normative skill.** Run before every commit. Prevents accidental files, mixed themes, and committing local-only artifacts.
 
+## Copyable checklist (copy this into your response and tick each item)
+
+```
+- [ ] git status + git diff --check (know exactly what changed; no conflict markers)
+- [ ] Visual/perceptual change? → owner approved the LIVE prototype first (syntra-visual-gate)
+- [ ] Staging explícito SOLO de los archivos de ESTE tema (nunca add . / -A / commit -a)
+- [ ] Sin prohibidos staged: .claude/settings.json · .visual-review/ · screenshots · tools/ · *.glb/*.blend
+- [ ] Deps staged (package.json/lock)? SOLO con aprobación explícita del owner
+- [ ] Mensaje `type(scope): summary` + Co-Authored-By
+- [ ] git push -u origin <branch> (NUNCA main)
+- [ ] git status final: working tree limpio salvo locales esperados (settings.json puede quedar M, sin stagear)
+- [ ] PR abierto (Autopilot) — el merge es SIEMPRE manual del owner
+```
+
+**STOP gates (hard):**
+- If any check fails → **STOP**: fix it or report the failing step with its output. Do NOT work around the failure (no `--no-verify`, no alternate tools to bypass a hook deny). Repeat the check until PASS.
+- If a hook blocks the command, the block message contains the exact correct path — follow it, don't fight it.
+- If you are about to stage a file you did not modify in THIS task → STOP and split the commit.
+
 ## When this applies
 Before any `git commit` in this repo. For visual/perceptual changes, the commit is additionally gated by `syntra-visual-gate` (owner approval required first).
 
