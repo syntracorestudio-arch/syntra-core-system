@@ -9,7 +9,15 @@ const nextConfig: NextConfig = {
    * desde el teléfono (probar el POS con la cámara y recibir push de verdad).
    * Solo aplica a `next dev`; en producción no tiene ningún efecto.
    */
-  allowedDevOrigins: ["192.168.0.14", "192.168.0.15", "localhost"],
+  allowedDevOrigins: [
+    "192.168.0.14",
+    "192.168.0.15",
+    "localhost",
+    // Túnel HTTPS para probar en un teléfono real: Web Push exige contexto
+    // seguro, y el túnel además evita pelearle al firewall de Windows.
+    "stockflow-demo-sc.loca.lt",
+    "*.loca.lt",
+  ],
   /**
    * Headers de seguridad desde el primer commit (skill `syntra-scale-security-baseline`).
    * StudioFlow los tuvo que agregar en una auditoría posterior; acá nacen con el proyecto.

@@ -330,7 +330,28 @@ function PushCard({
       }
       const reg = await navigator.serviceWorker.register("/sw.js");
       const sub = await reg.pushManager.getSubscription();
-      setEstado(sub ? "on" : "off");
+
+      if (!sub) {
+        setEstado("off");
+        return;
+      }
+
+      /* AUTO-REPARACIÓN. El navegador puede tener una suscripción que nuestra
+         base no tiene (se perdió la fila, se cambió de negocio, se restauró un
+         backup). Si solo miráramos el navegador, la pantalla diría "activos" y
+         no llegaría nada NUNCA, sin forma de re-activar: el botón no aparece.
+         Al reenviarla en cada carga, ambos lados quedan sincronizados. El upsert
+         es por endpoint, así que repetirlo no duplica. */
+      const json = sub.toJSON() as {
+        endpoint?: string;
+        keys?: { p256dh: string; auth: string };
+      };
+      const res = await subscribeToPush({
+        endpoint: json.endpoint,
+        p256dh: json.keys?.p256dh,
+        auth: json.keys?.auth,
+      });
+      setEstado(res.ok ? "on" : "off");
     })().catch(() => setEstado("no-soportado"));
   }, [vapidPublicKey]);
 
@@ -359,7 +380,14 @@ function PushCard({
           return;
         }
         setEstado("on");
-        await sendTestPush();
+        // El resultado de la prueba SÍ se muestra: antes se ignoraba y el usuario
+        // quedaba con "activado" sin que le llegara nunca nada.
+        const prueba = await sendTestPush();
+        onAviso(
+          prueba.ok
+            ? { tone: "ok", text: "Listo. Te mandamos un aviso de prueba al teléfono." }
+            : { tone: "error", text: prueba.error },
+        );
       } catch {
         onAviso({ tone: "error", text: "No pudimos activar los avisos en este dispositivo." });
       }
@@ -399,7 +427,7 @@ function PushCard({
             : "Activá las notificaciones y te avisamos antes de que pierdas plata."}
         </p>
       </div>
-      {estado === "off" && (
+      {estado === "off" ? (
         <button
           type="button"
           onClick={activar}
@@ -408,6 +436,27 @@ function PushCard({
         >
           {pending && <LoaderCircle className="size-3.5 animate-spin" />}
           Activar
+        </button>
+      ) : (
+        /* Poder reenviar el aviso sin desactivar y volver a activar: es lo
+           primero que uno quiere hacer cuando duda de si llegan. */
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              const r = await sendTestPush();
+              onAviso(
+                r.ok
+                  ? { tone: "ok", text: "Aviso enviado. Fijate en el teléfono." }
+                  : { tone: "error", text: r.error },
+              );
+            })
+          }
+          className="flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium transition-colors hover:border-primary disabled:opacity-50"
+        >
+          {pending && <LoaderCircle className="size-3.5 animate-spin" />}
+          Probar
         </button>
       )}
     </div>
