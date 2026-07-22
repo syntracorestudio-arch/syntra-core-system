@@ -103,6 +103,17 @@ export default function RootLayout({
             <Script defer data-domain={plausibleDomain} src={plausibleSrc} />
           </>
         ) : null}
+        {/* Skip-link (WCAG 2.4.1 Bypass Blocks, nivel A). Medido: con teclado
+            hacían falta 8 tabulaciones para pasar el header y llegar al
+            contenido, en TODAS las páginas. Es el primer elemento enfocable y
+            solo se ve al recibir foco. Lighthouse da 100 en accesibilidad y no
+            lo detecta: 36 de sus 73 audits quedan "no aplicable". */}
+        <a
+          href="#contenido"
+          className="sr-only rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-background focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:ring-2 focus:ring-ring focus:outline-none"
+        >
+          Saltar al contenido
+        </a>
         <HashScroll />
         {/* Grain global sutil (Sprint 01): textura premium, decorativa, fija. */}
         <div aria-hidden="true" className="syntra-grain" />

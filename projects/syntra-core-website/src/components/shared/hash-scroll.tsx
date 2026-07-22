@@ -52,6 +52,20 @@ export function HashScroll() {
       const top = window.scrollY + el.getBoundingClientRect().top - NAV_OFFSET;
       window.scrollTo({ top, behavior: "smooth" });
       history.replaceState(null, "", href);
+
+      /* Mover también el FOCO al destino. Al cancelar el salto nativo se perdía
+         el único efecto que le importa a un usuario de teclado: el foco quedaba
+         en el ancla, así que el siguiente Tab lo devolvía al header. Con el
+         skip-link eso lo volvía inútil, y con cualquier CTA interno obligaba a
+         re-tabular toda la navegación. `preventScroll` evita que el foco pelee
+         con el scroll suave que acabamos de lanzar. El tabindex temporal se
+         retira al salir para no dejar paradas de tabulación fantasma. */
+      const teniaTabindex = el.hasAttribute("tabindex");
+      if (!teniaTabindex) el.setAttribute("tabindex", "-1");
+      el.focus({ preventScroll: true });
+      if (!teniaTabindex) {
+        el.addEventListener("blur", () => el.removeAttribute("tabindex"), { once: true });
+      }
     }
 
     // Captura: corre antes del onClick del <Link> de Next.
