@@ -236,7 +236,10 @@ function WorkflowSection() {
 
         {/* === Cierre editorial (border-t, sin mega-card) — CTA relacional === */}
         <BlurReveal>
-          <div className="mx-auto mt-16 max-w-5xl border-t border-border/50 pt-10 lg:mt-20">
+          {/* Sin max-w-5xl por el mismo motivo que el cierre de Servicios: el
+              border-t es una línea nítida y centrada a 1024px nacía 32px
+              corrida respecto del rail de la sección. */}
+          <div className="mt-16 border-t border-border/50 pt-10 lg:mt-20">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
               <div className="max-w-xl">
                 <p className="font-heading text-2xl font-bold tracking-tight text-balance sm:text-3xl">

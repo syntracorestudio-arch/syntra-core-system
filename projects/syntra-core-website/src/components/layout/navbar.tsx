@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import { siteConfig } from "@/config/site";
 import { Button } from "@/components/ui/button";
+import { SHELL_ESCENARIO } from "@/components/layout/container";
 
 /**
  * Navbar — sticky premium. Top transparente con gradiente; glass al scrollear.
@@ -21,8 +22,7 @@ import { Button } from "@/components/ui/button";
  */
 
 /** Ancho/padding ALINEADOS al contenedor de contenido del Hero. */
-const SHELL =
-  "mx-auto w-full max-w-6xl px-6 lg:max-w-7xl lg:px-8 2xl:max-w-[94rem] 2xl:px-12";
+const SHELL = SHELL_ESCENARIO;
 
 /** Debajo de este % del viewport (estás en el Hero/top) → ninguna sección activa. */
 const TOP_GUARD = 0.6;
@@ -138,8 +138,14 @@ function Navbar() {
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "relative rounded-sm text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background",
-                  "after:pointer-events-none after:absolute after:-bottom-1.5 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:transition-transform after:duration-300 after:ease-out hover:after:scale-x-100 motion-reduce:after:transition-none",
+                  // -my-2/py-2: 36px de alto de toque (medían 20px) sin mover el
+                  // interlineado ni el underline — la nav aparece desde md, que
+                  // en tablet sigue siendo táctil.
+                  "relative -my-2 rounded-sm py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background",
+                  // after:bottom-0.5 compensa el py-2 de arriba: el subrayado
+                  // sigue cayendo a los mismos 6px del texto (antes -bottom-1.5
+                  // sobre una caja sin padding).
+                  "after:pointer-events-none after:absolute after:bottom-0.5 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:transition-transform after:duration-300 after:ease-out hover:after:scale-x-100 motion-reduce:after:transition-none",
                   isActive
                     ? "text-foreground after:scale-x-100 after:bg-brand-electric/80"
                     : "text-muted-foreground hover:text-foreground after:bg-foreground/40",
@@ -159,7 +165,9 @@ function Navbar() {
               asChild
               variant="brand"
               size="default"
-              className="transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-12px_rgba(37,99,235,0.6)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              // max-lg:h-10 → 40px en la banda táctil (md/tablet), donde el CTA
+              // del header medía 32px. Desde lg queda como estaba.
+              className="transition-[transform,box-shadow] duration-200 ease-out max-lg:h-10 max-lg:px-4 hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-12px_rgba(37,99,235,0.6)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
               <Link
                 href="/#contacto"
@@ -177,7 +185,10 @@ function Navbar() {
             aria-expanded={open}
             aria-controls="mobile-menu"
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex size-9 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background md:hidden"
+            // size-11 (44px): es el ÚNICO control de navegación en mobile y
+            // medía 36px. El ícono sigue en size-5 → sin cambio visual, más
+            // área de toque (-mr-2 devuelve el borde a su sitio).
+            className="-mr-2 inline-flex size-11 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background md:hidden"
           >
             {open ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
@@ -201,7 +212,7 @@ function Navbar() {
                   aria-current={isActive ? "page" : undefined}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    "rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                    "rounded-lg px-3 py-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                     isActive
                       ? "bg-secondary text-foreground"
                       : "text-muted-foreground hover:bg-secondary hover:text-foreground",
