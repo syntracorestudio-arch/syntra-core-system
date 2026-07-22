@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ArrowRight } from "lucide-react";
-import { motion, useInView, useReducedMotion, type Variants } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 
 import { siteConfig } from "@/config/site";
 import { getIcon } from "@/lib/icons";
@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Section } from "@/components/layout/section";
 import { TrackedLink } from "@/components/shared/tracked-link";
 import { HeroAnillos } from "@/components/marketing/hero/hero-anillos";
-import { SectionAtmosphere } from "@/components/marketing/living/section-atmosphere";
+import { HeroCamara, GRAIN } from "@/components/marketing/hero/hero-camara";
+import Image from "next/image";
 import { EASE_PREMIUM, DURATION } from "@/lib/motion";
 
 /**
@@ -87,11 +88,6 @@ function HeroSection() {
   const leadWords = hero.titleLead.split(" ").length;
   const highlightWords = hero.titleHighlight.split(" ").length;
 
-  // Placa de vidrio (capability rail): el sheen especular solo corre con la placa
-  // en viewport (loop pausado fuera de vista) y nunca con reduced-motion.
-  const slabRef = React.useRef<HTMLDivElement | null>(null);
-  const slabInView = useInView(slabRef, { margin: "-10% 0px" });
-
   const rise = (i: number): Variants => ({
     hidden: reduce ? { opacity: 1 } : { opacity: 0, y: 16, filter: "blur(6px)" },
     show: {
@@ -112,26 +108,53 @@ function HeroSection() {
       contained={false}
       className="relative flex items-center overflow-hidden md:min-h-[88svh] lg:min-h-[100svh]"
     >
-      {/* === Fondo: "LA RED" — esfera-red 3D real-time (desktop) sobre base navy === */}
+      {/* === Base del fondo: aire oscuro + grano + costura con Servicios. El hero
+          NO repite la película de la Home; es el acto de apertura. Todo CSS (0KB,
+          nítido, sin banding) y es el fondo COMPLETO en mobile/reduced-motion. === */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-20">
-        {/* La PELÍCULA de la Home entra desde el hero: atmósfera unificada
-            (stardust + auroras térmicas) — el hero era la única sección con
-            fondo plano fuera del sistema (feedback owner 2026-07-17). */}
-        <SectionAtmosphere accent="dual" />
-        {/* Scrim de legibilidad: izquierda (texto) → transparente (la red vive a la derecha) */}
-        <div className="absolute inset-0 hidden bg-gradient-to-r from-[#0b1120]/90 via-[#0b1120]/45 to-transparent lg:block" />
-        {/* Fundido inferior: asienta la escena contra la siguiente sección */}
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#05070c] to-transparent" />
+        <HeroCamara />
       </div>
 
-      {/* === El Vórtice: capa PROPIA (fuera del fondo -z-20, que se traga los
-          eventos de mouse — el drag necesita hit-testing real) === */}
+      {/* === "LAS PLACAS" + "EL VÓRTICE": UN canvas full-bleed (comparten
+          z-buffer ⇒ las placas se ocluyen contra la silueta del nudo). Capa PROPIA
+          fuera del fondo -z-20 porque el drag necesita hit-testing real; las
+          placas tienen densidad 0 sobre la columna del texto. === */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
         <HeroAnillos />
       </div>
 
+      {/* === Capas que van ENCIMA del canvas (solo desktop, que es donde monta).
+          "LA TINTA" es un quad OPACO full-bleed: ocluye todo lo que esté debajo,
+          así que el grano, el scrim de legibilidad y la costura con Servicios
+          tienen que vivir acá arriba. El grano encima del gradiente es requisito
+          de la dirección: es lo que lo vuelve atmósfera fotografiada y no un
+          render limpio de Spline. === */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-[1] hidden lg:block"
+      >
+        <div
+          className="absolute inset-0 opacity-[0.16] mix-blend-overlay"
+          style={{ backgroundImage: GRAIN, backgroundRepeat: "repeat" }}
+        />
+        {/* Calma para el texto: elipse suave sobre la columna izquierda — NO un
+            lavado lineal (ese mataba la escena; lección de la dirección). */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(46% 78% at 22% 50%, rgba(5,7,12,0.82) 0%, rgba(5,7,12,0.55) 45%, transparent 78%)",
+          }}
+        />
+        {/* Costura con Servicios (el canvas llega hasta el borde inferior). */}
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#04070e] to-transparent" />
+      </div>
+
       {/* === Contenido === */}
-      <div className="pointer-events-none mx-auto grid w-full max-w-6xl items-center gap-10 px-6 lg:max-w-7xl lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:px-8 2xl:max-w-[94rem] 2xl:px-12">
+      {/* z-10: el canvas es un elemento POSICIONADO (z-0) y un quad opaco — sin
+          contexto propio, el contenido estático se pintaría DEBAJO y el H1
+          desaparecería. */}
+      <div className="pointer-events-none relative z-10 mx-auto grid w-full max-w-6xl items-center gap-10 px-6 lg:max-w-7xl lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:px-8 2xl:max-w-[94rem] 2xl:px-12">
         {/* Columna izquierda: copy / acción / prueba */}
         <div className="pointer-events-auto flex flex-col items-center gap-7 text-center lg:items-start lg:text-left">
           <div className="flex flex-col items-center gap-5 lg:items-start">
@@ -214,6 +237,34 @@ function HeroSection() {
             </Button>
           </motion.div>
 
+          {/* MOBILE: el mismo vórtice, horneado (29KB) — la primera pantalla del
+              sitio tenía fondo pero no protagonista. Va en el FLUJO (no tapa el
+              H1) y respira con su propio halo. Sin canvas ni JS. */}
+          <motion.div
+            variants={rise(4)}
+            initial="hidden"
+            animate="show"
+            aria-hidden="true"
+            className="relative -my-2 w-[78%] max-w-[19rem] lg:hidden"
+          >
+            <div
+              className="absolute inset-0 -m-6 rounded-full"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(122,160,220,0.16), transparent 68%)",
+              }}
+            />
+            <Image
+              src="/visual-assets/syntra/hero/vortice-poster.webp"
+              alt=""
+              width={708}
+              height={716}
+              priority
+              sizes="(max-width: 1023px) 78vw, 0px"
+              className="relative h-auto w-full"
+            />
+          </motion.div>
+
           {/* Placa de vidrio (capability rail v2): UN objeto monolítico — un estrato
               extraído del edificio del asset. Segmentos separados por costuras de luz
               (no cajas), canto superior iluminado, sheen especular lento (mismo
@@ -226,36 +277,18 @@ function HeroSection() {
             className="relative w-full max-w-md lg:max-w-xl"
           >
             <div
-              ref={slabRef}
               className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.07] via-white/[0.04] to-white/[0.02] shadow-[0_24px_60px_-28px_rgba(0,0,0,0.75)] backdrop-blur-md"
             >
               {/* Canto superior iluminado (el filo del estrato) */}
               <div
                 aria-hidden="true"
-                className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent"
+                className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-white/10 via-white/35 to-white/60"
               />
               {/* Base interna: gradiente frío que asienta la placa contra el scrim */}
               <div
                 aria-hidden="true"
-                className="absolute inset-0 bg-[radial-gradient(120%_150%_at_85%_-20%,rgba(96,165,250,0.10),transparent_60%)]"
+                className="absolute inset-0 bg-[radial-gradient(150%_180%_at_100%_-30%,rgba(126,164,224,0.13),rgba(96,165,250,0.05)_45%,transparent_72%)]"
               />
-
-              {/* Sheen especular lento (pausado fuera de viewport; nunca con reduce) */}
-              {!reduce ? (
-                <motion.div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0"
-                  initial={{ x: "-70%" }}
-                  animate={slabInView ? { x: ["-70%", "170%"] } : { x: "-70%" }}
-                  transition={
-                    slabInView
-                      ? { duration: 2.8, repeat: Infinity, repeatDelay: 7, ease: "easeInOut", delay: 1.2 }
-                      : { duration: 0 }
-                  }
-                >
-                  <div className="absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.10),transparent)]" />
-                </motion.div>
-              ) : null}
 
               <div className="relative grid sm:grid-cols-3">
                 {hero.capabilities.map((cap) => {
