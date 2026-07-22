@@ -127,6 +127,80 @@ insert into public.client_ledger (id, store_id, client_id, delta, reason, paymen
 on conflict (id) do nothing;
 
 -- =============================================================================
+-- Historial de ventas — 30 días con curva creíble (tanda 1H)
+--
+-- El dashboard no se puede juzgar sin datos: "vendido hoy vs tu promedio" y "lo
+-- que más vendiste esta semana" necesitan pasado. Se insertan directo (esto es
+-- fixture y corre como postgres) pero respetando la forma real: cada venta con
+-- sus líneas y sus snapshots de costo, para que el margen salga de verdad.
+--
+-- Curva: más ventas viernes y sábado, menos los lunes. Determinista (sin random)
+-- para que el seed sea reproducible.
+-- =============================================================================
+do $$
+declare
+  v_store   uuid := '11111111-1111-1111-1111-111111111111';
+  v_dueno   uuid := 'aaaa1111-0000-0000-0000-000000000001';
+  v_cajera  uuid := 'aaaa1111-0000-0000-0000-000000000002';
+  v_dia     integer;
+  v_venta   integer;
+  v_ventas  integer;
+  v_sale_id uuid;
+  v_prod    record;
+  v_qty     numeric;
+  v_total   numeric;
+  v_ts      timestamptz;
+  v_medio   text;
+  v_dow     integer;
+begin
+  -- Si ya hay historial, no duplicar (seed idempotente).
+  if exists (select 1 from public.sales where store_id = v_store and idempotency_key like 'seed-%') then
+    return;
+  end if;
+
+  for v_dia in 0..29 loop
+    v_ts := date_trunc('day', now()) - (v_dia || ' days')::interval;
+    v_dow := extract(dow from v_ts);
+    -- viernes/sábado fuerte, lunes flojo
+    v_ventas := case when v_dow in (5, 6) then 9 when v_dow = 1 then 4 else 6 end;
+
+    for v_venta in 1..v_ventas loop
+      v_sale_id := gen_random_uuid();
+      v_total := 0;
+      v_medio := case (v_venta % 4) when 0 then 'cash' when 1 then 'cash'
+                                    when 2 then 'qr'   else 'card' end;
+
+      insert into public.sales (id, store_id, member_id, total, payment_method,
+                                idempotency_key, sold_at, status)
+      values (v_sale_id, v_store,
+              case when v_venta % 3 = 0 then v_cajera else v_dueno end,
+              0, v_medio,
+              format('seed-%s-%s', v_dia, v_venta),
+              v_ts + ((8 + (v_venta * 90) % 700) || ' minutes')::interval,
+              'completed');
+
+      -- 1 a 3 productos por venta, rotando el catálogo
+      for v_prod in
+        select id, name, price, cost
+          from public.products
+         where store_id = v_store and status = 'active'
+         order by id
+         offset (v_venta % 3) limit (1 + (v_dia + v_venta) % 3)
+      loop
+        v_qty := 1 + ((v_dia + v_venta) % 2);
+        insert into public.sale_items (sale_id, store_id, product_id, product_name,
+                                       qty, unit_price, unit_cost, line_total)
+        values (v_sale_id, v_store, v_prod.id, v_prod.name,
+                v_qty, v_prod.price, v_prod.cost, v_prod.price * v_qty);
+        v_total := v_total + (v_prod.price * v_qty);
+      end loop;
+
+      update public.sales set total = v_total where id = v_sale_id;
+    end loop;
+  end loop;
+end $$;
+
+-- =============================================================================
 -- Validaciones después de aplicar (tanda 1B) — CORRER EN ESTE ORDEN
 --
 -- OJO: el SQL Editor corre como `postgres`, que BYPASSA RLS. Las pruebas 1-3 valen
