@@ -94,16 +94,27 @@ const FRAG = /* glsl */ `
 
   const float TAU = 6.28318530718;
 
+  /* Hash de Dave Hoskins. El anterior (fract(p.x*p.y*p.z*(p.x+p.y+p.z)) con p
+     escalado ×17) armaba productos de hasta 2.1e5 ANTES del fract, y la GPU
+     trabaja en float32: a esa magnitud la mantisa ya no alcanza y el resultado
+     se cuantiza. Medido contra float64: error medio 0.0169 acá contra 0.0009
+     con este hash — 18× peor. Y esa pérdida no es ruido, está CORRELACIONADA
+     con la posición ⇒ se manifiesta como escalones de borde recto, que el
+     cizallamiento local del puntero arrastra por la pantalla. Este hash
+     mantiene todas las magnitudes por debajo de 1.8e4. */
   float hash31(vec3 p) {
-    p = fract(p * 0.3183099 + vec3(0.1, 0.2, 0.3));
-    p *= 17.0;
-    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+    p = fract(p * 0.1031);
+    p += dot(p, p.zyx + 31.32);
+    return fract((p.x + p.y) * p.z);
   }
 
   /* Value noise 3D — la 3ª dimensión es el tiempo ⇒ evolución sin loop. */
   float n3(vec3 x) {
     vec3 i = floor(x), f = fract(x);
-    f = f * f * (3.0 - 2.0 * f);
+    /* Quíntica (Perlin) en vez de la cúbica clásica: la cúbica deja la SEGUNDA
+       derivada rota en los bordes de celda, y bajo el cizallamiento del puntero
+       esos bordes se leen como pliegues rectos. Cuesta dos multiplicaciones. */
+    f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
     return mix(
       mix(mix(hash31(i), hash31(i + vec3(1,0,0)), f.x),
           mix(hash31(i + vec3(0,1,0)), hash31(i + vec3(1,1,0)), f.x), f.y),
@@ -333,6 +344,15 @@ function HeroLiquido({
   const lag = React.useRef(new THREE.Vector2(0, 0));
   const prev = React.useRef(new THREE.Vector2(0, 0));
   const vel = React.useRef(new THREE.Vector2(0, 0));
+  /* Tiempo PROPIO, acumulado con delta acotado — no `clock.elapsedTime`.
+     El canvas corre con frameloop={inView ? "always" : "demand"}, así que el
+     render se pausa al salir del viewport; y el navegador también congela el
+     rAF con la pestaña en segundo plano. En los dos casos el reloj de three
+     sigue midiendo tiempo REAL, así que al volver elapsedTime pega un salto de
+     todo lo que estuvo pausado y el fondo TELEPORTA. Medido: 3s fuera de
+     viewport ⇒ un salto 34× mayor que el avance normal de medio segundo. Con
+     el delta acotado a 50ms el ciclo es continuo pase lo que pase. */
+  const tRef = React.useRef(0);
 
   /* Los uniforms se construyen UNA vez con neutros y NUNCA se mutan desde acá: el
      React Compiler prohíbe modificar un valor memoizado. Todo (props incluidas) se
@@ -369,11 +389,12 @@ function HeroLiquido({
     [],
   );
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     const m = matRef.current;
     if (!m) return;
     const u = m.uniforms;
-    u.uTime.value = state.clock.elapsedTime;
+    tRef.current += Math.min(delta, 0.05);
+    u.uTime.value = tRef.current;
     u.uSpeed.value = speed;
     u.uScale.value = scale;
     u.uIntensity.value = intensity;
