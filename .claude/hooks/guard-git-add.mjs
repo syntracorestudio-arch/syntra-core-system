@@ -22,15 +22,16 @@ const usesGlobalPathspec = /(?:^|\s)(?:-A|--all|-all|\.)(?=\s|$)/.test(command);
 if (isGitAdd && usesGlobalPathspec) {
   console.error(
     [
-      "[SYNTRA] Bloqueado por safe-commit-gate.",
+      "[SYNTRA] Bloqueado por safe-commit-gate (comportamiento esperado, NO es un error del entorno — no lo rodees con otra herramienta).",
       "",
-      "No usar:",
-      "  git add .",
-      "  git add -A",
-      "  git add --all",
+      "No usar: git add . / -A / --all",
       "",
-      "Usá staging explícito por archivo:",
-      "  git add <ruta-del-archivo>",
+      "Camino correcto (reintentá así):",
+      "  1. git status --short            # listá qué cambió",
+      "  2. git add <ruta> <ruta>         # SOLO los archivos de ESTE tema (atómico)",
+      "  3. seguí con el commit normal",
+      "",
+      "Falso positivo (un '.' suelto dentro de un string)? Reescribí el comando con rutas explícitas.",
     ].join("\n"),
   );
   process.exit(2);

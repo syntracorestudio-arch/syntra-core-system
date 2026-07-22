@@ -7,6 +7,28 @@ description: Use before committing visual work to the SYNTRA web. V2 (2026-07-07
 
 **Normative skill.** Governs how every visual/perceptual change to the SYNTRA web reaches a commit. Build verde ≠ diseño aprobado.
 
+## Copyable checklist (V2 — copy this into your response and tick each item)
+
+> Refleja la reforma V2 (variantes vivas, design-freedom-v2 §4). Ante conflicto
+> con el cuerpo de esta skill, mandan CLAUDE.md y design-freedom-v2.
+
+```
+- [ ] Cat B/C: reference-lock approved en docs/reference-locks/<section>.md (si falta/draft → STOP → syntra-reference-lock)
+- [ ] Prototipo VIVO en working tree (motion desde el minuto uno) — SIN commitear
+- [ ] npx tsc --noEmit · npm run lint · npm run build → verdes (repetir hasta PASS, no avanzar en rojo)
+- [ ] Consola limpia + render revisado con VISIÓN a 1920 y 390 (capturas descartables)
+- [ ] Composition Self-Review escrita (sección de abajo)
+- [ ] visual-quality-director si ayuda al diagnóstico (V2: herramienta, no trámite obligatorio; en Cat B/C compara vs lock)
+- [ ] OK EXPLÍCITO del owner sobre el prototipo vivo en SU navegador  ← este es el gate de commit
+- [ ] Recién ahí: commit vía syntra-safe-commit-gate → reference-lock DESPUÉS como documentación
+```
+
+**STOP gates (hard):**
+- 2º rechazo del owner sobre el mismo prototipo → **STOP anti-loop**: pedir SU referencia (imagen/link/spec); no iterar una 3ª a ciegas.
+- 3ª iteración sin convergencia → cambiar de MEDIO (asset/render/spec formal/valores exactos), nunca "otro intento del mismo tipo".
+- 2 iteraciones fallidas contra el mismo lock → volver al reference-lock (la referencia estaba mal, no el CSS).
+- Sin OK explícito del owner → los cambios visuales QUEDAN sin commitear. Sin excepción.
+
 ## When this applies
 Any task that affects: Hero, Servicios, Casos, Proceso, Contacto, Footer, layout visual, composición, jerarquía, motion visible, escenas premium, responsive visual, uso del espacio, jerarquía de CTA, percepción de marca. **When in doubt, treat the task as visual.**
 

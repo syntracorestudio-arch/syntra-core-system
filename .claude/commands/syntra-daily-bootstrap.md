@@ -18,6 +18,8 @@ stashes ni ediciones durante el bootstrap).
 2. PRs abiertos: "/c/Program Files/GitHub CLI/gh.exe" pr list --state open
    (separar: web SYNTRA vs StudioFlow/pilates).
 3. Tracker: projects/syntra-core-website/TASKS.md → "Próxima acción".
+   Handoffs: si existe docs/handoffs/*.md con `status: open`, leerlo — es el
+   estado de un arco en vuelo (template: agents/governance/session-handoff-template.md).
 4. Doctrina de diseño vigente: docs/creative-library/design-freedom-v2.md
    (leerla solo si la sesión va a tocar diseño).
 5. Herramientas — confirmar disponibles:
