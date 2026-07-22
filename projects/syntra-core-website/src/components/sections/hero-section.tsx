@@ -226,11 +226,17 @@ function HeroSection() {
                 <ArrowRight data-icon="inline-end" />
               </TrackedLink>
             </Button>
+            {/* Sin w-full, a diferencia del primario. Regla del design-director:
+                ancho completo SOLO para la acción primaria de la pantalla; el
+                secundario se ajusta al contenido. "Ver ejemplos" son 11
+                caracteres estirados a 272px en un teléfono — el caso exacto que
+                el owner rechazó. Y de paso la diferencia de ancho es la señal
+                de jerarquía más legible en mobile, gratis. */}
             <Button
               asChild
               variant="brand-outline"
               size="2xl"
-              className="w-full transition-[transform,border-color,background-color] duration-200 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:w-auto"
+              className="transition-[transform,border-color,background-color] duration-200 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
               <TrackedLink
                 href="#casos"

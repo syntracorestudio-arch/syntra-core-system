@@ -249,9 +249,11 @@ function WorkflowSection() {
                   {workflowCta.body}
                 </p>
               </div>
+              {/* self-start + min-h-11, mismo caso que el cierre de Servicios:
+                  el ancho completo lo estiraba el flex-col, no una decisión. */}
               <a
                 href={workflowCta.href}
-                className="group inline-flex shrink-0 items-center gap-2 rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="group inline-flex min-h-11 shrink-0 items-center gap-2 self-start rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:self-auto"
               >
                 {workflowCta.button}
                 <ArrowRight

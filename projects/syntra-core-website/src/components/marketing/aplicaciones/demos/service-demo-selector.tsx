@@ -47,10 +47,15 @@ function ServiceDemoSelector() {
           (≤640). Desde md las 4 pills miden 730px contra 720px de ancho útil:
           se cortaba "Panel de gestión" por 10px y parecía un bug, no un
           carrusel. Envolviendo entran completas (auditoría 2026-07-22). */}
+      {/* Abajo de md la fila no entra (730px de pills contra 342 útiles en un
+          teléfono) y scrollea. El fundido del borde derecho es la SEÑAL de que
+          hay más: sin él la última pill se ve cortada y parece un bug, no un
+          carrusel — que es exactamente como lo leyó el owner en su celular. Se
+          apaga desde md, donde las pills envuelven y no hay nada oculto. */}
       <div
         role="tablist"
         aria-label="Ejemplos del servicio"
-        className="flex gap-2 overflow-x-auto pb-2 md:flex-wrap md:justify-center md:overflow-visible"
+        className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] [&::-webkit-scrollbar]:hidden md:flex-wrap md:justify-center md:overflow-visible md:[mask-image:none]"
       >
         {serviceDemos.map((demo, i) => {
           const Icon = TAB_ICONS[i];
@@ -97,7 +102,12 @@ function ServiceDemoSelector() {
           id={`demo-panel-${active.id}`}
           role="tabpanel"
           aria-labelledby={`demo-tab-${active.id}`}
-          className="relative min-h-[26rem] lg:min-h-[27rem]"
+          /* min-w-0: un ítem de grilla arranca con min-width:auto, o sea que su
+             contenido lo puede ensanchar por encima de la columna. La demo de
+             Automatización hacía exactamente eso — medía 422px dentro de un
+             contenedor de 342px y la sección se la comía por el borde derecho.
+             Esto es el cinturón: aunque una demo futura crezca, no empuja. */
+          className="relative min-h-[26rem] min-w-0 lg:min-h-[27rem]"
         >
           <AnimatePresence mode="wait" initial={false}>
             <motion.div

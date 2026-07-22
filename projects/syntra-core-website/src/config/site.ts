@@ -272,7 +272,10 @@ export const servicesConsultCta: ServicesConsultCta = {
   question: "¿No sabés por dónde empezar?",
   microcopy:
     "Te ayudamos a detectar qué solución puede generar más impacto primero, sin venderte algo que todavía no necesitás.",
-  button: "Quiero que me recomienden el mejor módulo",
+  /* 24 caracteres. El anterior tenía 40 y no entraba en una línea a 320px ni
+     ajustando el botón al contenido — quedaba en dos renglones ocupando casi
+     toda la pantalla del teléfono. */
+  button: "Quiero una recomendación",
   href: "#contacto",
 };
 
@@ -595,7 +598,10 @@ export const workflow: WorkflowStep[] = [
 export const workflowCta: WorkflowCta = {
   lead: "El primer paso es entender tu negocio.",
   body: "Sin compromiso: charlamos, escuchamos y te decimos con claridad si podemos ayudarte y cómo.",
-  button: "Empecemos por entender tu negocio",
+  /* 14 caracteres, en primera persona igual que el cierre de Servicios. El
+     anterior tenía 33, quedaba en dos líneas a 320/360 y además repetía el lead
+     de arriba. "Empecemos" solo estaba descartado: es el eyebrow de Contacto. */
+  button: "Quiero empezar",
   href: "#contacto",
 };
 

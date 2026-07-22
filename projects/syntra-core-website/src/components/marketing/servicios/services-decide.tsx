@@ -30,9 +30,13 @@ function ServicesDecide() {
               {servicesConsultCta.microcopy}
             </p>
           </div>
+          {/* self-start: el ancho completo en mobile NO era una decisión, lo
+              estiraba el align-items:stretch del flex-col. min-h-11 fija los
+              44px de toque sin depender del line-height. Desde sm el row lo
+              acomoda igual que antes. */}
           <a
             href={servicesConsultCta.href}
-            className="group inline-flex shrink-0 items-center gap-2 rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="group inline-flex min-h-11 shrink-0 items-center gap-2 self-start rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:self-auto"
           >
             {servicesConsultCta.button}
             <ArrowRight
