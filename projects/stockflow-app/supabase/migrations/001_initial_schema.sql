@@ -476,7 +476,62 @@ create view public.low_stock_products with (security_invoker = true) as
      and p.stock <= coalesce(p.low_stock_threshold, s.low_stock_threshold_default, 3);
 
 -- =============================================================================
--- 11. Append-only duro: revocar UPDATE/DELETE en los ledgers
+-- 11. Privilegios de tabla — EXPLÍCITOS, no heredados de la plataforma.
+--
+-- La autorización tiene DOS capas y hacen falta las dos:
+--   1) privilegio de TABLA (esto)  → sin GRANT, la policy ni se evalúa
+--   2) policy de RLS (migración 002) → filtra QUÉ FILAS ve cada uno
+--
+-- Los declaramos acá en vez de confiar en los defaults de Supabase: los defaults
+-- cambian entre versiones y entre local y cloud, y no queremos que el modelo de
+-- seguridad dependa de algo que no está escrito en la migración. Verificado con
+-- `supabase db reset` local: sin este bloque, `authenticated` no puede ni leer.
+--
+-- Criterio: se otorga SELECT sobre todo lo del negocio (la RLS filtra por tenant),
+-- y escritura SOLO donde 002 define una policy que la gobierne. Las tablas
+-- transaccionales (sales, sale_items, ledgers) NO reciben escritura: se tocan
+-- únicamente por las RPCs SECURITY DEFINER de la tanda 1C.
+-- =============================================================================
+
+-- service_role: opera server-side (cron, webhooks, tooling). Bypassa RLS, pero
+-- igual necesita el privilegio de tabla.
+grant select, insert, update, delete on all tables in schema public to service_role;
+
+-- authenticated: lectura de todo el dominio (la RLS decide de qué negocio).
+grant select on
+  public.stores, public.profiles, public.members, public.store_settings,
+  public.categories, public.products, public.product_barcodes,
+  public.stock_ledger, public.stock_expiries,
+  public.sales, public.sale_items,
+  public.clients, public.client_ledger,
+  public.notifications, public.push_subscriptions
+to authenticated;
+
+-- Las vistas necesitan su propio GRANT (no lo heredan de las tablas base).
+-- Con `security_invoker = true` la RLS de las tablas base sigue aplicando, así que
+-- esto no abre nada: cada quien ve solo las filas de su negocio.
+grant select on
+  public.client_balances, public.daily_totals, public.low_stock_products
+to authenticated;
+
+-- Escrituras, solo donde hay policy en 002 que las limite:
+grant update on public.stores          to authenticated;  -- owner: marca y datos
+grant update on public.profiles        to authenticated;  -- el propio perfil
+grant insert, update, delete on public.members        to authenticated;  -- owner: equipo
+grant insert, update on public.store_settings         to authenticated;  -- owner: umbrales
+grant insert, update, delete on public.categories     to authenticated;  -- owner
+grant insert on public.products                       to authenticated;  -- alta desde el POS
+grant insert, delete on public.product_barcodes       to authenticated;
+grant insert on public.stock_expiries                 to authenticated;  -- carga en el ingreso
+grant insert, update on public.clients                to authenticated;  -- alta al fiar
+grant update on public.notifications                  to authenticated;  -- marcar leída
+grant insert, update, delete on public.push_subscriptions to authenticated;
+
+-- anon: NADA. StockFlow no tiene superficie pública todavía (no hay landing por
+-- slug como en StudioFlow). El día que la haya, se otorga acá y solo lo justo.
+
+-- =============================================================================
+-- 12. Append-only duro: revocar UPDATE/DELETE en los ledgers
 --     (las policies de 002 tampoco los permiten; esto es el cinturón además del tirante)
 -- =============================================================================
 
