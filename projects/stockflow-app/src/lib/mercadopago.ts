@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSecret } from "@/lib/crypto/secret";
+import type { DireccionNegocio } from "@/lib/provincias";
 
 /**
  * MercadoPago — cobro con QR, cuenta propia de cada negocio.
@@ -113,8 +114,13 @@ function externalId(prefijo: string, storeId: string): string {
  * Crea la sucursal y la caja en la cuenta MP del negocio.
  *
  * Es la diferencia entre "conectá tu cuenta" y "andá al panel de MercadoPago, creá
- * una sucursal, después una caja, copiá el external_id…". El kiosquero pega un
- * token y listo; el resto lo hacemos nosotros con su propia credencial.
+ * una sucursal, después una caja, copiá el external_id…". El kiosquero completa su
+ * dirección una vez; el resto lo hacemos nosotros con su propia credencial.
+ *
+ * La dirección la pedimos de verdad y no la inventamos: MercadoPago usa la
+ * ubicación de la sucursal para retenciones impositivas, así que llenarla con
+ * guiones sería ensuciarle la cuenta al kiosquero con un problema que aparece
+ * meses después.
  *
  * Idempotente: si ya existen (reconexión, token rotado), los reusa.
  */
@@ -123,6 +129,7 @@ export async function mpAsegurarCaja(
   mpUserId: string,
   storeId: string,
   storeName: string,
+  direccion: DireccionNegocio,
 ): Promise<{ ok: true; externalStoreId: string; externalPosId: string; posId: string } | { ok: false; error: string }> {
   const extStore = externalId("ST", storeId);
   const extPos = externalId("POS", storeId);
@@ -133,9 +140,18 @@ export async function mpAsegurarCaja(
     body: {
       name: storeName.slice(0, 60),
       external_id: extStore,
-      // MP exige la ubicación; sin dirección real del negocio mandamos lo mínimo
-      // viable. El kiosquero puede corregirla después desde su panel de MP.
-      location: { street_name: "-", city_name: "-", state_name: "-", country_name: "Argentina" },
+      location: {
+        street_name: direccion.calle,
+        street_number: direccion.numero,
+        city_name: direccion.ciudad,
+        state_name: direccion.provincia,
+        // MP exige coordenadas pero lo que usa para impuestos es la dirección de
+        // arriba. Geocodificar para llenar un campo que no se mira sería sumar una
+        // dependencia externa al alta a cambio de nada.
+        latitude: 0,
+        longitude: 0,
+        reference: storeName.slice(0, 60),
+      },
     },
   });
 

@@ -5,10 +5,12 @@ import { Check, LoaderCircle, TriangleAlert, QrCode, Copy, ExternalLink } from "
 import { cn } from "@/lib/cn";
 import {
   conectarMercadoPago,
+  crearCajaMercadoPago,
   guardarFirmaWebhook,
   desconectarMercadoPago,
   type EstadoMp,
 } from "./mercadopago-actions";
+import { PROVINCIAS_MP } from "@/lib/provincias";
 
 /**
  * Conexión de la cuenta de MercadoPago del negocio.
@@ -18,6 +20,10 @@ import {
  */
 export function MercadoPagoCard({ estado }: { estado: EstadoMp }) {
   const [token, setToken] = useState("");
+  const [calle, setCalle] = useState("");
+  const [numero, setNumero] = useState("");
+  const [ciudad, setCiudad] = useState("");
+  const [provincia, setProvincia] = useState("");
   const [firma, setFirma] = useState("");
   const [aviso, setAviso] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [copiado, setCopiado] = useState(false);
@@ -84,10 +90,42 @@ export function MercadoPagoCard({ estado }: { estado: EstadoMp }) {
               <p className="text-xs text-muted-foreground">
                 {estado.cajaLista
                   ? "Caja creada en tu MercadoPago. Ya podés cobrar con QR."
-                  : "Falta la caja en MercadoPago — volvé a conectar para crearla."}
+                  : "Falta crear la caja en MercadoPago. Completá tu dirección acá abajo."}
               </p>
             </div>
           </div>
+
+          {/* Conectado pero sin caja: se resuelve acá mismo, sin volver a pedir el
+              token. Antes este estado no tenía salida — el formulario del token ya
+              no se muestra y no quedaba ningún botón que tocar. */}
+          {!estado.cajaLista && (
+            <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
+              <CamposDireccion
+                calle={calle}
+                numero={numero}
+                ciudad={ciudad}
+                provincia={provincia}
+                setCalle={setCalle}
+                setNumero={setNumero}
+                setCiudad={setCiudad}
+                setProvincia={setProvincia}
+                disabled={false}
+              />
+              <button
+                type="button"
+                disabled={
+                  pending || !calle.trim() || !numero.trim() || !ciudad.trim() || !provincia
+                }
+                onClick={() =>
+                  correr(() => crearCajaMercadoPago({ calle, numero, ciudad, provincia }))
+                }
+                className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                {pending && <LoaderCircle className="size-4 animate-spin" />}
+                Crear la caja
+              </button>
+            </div>
+          )}
 
           {/* Firma del webhook: opcional, pero es lo que impide que un tercero nos
               avise "te pagaron" cuando nadie pagó. */}
@@ -170,6 +208,18 @@ export function MercadoPagoCard({ estado }: { estado: EstadoMp }) {
             Lo sacás de tu panel de MercadoPago, en Tus integraciones → tu aplicación →
             Credenciales de producción. Lo guardamos cifrado y no vuelve a mostrarse.
           </p>
+
+          <CamposDireccion
+            calle={calle}
+            numero={numero}
+            ciudad={ciudad}
+            provincia={provincia}
+            setCalle={setCalle}
+            setNumero={setNumero}
+            setCiudad={setCiudad}
+            setProvincia={setProvincia}
+            disabled={!estado.cifradoListo}
+          />
           <a
             href="https://www.mercadopago.com.ar/developers/panel/app"
             target="_blank"
@@ -180,8 +230,26 @@ export function MercadoPagoCard({ estado }: { estado: EstadoMp }) {
           </a>
           <button
             type="button"
-            disabled={pending || token.trim().length < 20 || !estado.cifradoListo}
-            onClick={() => correr(() => conectarMercadoPago({ accessToken: token }))}
+            disabled={
+              pending ||
+              token.trim().length < 20 ||
+              !estado.cifradoListo ||
+              !calle.trim() ||
+              !numero.trim() ||
+              !ciudad.trim() ||
+              !provincia
+            }
+            onClick={() =>
+              correr(() =>
+                conectarMercadoPago({
+                  accessToken: token,
+                  calle,
+                  numero,
+                  ciudad,
+                  provincia,
+                }),
+              )
+            }
             className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
           >
             {pending && <LoaderCircle className="size-4 animate-spin" />}
@@ -190,5 +258,88 @@ export function MercadoPagoCard({ estado }: { estado: EstadoMp }) {
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Dirección del negocio.
+ *
+ * MercadoPago la exige para crear la sucursal Y la usa para retenciones
+ * impositivas: por eso se pide de verdad en lugar de rellenarla con guiones. La
+ * provincia es un desplegable porque MP acepta una lista cerrada de nombres con
+ * ortografía exacta — como texto libre, "CABA" o "Bs As" darían un 400.
+ */
+function CamposDireccion({
+  calle,
+  numero,
+  ciudad,
+  provincia,
+  setCalle,
+  setNumero,
+  setCiudad,
+  setProvincia,
+  disabled,
+}: {
+  calle: string;
+  numero: string;
+  ciudad: string;
+  provincia: string;
+  setCalle: (v: string) => void;
+  setNumero: (v: string) => void;
+  setCiudad: (v: string) => void;
+  setProvincia: (v: string) => void;
+  disabled: boolean;
+}) {
+  const input =
+    "h-11 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary disabled:opacity-40";
+
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium">Dirección del negocio</legend>
+      <p className="text-xs text-muted-foreground">
+        MercadoPago la pide para tus retenciones de impuestos. Poné la real.
+      </p>
+      <div className="flex gap-2">
+        <input
+          aria-label="Calle"
+          value={calle}
+          onChange={(e) => setCalle(e.target.value)}
+          placeholder="Calle"
+          disabled={disabled}
+          className={`${input} min-w-0 flex-1`}
+        />
+        <input
+          aria-label="Altura"
+          value={numero}
+          onChange={(e) => setNumero(e.target.value)}
+          placeholder="N°"
+          inputMode="numeric"
+          disabled={disabled}
+          className={`${input} w-20 shrink-0`}
+        />
+      </div>
+      <input
+        aria-label="Ciudad"
+        value={ciudad}
+        onChange={(e) => setCiudad(e.target.value)}
+        placeholder="Ciudad"
+        disabled={disabled}
+        className={`${input} w-full`}
+      />
+      <select
+        aria-label="Provincia"
+        value={provincia}
+        onChange={(e) => setProvincia(e.target.value)}
+        disabled={disabled}
+        className={`${input} w-full cursor-pointer`}
+      >
+        <option value="">Elegí tu provincia</option>
+        {PROVINCIAS_MP.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </select>
+    </fieldset>
   );
 }
