@@ -272,7 +272,10 @@ export const servicesConsultCta: ServicesConsultCta = {
   question: "¿No sabés por dónde empezar?",
   microcopy:
     "Te ayudamos a detectar qué solución puede generar más impacto primero, sin venderte algo que todavía no necesitás.",
-  button: "Quiero que me recomienden el mejor módulo",
+  /* 24 caracteres. El anterior tenía 40 y no entraba en una línea a 320px ni
+     ajustando el botón al contenido — quedaba en dos renglones ocupando casi
+     toda la pantalla del teléfono. */
+  button: "Quiero una recomendación",
   href: "#contacto",
 };
 
