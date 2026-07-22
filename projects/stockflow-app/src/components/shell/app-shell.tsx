@@ -7,6 +7,8 @@ import {
   CalendarClock,
   Settings,
   LogOut,
+  ChartColumn,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { signOut } from "@/app/login/actions";
@@ -21,6 +23,7 @@ type NavItem = {
 const OWNER_NAV: NavItem[] = [
   { href: "/admin", label: "Resumen", icon: LayoutDashboard },
   { href: "/pos", label: "Vender", icon: ScanBarcode },
+  { href: "/admin/reportes", label: "Reportes", icon: ChartColumn },
   { href: "/admin/productos", label: "Productos", icon: Package },
   { href: "/admin/fiado", label: "Fiado", icon: Users },
   { href: "/admin/vencimientos", label: "Vencimientos", icon: CalendarClock },
@@ -42,10 +45,12 @@ export function AppShell({
   storeName: string;
   userLabel: string;
 }) {
-  /* En mobile la barra inferior muestra solo lo que se toca a diario. */
-  const mobileNav = OWNER_NAV.filter((i) =>
-    ["/admin", "/pos", "/admin/productos", "/admin/fiado"].includes(i.href),
-  );
+  /* En mobile la barra inferior muestra lo que se toca a diario; el resto entra
+     por "Más". Sin ese botón, Reportes / Vencimientos / Ajustes serían
+     INALCANZABLES desde el teléfono, que es donde el dueño usa la app. */
+  const MOBILE_PRIMARY = ["/admin", "/pos", "/admin/productos"];
+  const mobileNav = OWNER_NAV.filter((i) => MOBILE_PRIMARY.includes(i.href));
+  const mobileRest = OWNER_NAV.filter((i) => !MOBILE_PRIMARY.includes(i.href));
 
   return (
     <div className="flex min-h-dvh">
@@ -120,6 +125,47 @@ export function AppShell({
               </Link>
             );
           })}
+
+          {/* `details` nativo: menú sin JavaScript ni estado. */}
+          <details className="group relative [&[open]>summary>svg]:rotate-180">
+            <summary
+              className={cn(
+                "flex cursor-pointer list-none flex-col items-center gap-1 py-2.5 text-[11px] transition-colors duration-150 [&::-webkit-details-marker]:hidden",
+                mobileRest.some((i) => i.href === current)
+                  ? "text-primary-ink"
+                  : "text-muted-foreground",
+              )}
+            >
+              <Menu className="size-5 transition-transform" />
+              Más
+            </summary>
+            <div className="absolute bottom-full right-0 mb-1 min-w-44 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
+              {mobileRest.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={item.href === current ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-2.5 px-4 py-3 text-sm transition-colors",
+                    item.href === current
+                      ? "bg-accent text-accent-foreground"
+                      : "text-foreground hover:bg-secondary",
+                  )}
+                >
+                  <item.icon className="size-4 shrink-0" />
+                  {item.label}
+                </Link>
+              ))}
+              <form action={signOut} className="border-t border-border">
+                <button
+                  type="submit"
+                  className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <LogOut className="size-4 shrink-0" /> Salir
+                </button>
+              </form>
+            </div>
+          </details>
         </nav>
       </div>
     </div>
