@@ -2,6 +2,8 @@ import { AppShell } from "@/components/shell/app-shell";
 import { requireOwner } from "@/lib/session";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { ConfiguracionClient, type Settings } from "./configuracion-client";
+import { MercadoPagoCard } from "./mercadopago-card";
+import { estadoMercadoPago } from "./mercadopago-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +30,9 @@ export default async function ConfiguracionPage() {
       storeName={session.store.name}
       userLabel={`${session.member.display_name ?? "Vos"} · Dueño`}
     >
-      <ConfiguracionClient settings={settings} storeName={session.store.name} />
+      <ConfiguracionClient settings={settings} storeName={session.store.name}>
+        <MercadoPagoCard estado={await estadoMercadoPago()} />
+      </ConfiguracionClient>
     </AppShell>
   );
 }

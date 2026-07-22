@@ -30,9 +30,11 @@ import {
   buscarEnCatalogo,
   buscarPorNombre,
 } from "@/app/pos/actions";
+import { vincularVenta } from "@/app/pos/cobro-qr-actions";
 import { signOut } from "@/app/login/actions";
 import { useWedgeScanner } from "./use-wedge-scanner";
 import { CameraScanner } from "./camera-scanner";
+import { CobroQrDialog } from "./cobro-qr-dialog";
 
 export type PosProduct = {
   id: string;
@@ -64,16 +66,20 @@ export function PosScreen({
   clients,
   canSellOnCredit,
   isOwner,
+  mpConectado,
 }: {
   storeName: string;
   products: PosProduct[];
   clients: Client[];
   canSellOnCredit: boolean;
   isOwner: boolean;
+  /** ¿El negocio conectó su cuenta de MercadoPago? Decide si el QR lo genera la app. */
+  mpConectado: boolean;
 }) {
   const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<Linea[]>([]);
   const [medio, setMedio] = useState<Medio>("cash");
+  const [cobrandoQr, setCobrandoQr] = useState(false);
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [camaraAbierta, setCamaraAbierta] = useState(false);
   const [aviso, setAviso] = useState<{ tone: "ok" | "warn" | "error"; text: string } | null>(null);
@@ -153,6 +159,20 @@ export function PosScreen({
       return;
     }
 
+    /* QR con la cuenta del negocio conectada: primero el cliente paga, DESPUÉS se
+       registra la venta. Al revés quedarían ventas fantasma esperando un pago que
+       tal vez nunca llega. Sin cuenta conectada, "QR" sigue siendo lo que era: un
+       medio de pago que el cajero marca a mano. */
+    if (medio === "qr" && mpConectado) {
+      setCobrandoQr(true);
+      return;
+    }
+
+    registrar(null);
+  }
+
+  /** Registra la venta. `intentId` viene del cobro con QR cuando lo hubo. */
+  function registrar(intentId: string | null) {
     startTransition(async () => {
       const res = await registerSale({
         items: carrito.map((l) => ({
@@ -169,7 +189,12 @@ export function PosScreen({
         return;
       }
 
+      // Cierra el círculo: este cobro con QR terminó en esta venta. Sin esto, el
+      // cobro quedaría como "aprobado sin venta" y aparecería en Caja para recuperar.
+      if (intentId) void vincularVenta(intentId, res.saleId);
+
       // Venta cerrada: carrito nuevo y clave nueva.
+      setCobrandoQr(false);
       setCarrito([]);
       setClienteId(null);
       setMedio("cash");
@@ -196,6 +221,17 @@ export function PosScreen({
     <div className="flex min-h-dvh flex-col lg:flex-row">
       {camaraAbierta && (
         <CameraScanner onScan={onScan} onClose={() => setCamaraAbierta(false)} />
+      )}
+
+      {cobrandoQr && (
+        <CobroQrDialog
+          items={carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad }))}
+          amount={total}
+          idempotencyKey={idempotencyKey.current}
+          descripcion={carrito.map((l) => l.producto.name).join(", ")}
+          onPagado={(intentId) => registrar(intentId)}
+          onCerrar={() => setCobrandoQr(false)}
+        />
       )}
 
       {altaRapida && (

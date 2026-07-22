@@ -16,9 +16,11 @@ export type Settings = {
 export function ConfiguracionClient({
   settings,
   storeName,
+  children,
 }: {
   settings: Settings;
   storeName: string;
+  children?: React.ReactNode;
 }) {
   const [dias, setDias] = useState(String(settings.expiryWarningDays));
   const [umbral, setUmbral] = useState(String(settings.lowStockThresholdDefault));
@@ -171,6 +173,10 @@ export function ConfiguracionClient({
         {pending && <LoaderCircle className="size-4 animate-spin" />}
         Guardar ajustes
       </button>
+
+      {/* Los cobros van aparte: se conectan una vez y tienen su propio guardado,
+          así que no cuelgan del botón "Guardar ajustes". */}
+      {children && <div className="mt-6">{children}</div>}
     </div>
   );
 }

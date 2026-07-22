@@ -1,6 +1,7 @@
 import { requireSession } from "@/lib/session";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { PosScreen, type PosProduct } from "@/components/pos/pos-screen";
+import { getStoreMpAuth } from "@/lib/mercadopago";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,9 @@ export const dynamic = "force-dynamic";
 export default async function PosPage() {
   const session = await requireSession();
   const supabase = await createSupabaseServer();
+
+  // Solo el hecho de estar conectado; el token nunca sale del servidor.
+  const mpConectado = (await getStoreMpAuth(session.store.id)) !== null;
 
   const [{ data: products }, { data: barcodes }, { data: clients }] = await Promise.all([
     supabase
@@ -61,6 +65,7 @@ export default async function PosPage() {
       clients={clients ?? []}
       canSellOnCredit={session.member.role === "owner" || session.member.can_sell_on_credit}
       isOwner={session.member.role === "owner"}
+      mpConectado={mpConectado}
     />
   );
 }
