@@ -6,7 +6,7 @@ import { GlowOrb } from "@/components/shared/glow-orb";
 
 export default function NotFound() {
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden">
+    <main id="contenido" tabIndex={-1} className="relative flex min-h-screen items-center justify-center overflow-hidden">
       <GlowOrb
         tone="electric"
         size="lg"

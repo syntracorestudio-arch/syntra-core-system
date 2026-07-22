@@ -22,7 +22,7 @@ export default function Home() {
       <JsonLd />
       <Navbar />
 
-      <main className="flex flex-1 flex-col">
+      <main id="contenido" tabIndex={-1} className="flex flex-1 flex-col">
         <HeroSection />
         <ServicesSection />
         <UseCasesSection />

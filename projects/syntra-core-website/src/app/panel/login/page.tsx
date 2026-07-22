@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function PanelLoginPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center px-5">
+    <main id="contenido" tabIndex={-1} className="flex min-h-screen items-center justify-center px-5">
       <Card className="w-full max-w-sm gap-6 p-8">
         <div className="flex flex-col gap-1.5 text-center">
           <span className="font-heading text-lg font-bold tracking-tight">

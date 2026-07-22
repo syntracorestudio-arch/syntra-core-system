@@ -69,6 +69,23 @@ function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  /* Escape cierra el menú mobile y devuelve el foco al botón que lo abrió.
+     Sin esto, un usuario de teclado que abre el menú queda con el foco adentro
+     de un panel que no puede descartar sin tabular hasta el final. Lighthouse
+     no lo detecta (da 100 en accesibilidad); apareció recorriendo el sitio con
+     el teclado. */
+  const botonMenu = React.useRef<HTMLButtonElement>(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      botonMenu.current?.focus();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
   // Click en el logo en la home → volver al top/hero (sin romper navegación externa).
   const onLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname !== "/") return; // otra ruta → navegación normal a "/"
@@ -180,6 +197,7 @@ function Navbar() {
 
           {/* Toggle mobile */}
           <button
+            ref={botonMenu}
             type="button"
             aria-label={open ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={open}

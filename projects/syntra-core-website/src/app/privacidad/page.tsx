@@ -17,7 +17,7 @@ export default function PrivacidadPage() {
   return (
     <>
       <Navbar />
-      <main className="flex flex-1 flex-col pt-24">
+      <main id="contenido" tabIndex={-1} className="flex flex-1 flex-col pt-24">
         <Container className="flex max-w-3xl flex-col gap-8 py-12">
           <Link
             href="/"
