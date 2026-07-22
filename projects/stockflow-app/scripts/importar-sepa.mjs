@@ -170,7 +170,6 @@ async function main() {
     /** Mejor candidato por EAN: la descripción más informativa gana. */
     const mejor = new Map();
     let filas = 0;
-    let leidas = 0;
 
     for (const cadena of anidados) {
       let productos = [];
@@ -182,7 +181,6 @@ async function main() {
         );
         if (!csv) continue;
         productos = parsearProductos(decodificar(await interno.leer(csv.nombre)));
-        leidas++;
       } catch (err) {
         // Una cadena con el ZIP corrupto no puede tirar abajo la importación:
         // el resto del dataset sigue sirviendo.
