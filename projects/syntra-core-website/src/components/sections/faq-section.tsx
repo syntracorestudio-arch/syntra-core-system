@@ -81,7 +81,9 @@ function FaqCta() {
     >
       <Button
         asChild
-        className="group relative overflow-hidden border-0 bg-gradient-to-r from-[#2563eb] to-[#3b82f6] text-white transition-transform duration-300 hover:scale-[1.03] hover:from-[#2f6ff0] hover:to-[#4c8dff]"
+        // max-lg:h-11 → 44px en táctil (el size default deja 32px y este es el
+        // único CTA de la sección en mobile). Desktop conserva su calibrado.
+        className="group relative overflow-hidden border-0 bg-gradient-to-r from-[#2563eb] to-[#3b82f6] text-white transition-transform duration-300 max-lg:h-11 max-lg:px-5 hover:scale-[1.03] hover:from-[#2f6ff0] hover:to-[#4c8dff]"
       >
         <Link href={faqRail.ctaHref}>
           {/* Shimmer: banda de luz que recorre el botón (llama sin gritar) */}

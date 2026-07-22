@@ -59,10 +59,14 @@ function FinalCtaSection() {
               />
             </div>
 
-            {/* Columna de IMAGEN protagonista a 33rem (calibrado owner). El
-                asset es un LIENZO vertical compuesto (escena completa del owner
-                sobre su propio ambiente difuminado) → cover casi sin recorte. */}
-            <div className="relative z-10 grid lg:grid-cols-[minmax(0,33rem)_minmax(0,1fr)]">
+            {/* Columna de IMAGEN protagonista a 33rem (calibrado owner) — se
+                mantiene desde xl, que es el ancho donde se calibró. Entre 1024
+                y 1279 esos 33rem fijos dejaban al FORM en 350px: los campos
+                Nombre/Email caían a 165px y los 5 chips se apilaban en 5 filas
+                (medido, auditoría responsive 2026-07-22). En esa banda el
+                reparto pasa a ser mitad y mitad. El asset es un LIENZO vertical
+                compuesto → cover casi sin recorte en cualquiera de los dos. */}
+            <div className="relative z-10 grid lg:grid-cols-2 xl:grid-cols-[minmax(0,33rem)_minmax(0,1fr)]">
               {/* ===== Panel izquierdo IMAGE-LED: la imagen de marca es el fondo de
                   TODA la mitad (full-bleed hasta los bordes de la card); el cierre
                   narrativo + confianza componen encima, distribuidos a alto completo

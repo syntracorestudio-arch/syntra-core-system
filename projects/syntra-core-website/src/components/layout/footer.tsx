@@ -18,9 +18,11 @@ import { FooterSocial } from "@/components/layout/footer-social";
  * Server Component (BlurReveal aporta la cascada client-side).
  */
 
-/** Clase compartida de los links de columna (hover con precisión premium). */
+/** Clase compartida de los links de columna (hover con precisión premium).
+ *  py-1.5/-my-1.5: el alto de toque pasa de 20px a 44px SIN mover el ritmo
+ *  visual de la lista (el padding se cancela con el margen negativo). */
 const columnLink =
-  "inline-block text-sm text-smoke-2 underline-offset-4 transition-[color,transform] duration-200 hover:translate-x-0.5 hover:text-foreground hover:underline hover:decoration-brand-electric/60";
+  "inline-block -my-1.5 py-1.5 text-sm text-smoke-2 underline-offset-4 transition-[color,transform] duration-200 hover:translate-x-0.5 hover:text-foreground hover:underline hover:decoration-brand-electric/60";
 
 function Footer() {
   const year = new Date().getFullYear();
@@ -39,10 +41,13 @@ function Footer() {
             iguales, y la barra final (misma plantilla) alinea EXACTO con ellas.
             (Subgrid descartado: Chromium no hereda la distribución del
             justify-content del padre.) */}
-        <div className="grid gap-10 text-center sm:grid-cols-2 sm:text-left lg:grid-cols-[minmax(0,24rem)_7rem_9.5rem_9.5rem] lg:justify-between lg:gap-8">
+        {/* sm:grid-cols-3 (era 2): con dos pistas las tres navs quedaban en 2+1
+            y Contacto caía sola en una tercera fila, con el hueco al lado. Las
+            tres columnas son cortas y entran de sobra a 640px. */}
+        <div className="grid gap-10 text-center sm:grid-cols-3 sm:text-left lg:grid-cols-[minmax(0,24rem)_7rem_9.5rem_9.5rem] lg:justify-between lg:gap-8">
           {/* Col 1 — Marca: bloque CENTRADO (logo + tagline + social alineados
               al mismo eje, pedido owner 2026-07-14) */}
-          <BlurReveal className="flex flex-col items-center gap-4 text-center sm:col-span-2 lg:col-span-1">
+          <BlurReveal className="flex flex-col items-center gap-4 text-center sm:col-span-3 lg:col-span-1">
             <Image
               src="/logo.png"
               alt="SYNTRA CORE"
@@ -129,7 +134,9 @@ function Footer() {
           </p>
           <Link
             href="/privacidad"
-            className="transition-colors hover:text-foreground lg:col-start-4 lg:justify-self-start"
+            // -my-2/py-2: 32px de toque (medía 16px, por debajo del mínimo AA
+            // de 24px) sin alterar la barra final.
+            className="-my-2 py-2 transition-colors hover:text-foreground lg:col-start-4 lg:justify-self-start"
           >
             Política de privacidad
           </Link>

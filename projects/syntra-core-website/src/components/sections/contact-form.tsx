@@ -163,7 +163,14 @@ function ContactForm() {
         />
       </div>
 
-      <motion.div variants={formGroup} className="grid gap-5 sm:grid-cols-2">
+      {/* Nombre+Email en dos columnas solo cuando la columna del form da el
+          ancho. En lg el form vive en la mitad angosta del panel de Contacto:
+          ahí van apilados (dos campos de ~190px con ícono adentro dejan ~150px
+          útiles y un email real no entra). Desde xl vuelven a la fila. */}
+      <motion.div
+        variants={formGroup}
+        className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"
+      >
         <Field
           id={fieldId("name")}
           name="name"
@@ -219,7 +226,7 @@ function ContactForm() {
           {projectTypeOptions.map((opt) => (
             <label
               key={opt.value}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-white/10 bg-[#070b14]/60 px-4 py-2 text-sm text-foreground/65 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-accent-primary/50 hover:text-foreground hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_18px_-8px_rgba(37,99,235,0.45)] has-[:checked]:border-accent-primary has-[:checked]:bg-accent-primary/15 has-[:checked]:text-foreground has-[:checked]:shadow-[0_0_0_1px_rgba(37,99,235,0.35),0_6px_20px_-8px_rgba(37,99,235,0.5)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-primary/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-white/10 bg-[#070b14]/60 px-4 py-2 text-sm text-foreground/65 max-lg:py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-accent-primary/50 hover:text-foreground hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_18px_-8px_rgba(37,99,235,0.45)] has-[:checked]:border-accent-primary has-[:checked]:bg-accent-primary/15 has-[:checked]:text-foreground has-[:checked]:shadow-[0_0_0_1px_rgba(37,99,235,0.35),0_6px_20px_-8px_rgba(37,99,235,0.5)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-primary/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
               <input
                 type="checkbox"

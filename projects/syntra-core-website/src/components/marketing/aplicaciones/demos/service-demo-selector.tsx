@@ -43,10 +43,14 @@ function ServiceDemoSelector() {
   return (
     <div className="mt-12 lg:mt-14">
       {/* Tabs pill (orden pipeline) */}
+      {/* Scroller horizontal solo donde la fila no entra ni de casualidad
+          (≤640). Desde md las 4 pills miden 730px contra 720px de ancho útil:
+          se cortaba "Panel de gestión" por 10px y parecía un bug, no un
+          carrusel. Envolviendo entran completas (auditoría 2026-07-22). */}
       <div
         role="tablist"
         aria-label="Ejemplos del servicio"
-        className="flex gap-2 overflow-x-auto pb-2 lg:flex-wrap lg:justify-center lg:overflow-visible"
+        className="flex gap-2 overflow-x-auto pb-2 md:flex-wrap md:justify-center md:overflow-visible"
       >
         {serviceDemos.map((demo, i) => {
           const Icon = TAB_ICONS[i];
@@ -60,7 +64,7 @@ function ServiceDemoSelector() {
               aria-selected={isActive}
               aria-controls={`demo-panel-${demo.id}`}
               onClick={() => setActiveId(demo.id)}
-              className="flex shrink-0 cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-300"
+              className="flex shrink-0 cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-300 max-lg:py-2.5"
               style={
                 isActive
                   ? {
