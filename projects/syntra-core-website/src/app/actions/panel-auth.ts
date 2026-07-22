@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import {
   createSessionToken,
   SESSION_COOKIE,
+  SESSION_COOKIE_PATH,
   SESSION_TTL_SECONDS,
 } from "@/lib/auth/panel-session";
 import { rateLimit } from "@/lib/rate-limit";
@@ -64,16 +65,27 @@ export async function panelLogin(
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: "/panel",
+    path: SESSION_COOKIE_PATH,
     maxAge: SESSION_TTL_SECONDS,
   });
 
   redirect("/panel");
 }
 
-/** Cierra sesión: borra la cookie y vuelve al login. */
+/**
+ * Cierra sesión: expira la cookie y vuelve al login. Se sobreescribe con
+ * `maxAge: 0` usando EL MISMO path que al setearla — un `delete(name)` a secas
+ * borra con path `/` y dejaría viva la cookie de `path=/panel` (la sesión no se
+ * cerraría). Mismas flags que el set para que el browser haga match y la elimine.
+ */
 export async function panelLogout(): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE);
+  cookieStore.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: SESSION_COOKIE_PATH,
+    maxAge: 0,
+  });
   redirect("/panel/login");
 }
