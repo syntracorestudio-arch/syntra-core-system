@@ -11,6 +11,7 @@ import {
   TriangleAlert,
   Check,
   Archive,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { money } from "@/lib/format";
@@ -36,6 +37,19 @@ export type ProductRow = {
 export type CategoryRow = { id: string; name: string; emoji: string | null; color: string | null };
 
 type Aviso = { tone: "ok" | "error"; text: string } | null;
+
+/** Mismos atajos que en el ingreso: el caso frecuente en un toque. */
+const ATAJOS_VENC = [
+  { label: "1 semana", dias: 7 },
+  { label: "15 días", dias: 15 },
+  { label: "1 mes", dias: 30 },
+] as const;
+
+function enDias(dias: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
 
 /** Margen sobre el precio de venta. Null si falta el costo: preferimos no mostrar
  *  nada antes que mostrar un número que miente (business-rules §2). */
@@ -348,6 +362,8 @@ function ProductDialog({
   const [threshold, setThreshold] = useState(
     product?.lowStockThreshold != null ? String(product.lowStockThreshold) : "",
   );
+  const [stockInicial, setStockInicial] = useState("");
+  const [vence, setVence] = useState("");
   const [ajuste, setAjuste] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -355,7 +371,7 @@ function ProductDialog({
 
   function guardar() {
     startTransition(async () => {
-      const payload = {
+      const base = {
         name,
         price: Number(price) || 0,
         cost: cost === "" ? null : Number(cost),
@@ -364,8 +380,12 @@ function ProductDialog({
         low_stock_threshold: threshold === "" ? null : Number(threshold),
       };
       const res = product
-        ? await updateProduct(product.id, payload)
-        : await createProduct(payload);
+        ? await updateProduct(product.id, base)
+        : await createProduct({
+            ...base,
+            initial_stock: stockInicial === "" ? null : Number(stockInicial),
+            expiry_date: vence || null,
+          });
       if (!res.ok) {
         onError(res.error);
         return;
@@ -420,19 +440,20 @@ function ProductDialog({
         <div className="flex gap-2">
           <div className="flex-1 space-y-1.5">
             <label htmlFor="pd-price" className="text-sm font-medium">
-              Precio de venta
+              ¿A cuánto lo vendés?
             </label>
             <input
               id="pd-price"
               value={price}
               onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ""))}
               inputMode="numeric"
+              placeholder="1800"
               className="tabular h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
             />
           </div>
           <div className="flex-1 space-y-1.5">
             <label htmlFor="pd-cost" className="text-sm font-medium">
-              Costo
+              ¿Cuánto te cuesta?
             </label>
             <input
               id="pd-cost"
@@ -445,45 +466,124 @@ function ProductDialog({
           </div>
         </div>
 
-        {m !== null && (
+        {m === null ? (
           <p className="text-xs text-muted-foreground">
-            Margen: <span className="font-semibold text-success-ink">{m.toFixed(0)}%</span>
+            Cargá el costo y te calculamos cuánto ganás con cada uno.
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Ganás{" "}
+            <span className="tabular font-semibold text-success-ink">
+              {money((Number(price) || 0) - Number(cost))} por unidad
+            </span>{" "}
+            · margen {m.toFixed(0)}%
           </p>
         )}
 
-        <div className="flex gap-2">
-          <div className="flex-1 space-y-1.5">
-            <label htmlFor="pd-cat" className="text-sm font-medium">
-              Categoría
-            </label>
-            <select
-              id="pd-cat"
-              value={categoryId ?? ""}
-              onChange={(e) => setCategoryId(e.target.value || null)}
-              className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
-            >
-              <option value="">Sin categoría</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.emoji} {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="w-32 space-y-1.5">
-            <label htmlFor="pd-thr" className="text-sm font-medium">
-              Avisar en
-            </label>
+        <div className="space-y-1.5">
+          <label htmlFor="pd-cat" className="text-sm font-medium">
+            Categoría
+          </label>
+          <select
+            id="pd-cat"
+            value={categoryId ?? ""}
+            onChange={(e) => setCategoryId(e.target.value || null)}
+            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+          >
+            <option value="">Sin categoría</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.emoji} {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Antes decía "Avisar en", que no dice QUÉ se avisa. La etiqueta ahora es
+            la frase completa y el número va en el medio. */}
+        <div className="space-y-1.5">
+          <label htmlFor="pd-thr" className="text-sm font-medium">
+            Avisarme cuando queden pocos
+          </label>
+          <div className="flex items-center gap-2">
             <input
               id="pd-thr"
               value={threshold}
               onChange={(e) => setThreshold(e.target.value.replace(/[^\d]/g, ""))}
               inputMode="numeric"
               placeholder="3"
-              className="tabular h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+              className="tabular h-11 w-20 rounded-lg border border-input bg-background px-3 text-center text-sm outline-none focus:border-primary"
             />
+            <span className="text-sm text-muted-foreground">unidades o menos</span>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Si lo dejás vacío usamos el número de tus Ajustes.
+          </p>
         </div>
+
+        {/* Solo al CREAR: quien carga un producto nuevo lo tiene en la mano.
+            Obligarlo a crearlo en cero y después ir a Ingreso es doble trabajo. */}
+        {!product && (
+          <div className="space-y-3 rounded-lg border border-border bg-background p-3">
+            <div className="space-y-1.5">
+              <label htmlFor="pd-stock" className="text-sm font-medium">
+                ¿Cuántos tenés ahora?
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="pd-stock"
+                  value={stockInicial}
+                  onChange={(e) => setStockInicial(e.target.value.replace(/[^\d]/g, ""))}
+                  inputMode="numeric"
+                  placeholder="0"
+                  className="tabular h-11 w-24 rounded-lg border border-input bg-card px-3 text-center text-sm outline-none focus:border-primary"
+                />
+                <span className="text-sm text-muted-foreground">en la góndola</span>
+              </div>
+            </div>
+
+            {Number(stockInicial) > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <CalendarClock className="size-3.5 text-muted-foreground" />
+                  <span className="text-sm font-medium">¿Vence pronto? Te aviso antes</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {ATAJOS_VENC.map((a) => {
+                    const valor = enDias(a.dias);
+                    const activo = vence === valor;
+                    return (
+                      <button
+                        key={a.label}
+                        type="button"
+                        onClick={() => setVence(activo ? "" : valor)}
+                        aria-pressed={activo}
+                        className={cn(
+                          "h-9 cursor-pointer rounded-lg border px-2.5 text-xs font-medium transition-colors",
+                          activo
+                            ? "border-primary bg-accent text-accent-foreground"
+                            : "border-border text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {a.label}
+                      </button>
+                    );
+                  })}
+                  <input
+                    type="date"
+                    value={vence}
+                    onChange={(e) => setVence(e.target.value)}
+                    aria-label="Fecha de vencimiento"
+                    className="h-9 min-w-[8.5rem] flex-1 rounded-lg border border-input bg-card px-2 text-xs outline-none focus:border-primary"
+                  />
+                </div>
+                {vence && (
+                  <p className="text-xs text-success-ink">Te aviso antes del {vence}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <button
           type="button"

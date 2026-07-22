@@ -16,22 +16,63 @@ const productSchema = z.object({
   low_stock_threshold: z.number().int().nonnegative().nullable(),
 });
 
+/**
+ * Alta de producto. Acepta ADEMÁS el stock que el dueño ya tiene en la góndola y
+ * su vencimiento, porque cuando alguien carga un producto nuevo lo tiene en la
+ * mano: obligarlo a crearlo en cero y después ir a Ingreso es doble trabajo.
+ */
+const createSchema = productSchema.extend({
+  initial_stock: z.number().nonnegative().nullable().optional(),
+  expiry_date: z.string().nullable().optional(),
+});
+
 export async function createProduct(input: unknown): Promise<ActionResult> {
   const session = await requireOwner();
-  const parsed = productSchema.safeParse(input);
+  const parsed = createSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Revisá los datos." };
   }
 
+  const { initial_stock, expiry_date, ...product } = parsed.data;
   const supabase = await createSupabaseServer();
-  const { error } = await supabase.from("products").insert({
-    store_id: session.store.id,
-    ...parsed.data,
-    emoji: parsed.data.emoji || "📦",
-  });
 
-  if (error) return { ok: false, error: "No pudimos guardar el producto." };
+  const { data, error } = await supabase
+    .from("products")
+    .insert({
+      store_id: session.store.id,
+      ...product,
+      emoji: product.emoji || "📦",
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) return { ok: false, error: "No pudimos guardar el producto." };
+
+  // El stock inicial entra por RPC, como todo movimiento: queda asentado en el
+  // ledger con motivo 'initial' en vez de aparecer de la nada.
+  if (initial_stock && initial_stock > 0) {
+    await supabase.rpc("adjust_stock", {
+      p_store_id: session.store.id,
+      p_product_id: data.id,
+      p_delta: initial_stock,
+      p_reason: "initial",
+      p_note: "carga inicial",
+    });
+
+    if (expiry_date) {
+      await supabase.from("stock_expiries").insert({
+        store_id: session.store.id,
+        product_id: data.id,
+        expiry_date,
+        qty: initial_stock,
+        created_by: session.member.id,
+        note: "carga inicial",
+      });
+    }
+  }
+
   revalidatePath("/admin/productos");
+  revalidatePath("/admin/vencimientos");
   revalidatePath("/pos");
   return { ok: true };
 }
