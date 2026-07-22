@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSecret } from "@/lib/crypto/secret";
 import type { DireccionNegocio } from "@/lib/provincias";
+import { geocodificar } from "@/lib/geocode";
 
 /**
  * MercadoPago — cobro con QR, cuenta propia de cada negocio.
@@ -134,64 +135,91 @@ export async function mpAsegurarCaja(
   const extStore = externalId("ST", storeId);
   const extPos = externalId("POS", storeId);
 
-  // ---- Sucursal ----
-  const sucursal = await mpFetch<{ id: number }>(token, `/users/${mpUserId}/stores`, {
-    method: "POST",
-    body: {
-      name: storeName.slice(0, 60),
-      external_id: extStore,
-      location: {
-        street_name: direccion.calle,
-        street_number: direccion.numero,
-        city_name: direccion.ciudad,
-        state_name: direccion.provincia,
-        // MP exige coordenadas pero lo que usa para impuestos es la dirección de
-        // arriba. Geocodificar para llenar un campo que no se mira sería sumar una
-        // dependencia externa al alta a cambio de nada.
-        latitude: 0,
-        longitude: 0,
-        reference: storeName.slice(0, 60),
-      },
-    },
-  });
+  /* Buscar antes de crear, en vez de crear y adivinar qué significa el error.
+     Reconectar con un token nuevo es normal (rotación, recuperación de cuenta) y
+     tiene que ser inofensivo. Interpretar mensajes de error para deducir "ah, ya
+     existía" es frágil: cualquier cambio de redacción del lado de MP y el alta se
+     rompe sin que nadie lo note. */
 
-  // 400 con external_id repetido = ya la habíamos creado. No es un error.
-  if (!sucursal.ok && !/already|exist|duplicad/i.test(sucursal.message)) {
-    return { ok: false, error: `No pudimos crear la sucursal en MercadoPago: ${sucursal.message}` };
+  // ---- Sucursal ----
+  let sucursalId: number | null = await buscarSucursal(token, mpUserId, extStore);
+
+  if (sucursalId === null) {
+    // MP rechaza 0,0 explícitamente, así que las coordenadas hay que resolverlas.
+    // `geocodificar` nunca falla: si el geocoder no responde, cae al centro de la
+    // provincia. Nadie se queda sin cobrar porque OpenStreetMap esté caído.
+    const coords = await geocodificar(direccion);
+
+    const creada = await mpFetch<{ id: number }>(token, `/users/${mpUserId}/stores`, {
+      method: "POST",
+      body: {
+        name: storeName.slice(0, 60),
+        external_id: extStore,
+        location: {
+          street_name: direccion.calle,
+          street_number: direccion.numero,
+          city_name: direccion.ciudad,
+          state_name: direccion.provincia,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          reference: storeName.slice(0, 60),
+        },
+      },
+    });
+    if (!creada.ok) {
+      return { ok: false, error: `No pudimos crear la sucursal en MercadoPago: ${creada.message}` };
+    }
+    sucursalId = creada.data.id;
   }
 
   // ---- Caja ----
-  const caja = await mpFetch<{ id: number; external_id: string }>(token, "/pos", {
+  const cajaExistente = await buscarCaja(token, extPos);
+  if (cajaExistente !== null) {
+    return { ok: true, externalStoreId: extStore, externalPosId: extPos, posId: String(cajaExistente) };
+  }
+
+  /* `store_id` numérico y no `external_store_id`: el endpoint de cajas no resuelve
+     el id externo de la sucursal — responde "External store id does not refer any
+     store" aunque la sucursal exista con ese mismo id. */
+  const caja = await mpFetch<{ id: number }>(token, "/pos", {
     method: "POST",
     body: {
-      name: `${storeName.slice(0, 40)} · Caja`,
+      name: `${storeName.slice(0, 40)} Caja`,
       external_id: extPos,
-      external_store_id: extStore,
+      store_id: sucursalId,
       fixed_amount: false, // el monto lo manda cada orden
       category: 621102, // "Alimentos y bebidas" — categoría genérica de comercio
     },
   });
 
-  if (caja.ok) {
-    return { ok: true, externalStoreId: extStore, externalPosId: extPos, posId: String(caja.data.id) };
+  if (!caja.ok) {
+    return { ok: false, error: `No pudimos crear la caja en MercadoPago: ${caja.message}` };
   }
+  return { ok: true, externalStoreId: extStore, externalPosId: extPos, posId: String(caja.data.id) };
+}
 
-  // Ya existía: la buscamos por external_id para quedarnos con su id.
-  const existente = await mpFetch<{ results?: { id: number; external_id: string }[] }>(
+/** Id numérico de la sucursal con ese external_id, o null si no existe. */
+async function buscarSucursal(
+  token: string,
+  mpUserId: string,
+  extStore: string,
+): Promise<number | null> {
+  const res = await mpFetch<{ results?: { id: number; external_id?: string }[] }>(
+    token,
+    `/users/${mpUserId}/stores/search`,
+  );
+  if (!res.ok) return null;
+  return res.data.results?.find((s) => s.external_id === extStore)?.id ?? null;
+}
+
+/** Id numérico de la caja con ese external_id, o null si no existe. */
+async function buscarCaja(token: string, extPos: string): Promise<number | null> {
+  const res = await mpFetch<{ results?: { id: number; external_id?: string }[] }>(
     token,
     `/pos?external_id=${encodeURIComponent(extPos)}`,
   );
-  const encontrada = existente.ok ? existente.data.results?.[0] : undefined;
-  if (encontrada) {
-    return {
-      ok: true,
-      externalStoreId: extStore,
-      externalPosId: extPos,
-      posId: String(encontrada.id),
-    };
-  }
-
-  return { ok: false, error: `No pudimos crear la caja en MercadoPago: ${caja.message}` };
+  if (!res.ok) return null;
+  return res.data.results?.find((p) => p.external_id === extPos)?.id ?? null;
 }
 
 export type MpOrden = {
