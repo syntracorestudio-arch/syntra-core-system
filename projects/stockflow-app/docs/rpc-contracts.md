@@ -26,10 +26,18 @@ register_sale(
                              --   free_amount: numeric|null, -- venta por monto libre
                              --   name: text|null}]          -- etiqueta del monto libre
   p_payment_method  text,    -- cash | qr | card | transfer | account
-  p_client_id       uuid default null,   -- obligatorio si account
-  p_idempotency_key text     -- uuid generado client-side al armar el carrito
-) returns sales
+  p_idempotency_key text,    -- uuid generado client-side al armar el carrito
+  p_client_id       uuid default null   -- obligatorio si account
+) returns jsonb
 ```
+
+> **Implementado en 003 (2026-07-21) con dos ajustes sobre este contrato:**
+> 1. `p_idempotency_key` va ANTES de `p_client_id`: el primero es obligatorio y el
+>    segundo tiene default, así que el orden inverso no compila.
+> 2. Devuelve **jsonb**, no la fila de `sales`. El POS necesita tres cosas que la
+>    tabla no tiene: `over_limit` (fiado sobre el límite), `negative_stock` (qué
+>    productos quedaron en rojo, para avisar) y `replayed` (si fue un reintento).
+>    Forma: `{sale_id, total, replayed, over_limit, client_balance, negative_stock}`.
 
 Flujo (1 transacción):
 1. Member activo (`not_a_member`). Si `payment_method='account'` y el member no es
