@@ -19,7 +19,10 @@ import { money, signedPct } from "@/lib/format";
 
 export type DashboardData = {
   today: {
-    total: number;
+    total: number;          // facturado
+    cash_in: number;        // lo que ENTRÓ (ventas cobradas + cobros de fiado)
+    credit_given: number;   // lo que fiaste hoy
+    credit_collected: number;
     count: number;
     profit: number;
     profit_coverage: number | null;
@@ -27,13 +30,13 @@ export type DashboardData = {
     vs_avg_pct: number | null;
   };
   by_method: { method: string; total: number; count: number }[];
-  top_week: {
+  restock: {
     product_id: string;
     name: string;
     emoji: string | null;
-    units: number;
-    revenue: number;
-    margin_pct: number | null;
+    stock: number;
+    vendidas_7d: number;
+    dias_restantes: number | null;
   }[];
   credit: {
     total: number;
@@ -66,7 +69,7 @@ export function DashboardClient({
     );
   }
 
-  const { today, by_method, top_week, credit, low_stock, expiring } = data;
+  const { today, by_method, restock, credit, low_stock, expiring } = data;
   const totalMedios = by_method.reduce((a, m) => a + Number(m.total), 0);
   const sinVentas = today.count === 0;
 
@@ -104,6 +107,33 @@ export function DashboardClient({
               </>
             )}
           </div>
+
+          {/* Facturado NO es lo que entró: fiar es vender sin cobrar. Separarlo
+              es la diferencia entre un número creíble y uno que miente. */}
+          {(today.credit_given > 0 || today.credit_collected > 0) && (
+            <dl className="mt-3 space-y-1 border-t border-border pt-3 text-sm">
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">Entró en caja</dt>
+                <dd className="tabular font-semibold text-success-ink">
+                  {money(today.cash_in)}
+                </dd>
+              </div>
+              {today.credit_given > 0 && (
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted-foreground">Fiaste</dt>
+                  <dd className="tabular font-medium text-warning-ink">
+                    {money(today.credit_given)}
+                  </dd>
+                </div>
+              )}
+              {today.credit_collected > 0 && (
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted-foreground">Cobraste de fiado</dt>
+                  <dd className="tabular font-medium">{money(today.credit_collected)}</dd>
+                </div>
+              )}
+            </dl>
+          )}
         </Card>
 
         <Card>
@@ -277,26 +307,45 @@ export function DashboardClient({
           )}
         </Card>
 
+        {/* Reemplaza al viejo "top de la semana", que era tendencia y se mudó a
+            Reportes. La decisión de la mañana no es "qué está bajo" sino "qué se
+            me acaba primero": por eso ordena por ritmo de venta, no alfabético. */}
         <Card>
-          <CardLabel>Lo que más vendiste esta semana</CardLabel>
-          {top_week.length === 0 ? (
+          <CardLabel>
+            <ShoppingBasket className="size-4" />
+            Para reponer
+          </CardLabel>
+          {restock.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
-              Todavía no hay ventas esta semana.
+              No hay nada urgente para reponer.
             </p>
           ) : (
             <ul className="mt-3 divide-y divide-border">
-              {top_week.map((p, i) => (
+              {restock.slice(0, 5).map((p) => (
                 <li key={p.product_id} className="flex items-center gap-3 py-2.5">
-                  <span className="tabular w-4 text-xs text-muted-foreground">{i + 1}</span>
                   <span className="text-lg" aria-hidden>
                     {p.emoji ?? "📦"}
                   </span>
-                  <p className="min-w-0 flex-1 truncate text-sm font-medium">{p.name}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{p.name}</p>
+                    <p className="tabular text-xs text-muted-foreground">
+                      {Number(p.vendidas_7d) > 0
+                        ? `se vende ${(Number(p.vendidas_7d) / 7).toFixed(1)} por día`
+                        : "sin ventas esta semana"}
+                    </p>
+                  </div>
                   <div className="shrink-0 text-right">
-                    <p className="tabular text-sm font-semibold">{Number(p.units)}u</p>
-                    {p.margin_pct !== null && (
-                      <p className="tabular text-xs text-success-ink">
-                        {Number(p.margin_pct)}% margen
+                    <p className="tabular text-sm font-semibold">{Number(p.stock)}u</p>
+                    {p.dias_restantes !== null && (
+                      <p
+                        className={cn(
+                          "tabular text-xs",
+                          Number(p.dias_restantes) <= 2 ? "text-danger-ink" : "text-warning-ink",
+                        )}
+                      >
+                        {Number(p.dias_restantes) < 1
+                          ? "menos de un día"
+                          : `~${Number(p.dias_restantes)} días`}
                       </p>
                     )}
                   </div>

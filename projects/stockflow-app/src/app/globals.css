@@ -73,6 +73,14 @@
   --cat-fiambres: #f43f5e;
   --cat-panaderia: #84cc16;
 
+  /* Series de gráficos. NO son los semánticos: sobre el fondo de una card
+     (#111621) el verde #22c55e queda fuera de la banda de luminosidad y las
+     barras se "queman". Estos pasos están VALIDADOS con el script de la skill
+     dataviz: banda de luminosidad, chroma, contraste y separación para
+     daltonismo (ΔE 30.8 deuteranopía, muy por encima del piso de 8). */
+  --chart-1: #2e6bff; /* facturación */
+  --chart-2: #16a34a; /* ganancia */
+
   --dur-fast: 150ms;
   --dur-base: 200ms;
   --dur-slow: 300ms;
