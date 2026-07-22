@@ -5,10 +5,10 @@ import dynamic from "next/dynamic";
 import { useReducedMotion } from "framer-motion";
 
 /**
- * HeroAnillos — decider de "LOS ANILLOS" (liquid glass del Hero).
+ * HeroAnillos — decider de la escena del Hero (el vórtice + "La Tinta" de fondo).
  * Desktop lg+ y sin reduced-motion → monta la escena 3D (lazy, ssr:false;
- * three/drei/postprocessing solo se descargan si se va a usar). Mobile o
- * reduced-motion → null (queda el radial navy base del hero, cero costo).
+ * three solo se descarga si se va a usar). Mobile o reduced-motion → null
+ * (queda la base CSS del hero + el póster horneado, cero costo).
  */
 
 const HeroAnillos3D = dynamic(

@@ -24,12 +24,23 @@
  * Interacción de casa (aprobada): estrella de frente girando en el plano +
  * bamboleo; sigue al mouse (suspendido en drag); click+arrastre 360° con
  * inercia. Lazy vía decider (desktop + motion), frameloop gateado, CLS 0.
+ *
+ * 2026-07-21 — el canvas pasó a FULL-BLEED del hero. El encuadre del nudo se
+ * preserva con un frustum descentrado (<ViewOffset>) + zoom compensado, que es una
+ * traslación pura de la imagen. El rig, el material, la geometría y la interacción
+ * del vórtice NO se tocaron.
+ *
+ * 2026-07-22 — el fondo full-bleed es "LA TINTA" (hero-liquido.tsx). "LAS PLACAS"
+ * (hero-estructura.tsx) fue RECHAZADO por el owner y eliminado: competía con el
+ * protagonista por usar su mismo material (vidrio contra vidrio, azul contra azul).
  */
 
 import * as React from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useInView } from "framer-motion";
 import * as THREE from "three";
+
+import { HeroLiquido } from "./hero-liquido";
 
 const TAU = Math.PI * 2;
 
@@ -95,7 +106,34 @@ function endDragState() {
   MOUSE.dragging = false;
 }
 
+/**
+ * Encuadre del canvas FULL-BLEED. El canvas dejó de ser una ventana del 54% del
+ * ancho (para que la estructura comparta z-buffer con el nudo), pero el vórtice
+ * tiene que quedar EXACTAMENTE donde el owner lo aprobó: centro al 75% del ancho
+ * y el mismo tamaño en px. Se resuelve con un frustum DESCENTRADO (setViewOffset):
+ * matemáticamente es una traslación pura de la imagen (el término (r+l)/(r-l) del
+ * proyectivo es constante en z) ⇒ CERO distorsión de perspectiva sobre el objeto.
+ * Los valores son razones adimensionales (offsetX/fullWidth = -0.25) ⇒ sobreviven
+ * a cualquier resize sin recalcular nada.
+ */
+function ViewOffset() {
+  const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
+  React.useEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    // Las dimensiones DEBEN ser las reales del canvas: con una proporción fija
+    // (4:1) el frustum se mapea a un aspect que no es el de la pantalla y el
+    // objeto sale comprimido horizontalmente. offsetX = -25% del ancho.
+    cam.setViewOffset(size.width, size.height, -size.width * 0.25, 0, size.width, size.height);
+    return () => {
+      cam.clearViewOffset();
+    };
+  }, [camera, size.width, size.height]);
+  return null;
+}
+
 function Scene() {
+  const gl = useThree((s) => s.gl);
   const followRef = React.useRef<THREE.Group>(null);
   const spinRef = React.useRef<THREE.Group>(null);
   const autoY = React.useRef(0);
@@ -108,12 +146,20 @@ function Scene() {
   React.useEffect(() => () => knotGeo.dispose(), [knotGeo]);
 
   // Entorno de estudio EXTRAÍDO del material de Spline (las planchas de espejo).
+  // NITIDEZ (2026-07-22): anisotropía al máximo + mipmaps trilineales. Sin esto,
+  // el reflejo se muestrea con un solo tap en una superficie muy curvada y sus
+  // bordes salen escalonados/hervidos — el MSAA no lo arregla porque es aliasing
+  // de TEXTURA, no de silueta.
   const envTex = React.useMemo(() => {
     const t = new THREE.TextureLoader().load("/visual-assets/syntra/hero/spline-matcap.png");
     t.mapping = THREE.EquirectangularReflectionMapping;
     t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = gl.capabilities.getMaxAnisotropy();
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.generateMipmaps = true;
     return t;
-  }, []);
+  }, [gl]);
   React.useEffect(() => () => envTex.dispose(), [envTex]);
 
   useFrame((state, delta) => {
@@ -143,6 +189,12 @@ function Scene() {
 
   return (
     <>
+      {/* ══ EL FONDO: "LA TINTA" ══
+          Quad fullscreen en clip-space (inmune al ViewOffset), dibujado primero y
+          sin escribir z ⇒ el nudo siempre lo pisa. ShaderMaterial sin luces ⇒ el
+          violeta del rig no lo contamina. */}
+      <HeroLiquido pointer={MOUSE} />
+
       {/* ══ RIG EXACTO (dump del runtime de Spline) ══ */}
       <hemisphereLight color="#d3d3d3" groundColor="#828282" intensity={0.75} />
       <directionalLight
@@ -176,10 +228,14 @@ function Scene() {
         shadow-bias={-0.0004}
       />
       {/* Violeta SIN castShadow: su sombra PCF cortaba el recorrido del violeta
-          en parches (en Spline fluye continuo). Posición EXACTA del dump. */}
+          en parches (en Spline fluye continuo). Posición EXACTA del dump.
+          2026-07-22: intensidad 6.5 → 3.0. Sobre negro puro el violeta separaba el
+          nudo del vacío; con "LA TINTA" azul detrás el fondo ya hace ese trabajo, y
+          azul + violeta juntos son la firma cromática del render de IA genérico que
+          la marca evita. El hue aprobado no se toca; solo la dosis. */}
       <pointLight
         color="#7136ff"
-        intensity={6.5}
+        intensity={3.0}
         decay={0}
         distance={2000}
         position={[96.5, 0, 0]}
@@ -231,33 +287,52 @@ function HeroAnillos3D() {
   };
 
   return (
-    // Capa derecha clickeable: el vórtice flota sobre la atmósfera pareja.
-    <div
-      ref={hostRef}
-      aria-hidden="true"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      className="pointer-events-auto absolute top-1/2 right-[-2%] h-[105%] w-[54%] -translate-y-1/2 cursor-grab opacity-0 [animation:hero-object-in_1.4s_ease-out_0.2s_forwards] active:cursor-grabbing"
-    >
-      <Canvas
-        shadows={{ enabled: true, type: THREE.PCFShadowMap }}
-        frameloop={inView ? "always" : "demand"}
-        dpr={[1, 1.5]}
-        camera={{ position: [0, 0, 1000], fov: 45, zoom: 0.88, near: 10, far: 5000 }}
-        gl={{
-          antialias: false,
-          alpha: true,
-          powerPreference: "high-performance",
-          // Spline renderiza sin tone mapping (dump: toneMapping 0, exposure 1).
-          toneMapping: THREE.NoToneMapping,
-        }}
-        style={{ position: "absolute", inset: 0 }}
+    <>
+      {/* Canvas FULL-BLEED del hero: la estructura y el vórtice comparten escena
+          (mismo z-buffer ⇒ oclusión real). El encuadre del nudo lo preserva
+          <ViewOffset> + zoom 0.924 (= 0.88 × 1.05, la altura que perdió el canvas
+          al pasar de h-105% a inset-0): mismo centro (75% del ancho) y mismo
+          tamaño en px que la versión aprobada. */}
+      <div
+        ref={hostRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-0 [animation:hero-object-in_1.4s_ease-out_0.2s_forwards]"
       >
-        <Scene />
-      </Canvas>
-    </div>
+        <Canvas
+          shadows={{ enabled: true, type: THREE.PCFSoftShadowMap }}
+          frameloop={inView ? "always" : "demand"}
+          /* NITIDEZ (2026-07-22): el piso de 1.5 es SUPERSAMPLING — en una
+             pantalla dpr 1 (el caso del owner) renderiza a 1.5× y baja a 1, lo
+             único que mata el aliasing de los reflejos especulares del material
+             (el MSAA solo arregla la silueta). Techo 2 para no reventar retina. */
+          dpr={[1.5, 2]}
+          camera={{ position: [0, 0, 1000], fov: 45, zoom: 0.924, near: 10, far: 5000 }}
+          gl={{
+            antialias: true,
+            alpha: true,
+            powerPreference: "high-performance",
+            // Spline renderiza sin tone mapping (dump: toneMapping 0, exposure 1).
+            toneMapping: THREE.NoToneMapping,
+          }}
+          style={{ position: "absolute", inset: 0 }}
+        >
+          <ViewOffset />
+          <Scene />
+        </Canvas>
+      </div>
+
+      {/* Captor del drag 360°: el canvas es full-bleed y pointer-events-none, así
+          que el hit-testing del arrastre vive acá — SOLO la banda derecha, donde
+          está el nudo. La columna izquierda (badge, H1, CTAs, placa) queda libre. */}
+      <div
+        aria-hidden="true"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        className="pointer-events-auto absolute inset-y-0 right-0 w-[46%] cursor-grab active:cursor-grabbing"
+      />
+    </>
   );
 }
 
