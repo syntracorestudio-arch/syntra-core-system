@@ -137,7 +137,11 @@ function DemoAutomation({ reduce }: { reduce: boolean }) {
               </span>
               <span className="shrink-0 text-[9px] text-slate-400">{SCENE.entrada.meta}</span>
             </div>
-            <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-2">
+            {/* minmax(0,1fr): una pista `1fr` arranca con min-width:auto, y como
+                el valor lleva `truncate` (white-space:nowrap) su tamaño mínimo es
+                el texto ENTERO. La pista no podía achicarse y empujaba la grilla
+                más allá del ancho del teléfono. */}
+            <div className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-2">
               {SCENE.entrada.fields.map(([k, v]) => (
                 <React.Fragment key={k}>
                   <span className="text-[9px] font-medium tracking-wide text-slate-400 uppercase">{k}</span>
@@ -156,7 +160,7 @@ function DemoAutomation({ reduce }: { reduce: boolean }) {
               {SCENE.registro.title}
             </span>
             <div className="mt-2 overflow-hidden rounded-lg border border-slate-200">
-              <div className="grid grid-cols-[3rem_1fr_1.4fr_3.2rem] border-b border-slate-200 bg-slate-50">
+              <div className="grid grid-cols-[2.6rem_minmax(0,1fr)_minmax(0,1.4fr)_2.9rem] border-b border-slate-200 bg-slate-50">
                 {SCENE.registro.headers.map((h) => (
                   <span key={h} className="border-r border-slate-200 px-1.5 py-1 text-[8px] font-semibold text-slate-500 uppercase last:border-r-0">
                     {h}
@@ -167,7 +171,7 @@ function DemoAutomation({ reduce }: { reduce: boolean }) {
                 initial={false}
                 animate={{ background: rowWritten ? `rgba(${SHEETS.rgb},0.08)` : "rgba(255,255,255,1)" }}
                 transition={{ duration: reduce ? 0 : 0.4 }}
-                className="grid grid-cols-[3rem_1fr_1.4fr_3.2rem]"
+                className="grid grid-cols-[2.6rem_minmax(0,1fr)_minmax(0,1.4fr)_2.9rem]"
               >
                 {SCENE.registro.row.map((cell, i) => (
                   <motion.span

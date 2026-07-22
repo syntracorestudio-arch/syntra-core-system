@@ -230,6 +230,23 @@ function ShowcasePanel({
         style={{ background: LEGIBILITY }}
       />
 
+      {/* Refuerzo SOLO en mobile. El scrim de arriba está calibrado para el
+          layout de escritorio, donde el texto vive en el 64% izquierdo: al 70%
+          del ancho ya es casi transparente. En un teléfono la card mide 342px y
+          no hay lugar para un lado a lado, así que el texto ocupa el ANCHO
+          COMPLETO y los bullets caen sobre la parte brillante del render.
+          Con esto el render se vuelve textura y el texto se lee limpio.
+          (Lo encontró la revisión con visión a 390px, no la medición: una
+          superposición no desborda, no recorta y no cambia ningún número.) */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-2xl sm:hidden"
+        style={{
+          background:
+            "linear-gradient(to right, #0a0e14 0%, rgba(10,14,20,0.90) 42%, rgba(10,14,20,0.66) 100%)",
+        }}
+      />
+
       {/* Contenido (mitad izquierda) */}
       <div className="relative z-10 flex w-full flex-col gap-3 p-6 sm:max-w-[64%] sm:p-8">
         <span
