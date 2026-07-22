@@ -109,6 +109,28 @@ export async function registerSale(input: unknown): Promise<SaleResult> {
   };
 }
 
+/**
+ * Consulta el catálogo compartido por código de barras.
+ *
+ * Es lo que convierte el alta de "escribí el nombre completo" a "confirmá y poné
+ * el precio". Un kiosco tiene 300-800 productos: sin esto, cargarlos son horas
+ * de trabajo ANTES de que el sistema le sirva para algo, y ahí es donde se
+ * abandona el producto.
+ */
+export async function buscarEnCatalogo(
+  barcode: string,
+): Promise<{ nombre: string; marca: string | null } | null> {
+  await requireSession();
+  if (!/^\d{8,14}$/.test(barcode)) return null;
+
+  const supabase = await createSupabaseServer();
+  const { data } = await supabase.rpc("catalogo_buscar", { p_ean: barcode });
+  if (!data) return null;
+
+  const r = data as { nombre: string; marca: string | null };
+  return { nombre: r.nombre, marca: r.marca };
+}
+
 /** Alta rápida desde la caja: dos campos, menos de 10 segundos (PRD §4). */
 const quickProductSchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -151,6 +173,15 @@ export async function quickCreateProduct(
       store_id: session.store.id,
       product_id: data.id,
       barcode: parsed.data.barcode,
+    });
+
+    // Aporte al catálogo compartido: si este código no estaba, ahora el próximo
+    // kiosquero que lo escanee ya lo va a tener. Va SOLO el nombre — el precio y
+    // las ventas nunca salen del negocio.
+    await supabase.rpc("catalogo_aportar", {
+      p_ean: parsed.data.barcode,
+      p_nombre: data.name,
+      p_marca: null,
     });
   }
 

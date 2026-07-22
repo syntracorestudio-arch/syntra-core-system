@@ -20,10 +20,11 @@ import {
   LoaderCircle,
   PackagePlus,
   LogOut,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { money } from "@/lib/format";
-import { registerSale, quickCreateProduct } from "@/app/pos/actions";
+import { registerSale, quickCreateProduct, buscarEnCatalogo } from "@/app/pos/actions";
 import { signOut } from "@/app/login/actions";
 import { useWedgeScanner } from "./use-wedge-scanner";
 import { CameraScanner } from "./camera-scanner";
@@ -71,7 +72,10 @@ export function PosScreen({
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [camaraAbierta, setCamaraAbierta] = useState(false);
   const [aviso, setAviso] = useState<{ tone: "ok" | "warn" | "error"; text: string } | null>(null);
-  const [altaRapida, setAltaRapida] = useState<{ barcode: string | null } | null>(null);
+  const [altaRapida, setAltaRapida] = useState<{
+    barcode: string | null;
+    sugerencia: { nombre: string; marca: string | null } | null;
+  } | null>(null);
   const [pending, startTransition] = useTransition();
 
   /** Clave de idempotencia por carrito: si se corta la red y el cajero reintenta,
@@ -117,8 +121,12 @@ export function PosScreen({
         setAviso({ tone: "ok", text: `${encontrado.name} agregado` });
         return;
       }
-      // Código desconocido → alta en 10 segundos, sin salir de la venta (PRD §4c).
-      setAltaRapida({ barcode: code.trim() });
+      // Código desconocido → se consulta el catálogo compartido y recién ahí se
+      // abre el alta, ya con el nombre puesto si lo reconocimos.
+      const codigo = code.trim();
+      buscarEnCatalogo(codigo)
+        .then((sug) => setAltaRapida({ barcode: codigo, sugerencia: sug }))
+        .catch(() => setAltaRapida({ barcode: codigo, sugerencia: null }));
     },
     [porCodigo, agregar],
   );
@@ -188,6 +196,7 @@ export function PosScreen({
       {altaRapida && (
         <AltaRapida
           barcode={altaRapida.barcode}
+          sugerencia={altaRapida.sugerencia}
           canCreate={isOwner}
           onCancel={() => setAltaRapida(null)}
           onCreated={(p) => {
@@ -463,18 +472,24 @@ export function PosScreen({
 /** Alta rápida: nombre + precio, nada más. El catálogo se arma vendiendo. */
 function AltaRapida({
   barcode,
+  sugerencia,
   canCreate,
   onCancel,
   onCreated,
 }: {
   barcode: string | null;
+  sugerencia: { nombre: string; marca: string | null } | null;
   canCreate: boolean;
   onCancel: () => void;
   onCreated: (p: { id: string; name: string; price: number }) => void;
 }) {
-  const [name, setName] = useState("");
+  /* La sugerencia llega YA resuelta desde el padre: la búsqueda en el catálogo
+     ocurre antes de abrir este diálogo. Así no hay estado de carga acá adentro
+     ni un efecto que sincronice props con estado. */
+  const [name, setName] = useState(sugerencia?.nombre ?? "");
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [delCatalogo, setDelCatalogo] = useState(!!sugerencia);
   const [pending, startTransition] = useTransition();
 
   function guardar() {
@@ -527,6 +542,13 @@ function AltaRapida({
               </p>
             )}
             <div className="space-y-3">
+              {delCatalogo && (
+                <p className="flex items-start gap-2 rounded-lg bg-success/10 px-3 py-2 text-sm text-success-ink ring-1 ring-success/25">
+                  <Sparkles className="mt-0.5 size-4 shrink-0" />
+                  Lo reconocimos. Revisá el nombre y poné tu precio.
+                </p>
+              )}
+
               <div className="space-y-1.5">
                 <label htmlFor="qp-name" className="text-sm font-medium">
                   ¿Qué es?
@@ -534,8 +556,11 @@ function AltaRapida({
                 <input
                   id="qp-name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  autoFocus
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setDelCatalogo(false);
+                  }}
+                  autoFocus={!barcode && !sugerencia}
                   placeholder="Coca-Cola 500ml"
                   className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
                 />
@@ -546,6 +571,7 @@ function AltaRapida({
                 </label>
                 <input
                   id="qp-price"
+                  autoFocus={!!sugerencia}
                   value={price}
                   onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ""))}
                   inputMode="numeric"
