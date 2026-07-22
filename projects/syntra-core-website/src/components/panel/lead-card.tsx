@@ -20,9 +20,11 @@ function LeadCard({
   return (
     <Card className="gap-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1">
           <span className="font-medium text-foreground">{lead.name}</span>
-          <span className="text-xs text-muted-foreground">{lead.email}</span>
+          <span className="text-xs break-all text-muted-foreground">
+            {lead.email}
+          </span>
           {isPossibleDuplicate ? <DuplicateLeadBadge /> : null}
         </div>
         <Link

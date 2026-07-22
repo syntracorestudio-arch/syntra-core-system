@@ -59,9 +59,10 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
         </div>
         <a
           href={`mailto:${lead.email}`}
-          className="inline-flex w-fit items-center gap-1.5 text-sm text-brand-cyan hover:underline"
+          className="inline-flex w-fit max-w-full items-center gap-1.5 text-sm text-brand-cyan hover:underline"
         >
-          <Mail className="size-4" /> {lead.email}
+          <Mail className="size-4 shrink-0" />{" "}
+          <span className="min-w-0 break-all">{lead.email}</span>
         </a>
       </div>
 
@@ -109,7 +110,7 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
           <span className="text-xs tracking-wide text-muted-foreground uppercase">
             Mensaje
           </span>
-          <p className="leading-relaxed whitespace-pre-wrap text-foreground">
+          <p className="leading-relaxed break-words whitespace-pre-wrap text-foreground">
             {lead.message}
           </p>
         </div>
