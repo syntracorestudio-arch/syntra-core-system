@@ -234,6 +234,43 @@
   @keyframes hero-object-in {
     to { opacity: 1; }
   }
+
+  /* === Entrada escalonada del bloque above-the-fold del hero ===
+     En CSS y NO en framer-motion, por dos motivos medidos (auditoría 2026-07-22):
+
+     1. El gate en JS no funcionaba. `useDesktop()` usa useSyncExternalStore con
+        getServerSnapshot = false, y en la hidratación React usa ESE valor para el
+        primer render — justo cuando framer aplica su `initial`. Resultado: en
+        desktop la variante nunca se armaba con el valor real. (El H1 arrastra el
+        mismo síntoma con su propio gate.)
+     2. Aun funcionando, framer no puede animar hasta que hidrata. En mobile eso
+        dejaba el subtítulo en opacity:0 dentro del HTML servido, y como es MÁS
+        grande que el H1 en un teléfono, se quedaba con el LCP: 4068ms contra
+        1480ms una vez estático (build de producción, 4G lento, CPU 4x).
+
+     Con la media query el reparto es exacto y sin JS: abajo de lg no hay regla
+     ⇒ el contenido viaja visible desde el SSR; de lg para arriba la entrada
+     corre en el PRIMER pintado, sin esperar hidratación. El retardo de cada
+     elemento entra por --hero-rise-delay. */
+  @keyframes hero-rise {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+      filter: blur(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+  }
+  @media (min-width: 64rem) and (prefers-reduced-motion: no-preference) {
+    .hero-rise {
+      opacity: 0;
+      animation: hero-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1)
+        var(--hero-rise-delay, 0s) both;
+    }
+  }
   @keyframes syntra-pulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.03); }

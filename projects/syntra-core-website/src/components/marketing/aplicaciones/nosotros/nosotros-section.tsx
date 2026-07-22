@@ -127,8 +127,13 @@ function NosotrosSection() {
           ) : null}
 
           {/* Cards premium en columnas ESCALONADAS (mobile + reduced-motion;
-              en desktop con motion las reemplaza el carrusel 3D). */}
-          <div className="mt-12 grid gap-6 lg:mt-14 lg:hidden lg:grid-cols-2 lg:pb-14 motion-reduce:lg:grid">
+              en desktop con motion las reemplaza el carrusel 3D).
+              md:grid-cols-2 → en tablet las 4 cards quedaban a 704px de ancho
+              con el párrafo tapado a max-w-md (448px): 256px de card vacía cada
+              una y la sección estirada a 2312px. A dos columnas miden 342px,
+              el mismo ancho útil que ya funciona en un teléfono de 390px
+              (auditoría responsive 2026-07-22). */}
+          <div className="mt-12 grid gap-6 md:grid-cols-2 lg:mt-14 lg:hidden lg:grid-cols-2 lg:pb-14 motion-reduce:lg:grid">
             {aboutPillars.map((pillar, i) => {
               const offset = i % 2 === 1;
               return (

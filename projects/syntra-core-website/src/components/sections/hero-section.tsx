@@ -2,18 +2,19 @@
 
 import * as React from "react";
 import { ArrowRight } from "lucide-react";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 import { siteConfig } from "@/config/site";
+import { cn } from "@/lib/utils";
 import { getIcon } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/layout/section";
+import { SHELL_ESCENARIO } from "@/components/layout/container";
 import { TrackedLink } from "@/components/shared/tracked-link";
 import { HeroAnillos } from "@/components/marketing/hero/hero-anillos";
 import { HeroCamara, GRAIN } from "@/components/marketing/hero/hero-camara";
 import Image from "next/image";
-import { EASE_PREMIUM, DURATION } from "@/lib/motion";
 
 /**
  * HeroSection — primera impresión y <h1> único (WEB-HERO-RED, ref owner 2026-07-16).
@@ -88,18 +89,19 @@ function HeroSection() {
   const leadWords = hero.titleLead.split(" ").length;
   const highlightWords = hero.titleHighlight.split(" ").length;
 
-  const rise = (i: number): Variants => ({
-    hidden: reduce ? { opacity: 1 } : { opacity: 0, y: 16, filter: "blur(6px)" },
-    show: {
-      opacity: 1,
-      y: 0,
-      filter: "blur(0px)",
-      transition: {
-        duration: reduce ? 0 : DURATION.section,
-        delay: reduce ? 0 : 0.08 + i * 0.09,
-        ease: EASE_PREMIUM,
-      },
-    },
+  /**
+   * Entrada escalonada del bloque above-the-fold. Es CSS (clase `hero-rise` en
+   * globals.css), no framer: la media query decide sin JS y la animación corre
+   * en el primer pintado.
+   *
+   * El subtítulo es MÁS GRANDE que el H1 en un teléfono (29988 vs 20832 px² a
+   * 390px) ⇒ era él quien se quedaba con el LCP, y viajaba en el HTML servido
+   * con opacity:0 esperando a que hidratara framer-motion. Build de producción,
+   * 4G lento, CPU 4x: 4068ms → 1480ms. Desktop conserva su entrada intacta.
+   */
+  const rise = (i: number, className?: string) => ({
+    className: cn("hero-rise", className),
+    style: { "--hero-rise-delay": `${(0.08 + i * 0.09).toFixed(2)}s` } as React.CSSProperties,
   });
 
   return (
@@ -154,18 +156,23 @@ function HeroSection() {
       {/* z-10: el canvas es un elemento POSICIONADO (z-0) y un quad opaco — sin
           contexto propio, el contenido estático se pintaría DEBAJO y el H1
           desaparecería. */}
-      <div className="pointer-events-none relative z-10 mx-auto grid w-full max-w-6xl items-center gap-10 px-6 lg:max-w-7xl lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:px-8 2xl:max-w-[94rem] 2xl:px-12">
+      <div
+        className={cn(
+          SHELL_ESCENARIO,
+          "pointer-events-none relative z-10 grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12",
+        )}
+      >
         {/* Columna izquierda: copy / acción / prueba */}
         <div className="pointer-events-auto flex flex-col items-center gap-7 text-center lg:items-start lg:text-left">
           <div className="flex flex-col items-center gap-5 lg:items-start">
-            <motion.div variants={rise(0)} initial="hidden" animate="show">
+            <div {...rise(0)}>
               <Badge
                 variant="neutral"
                 className="max-w-full text-balance text-center leading-snug whitespace-normal"
               >
                 {hero.badge}
               </Badge>
-            </motion.div>
+            </div>
 
             {/* H1: en mobile/SSR pinta ESTÁTICO (es el LCP); en desktop las
                 palabras entran escalonadas (patrón referencia, fade-up 0.08s). */}
@@ -191,22 +198,19 @@ function HeroSection() {
               </span>
             </h1>
 
-            <motion.p
-              variants={rise(2)}
-              initial="hidden"
-              animate="show"
-              className="max-w-xl text-base leading-relaxed text-foreground/75 text-pretty sm:text-lg"
+            <p
+              {...rise(
+                2,
+                "max-w-xl text-base leading-relaxed text-foreground/75 text-pretty sm:text-lg",
+              )}
             >
               {hero.subtitle}
-            </motion.p>
+            </p>
           </div>
 
           {/* CTAs (hover premium: lift sutil + glow controlado, accesible) */}
-          <motion.div
-            variants={rise(3)}
-            initial="hidden"
-            animate="show"
-            className="flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row"
+          <div
+            {...rise(3, "flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row")}
           >
             <Button
               asChild
@@ -235,17 +239,18 @@ function HeroSection() {
                 {cta.secondary}
               </TrackedLink>
             </Button>
-          </motion.div>
+          </div>
 
-          {/* MOBILE: el mismo vórtice, horneado (29KB) — la primera pantalla del
+          {/* MOBILE: el mismo vórtice, horneado (39KB) — la primera pantalla del
               sitio tenía fondo pero no protagonista. Va en el FLUJO (no tapa el
-              H1) y respira con su propio halo. Sin canvas ni JS. */}
-          <motion.div
-            variants={rise(4)}
-            initial="hidden"
-            animate="show"
+              H1) y respira con su propio halo. Sin canvas ni JS.
+              2026-07-22: re-horneado con el violeta en 3.0 (la dosis vigente en
+              desktop). El asset anterior venía de la luz a 6.5 y mostraba en
+              mobile justo el violeta que se había sacado del 3D — 2.3% de
+              píxeles violeta saturado contra 0.2% ahora. */}
+          <div
             aria-hidden="true"
-            className="relative -my-2 w-[78%] max-w-[19rem] lg:hidden"
+            {...rise(4, "relative -my-2 w-[78%] max-w-[19rem] lg:hidden")}
           >
             <div
               className="absolute inset-0 -m-6 rounded-full"
@@ -260,21 +265,24 @@ function HeroSection() {
               width={708}
               height={716}
               priority
-              sizes="(max-width: 1023px) 78vw, 0px"
+              // El elemento está topeado a max-w-[19rem]: arriba de ~440px de
+              // viewport mide 304px fijos, no 78vw. Con el 78vw suelto el
+              // browser pedía la variante w=1920 en tablet para pintar 304px.
+              sizes="(max-width: 440px) 78vw, 304px"
               className="relative h-auto w-full"
             />
-          </motion.div>
+          </div>
 
           {/* Placa de vidrio (capability rail v2): UN objeto monolítico — un estrato
               extraído del edificio del asset. Segmentos separados por costuras de luz
               (no cajas), canto superior iluminado, sheen especular lento (mismo
               lenguaje que el light sweep del asset) y cola de fusión hacia el
               edificio en lg. Solo transform/opacity → CLS 0, LCP intacto. */}
-          <motion.div
-            variants={rise(4)}
-            initial="hidden"
-            animate="show"
-            className="relative w-full max-w-md lg:max-w-xl"
+          {/* md:max-w-2xl: en tablet la placa quedaba a 448px debajo de un H1
+              y un subtítulo de 720px — un bloque centrado suelto. A 672px
+              acompaña el ancho de la columna de texto. */}
+          <div
+            {...rise(4, "relative w-full max-w-md md:max-w-2xl lg:max-w-xl")}
           >
             <div
               className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.07] via-white/[0.04] to-white/[0.02] shadow-[0_24px_60px_-28px_rgba(0,0,0,0.75)] backdrop-blur-md"
@@ -313,7 +321,7 @@ function HeroSection() {
                 })}
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
 
         {/* Columna derecha: vacía a propósito — la esfera-red 3D del fondo vive en

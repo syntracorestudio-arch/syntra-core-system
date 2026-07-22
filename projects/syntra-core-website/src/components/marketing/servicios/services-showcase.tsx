@@ -101,13 +101,18 @@ function ServicesShowcase() {
   }, [emblaApi, tilt]);
 
   // Grid responsive: mobile SIEMPRE; y en lg cuando hay reduced-motion (sin carrusel).
+  // Dos columnas SOLO desde lg. Con sm:grid-cols-2 la card medía 278px a 640 y
+  // 342px a 768, y su columna de texto (64% del panel, el resto es el render)
+  // caía a 177-218px — MÁS ANGOSTA que en un teléfono de 390px (348px), con un
+  // numeral de 60px y un h3 de 30px adentro. Encogía para entrar en vez de
+  // reorganizarse (auditoría responsive 2026-07-22).
   const grid = (
     <motion.div
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
       viewport={{ once: true, amount: 0.15 }}
       transition={{ duration: reduce ? 0 : DURATION.section, ease: EASE_PREMIUM }}
-      className="grid gap-5 sm:grid-cols-2 lg:gap-6"
+      className="grid gap-5 lg:grid-cols-2 lg:gap-6"
     >
       {services.map((service, i) => (
         <ShowcasePanel key={service.id} service={service} index={i} reduce={reduce} />
@@ -254,7 +259,9 @@ function ShowcasePanel({
         <a
           href="#contacto"
           tabIndex={duplicate ? -1 : undefined}
-          className="mt-auto inline-flex w-fit items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors hover:[background-color:var(--pill-tint)]"
+          // max-lg:py-2.5 → 40px de alto en táctil (medía 30px) sin mover el
+          // pill en desktop, que es donde se calibró.
+          className="mt-auto inline-flex w-fit items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors max-lg:py-2.5 hover:[background-color:var(--pill-tint)]"
           style={
             {
               borderColor: `${role.hex}80`,

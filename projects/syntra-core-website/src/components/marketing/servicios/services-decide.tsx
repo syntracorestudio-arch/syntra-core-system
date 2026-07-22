@@ -15,7 +15,11 @@ import { BlurReveal } from "@/components/animations/blur-reveal";
  */
 function ServicesDecide() {
   return (
-    <div className="mx-auto mt-16 max-w-5xl lg:mt-20">
+    // Sin max-w-5xl: este bloque abre con un border-t, o sea una línea NÍTIDA.
+    // Centrado a 1024px dentro del Container (1088) nacía 32px a la derecha del
+    // H2 de su propia sección — el casi-acierto que se lee como descuido. Ahora
+    // la regla arranca exactamente donde arranca el título.
+    <div className="mt-16 lg:mt-20">
       <BlurReveal>
         <div className="flex flex-col gap-6 border-t border-border/50 pt-10 sm:flex-row sm:items-center sm:justify-between sm:gap-10 lg:pt-12">
           <div className="max-w-xl">
