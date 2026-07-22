@@ -29,33 +29,42 @@ export type PushPayload = {
   tag?: string;
 };
 
+/** Fallos seguidos antes de dar por muerta una suscripción. */
+const MAX_FALLOS = 3;
+
 /**
  * Envía a todas las suscripciones de un negocio (o de un miembro puntual).
- * Devuelve cuántas llegaron.
  *
- * Limpieza: 404/410 significa que esa suscripción murió (el usuario desinstaló o
- * el navegador la rotó) → se borra. Si no, la tabla se llena de endpoints muertos
- * y cada envío tarda más.
+ * Sobre la limpieza: SOLO un 410 Gone es definitivo (el navegador dice "esta
+ * suscripción ya no existe"). Antes acá se borraba también con 404 y al PRIMER
+ * fallo, y eso destruía una suscripción recién creada ante cualquier error
+ * transitorio — que es exactamente lo que pasó la primera vez que se probó en un
+ * teléfono real. Para eso existe `failed_count`: se cuenta, y recién al tercer
+ * fallo seguido se borra. Un envío exitoso resetea el contador.
  */
 export async function sendPushToStore(
   storeId: string,
   payload: PushPayload,
   memberId?: string,
-): Promise<{ sent: number; removed: number }> {
-  if (!configure()) return { sent: 0, removed: 0 };
+): Promise<{ sent: number; removed: number; errors: string[] }> {
+  if (!configure()) {
+    return { sent: 0, removed: 0, errors: ["VAPID no configurado"] };
+  }
 
   const admin = createAdminClient();
   let query = admin
     .from("push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
+    .select("id, endpoint, p256dh, auth, failed_count")
     .eq("store_id", storeId);
   if (memberId) query = query.eq("member_id", memberId);
 
   const { data: subs } = await query;
-  if (!subs || subs.length === 0) return { sent: 0, removed: 0 };
+  if (!subs || subs.length === 0) return { sent: 0, removed: 0, errors: [] };
 
   let sent = 0;
   const dead: string[] = [];
+  const fallaron: { id: string; count: number }[] = [];
+  const errors: string[] = [];
 
   await Promise.all(
     subs.map(async (s) => {
@@ -66,18 +75,38 @@ export async function sendPushToStore(
           { urgency: "high", TTL: 60 * 60 * 12 },
         );
         sent++;
+        if (s.failed_count > 0) fallaron.push({ id: s.id, count: 0 });
       } catch (err) {
-        const code = (err as { statusCode?: number }).statusCode;
-        if (code === 404 || code === 410) dead.push(s.id);
+        const e = err as { statusCode?: number; body?: string; message?: string };
+        const detalle = `${e.statusCode ?? "?"} ${e.body ?? e.message ?? ""}`.trim();
+        errors.push(detalle);
+        // Sin esto, un fallo de push es invisible: el usuario ve "activado" y
+        // nunca le llega nada.
+        console.error("[push] falló el envío:", detalle);
+
+        if (e.statusCode === 410) {
+          dead.push(s.id); // definitivo: el navegador la dio de baja
+        } else {
+          const nuevo = (s.failed_count ?? 0) + 1;
+          if (nuevo >= MAX_FALLOS) dead.push(s.id);
+          else fallaron.push({ id: s.id, count: nuevo });
+        }
       }
     }),
   );
+
+  for (const f of fallaron) {
+    await admin
+      .from("push_subscriptions")
+      .update({ failed_count: f.count, last_seen_at: new Date().toISOString() })
+      .eq("id", f.id);
+  }
 
   if (dead.length > 0) {
     await admin.from("push_subscriptions").delete().in("id", dead);
   }
 
-  return { sent, removed: dead.length };
+  return { sent, removed: dead.length, errors };
 }
 
 /**

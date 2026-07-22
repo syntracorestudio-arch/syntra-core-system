@@ -9,6 +9,8 @@ import {
   LogOut,
   ChartColumn,
   Menu,
+  Wallet,
+  Users2,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { signOut } from "@/app/login/actions";
@@ -23,10 +25,12 @@ type NavItem = {
 const OWNER_NAV: NavItem[] = [
   { href: "/admin", label: "Resumen", icon: LayoutDashboard },
   { href: "/pos", label: "Vender", icon: ScanBarcode },
+  { href: "/admin/caja", label: "Caja", icon: Wallet },
   { href: "/admin/reportes", label: "Reportes", icon: ChartColumn },
   { href: "/admin/productos", label: "Productos", icon: Package },
   { href: "/admin/fiado", label: "Fiado", icon: Users },
   { href: "/admin/vencimientos", label: "Vencimientos", icon: CalendarClock },
+  { href: "/admin/equipo", label: "Equipo", icon: Users2 },
   { href: "/admin/configuracion", label: "Ajustes", icon: Settings },
 ];
 

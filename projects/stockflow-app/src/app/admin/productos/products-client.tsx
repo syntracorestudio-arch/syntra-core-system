@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   Search,
   Plus,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { money } from "@/lib/format";
+import { EmojiPicker } from "@/components/ui/emoji-picker";
 import {
   createProduct,
   updateProduct,
@@ -44,6 +46,44 @@ const ATAJOS_VENC = [
   { label: "15 días", dias: 15 },
   { label: "1 mes", dias: 30 },
 ] as const;
+
+/** Normaliza para comparar: sin acentos, sin mayúsculas, sin espacios de más. */
+function normalizar(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Busca productos parecidos al nombre que se está escribiendo.
+ *
+ * Duplicar un producto es peor de lo que parece: parte el stock en dos fichas
+ * (ninguna refleja la góndola), rompe las alertas de stock bajo y hace que el
+ * producto compita consigo mismo en los reportes.
+ *
+ * Coincide si uno contiene al otro o si comparten las dos primeras palabras
+ * ("Agua Villa 1.5L" ↔ "Agua Villa 500ml"): son casos que vale marcar aunque
+ * después resulten productos distintos.
+ */
+function buscarParecidos(nombre: string, productos: ProductRow[]): ProductRow[] {
+  const q = normalizar(nombre);
+  if (q.length < 3) return [];
+
+  const palabras = q.split(" ");
+  const raiz = palabras.slice(0, 2).join(" ");
+
+  return productos
+    .filter((p) => {
+      const n = normalizar(p.name);
+      if (n === q) return true;
+      if (n.includes(q) || q.includes(n)) return true;
+      return raiz.length >= 5 && n.startsWith(raiz);
+    })
+    .slice(0, 3);
+}
 
 function enDias(dias: number): string {
   const d = new Date();
@@ -208,6 +248,7 @@ export function ProductsClient({
         <ProductDialog
           product={editando}
           categories={categories}
+          existentes={products}
           onClose={() => {
             setEditando(null);
             setCreando(false);
@@ -344,12 +385,14 @@ function RepriceDialog({
 function ProductDialog({
   product,
   categories,
+  existentes,
   onClose,
   onDone,
   onError,
 }: {
   product: ProductRow | null;
   categories: CategoryRow[];
+  existentes: ProductRow[];
   onClose: () => void;
   onDone: (msg: string) => void;
   onError: (msg: string) => void;
@@ -364,10 +407,19 @@ function ProductDialog({
   );
   const [stockInicial, setStockInicial] = useState("");
   const [vence, setVence] = useState("");
+  const [barcode, setBarcode] = useState("");
   const [ajuste, setAjuste] = useState("");
+  const [ignorarDup, setIgnorarDup] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const m = margen(Number(price) || 0, cost === "" ? null : Number(cost));
+
+  // Solo al crear: al editar, el propio producto siempre "coincide" consigo mismo.
+  const parecidos = useMemo(
+    () => (product ? [] : buscarParecidos(name, existentes)),
+    [name, existentes, product],
+  );
+  const hayDuplicado = parecidos.length > 0 && !ignorarDup;
 
   function guardar() {
     startTransition(async () => {
@@ -385,6 +437,7 @@ function ProductDialog({
             ...base,
             initial_stock: stockInicial === "" ? null : Number(stockInicial),
             expiry_date: vence || null,
+            barcode: barcode.trim() || null,
           });
       if (!res.ok) {
         onError(res.error);
@@ -413,16 +466,8 @@ function ProductDialog({
       <div className="space-y-3">
         <div className="flex gap-2">
           <div className="w-20 space-y-1.5">
-            <label htmlFor="pd-emoji" className="text-sm font-medium">
-              Ícono
-            </label>
-            <input
-              id="pd-emoji"
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value)}
-              placeholder="🥤"
-              className="h-11 w-full rounded-lg border border-input bg-background px-3 text-center text-lg outline-none focus:border-primary"
-            />
+            <span className="block text-sm font-medium">Ícono</span>
+            <EmojiPicker value={emoji} onChange={setEmoji} />
           </div>
           <div className="flex-1 space-y-1.5">
             <label htmlFor="pd-name" className="text-sm font-medium">
@@ -431,11 +476,54 @@ function ProductDialog({
             <input
               id="pd-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setIgnorarDup(false);
+              }}
               className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
             />
           </div>
         </div>
+
+        {/* Aviso de duplicado: NO bloquea. "Agua Villa 500ml" y "Agua Villa 1.5L"
+            son productos distintos con nombre casi igual — la decisión es del
+            dueño, igual que con el límite de fiado. */}
+        {hayDuplicado && (
+          <div className="rounded-lg bg-warning/10 px-3 py-2.5 text-sm ring-1 ring-warning/25">
+            <p className="flex items-start gap-2 font-medium text-warning-ink">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+              {parecidos.length === 1 ? "Ya tenés algo parecido" : "Ya tenés productos parecidos"}
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {parecidos.map((p) => (
+                <li key={p.id} className="flex items-center gap-2">
+                  <span aria-hidden>{p.emoji ?? "📦"}</span>
+                  <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                  <span className="tabular shrink-0 text-xs text-muted-foreground">
+                    {p.stock}u · {money(p.price)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {/* Si es el mismo producto, lo que quiere no es crearlo: es sumarle
+                  stock. Y ahí el sistema YA sabe cuánto tiene. */}
+              <Link
+                href="/admin/ingreso"
+                className="flex h-8 cursor-pointer items-center rounded-lg bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                Es el mismo: cargarle stock
+              </Link>
+              <button
+                type="button"
+                onClick={() => setIgnorarDup(true)}
+                className="h-8 cursor-pointer rounded-lg border border-border px-2.5 text-xs font-medium transition-colors hover:border-primary"
+              >
+                Es otro producto
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-2">
           <div className="flex-1 space-y-1.5">
@@ -526,6 +614,23 @@ function ProductDialog({
         {!product && (
           <div className="space-y-3 rounded-lg border border-border bg-background p-3">
             <div className="space-y-1.5">
+              <label htmlFor="pd-barcode" className="text-sm font-medium">
+                Código de barras
+              </label>
+              <input
+                id="pd-barcode"
+                value={barcode}
+                onChange={(e) => setBarcode(e.target.value.replace(/[^\d]/g, ""))}
+                inputMode="numeric"
+                placeholder="Escaneá o escribilo (opcional)"
+                className="tabular h-11 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
+              />
+              <p className="text-xs text-muted-foreground">
+                Con el código lo encontrás escaneando en la caja.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
               <label htmlFor="pd-stock" className="text-sm font-medium">
                 ¿Cuántos tenés ahora?
               </label>
@@ -540,6 +645,12 @@ function ProductDialog({
                 />
                 <span className="text-sm text-muted-foreground">en la góndola</span>
               </div>
+              {/* El sistema no tiene forma de saberlo: no hay sensor en la
+                  góndola. Decirlo es mejor que dejar la duda. */}
+              <p className="text-xs text-muted-foreground">
+                Contalos una sola vez: desde acá el stock se descuenta solo con
+                cada venta.
+              </p>
             </div>
 
             {Number(stockInicial) > 0 && (

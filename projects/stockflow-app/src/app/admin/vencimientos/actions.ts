@@ -79,12 +79,16 @@ export async function unsubscribeFromPush(endpoint: string): Promise<Result> {
   return { ok: true };
 }
 
-/** Prueba: se manda a sí mismo un push para confirmar que llega al teléfono. */
+/**
+ * Prueba: se manda a sí mismo un push para confirmar que llega al teléfono.
+ * Devuelve el error REAL del servicio de push: decir "no llegó" sin más deja al
+ * usuario (y a quien lo tenga que arreglar) sin ninguna pista.
+ */
 export async function sendTestPush(): Promise<Result> {
   const session = await requireSession();
   const { sendPushToStore } = await import("@/lib/push");
 
-  const { sent } = await sendPushToStore(
+  const { sent, errors } = await sendPushToStore(
     session.store.id,
     {
       title: "Los avisos están activos",
@@ -96,7 +100,8 @@ export async function sendTestPush(): Promise<Result> {
   );
 
   if (sent === 0) {
-    return { ok: false, error: "No llegó. Revisá los permisos de notificaciones." };
+    const detalle = errors[0] ?? "sin respuesta del servicio de notificaciones";
+    return { ok: false, error: `No se pudo enviar el aviso de prueba (${detalle}).` };
   }
   return { ok: true };
 }

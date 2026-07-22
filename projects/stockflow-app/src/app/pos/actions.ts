@@ -109,11 +109,54 @@ export async function registerSale(input: unknown): Promise<SaleResult> {
   };
 }
 
+/**
+ * Consulta el catálogo compartido por código de barras.
+ *
+ * Es lo que convierte el alta de "escribí el nombre completo" a "confirmá y poné
+ * el precio". Un kiosco tiene 300-800 productos: sin esto, cargarlos son horas
+ * de trabajo ANTES de que el sistema le sirva para algo, y ahí es donde se
+ * abandona el producto.
+ */
+export async function buscarEnCatalogo(
+  barcode: string,
+): Promise<{ nombre: string; marca: string | null } | null> {
+  await requireSession();
+  if (!/^\d{8,14}$/.test(barcode)) return null;
+
+  const supabase = await createSupabaseServer();
+  const { data } = await supabase.rpc("catalogo_buscar", { p_ean: barcode });
+  if (!data) return null;
+
+  const r = data as { nombre: string; marca: string | null };
+  return { nombre: r.nombre, marca: r.marca };
+}
+
+/**
+ * Busca en el catálogo por NOMBRE, para cuando el código no está.
+ *
+ * Es el camino de los cigarrillos —que SEPA no publica— y de cualquier producto
+ * que el dataset no cubra: el kiosquero escribe "marl", elige de la lista, y su
+ * escaneo aporta el código real que nadie tenía.
+ */
+export async function buscarPorNombre(
+  texto: string,
+): Promise<{ ean: string; nombre: string; marca: string | null }[]> {
+  await requireSession();
+  if (texto.trim().length < 2) return [];
+
+  const supabase = await createSupabaseServer();
+  const { data } = await supabase.rpc("catalogo_buscar_nombre", { p_texto: texto.trim() });
+  return (data ?? []) as { ean: string; nombre: string; marca: string | null }[];
+}
+
 /** Alta rápida desde la caja: dos campos, menos de 10 segundos (PRD §4). */
 const quickProductSchema = z.object({
   name: z.string().trim().min(1).max(80),
   price: z.number().nonnegative(),
   barcode: z.string().trim().max(64).nullable().optional(),
+  // Referencia del catálogo que el usuario eligió por nombre. Si viene, su
+  // escaneo aporta el código real de un producto que nadie tenía mapeado.
+  catalogoRef: z.string().trim().max(64).nullable().optional(),
 });
 
 export async function quickCreateProduct(
@@ -152,6 +195,23 @@ export async function quickCreateProduct(
       product_id: data.id,
       barcode: parsed.data.barcode,
     });
+
+    // Aporte al catálogo compartido: si este código no estaba, ahora el próximo
+    // kiosquero que lo escanee ya lo va a tener. Va SOLO el nombre — el precio y
+    // las ventas nunca salen del negocio.
+    if (parsed.data.catalogoRef) {
+      // Eligió un producto por nombre: su escaneo es el código real que faltaba.
+      await supabase.rpc("catalogo_vincular_ean", {
+        p_ean: parsed.data.barcode,
+        p_ean_o_nombre: parsed.data.catalogoRef,
+      });
+    } else {
+      await supabase.rpc("catalogo_aportar", {
+        p_ean: parsed.data.barcode,
+        p_nombre: data.name,
+        p_marca: null,
+      });
+    }
   }
 
   revalidatePath("/pos");

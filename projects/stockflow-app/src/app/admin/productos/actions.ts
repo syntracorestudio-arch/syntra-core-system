@@ -24,6 +24,7 @@ const productSchema = z.object({
 const createSchema = productSchema.extend({
   initial_stock: z.number().nonnegative().nullable().optional(),
   expiry_date: z.string().nullable().optional(),
+  barcode: z.string().trim().max(64).nullable().optional(),
 });
 
 export async function createProduct(input: unknown): Promise<ActionResult> {
@@ -33,8 +34,29 @@ export async function createProduct(input: unknown): Promise<ActionResult> {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Revisá los datos." };
   }
 
-  const { initial_stock, expiry_date, ...product } = parsed.data;
+  const { initial_stock, expiry_date, barcode, ...product } = parsed.data;
   const supabase = await createSupabaseServer();
+
+  // El código de barras SÍ es identidad: si ya existe, es el mismo producto y no
+  // hay ambigüedad posible. Acá sí bloqueamos (a diferencia del nombre parecido,
+  // donde solo avisamos): duplicar por código parte el stock en dos fichas.
+  if (barcode) {
+    const { data: existente } = await supabase
+      .from("product_barcodes")
+      .select("product_id, products(name)")
+      .eq("barcode", barcode)
+      .maybeSingle();
+
+    if (existente) {
+      const nombre = (existente.products as unknown as { name: string } | null)?.name;
+      return {
+        ok: false,
+        error: nombre
+          ? `Ese código ya es de "${nombre}". Cargale stock desde Recibí mercadería.`
+          : "Ese código de barras ya está en uso.",
+      };
+    }
+  }
 
   const { data, error } = await supabase
     .from("products")
@@ -47,6 +69,14 @@ export async function createProduct(input: unknown): Promise<ActionResult> {
     .single();
 
   if (error || !data) return { ok: false, error: "No pudimos guardar el producto." };
+
+  if (barcode) {
+    await supabase.from("product_barcodes").insert({
+      store_id: session.store.id,
+      product_id: data.id,
+      barcode,
+    });
+  }
 
   // El stock inicial entra por RPC, como todo movimiento: queda asentado en el
   // ledger con motivo 'initial' en vez de aparecer de la nada.

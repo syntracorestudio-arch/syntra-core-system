@@ -51,13 +51,23 @@ export async function GET(request: NextRequest) {
     if (low.length > 0) {
       const primero = low[0];
       const resto = low.length - 1;
+      const stock = Number(primero.stock);
+
+      // El stock negativo es válido (se vendió más de lo cargado), pero decir
+      // "quedan -2" no le dice nada a nadie. Se traduce a lo que significa.
+      const cuanto =
+        stock <= 0
+          ? "Ya no te queda ninguno según el sistema"
+          : `Quedan ${stock}`;
+      const titulo = stock <= 0 ? `Te quedaste sin ${primero.name}` : `Te estás quedando sin ${primero.name}`;
+
       const ok = await notifyStore(store.id, {
         type: "low_stock",
-        title: `Te estás quedando sin ${primero.name}`,
+        title: titulo,
         body:
           resto > 0
-            ? `Quedan ${primero.stock}. Y otros ${resto} producto${resto === 1 ? "" : "s"} bajo mínimo.`
-            : `Quedan ${primero.stock}. Conviene reponer.`,
+            ? `${cuanto}. Y otros ${resto} producto${resto === 1 ? "" : "s"} bajo mínimo.`
+            : `${cuanto}. Conviene reponer.`,
         url: "/admin/productos",
         tag: "low-stock",
         dedupeKey: `low_stock:${hoy}`,
