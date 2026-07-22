@@ -152,6 +152,44 @@ This makes the veto objective (result vs approved reference), not only a subject
 
 Its veto is over approvable visual quality, NOT technical correctness; it complements `qa-performance-guard`, it does not replace it (CLAUDE.md rules 11–13).
 
+## Gate de MOBILE — obligatorio (incidente 2026-07-22)
+
+Un ciclo entero de auditoría responsive dio "todo limpio" por medición y el owner
+encontró cuatro bugs en dos minutos mirando la landing en su celular. La causa no
+fue falta de herramientas: fue **confiar en métricas cuyos filtros escondían
+justo la clase de bug que había**. Estas cuatro reglas son la corrección.
+
+1. **La medición no cierra el gate. La vista sí.** Antes de decir que lo
+   responsive está listo hay que **MIRAR con visión cada sección a 360 y 390**,
+   una por una. Una superposición de texto sobre una imagen no desborda, no
+   recorta y no cambia ningún número — solo se ve. Si no la miraste, no la
+   revisaste.
+
+2. **Buscar contenido CORTADO, no solo desborde de página.** La pregunta correcta
+   no es "¿esto empuja el scroll horizontal?" sino "¿hay algo que no se ve?".
+   Un mockup recortado dentro de una card no desborda: la card se lo come, y el
+   auditor lo canta como limpio. Cualquier detector que descarte elementos por
+   tener un ancestro con `overflow` oculto **está ciego por construcción**.
+   Chequear siempre: hijos que exceden la caja de su ancestro recortante,
+   `scrollWidth > clientWidth`, y scrollers sin señal visible de que scrollean.
+
+3. **Los criterios del owner no se re-juzgan.** Si él escribió un criterio
+   ("evitar botones que ocupen casi todo el ancho"), y la medición lo marca,
+   **es un hallazgo, no una opinión a evaluar**. Sustituir su instrucción por
+   criterio propio es el error más caro de todos: la herramienta lo detectó, el
+   reporte lo listó, y se descartó igual. Si hay razón real para no aplicarlo,
+   se PREGUNTA, no se decide solo.
+
+4. **Leer la salida completa de las propias herramientas.** Truncar el reporte
+   (`| head -N`) y revisar solo lo que entró en pantalla equivale a no correrlo.
+   Si el output es largo, filtrar por categoría — nunca por las primeras N líneas.
+
+Trampas de layout que hay que revisar a mano en mobile porque ninguna métrica
+las canta: pistas `1fr` sin `minmax(0,1fr)` con hijos `nowrap`/`truncate` (empujan
+la grilla), ítems de grid/flex sin `min-w-0` (se ensanchan con su contenido), y
+scrims calibrados para desktop que en mobile dejan el texto sobre la parte
+brillante de una imagen.
+
 ## Owner approval required
 Until the owner approves explicitly, changes stay in the working tree, uncommitted. The `visual-quality-director` APROBADO lifts the visual veto but does NOT authorize the commit — only the owner does.
 
