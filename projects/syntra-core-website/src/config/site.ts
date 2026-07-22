@@ -598,7 +598,10 @@ export const workflow: WorkflowStep[] = [
 export const workflowCta: WorkflowCta = {
   lead: "El primer paso es entender tu negocio.",
   body: "Sin compromiso: charlamos, escuchamos y te decimos con claridad si podemos ayudarte y cómo.",
-  button: "Empecemos por entender tu negocio",
+  /* 14 caracteres, en primera persona igual que el cierre de Servicios. El
+     anterior tenía 33, quedaba en dos líneas a 320/360 y además repetía el lead
+     de arriba. "Empecemos" solo estaba descartado: es el eyebrow de Contacto. */
+  button: "Quiero empezar",
   href: "#contacto",
 };
 
