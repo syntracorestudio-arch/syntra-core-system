@@ -231,4 +231,16 @@ grant execute on function public.vincular_venta_a_cobro(uuid, uuid, uuid) to aut
 grant execute on function public.cobros_sin_venta(uuid) to authenticated;
 
 grant select on public.payment_intents to authenticated;
--- store_payment_providers y mp_webhook_events: sin grants. Solo service_role.
+
+-- ---------- Privilegios de service_role (explícitos, a propósito) ----------
+-- La 001 hace `grant ... on all tables in schema public to service_role`, pero eso
+-- es una FOTO del momento: las tablas que nacen después no quedan incluidas. Sin
+-- estas tres líneas, el servidor no puede ni guardar la credencial de MercadoPago
+-- (falla el upsert con un error que no dice nada). Cada migración que crea tablas
+-- tiene que otorgar lo suyo — no confiar en defaults ni en grants anteriores.
+grant select, insert, update, delete on public.store_payment_providers to service_role;
+grant select, insert, update, delete on public.payment_intents           to service_role;
+grant select, insert, update, delete on public.mp_webhook_events         to service_role;
+
+-- authenticated/anon NO reciben nada sobre store_payment_providers ni
+-- mp_webhook_events: el token cifrado y el log de webhooks son solo del servidor.

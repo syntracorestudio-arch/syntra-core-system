@@ -106,7 +106,12 @@ export async function conectarMercadoPago(input: unknown): Promise<MpResult> {
     { onConflict: "store_id" },
   );
 
-  if (error) return { ok: false, error: "No pudimos guardar la conexión." };
+  if (error) {
+    // Sin esto, un fallo de permisos de la base se ve como "no pudimos guardar" y
+    // no hay forma de saber qué pasó sin abrir Postgres a mano. Pasó de verdad.
+    console.error("[mercadopago] upsert de credenciales falló:", error.message, error.code);
+    return { ok: false, error: `No pudimos guardar la conexión (${error.code ?? "error"}).` };
+  }
 
   revalidatePath("/admin/configuracion");
 
