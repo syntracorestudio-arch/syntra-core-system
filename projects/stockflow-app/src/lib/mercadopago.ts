@@ -75,6 +75,12 @@ async function mpFetch<T>(
       headers,
       body: opts.body ? JSON.stringify(opts.body) : undefined,
       cache: "no-store",
+      // Cota dura: MercadoPago puede colgarse, y `estadoCobro` se pollea cada 2,5 s
+      // desde cada caja abierta. Sin timeout, un MP lento apila invocaciones
+      // colgadas en el serverless hasta agotar el tiempo de plataforma. Fallar
+      // rápido y que el poll reintente es mejor que quedarse esperando: el AbortError
+      // cae en el catch de acá y devuelve el mismo "no pudimos conectarnos".
+      signal: AbortSignal.timeout(8000),
     });
   } catch {
     return { ok: false, status: 0, message: "No pudimos conectarnos con MercadoPago." };

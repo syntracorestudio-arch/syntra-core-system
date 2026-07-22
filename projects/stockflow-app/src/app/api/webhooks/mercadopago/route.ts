@@ -4,6 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getStoreMpAuth, mpLeerOrden, ordenAprobada, ordenTerminada, idDePago } from "@/lib/mercadopago";
 
 export const dynamic = "force-dynamic";
+// Cota explícita del baseline para webhooks: le preguntamos a MP por la orden y
+// escribimos en la base, nada más. 15 s alcanzan de sobra; sin el tope, un MP
+// lento dejaría la función colgada hasta el default de la plataforma.
+export const maxDuration = 15;
 
 /**
  * Webhook de MercadoPago — el respaldo, no el camino principal.

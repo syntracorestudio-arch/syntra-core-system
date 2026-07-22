@@ -127,6 +127,15 @@ export async function estadoCobro(intentId: string): Promise<EstadoCobro> {
   const session = await requireSession();
   if (!z.guid().safeParse(intentId).success) return { estado: "error", error: "Cobro inválido." };
 
+  // Cada llamada golpea la API de MercadoPago con el token del negocio. El poll
+  // legítimo es de ~24/min por caja; el techo por negocio deja lugar a varias
+  // cajas a la vez pero corta un loop desbocado antes de que martille a MP. Es
+  // fail-open (checkRateLimit ya devuelve true si su RPC falla): nunca dejamos a
+  // una caja sin saber si le pagaron por un problema del contador.
+  if (!(await checkRateLimit(`estado-cobro:${session.store.id}`, 240, 60))) {
+    return { estado: "pendiente" };
+  }
+
   const supabase = await createSupabaseServer();
   const { data } = await supabase
     .from("payment_intents")
