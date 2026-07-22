@@ -13,7 +13,7 @@ export default async function ConfiguracionPage() {
 
   const { data } = await supabase
     .from("store_settings")
-    .select("expiry_warning_days, low_stock_threshold_default, reprice_rounding, allow_negative_stock")
+    .select("expiry_warning_days, low_stock_threshold_default, reprice_rounding, allow_negative_stock, min_margin_pct")
     .eq("store_id", session.store.id)
     .maybeSingle();
 
@@ -22,6 +22,7 @@ export default async function ConfiguracionPage() {
     lowStockThresholdDefault: data?.low_stock_threshold_default ?? 3,
     repriceRounding: Number(data?.reprice_rounding ?? 50),
     allowNegativeStock: data?.allow_negative_stock ?? true,
+    minMarginPct: Number(data?.min_margin_pct ?? 25),
   };
 
   return (

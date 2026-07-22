@@ -75,6 +75,35 @@ export async function GET(request: NextRequest) {
       if (ok) avisados++;
     }
 
+    /* Margen erosionado por la inflación.
+       Semanal y no diario: un precio viejo sigue viejo mañana, y avisar todos los
+       días sobre lo mismo entrena al dueño a ignorar los avisos — incluidos los de
+       stock y vencimientos, que sí son urgentes. El lunes de la semana como clave
+       de dedupe hace que salga una vez por semana. */
+    const { data: margenes } = await admin.rpc("margenes_erosionados_core", {
+      p_store_id: store.id,
+    });
+    const erosion = margenes as { productos?: { name: string }[]; total_por_mes?: string } | null;
+    const perdida = Number(erosion?.total_por_mes ?? 0);
+    const cuantos = erosion?.productos?.length ?? 0;
+
+    if (cuantos > 0 && perdida > 0) {
+      const primero = erosion!.productos![0].name;
+      const resto = cuantos - 1;
+      const ok = await notifyStore(store.id, {
+        type: "margin",
+        title: `Se te quedó corto el precio de ${primero}`,
+        body:
+          resto > 0
+            ? `Con ${resto} más, estás dejando de ganar ${pesos(perdida)} por mes.`
+            : `Estás dejando de ganar ${pesos(perdida)} por mes.`,
+        url: "/admin/precios",
+        tag: "margin",
+        dedupeKey: `margin:${lunesDeEstaSemana()}`,
+      });
+      if (ok) avisados++;
+    }
+
     if (exp.length > 0) {
       const urgente = exp[0];
       const cuando =
@@ -104,4 +133,17 @@ export async function GET(request: NextRequest) {
     stores: stores?.length ?? 0,
     notified: avisados,
   });
+}
+
+/** Lunes de la semana en curso, como `YYYY-MM-DD`. Clave de dedupe semanal. */
+function lunesDeEstaSemana(): string {
+  const d = new Date();
+  const dia = d.getUTCDay(); // 0 = domingo
+  d.setUTCDate(d.getUTCDate() - ((dia + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+/** Pesos redondeados, para el cuerpo de una notificación. */
+function pesos(n: number): string {
+  return `$${Math.round(n).toLocaleString("es-AR")}`;
 }

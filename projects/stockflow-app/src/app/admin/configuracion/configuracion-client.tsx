@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, LoaderCircle, TriangleAlert, X, Clock, Package, Percent, ShoppingCart } from "lucide-react";
+import {
+  Check,
+  LoaderCircle,
+  TriangleAlert,
+  X,
+  Clock,
+  Package,
+  Percent,
+  ShoppingCart,
+  TrendingUp,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 import { money } from "@/lib/format";
 import { updateSettings } from "./actions";
@@ -10,6 +20,7 @@ export type Settings = {
   expiryWarningDays: number;
   lowStockThresholdDefault: number;
   repriceRounding: number;
+  minMarginPct: number;
   allowNegativeStock: boolean;
 };
 
@@ -25,6 +36,7 @@ export function ConfiguracionClient({
   const [dias, setDias] = useState(String(settings.expiryWarningDays));
   const [umbral, setUmbral] = useState(String(settings.lowStockThresholdDefault));
   const [redondeo, setRedondeo] = useState(String(settings.repriceRounding));
+  const [margenMin, setMargenMin] = useState(String(settings.minMarginPct));
   const [negativo, setNegativo] = useState(settings.allowNegativeStock);
   const [aviso, setAviso] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -35,6 +47,7 @@ export function ConfiguracionClient({
         expiry_warning_days: Number(dias),
         low_stock_threshold_default: Number(umbral),
         reprice_rounding: Number(redondeo),
+        min_margin_pct: Number(margenMin),
         allow_negative_stock: negativo,
       });
       setAviso(
@@ -130,6 +143,33 @@ export function ConfiguracionClient({
               <span className="tabular font-semibold text-foreground">
                 {money(Math.ceil(1847 / Number(redondeo)) * Number(redondeo))}
               </span>
+            </p>
+          )}
+        </Setting>
+
+        <Setting
+          icon={TrendingUp}
+          title="Avisarme si un precio se queda corto"
+          help="Debajo de este margen consideramos que un producto ya no te deja plata. Te avisamos una vez por semana y aparece en Precios."
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">menos de</span>
+            <input
+              value={margenMin}
+              onChange={(e) => setMargenMin(e.target.value.replace(/[^\d]/g, ""))}
+              inputMode="numeric"
+              aria-label="Margen mínimo"
+              className="tabular h-11 w-20 rounded-lg border border-input bg-background px-3 text-center text-sm outline-none focus:border-primary"
+            />
+            <span className="text-sm text-muted-foreground">% de ganancia</span>
+          </div>
+          {Number(margenMin) > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Con {margenMin}%: algo que te sale {money(1000)} tiene que venderse a{" "}
+              <span className="tabular font-semibold text-foreground">
+                {money(Math.ceil(1000 / (1 - Number(margenMin) / 100)))}
+              </span>{" "}
+              o más.
             </p>
           )}
         </Setting>

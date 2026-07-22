@@ -11,6 +11,7 @@ import {
   Menu,
   Wallet,
   Users2,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { signOut } from "@/app/login/actions";
@@ -27,6 +28,7 @@ const OWNER_NAV: NavItem[] = [
   { href: "/pos", label: "Vender", icon: ScanBarcode },
   { href: "/admin/caja", label: "Caja", icon: Wallet },
   { href: "/admin/reportes", label: "Reportes", icon: ChartColumn },
+  { href: "/admin/precios", label: "Precios", icon: TrendingUp },
   { href: "/admin/productos", label: "Productos", icon: Package },
   { href: "/admin/fiado", label: "Fiado", icon: Users },
   { href: "/admin/vencimientos", label: "Vencimientos", icon: CalendarClock },
