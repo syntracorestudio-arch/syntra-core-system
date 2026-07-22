@@ -13,6 +13,12 @@
 
 export const SESSION_COOKIE = "panel_session";
 export const SESSION_TTL_SECONDS = 60 * 60 * 8; // 8 horas
+/**
+ * Path de la cookie de sesión. DEBE ser idéntico al setear y al borrar: una
+ * cookie con `path=/panel` sólo se elimina borrándola con ese mismo path. Fuente
+ * única para que login (set) y logout (clear) nunca vuelvan a divergir.
+ */
+export const SESSION_COOKIE_PATH = "/panel";
 
 async function hmacHex(secret: string, message: string): Promise<string> {
   const enc = new TextEncoder();
