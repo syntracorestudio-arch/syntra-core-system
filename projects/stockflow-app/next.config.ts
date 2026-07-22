@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   /**
+   * Orígenes de la red local habilitados en DESARROLLO, para poder abrir la app
+   * desde el teléfono (probar el POS con la cámara y recibir push de verdad).
+   * Solo aplica a `next dev`; en producción no tiene ningún efecto.
+   */
+  allowedDevOrigins: ["192.168.0.14", "192.168.0.15", "localhost"],
+  /**
    * Headers de seguridad desde el primer commit (skill `syntra-scale-security-baseline`).
    * StudioFlow los tuvo que agregar en una auditoría posterior; acá nacen con el proyecto.
    * CSP completa queda pendiente: Next inyecta scripts inline → requiere nonces.
