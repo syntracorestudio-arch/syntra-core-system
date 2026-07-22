@@ -89,12 +89,12 @@ export default async function PanelPage({ searchParams }: PanelPageProps) {
           </div>
         ) : (
           <>
-            {/* Desktop */}
-            <div className="hidden md:block">
+            {/* Desktop — tabla desde lg (a ≤1023 la tabla no entra sin scroll). */}
+            <div className="hidden lg:block">
               <LeadsTable leads={listRes.leads} duplicateEmails={duplicateEmails} />
             </div>
-            {/* Mobile */}
-            <div className="flex flex-col gap-3 md:hidden">
+            {/* Mobile + tablet — cards cómodas hasta lg */}
+            <div className="flex flex-col gap-3 lg:hidden">
               {listRes.leads.map((lead) => (
                 <LeadCard
                   key={lead.id}

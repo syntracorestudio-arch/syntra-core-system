@@ -16,8 +16,8 @@ function LeadsTable({
   duplicateEmails: Set<string>;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border">
-      <table className="w-full text-left text-sm">
+    <div className="overflow-x-auto rounded-2xl border border-border">
+      <table className="w-full min-w-[52rem] text-left text-sm">
         <thead>
           <tr className="border-b border-border text-xs tracking-wide text-muted-foreground uppercase">
             <th className="px-4 py-3 font-medium">Lead</th>
@@ -40,7 +40,7 @@ function LeadsTable({
                   <span className="font-medium text-foreground">
                     {lead.name}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs break-all text-muted-foreground">
                     {lead.email}
                   </span>
                   {duplicateEmails.has(lead.email) ? (
