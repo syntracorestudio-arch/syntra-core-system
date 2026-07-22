@@ -10,6 +10,7 @@ import {
   TriangleAlert,
   X,
   ScanBarcode,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { money } from "@/lib/format";
@@ -33,6 +34,20 @@ type Linea = {
   costo: string;
   vence: string;
 };
+
+/** Atajos para el caso frecuente: nadie quiere abrir un calendario para poner
+ *  "vence en una semana". La fecha exacta sigue disponible al lado. */
+const ATAJOS = [
+  { label: "1 semana", dias: 7 },
+  { label: "15 días", dias: 15 },
+  { label: "1 mes", dias: 30 },
+] as const;
+
+function enDias(dias: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
 
 /**
  * Ingreso de mercadería. Criterio del PRD: 10 productos en menos de 3 minutos.
@@ -222,7 +237,8 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                {/* Cantidad y costo son los datos de SIEMPRE: van juntos y grandes. */}
+                <div className="grid grid-cols-2 gap-2">
                   <Field label="¿Cuántos?" htmlFor={`q-${l.producto.id}`}>
                     <input
                       id={`q-${l.producto.id}`}
@@ -230,7 +246,7 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
                       onChange={(e) => set(l.producto.id, "qty", e.target.value.replace(/[^\d]/g, ""))}
                       inputMode="numeric"
                       placeholder="12"
-                      className="tabular h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+                      className="tabular h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
                     />
                   </Field>
                   <Field label="Costo c/u" htmlFor={`c-${l.producto.id}`}>
@@ -239,18 +255,69 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
                       value={l.costo}
                       onChange={(e) => set(l.producto.id, "costo", e.target.value.replace(/[^\d]/g, ""))}
                       inputMode="numeric"
-                      className="tabular h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+                      className="tabular h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
                     />
                   </Field>
-                  <Field label="Vence (opcional)" htmlFor={`v-${l.producto.id}`}>
+                </div>
+
+                {/* El vencimiento tiene su propia fila. En un kiosco la mayoría de los
+                    productos vencen dentro de mucho, así que pedir la fecha exacta en
+                    cada línea es fricción sin ganancia: los atajos resuelven el caso
+                    frecuente en un toque y la fecha exacta queda para cuando importa. */}
+                <div className="mt-3 rounded-lg border border-border bg-background p-3">
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <CalendarClock className="size-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium">
+                      ¿Vence pronto? Te aviso antes
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {ATAJOS.map((a) => {
+                      const valor = enDias(a.dias);
+                      const activo = l.vence === valor;
+                      return (
+                        <button
+                          key={a.label}
+                          type="button"
+                          onClick={() => set(l.producto.id, "vence", activo ? "" : valor)}
+                          aria-pressed={activo}
+                          className={cn(
+                            "h-9 cursor-pointer rounded-lg border px-2.5 text-xs font-medium transition-colors",
+                            activo
+                              ? "border-primary bg-accent text-accent-foreground"
+                              : "border-border text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {a.label}
+                        </button>
+                      );
+                    })}
                     <input
                       id={`v-${l.producto.id}`}
                       type="date"
                       value={l.vence}
                       onChange={(e) => set(l.producto.id, "vence", e.target.value)}
-                      className="h-10 w-full rounded-lg border border-input bg-background px-2 text-sm outline-none focus:border-primary"
+                      aria-label={`Fecha de vencimiento de ${l.producto.name}`}
+                      className="h-9 min-w-[8.5rem] flex-1 rounded-lg border border-input bg-card px-2 text-xs outline-none focus:border-primary"
                     />
-                  </Field>
+                    {l.vence && (
+                      <button
+                        type="button"
+                        onClick={() => set(l.producto.id, "vence", "")}
+                        aria-label="Quitar vencimiento"
+                        className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-danger-ink"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {l.vence && (
+                    <p className="mt-2 text-xs text-success-ink">
+                      Te aviso antes del {l.vence}
+                    </p>
+                  )}
                 </div>
 
                 {m !== null && (
