@@ -228,3 +228,55 @@ acción — ahí es donde el hero empieza a leer como SaaS genérico.
 - `src/components/marketing/hero/hero-anillos-3d.tsx` — canvas, rig y nitidez.
 - `src/components/sections/hero-section.tsx` — orden de capas (el quad es opaco:
   grano, scrim y costura van encima del canvas; el contenido necesita `z-10`).
+
+---
+
+## Actualización 2026-07-22 — póster, LCP y ciclo del fondo (PR #151, #153, #154)
+
+**El shell del Hero es rail propio y así queda.** Navbar + Hero usan
+`SHELL_ESCENARIO` (exportado desde `container.tsx`; antes estaba duplicado
+string-a-string en dos archivos). No se unifica con el resto por dos razones
+verificadas: el logo tiene que alinear con el H1 —se ven juntos en la primera
+pantalla— y la cámara del vórtice usa `setViewOffset` anclado al **viewport**, así
+que mover el shell descoloca la escena aprobada. Ver **[grilla.md](grilla.md)**.
+
+**Póster mobile re-horneado.** Abajo de 1024 no hay canvas y el objeto es un webp;
+venía de la luz violeta en **6.5**, la vieja. En desktop eso se bajó a 3.0 porque
+"azul + violeta juntos son la firma cromática del render de IA genérico que la
+marca evita" — o sea que en mobile se seguía mostrando justo el violeta que se
+había sacado. Re-horneado desde la escena viva con el rig exacto del dump de
+Spline. Control con las dos intensidades y la misma pose: el asset viejo
+reproducía el horneado a 6.5 (7.1% de violeta contra 7.2%); el nuevo baja el
+violeta saturado de **2.3% a 0.2%**. 29.5 → 39.2KB.
+
+**La entrada above-the-fold pasó de framer a CSS.** El gate en JS no funcionaba:
+`useDesktop()` usa `useSyncExternalStore` con `getServerSnapshot=false` y React usa
+ESE valor en el render de hidratación, justo cuando framer aplica su `initial`. Y
+aun funcionando, framer no puede animar hasta que hidrata: en mobile eso dejaba el
+subtítulo en `opacity:0` dentro del HTML servido y, como es más grande que el H1 en
+un teléfono (29988 vs 20832 px²), se quedaba con el LCP. Con media query no hay JS.
+Producción, 4G lento, CPU 4×, mediana de 3 corridas: **4068 → 1480ms** a 390px.
+Desktop conserva su entrada y ahora arranca en el primer pintado.
+
+**"La Tinta" — el ciclo dejó de cortarse.** Dos causas:
+1. El canvas corre con `frameloop` demand fuera de viewport y el navegador congela
+   el rAF en segundo plano, pero `uTime` salía de `clock.elapsedTime`, que mide
+   tiempo real. Instrumentado: tras 3s fuera daba **−2.32s** — R3F reinicia el
+   reloj, así que el fondo saltaba *hacia atrás*. Ahora lleva su propio tiempo
+   acumulado con el delta acotado a 50ms.
+2. El hash del ruido armaba productos de hasta **2.1e5** antes del `fract()` y la
+   GPU trabaja en float32: error medio 0.0169 contra 0.0009 del hash de Hoskins
+   que lo reemplaza. Esa pérdida está correlacionada con la posición ⇒ escalones
+   de borde recto que el cizallamiento del puntero arrastra.
+
+**Descartados con medición, para no volver a probarlos:** banding de 8 bits (el
+dither anda, meseta más larga 7px), curvas de nivel de la rampa de color (se
+probaron tres formulaciones y **la actual salió mejor** que los reemplazos) y
+quiebres temporales del ruido (cero en 60s). **La rampa aprobada no se tocó.**
+
+### Criterios binarios añadidos
+
+- [x] El objeto de mobile y el de desktop tienen el mismo hue (violeta saturado ≤0.5%).
+- [x] El bloque above-the-fold viaja VISIBLE en el HTML servido en mobile.
+- [x] El ciclo del fondo no salta al volver de otra pestaña ni al re-entrar al viewport.
+- [x] Desktop conserva la entrada escalonada (verificado cuadro a cuadro).

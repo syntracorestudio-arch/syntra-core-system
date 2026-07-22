@@ -12,6 +12,9 @@ decisión asset-first/code-first + criterios binarios de aprobación.
 ## Qué es esta carpeta
 - `_template.md` — plantilla base de un lock.
 - `<section>.md` — un lock por sección (ej. `hero.md`, `casos.md`).
+- `grilla.md` — lock **transversal** (no describe una sección sino el sistema de
+  anchos que todas comparten). Fuente de verdad de shells/anchos: ante cualquier
+  duda de grilla manda ese lock.
 - `assets/` — imágenes de referencia / mocks / previews citados por los locks.
 
 ## Cuándo se crea un lock

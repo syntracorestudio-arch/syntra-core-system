@@ -78,3 +78,36 @@ supersedes: "Casos v1 'Campo de señales' (2026-06-26)"
 ## Anti-loop
 
 Máx. 2 iteraciones de código sobre una demo; a la 3ª, volver a este lock.
+
+---
+
+## Actualización 2026-07-22 — grilla y mobile (PR #151, #153)
+
+**Casos dejó de tener shell propio.** Usaba `max-w-6xl px-6 lg:max-w-7xl lg:px-8`,
+que a 1920 lo dejaba arrancando en 352px contra los 416px del resto: el único
+borde huérfano del recorrido. Ahora usa `Container` como todas las secciones
+debajo del Hero — ver **[grilla.md](grilla.md)**, que es la fuente de verdad de
+anchos y no existía cuando se escribió este lock.
+
+Verificado antes de aplicarlo, con override en runtime: **el artefacto no se
+achica.** La demo tiene tope propio de 480px y la pista queda en 593px; lo único
+que cede son 55px del rail editorial.
+
+**Bugs de mobile corregidos** (los encontró el owner en su celular, no la
+auditoría — ver el gate de mobile en `syntra-visual-gate`):
+
+- La demo de **Automatización** medía **422px dentro de un contenedor de 342px**
+  y la sección se la comía por el borde derecho. Las pistas `1fr` de su tabla
+  arrancan con `min-width:auto` y, como las celdas llevan `truncate`
+  (`white-space:nowrap`), su tamaño mínimo es el texto entero: la pista no podía
+  achicarse. Va con `minmax(0,1fr)`, más `min-w-0` en el tabpanel como cinturón
+  para que ninguna demo futura vuelva a empujar.
+- La fila de **tabs** mide 730px contra 342 útiles en un teléfono. Scrollea, pero
+  sin señal se leía como un corte: lleva fundido en el borde derecho, que se
+  apaga desde md donde las pills ya envuelven.
+
+### Criterios binarios añadidos
+
+- [x] Ninguna demo excede el ancho de su contenedor a 320/360/390/414.
+- [x] El scroller de tabs muestra fundido mientras haya contenido oculto.
+- [x] Borde izquierdo alineado con el resto de las secciones (416px a 1920).

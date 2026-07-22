@@ -69,3 +69,42 @@ Ejemplos, no se dibuja en Servicios.
 - [x] Cero violeta/cyan; numerales warm dorado.
 - [x] Nada flotando entre paneles; cierre alineado al ancho del grid.
 - [x] tsc · lint · build verdes · 0 errores de consola · verificado a 1920 y 390.
+
+---
+
+## Actualización 2026-07-22 — grilla, tablet y mobile (PR #151, #153)
+
+El criterio *"cierre alineado al ancho del grid"* de este lock se cumplía contra
+el grid, pero **no contra el heading de la propia sección**: el cierre vivía en un
+`mx-auto max-w-5xl` re-centrado dentro del Container, así que su `border-t` —una
+línea nítida— nacía 32px a la derecha del h2. Ese casi-acierto era lo que más se
+veía a 1920. Se eliminó el `max-w-5xl` del cierre; ahora la regla arranca exacto
+donde arranca el título. Ver **[grilla.md](grilla.md)**.
+
+**El `max-w-5xl` del CARRUSEL se mantiene** (queda +32px respecto del rail): tiene
+máscara de fundido en los bordes, así que no se percibe, y sacarlo llevaría las
+cards del modo reduced-motion a ~584px rompiendo el balance imagen/texto de la v5.
+Es la excepción única y aprobada del sistema de grilla.
+
+**Dos columnas solo desde lg.** Con `sm:grid-cols-2` la columna de texto de la
+card (el 64% del panel, el resto es el render) caía a **177px a 640 y 218px a
+768** — más angosta que en un teléfono de 390px (348px), con un numeral de 60px y
+un h3 de 30px adentro. Encogía para entrar en vez de reorganizarse. Ahora: 367 y 449.
+
+**El render pisaba el texto en mobile.** El scrim de legibilidad está calibrado
+para el layout de escritorio, donde el texto vive en el 64% izquierdo: al 70% del
+ancho ya es casi transparente. En un teléfono la card mide 342px, no hay lugar
+para un lado a lado y el texto ocupa el ancho COMPLETO, así que los bullets caían
+sobre la parte brillante del render. Capa de refuerzo solo abajo de sm.
+
+**CTA del cierre:** de "Quiero que me recomienden el mejor módulo" (40 caracteres,
+dos líneas al 85% del ancho) a **"Quiero una recomendación"** (24) — decisión del
+owner. Regla vigente de CTAs: ancho completo solo para la acción primaria de la
+pantalla; los cierres de sección se ajustan al contenido.
+
+### Criterios binarios añadidos
+
+- [x] El cierre nace en el mismo x que el h2 de la sección.
+- [x] El texto de la card nunca es más angosto que en un teléfono de 390px.
+- [x] En mobile el texto se lee sin que el render compita (revisado con visión a 390).
+- [x] Ningún CTA de la sección envuelve a dos líneas a 320px.
