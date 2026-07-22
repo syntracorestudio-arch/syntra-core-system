@@ -158,3 +158,38 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Isotipo 3D (login) — flotación muy sutil y lenta ──────────
+   La profundidad vive en las caras sombreadas del SVG; la animación
+   solo respira. Bajo prefers-reduced-motion el guard de arriba la
+   detiene en el frame 0 → el logo queda quieto CON su volumen. */
+@keyframes sf-logo3d-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.6deg);
+  }
+  50% {
+    transform: translateY(-6.5%) rotate(0.6deg);
+  }
+}
+@keyframes sf-logo3d-shadow {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scaleX(1);
+  }
+  50% {
+    opacity: 0.24;
+    transform: scaleX(0.84);
+  }
+}
+.sf-logo3d__mark {
+  transform-origin: center 58%;
+  animation: sf-logo3d-float 8s ease-in-out infinite;
+  will-change: transform;
+}
+.sf-logo3d__shadow {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: sf-logo3d-shadow 8s ease-in-out infinite;
+}
