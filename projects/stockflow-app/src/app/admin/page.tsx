@@ -13,6 +13,9 @@ import {
 import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
 import { money, signedPct } from "@/lib/format";
+import { requireOwner } from "@/lib/session";
+
+export const dynamic = "force-dynamic";
 
 /**
  * Dashboard del dueño — "tu negocio en una pantalla".
@@ -58,12 +61,17 @@ const DEMO = {
   ],
 };
 
-export default function AdminDashboard() {
+export default async function AdminDashboard() {
+  const session = await requireOwner();
   const totalMedios = DEMO.medios.reduce((a, m) => a + m.monto, 0);
   const subiendo = DEMO.vsPromedio >= 0;
 
   return (
-    <AppShell current="/admin">
+    <AppShell
+      current="/admin"
+      storeName={session.store.name}
+      userLabel={`${session.member.display_name ?? "Vos"} · Dueño`}
+    >
       <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
         <header className="mb-6">
           <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Hoy</h1>

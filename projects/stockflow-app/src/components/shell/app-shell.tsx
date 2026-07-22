@@ -6,8 +6,10 @@ import {
   Users,
   CalendarClock,
   Settings,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { signOut } from "@/app/login/actions";
 
 type NavItem = {
   href: string;
@@ -32,11 +34,13 @@ const OWNER_NAV: NavItem[] = [
 export function AppShell({
   children,
   current,
-  storeName = "Kiosco El Trébol",
+  storeName,
+  userLabel,
 }: {
   children: React.ReactNode;
   current: string;
-  storeName?: string;
+  storeName: string;
+  userLabel: string;
 }) {
   /* En mobile la barra inferior muestra solo lo que se toca a diario. */
   const mobileNav = OWNER_NAV.filter((i) =>
@@ -81,7 +85,15 @@ export function AppShell({
 
         <div className="border-t border-border px-5 py-4">
           <p className="text-xs text-muted-foreground">Conectado como</p>
-          <p className="truncate text-sm font-medium">Mati · Dueño</p>
+          <p className="truncate text-sm font-medium">{userLabel}</p>
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="mt-2 flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <LogOut className="size-3.5" /> Salir
+            </button>
+          </form>
         </div>
       </aside>
 
