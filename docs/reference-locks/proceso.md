@@ -74,3 +74,33 @@ regla no-violeta/cyan (2026-07-08). Sin excepción de paleta.
 
 **Aprobada por el owner en navegador (iteración en vivo del timing del
 crossfade), 2026-07-09. Merged PR #79.**
+
+---
+
+## Actualización 2026-07-22 — grilla y CTA (PR #151, #153)
+
+**El cierre perdió su `max-w-5xl`.** Igual que en Servicios: el bloque abre con un
+`border-t` —una línea nítida— y centrado a 1024px dentro del Container nacía 32px
+corrido respecto del rail de la sección. Ahora arranca donde arranca el contenido.
+Ver **[grilla.md](grilla.md)**, la fuente de verdad de anchos, que no existía
+cuando se escribió este lock.
+
+**CTA del cierre:** de "Empecemos por entender tu negocio" (33 caracteres, dos
+líneas al 85-87% del ancho en 320/360) a **"Quiero empezar"** (14) — decisión del
+owner. El anterior además repetía el lead que tiene justo arriba ("El primer paso
+es entender tu negocio"), y "Empecemos" a secas quedó descartado porque ya es el
+eyebrow de Contacto. El elegido queda en primera persona igual que el cierre de
+Servicios, así que los dos cierres de sección hablan con la misma construcción.
+
+El ancho completo del botón **no era una decisión**: lo estiraba el
+`align-items: stretch` del `flex-col`. Va con `self-start sm:self-auto` y
+`min-h-11`, que fija los 44px de toque sin depender del line-height.
+
+La banda 768-1023 sigue con el layout apilado (foto + texto por paso); el split
+sticky arranca en lg como estaba.
+
+### Criterios binarios añadidos
+
+- [x] El cierre nace en el mismo x que el contenido de la sección.
+- [x] El CTA entra en una línea a 320px y mide ≥44px de alto.
+- [x] El CTA no repite el lead que tiene encima.
