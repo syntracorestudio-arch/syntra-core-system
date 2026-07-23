@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
  * LoginForm — gate del panel. Isla client mínima (useActionState).
  * La verificación real ocurre 100% en el servidor (panelLogin).
  */
-function LoginForm() {
+function LoginForm({ from }: { from?: string }) {
   const [state, formAction, isPending] = React.useActionState(
     panelLogin,
     initialPanelLoginState,
@@ -21,6 +21,7 @@ function LoginForm() {
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
+      {from ? <input type="hidden" name="from" value={from} /> : null}
       <div className="flex flex-col gap-2">
         <Label htmlFor="passcode">Passcode de acceso</Label>
         <Input

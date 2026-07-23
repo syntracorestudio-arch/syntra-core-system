@@ -12,7 +12,7 @@ import {
 import { rateLimit } from "@/lib/rate-limit";
 import type { PanelLoginState } from "@/app/actions/panel-auth-state";
 
-/** Comparación en tiempo constante del passcode. */
+/** Comparación en tiempo constante (opera sobre digests de igual longitud). */
 function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -20,11 +20,42 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/**
+ * SHA-256 en hex. Se compara el DIGEST del passcode contra el del esperado
+ * (siempre 64 chars) en vez de los valores crudos: así ni el largo real del
+ * passcode se filtra por timing (el corte por longitud de `safeEqual` nunca
+ * depende del secreto).
+ */
+async function sha256Hex(input: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(input),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 /** IP del cliente desde headers de proxy (Vercel/Cloudflare). */
 async function getClientIp(): Promise<string> {
   const h = await headers();
   const forwarded = h.get("x-forwarded-for")?.split(",")[0]?.trim();
   return forwarded || h.get("x-real-ip") || "unknown";
+}
+
+/**
+ * Destino post-login. Sólo rutas internas del panel (nunca el propio login),
+ * validando contra open-redirect: debe empezar con `/panel/` (o ser `/panel`)
+ * y no contener `//`, `\` ni `..`. Cualquier otra cosa cae a `/panel`.
+ */
+function safeReturnPath(raw: FormDataEntryValue | null): string {
+  const from = typeof raw === "string" ? raw : "";
+  if (from !== "/panel" && !from.startsWith("/panel/")) return "/panel";
+  if (from.startsWith("/panel/login")) return "/panel";
+  if (from.includes("//") || from.includes("\\") || from.includes("..")) {
+    return "/panel";
+  }
+  return from;
 }
 
 /**
@@ -55,7 +86,11 @@ export async function panelLogin(
     };
   }
 
-  if (!passcode || !safeEqual(passcode, expected)) {
+  const [passcodeHash, expectedHash] = await Promise.all([
+    sha256Hex(passcode),
+    sha256Hex(expected),
+  ]);
+  if (!passcode || !safeEqual(passcodeHash, expectedHash)) {
     return { error: "Passcode incorrecto." };
   }
 
@@ -69,7 +104,8 @@ export async function panelLogin(
     maxAge: SESSION_TTL_SECONDS,
   });
 
-  redirect("/panel");
+  // Vuelve a la ruta que disparó el gate (?from=), validada; si no, al panel.
+  redirect(safeReturnPath(formData.get("from")));
 }
 
 /**
