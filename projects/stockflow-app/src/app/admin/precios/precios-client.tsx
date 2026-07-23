@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, LoaderCircle, TriangleAlert, TrendingDown, TrendingUp, X, Pencil } from "lucide-react";
+import { Check, LoaderCircle, TrendingDown, TrendingUp, X, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { CountUp } from "@/components/ui/count-up";
 import { cn } from "@/lib/cn";
+import { AvisoBanner } from "@/components/ui/aviso";
 import { money } from "@/lib/format";
 import { aplicarPrecio } from "./actions";
 
@@ -77,32 +79,7 @@ export function PreciosClient({ datos }: { datos: Erosionados | null }) {
         />
       </div>
 
-      {aviso && (
-        <div
-          role="status"
-          className={cn(
-            "mb-4 flex items-start gap-2 rounded-lg px-3 py-2 text-sm ring-1",
-            aviso.tone === "ok"
-              ? "bg-success/10 text-success-ink ring-success/25"
-              : "bg-danger/10 text-danger-ink ring-danger/25",
-          )}
-        >
-          {aviso.tone === "ok" ? (
-            <Check className="mt-0.5 size-4 shrink-0" />
-          ) : (
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-          )}
-          <span className="flex-1">{aviso.text}</span>
-          <button
-            type="button"
-            onClick={() => setAviso(null)}
-            aria-label="Cerrar aviso"
-            className="cursor-pointer opacity-60 hover:opacity-100"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+      <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
       {productos.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
@@ -118,7 +95,7 @@ export function PreciosClient({ datos }: { datos: Erosionados | null }) {
             <div className="mb-4 rounded-xl border border-border bg-card p-4">
               <p className="text-sm text-muted-foreground">Estás dejando de ganar</p>
               <p className="text-3xl font-semibold tabular text-danger-ink lg:text-4xl">
-                {money(totalPorMes)}
+                <CountUp value={totalPorMes} prefix="$ " />
                 <span className="text-base font-normal text-muted-foreground"> por mes</span>
               </p>
               {/* Honestidad: es una proyección, no un hecho. Si sube el precio y
@@ -142,7 +119,7 @@ export function PreciosClient({ datos }: { datos: Erosionados | null }) {
               return (
                 <li key={p.id} className="rounded-xl border border-border bg-card p-4">
                   <div className="flex items-start gap-3">
-                    <span aria-hidden className="text-2xl">
+                    <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-lg bg-secondary text-xl">
                       {p.emoji ?? "📦"}
                     </span>
                     <div className="min-w-0 flex-1">

@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/cn";
 import { money, signedPct } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
+import { CountUp } from "@/components/ui/count-up";
 
 export type DashboardData = {
   today: {
@@ -99,7 +100,11 @@ export function DashboardClient({
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardLabel>Vendido hoy</CardLabel>
-          <p className="tabular text-3xl font-semibold lg:text-4xl">{money(today.total)}</p>
+          {/* Count-up al montar (patrón StudioFlow): el número que más importa
+              del día entra con vida. reduced-motion → directo. */}
+          <p className="tabular text-3xl font-semibold lg:text-4xl">
+            <CountUp value={today.total} prefix="$ " />
+          </p>
           <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
             {sinVentas ? (
               <span className="text-muted-foreground">Todavía no vendiste nada hoy.</span>
@@ -158,7 +163,7 @@ export function DashboardClient({
           ) : (
             <>
               <p className="tabular text-3xl font-semibold text-success-ink lg:text-4xl">
-                {money(today.profit)}
+                <CountUp value={today.profit} prefix="$ " />
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
                 {today.profit_coverage >= 90 ? (
@@ -412,8 +417,12 @@ function VerTodo({ href, children }: { href: string; children: React.ReactNode }
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  /* Entrada suave al montar, pareja con la banda del header (V5). El guard
+     global de reduced-motion la apaga. */
   return (
-    <section className={`rounded-xl border border-border bg-card p-4 lg:p-5 ${className}`}>
+    <section
+      className={`rounded-xl border border-border bg-card p-4 duration-500 animate-in fade-in slide-in-from-bottom-2 lg:p-5 ${className}`}
+    >
       {children}
     </section>
   );

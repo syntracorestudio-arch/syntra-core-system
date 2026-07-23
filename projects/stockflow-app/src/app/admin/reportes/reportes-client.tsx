@@ -78,7 +78,7 @@ export function ReportesClient({
 
   if (!data) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-10 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 py-10 lg:px-8">
         <p className="text-sm text-muted-foreground">No pudimos cargar los reportes.</p>
       </div>
     );
@@ -103,7 +103,7 @@ export function ReportesClient({
       : `${etiqueta.format(new Date(from))} – ${etiqueta.format(new Date(to))}`;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 lg:px-8 lg:py-8">
+    <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
       <div className="mb-4">
         <PageHeader title="Cómo viene el negocio" subtitle={rangoTexto} icon={ChartColumn} />
       </div>
