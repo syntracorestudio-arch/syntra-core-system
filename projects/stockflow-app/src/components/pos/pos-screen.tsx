@@ -23,6 +23,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { CategoryChips } from "@/components/ui/category-chips";
 import { money } from "@/lib/format";
 import {
   registerSale,
@@ -43,6 +44,7 @@ export type PosProduct = {
   color: string | null;
   price: number;
   stock: number;
+  categoryId: string | null;
   categoryName: string | null;
   barcodes: string[];
 };
@@ -77,6 +79,7 @@ export function PosScreen({
   mpConectado: boolean;
 }) {
   const [busqueda, setBusqueda] = useState("");
+  const [cat, setCat] = useState<string | null>(null);
   const [carrito, setCarrito] = useState<Linea[]>([]);
   const [medio, setMedio] = useState<Medio>("cash");
   const [cobrandoQr, setCobrandoQr] = useState(false);
@@ -99,13 +102,27 @@ export function PosScreen({
     return map;
   }, [products]);
 
+  /* Categorías derivadas del catálogo (no viajan aparte): las que tienen al
+     menos un producto. El color viene del primer producto que la lleva. */
+  const categorias = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; color: string | null }>();
+    for (const p of products) {
+      if (p.categoryId && p.categoryName && !map.has(p.categoryId)) {
+        map.set(p.categoryId, { id: p.categoryId, name: p.categoryName, color: p.color });
+      }
+    }
+    return [...map.values()];
+  }, [products]);
+
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
+    let base = products;
+    if (cat) base = base.filter((p) => p.categoryId === cat);
+    if (!q) return base;
+    return base.filter(
       (p) => p.name.toLowerCase().includes(q) || p.barcodes.some((b) => b.includes(q)),
     );
-  }, [busqueda, products]);
+  }, [busqueda, cat, products]);
 
   const total = carrito.reduce((a, l) => a + l.producto.price * l.cantidad, 0);
   const unidades = carrito.reduce((a, l) => a + l.cantidad, 0);
@@ -242,7 +259,7 @@ export function PosScreen({
           onCancel={() => setAltaRapida(null)}
           onCreated={(p) => {
             setAltaRapida(null);
-            agregar({ ...p, emoji: "📦", color: null, stock: 0, categoryName: null, barcodes: [] });
+            agregar({ ...p, emoji: "📦", color: null, stock: 0, categoryId: null, categoryName: null, barcodes: [] });
             setAviso({ tone: "ok", text: `${p.name} creado y agregado` });
           }}
         />
@@ -292,6 +309,15 @@ export function PosScreen({
               <ScanBarcode className="size-5" />
             </button>
           </div>
+          {/* Chips táctiles (h-10): en el mostrador se filtra con el pulgar,
+              nunca con un dropdown de dos toques. */}
+          <CategoryChips
+            categories={categorias}
+            value={cat}
+            onChange={setCat}
+            size="lg"
+            className="mt-2.5"
+          />
           <p className="mt-1.5 truncate text-xs text-muted-foreground">{storeName}</p>
         </header>
 

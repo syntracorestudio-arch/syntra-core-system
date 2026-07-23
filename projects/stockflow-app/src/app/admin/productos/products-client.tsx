@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   Plus,
@@ -19,6 +20,7 @@ import { cn } from "@/lib/cn";
 import { money } from "@/lib/format";
 import { EmojiPicker } from "@/components/ui/emoji-picker";
 import { PageHeader } from "@/components/ui/page-header";
+import { CategoryChips } from "@/components/ui/category-chips";
 import {
   createProduct,
   updateProduct,
@@ -115,11 +117,26 @@ export function ProductsClient({
   const [remarcando, setRemarcando] = useState(false);
   const [aviso, setAviso] = useState<Aviso>(null);
 
+  /* El filtro de categoría vive en la URL (?cat=): volver atrás o refrescar
+     respeta lo que estabas mirando, y un link a "Productos > Bebidas" se puede
+     compartir. replace y no push: cambiar de chip no debe apilar historial. */
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const cat = searchParams.get("cat");
+  const setCat = (id: string | null) => {
+    const params = new URLSearchParams(searchParams);
+    if (id) params.set("cat", id);
+    else params.delete("cat");
+    router.replace(`/admin/productos${params.size ? `?${params}` : ""}`, { scroll: false });
+  };
+
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((p) => p.name.toLowerCase().includes(q));
-  }, [busqueda, products]);
+    let base = products;
+    if (cat) base = base.filter((p) => p.categoryId === cat);
+    if (!q) return base;
+    return base.filter((p) => p.name.toLowerCase().includes(q));
+  }, [busqueda, cat, products]);
 
   const sinCosto = products.filter((p) => p.cost === null).length;
 
@@ -169,6 +186,8 @@ export function ProductsClient({
           </button>
         </div>
       )}
+
+      <CategoryChips categories={categories} value={cat} onChange={setCat} className="mb-3" />
 
       <div className="relative mb-4">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

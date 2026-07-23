@@ -53,6 +53,7 @@ export default async function PosPage() {
       color: p.color ?? category?.color ?? null,
       price: Number(p.price),
       stock: Number(p.stock),
+      categoryId: p.category_id,
       categoryName: category?.name ?? null,
       barcodes: byProduct.get(p.id) ?? [],
     };
