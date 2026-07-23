@@ -14,7 +14,6 @@ import { SHELL_ESCENARIO } from "@/components/layout/container";
 import { TrackedLink } from "@/components/shared/tracked-link";
 import { HeroAnillos } from "@/components/marketing/hero/hero-anillos";
 import { HeroCamara, GRAIN } from "@/components/marketing/hero/hero-camara";
-import Image from "next/image";
 
 /**
  * HeroSection — primera impresión y <h1> único (WEB-HERO-RED, ref owner 2026-07-16).
@@ -216,7 +215,7 @@ function HeroSection() {
               asChild
               variant="brand"
               size="2xl"
-              className="w-full transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-12px_rgba(37,99,235,0.7)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:w-auto"
+              className="w-full max-w-[16.5rem] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-12px_rgba(37,99,235,0.7)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:w-auto sm:max-w-none"
             >
               <TrackedLink
                 href="#contacto"
@@ -226,17 +225,15 @@ function HeroSection() {
                 <ArrowRight data-icon="inline-end" />
               </TrackedLink>
             </Button>
-            {/* Sin w-full, a diferencia del primario. Regla del design-director:
-                ancho completo SOLO para la acción primaria de la pantalla; el
-                secundario se ajusta al contenido. "Ver ejemplos" son 11
-                caracteres estirados a 272px en un teléfono — el caso exacto que
-                el owner rechazó. Y de paso la diferencia de ancho es la señal
-                de jerarquía más legible en mobile, gratis. */}
+            {/* Ambos CTAs al MISMO ancho en mobile (pedido owner 2026-07-23):
+                w-full topeado a 16.5rem — más ancho que el "Ver ejemplos" suelto,
+                sin volver al edge-to-edge que el owner rechazó antes. La jerarquía
+                la llevan el color y la flecha, no el ancho. */}
             <Button
               asChild
               variant="brand-outline"
               size="2xl"
-              className="transition-[transform,border-color,background-color] duration-200 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              className="w-full max-w-[16.5rem] transition-[transform,border-color,background-color] duration-200 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:w-auto sm:max-w-none"
             >
               <TrackedLink
                 href="#casos"
@@ -247,37 +244,11 @@ function HeroSection() {
             </Button>
           </div>
 
-          {/* MOBILE: el mismo vórtice, horneado (39KB) — la primera pantalla del
-              sitio tenía fondo pero no protagonista. Va en el FLUJO (no tapa el
-              H1) y respira con su propio halo. Sin canvas ni JS.
-              2026-07-22: re-horneado con el violeta en 3.0 (la dosis vigente en
-              desktop). El asset anterior venía de la luz a 6.5 y mostraba en
-              mobile justo el violeta que se había sacado del 3D — 2.3% de
-              píxeles violeta saturado contra 0.2% ahora. */}
-          <div
-            aria-hidden="true"
-            {...rise(4, "relative -my-2 w-[78%] max-w-[19rem] lg:hidden")}
-          >
-            <div
-              className="absolute inset-0 -m-6 rounded-full"
-              style={{
-                background:
-                  "radial-gradient(circle, rgba(122,160,220,0.16), transparent 68%)",
-              }}
-            />
-            <Image
-              src="/visual-assets/syntra/hero/vortice-poster.webp"
-              alt=""
-              width={708}
-              height={716}
-              priority
-              // El elemento está topeado a max-w-[19rem]: arriba de ~440px de
-              // viewport mide 304px fijos, no 78vw. Con el 78vw suelto el
-              // browser pedía la variante w=1920 en tablet para pintar 304px.
-              sizes="(max-width: 440px) 78vw, 304px"
-              className="relative h-auto w-full"
-            />
-          </div>
+          {/* El vórtice solo existe donde GIRA (≥1024px, WebGL). El poster
+              estático que lo reemplazaba en mobile/tablet se quitó a pedido del
+              owner (2026-07-23): un protagonista congelado leía como imagen
+              rota, no como firma. <1024 el hero es texto + placa sobre el
+              fondo vivo CSS. */}
 
           {/* Placa de vidrio (capability rail v2): UN objeto monolítico — un estrato
               extraído del edificio del asset. Segmentos separados por costuras de luz

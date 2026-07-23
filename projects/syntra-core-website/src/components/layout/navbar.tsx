@@ -145,7 +145,9 @@ function Navbar() {
         {/* Columna 2: navegación CENTRADA (real, vía grid) */}
         <nav
           aria-label="Navegación principal"
-          className="col-start-2 hidden items-center justify-center gap-7 justify-self-center md:flex lg:gap-9"
+          // gap-4 en tablet: con gap-7 la fila cerraba EXACTA a 768px (0px entre
+          // "Contacto" y el CTA — el botón montaba sobre el link). lg recupera gap-9.
+          className="col-start-2 hidden items-center justify-center gap-4 justify-self-center md:flex lg:gap-9"
         >
           {siteConfig.nav.map((item) => {
             const isActive = active !== "" && active === navId(item.href);
