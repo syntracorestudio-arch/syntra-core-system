@@ -36,6 +36,15 @@ function EmberParticles({
     let raf = 0;
     let running = false;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    /**
+     * Techo de ÁREA del backing store (px²). El canvas cubre la sección ENTERA
+     * (en Nosotros mobile: 390×2434 → 3.8MP a dpr 2) y clearRect + re-upload de
+     * esa textura CADA frame era el mayor costo de raster del tramo
+     * Nosotros→FAQ→Contacto en teléfonos (jank medido 2026-07-23). Para brasas
+     * de 1-2px la resolución extra es invisible; el tope la limita a ~1.4MP y
+     * nunca baja de dpr 1 en canvases chicos.
+     */
+    const MAX_BACKING_AREA = 1_400_000;
 
     type P = {
       x: number;
@@ -62,9 +71,11 @@ function EmberParticles({
 
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = canvas;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const fit = w * h > 0 ? Math.sqrt(MAX_BACKING_AREA / (w * h)) : dpr;
+      const scale = Math.min(dpr, Math.max(1, fit));
+      canvas.width = w * scale;
+      canvas.height = h * scale;
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
       const target = Math.round((w * h) / densityDivisor); // densidad baja
       parts = Array.from({ length: target }, () => spawn(w, h));
     };

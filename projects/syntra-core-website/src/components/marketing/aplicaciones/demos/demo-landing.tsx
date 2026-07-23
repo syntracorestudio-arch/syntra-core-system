@@ -117,8 +117,12 @@ function DemoLanding({ reduce }: { reduce: boolean }) {
           </div>
         </div>
 
-        {/* SITIO DEL CLIENTE — tema claro, marca propia */}
-        <div className="relative h-[21rem] overflow-hidden bg-[#f8fafc]">
+        {/* SITIO DEL CLIENTE — tema claro, marca propia.
+            Alto de la ventana RESPONSIVE (2026-07-23): <640px las 3 cards y los
+            campos envuelven y el contenido llega a ~547px (medido a 320) — con
+            21rem el botón del form quedaba cortado tras el scroll de -10rem.
+            24.5rem muestra hasta 552px de contenido; sm+ conserva 21rem. */}
+        <div className="relative h-[24.5rem] overflow-hidden bg-[#f8fafc] sm:h-[21rem]">
           <motion.div
             initial={false}
             // -10rem = nav (2.5) + hero (7.5): el scroll final arranca limpio en las

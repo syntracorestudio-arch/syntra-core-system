@@ -199,11 +199,12 @@ function ShowcasePanel({
       className="group relative flex h-full min-h-[22rem] rounded-2xl border lg:min-h-[26rem]"
       style={{ borderColor: `${role.hex}59`, backgroundColor: PANEL_BG, boxShadow: `0 0 34px -20px ${role.hex}` }}
     >
-      {/* Glow del borde que intensifica en hover (opacity → no clipeado: el panel no
-          lleva overflow-hidden; solo la imagen se recorta en su propio contenedor). */}
+      {/* Glow del borde: SIEMPRE encendido <lg (touch no tiene hover — el owner
+          lo vio apagado en el celular, 2026-07-23); en lg+ vuelve a ser el
+          premio del hover. El panel no lleva overflow-hidden → no se clipea. */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100 motion-reduce:transition-none"
+        className="pointer-events-none absolute -inset-px rounded-2xl opacity-100 transition-opacity duration-300 motion-reduce:transition-none lg:opacity-0 lg:group-hover:opacity-100"
         style={{ border: `1px solid ${role.hex}`, boxShadow: `0 0 55px -12px ${role.hex}` }}
       />
 
@@ -230,20 +231,19 @@ function ShowcasePanel({
         style={{ background: LEGIBILITY }}
       />
 
-      {/* Refuerzo SOLO en mobile. El scrim de arriba está calibrado para el
-          layout de escritorio, donde el texto vive en el 64% izquierdo: al 70%
-          del ancho ya es casi transparente. En un teléfono la card mide 342px y
-          no hay lugar para un lado a lado, así que el texto ocupa el ANCHO
-          COMPLETO y los bullets caen sobre la parte brillante del render.
-          Con esto el render se vuelve textura y el texto se lee limpio.
-          (Lo encontró la revisión con visión a 390px, no la medición: una
-          superposición no desborda, no recorta y no cambia ningún número.) */}
+      {/* Refuerzo SOLO en mobile. El scrim base está calibrado para escritorio
+          (texto en el 64% izquierdo); en un teléfono el texto ocupa el ancho
+          completo y necesita apoyo. Recalibrado 2026-07-23: la versión anterior
+          (0.90→0.66 en TODO el ancho) enterraba el render por completo — el
+          owner no distinguía qué era. Ahora la mitad izquierda sigue densa
+          (AA del texto) y el tercio derecho se abre para que el render se LEA
+          como imagen, no como mancha. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 rounded-2xl sm:hidden"
         style={{
           background:
-            "linear-gradient(to right, #0a0e14 0%, rgba(10,14,20,0.90) 42%, rgba(10,14,20,0.66) 100%)",
+            "linear-gradient(to right, #0a0e14 0%, rgba(10,14,20,0.82) 38%, rgba(10,14,20,0.30) 72%, rgba(10,14,20,0.10) 100%)",
         }}
       />
 
