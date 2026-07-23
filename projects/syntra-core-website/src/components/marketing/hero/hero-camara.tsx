@@ -48,8 +48,10 @@ function HeroCamara() {
         className="absolute inset-0 lg:hidden"
         style={{
           background: [
-            "radial-gradient(72% 46% at 88% 26%, rgba(23,69,158,0.34) 0%, rgba(15,42,92,0.16) 46%, transparent 74%)",
-            "radial-gradient(58% 34% at 18% 88%, rgba(15,42,92,0.26) 0%, transparent 70%)",
+            // 2026-07-23: eco del nuevo cuerpo #143A7D (20,58,125) + opacidad
+            // apenas menor → el glob azul superior deja de "gritar" en mobile.
+            "radial-gradient(72% 46% at 88% 26%, rgba(20,58,125,0.31) 0%, rgba(15,42,92,0.15) 46%, transparent 74%)",
+            "radial-gradient(58% 34% at 18% 88%, rgba(15,42,92,0.24) 0%, transparent 70%)",
           ].join(","),
         }}
       />
