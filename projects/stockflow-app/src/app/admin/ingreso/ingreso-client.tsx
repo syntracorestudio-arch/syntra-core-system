@@ -13,6 +13,7 @@ import {
   CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { PageHeader } from "@/components/ui/page-header";
 import { money } from "@/lib/format";
 import { registerPurchase } from "@/app/admin/productos/actions";
 import { useWedgeScanner } from "@/components/pos/use-wedge-scanner";
@@ -131,12 +132,13 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
       {camara && <CameraScanner onScan={onScan} onClose={() => setCamara(false)} />}
 
-      <header className="mb-5">
-        <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Recibí mercadería</h1>
-        <p className="text-sm text-muted-foreground">
-          Escaneá o buscá, poné cuánto entró y confirmá.
-        </p>
-      </header>
+      <div className="mb-5">
+        <PageHeader
+          title="Recibí mercadería"
+          subtitle="Escaneá o buscá, poné cuánto entró y confirmá."
+          icon={PackagePlus}
+        />
+      </div>
 
       {aviso && (
         <div

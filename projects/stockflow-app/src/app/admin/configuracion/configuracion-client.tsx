@@ -11,9 +11,11 @@ import {
   Percent,
   ShoppingCart,
   TrendingUp,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { money } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
 import { updateSettings } from "./actions";
 
 export type Settings = {
@@ -60,10 +62,13 @@ export function ConfiguracionClient({
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5">
-        <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Ajustes</h1>
-        <p className="text-sm text-muted-foreground">Cómo trabaja StockFlow en {storeName}.</p>
-      </header>
+      <div className="mb-5">
+        <PageHeader
+          title="Ajustes"
+          subtitle={`Cómo trabaja StockFlow en ${storeName}.`}
+          icon={SettingsIcon}
+        />
+      </div>
 
       {aviso && (
         <div

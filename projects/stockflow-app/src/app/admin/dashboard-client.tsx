@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { money, signedPct } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
 
 export type DashboardData = {
   today: {
@@ -82,12 +83,17 @@ export function DashboardClient({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Hoy</h1>
-        {/* `first-letter` y no `capitalize`: este último pone mayúscula en CADA
-            palabra y deja "22 De Julio". Solo la primera letra de la frase. */}
-        <p className="text-sm text-muted-foreground first-letter:uppercase">{fecha}</p>
-      </header>
+      <div className="mb-6">
+        {/* `first-letter` en el subtítulo lo maneja PageHeader vía el string ya
+            formateado: acá capitalizamos a mano la primera letra de la fecha
+            ("miércoles" → "Miércoles") en vez de `capitalize`, que pondría
+            mayúscula en CADA palabra y dejaría "22 De Julio". */}
+        <PageHeader
+          title="Hoy"
+          subtitle={fecha.charAt(0).toUpperCase() + fecha.slice(1)}
+          icon={ShoppingBasket}
+        />
+      </div>
 
       {/* Fila 1 — los dos números que importan */}
       <div className="grid gap-4 sm:grid-cols-2">

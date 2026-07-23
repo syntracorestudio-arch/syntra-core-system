@@ -12,8 +12,10 @@ import {
   TriangleAlert,
   Wallet,
   PartyPopper,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { PageHeader } from "@/components/ui/page-header";
 import { money } from "@/lib/format";
 import { createClient } from "./actions";
 
@@ -63,26 +65,27 @@ export function FiadoClient({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Fiado</h1>
-          <p className="text-sm text-muted-foreground">
-            {deudores.length === 0
+      <div className="mb-5">
+        <PageHeader
+          title="Fiado"
+          subtitle={`${
+            deudores.length === 0
               ? "Nadie te debe nada."
-              : `${deudores.length} ${deudores.length === 1 ? "persona te debe" : "personas te deben"}`}
-            {sobreLimite > 0 && ` · ${sobreLimite} pasó su límite`}
-          </p>
-        </div>
-        {canCreate && (
-          <button
-            type="button"
-            onClick={() => setCreando(true)}
-            className="flex h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            <UserPlus className="size-4" /> Nueva cuenta
-          </button>
-        )}
-      </header>
+              : `${deudores.length} ${deudores.length === 1 ? "persona te debe" : "personas te deben"}`
+          }${sobreLimite > 0 ? ` · ${sobreLimite} pasó su límite` : ""}`}
+          icon={UsersRound}
+        >
+          {canCreate && (
+            <button
+              type="button"
+              onClick={() => setCreando(true)}
+              className="flex h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              <UserPlus className="size-4" /> Nueva cuenta
+            </button>
+          )}
+        </PageHeader>
+      </div>
 
       {aviso && (
         <div

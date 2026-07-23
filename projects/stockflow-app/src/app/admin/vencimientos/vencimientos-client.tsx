@@ -12,8 +12,10 @@ import {
   TriangleAlert,
   PartyPopper,
   CalendarPlus,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   resolveExpiry,
   subscribeToPush,
@@ -78,28 +80,29 @@ export function VencimientosClient({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Vencimientos</h1>
-          <p className="text-sm text-muted-foreground">
-            {expiries.length === 0
+      <div className="mb-5">
+        <PageHeader
+          title="Vencimientos"
+          subtitle={`${
+            expiries.length === 0
               ? "No tenés nada por vencer."
               : `${expiries.length} pendiente${expiries.length === 1 ? "" : "s"}${
                   urgentes > 0 ? ` · ${urgentes} requiere${urgentes === 1 ? "" : "n"} atención` : ""
-                }`}
-            {" · "}te avisamos {warningDays} {warningDays === 1 ? "día" : "días"} antes
-          </p>
-        </div>
-        {canEdit && (
-          <button
-            type="button"
-            onClick={() => setAgregando(true)}
-            className="flex h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium transition-colors hover:border-primary"
-          >
-            <CalendarPlus className="size-4" /> Cargar vencimiento
-          </button>
-        )}
-      </header>
+                }`
+          } · te avisamos ${warningDays} ${warningDays === 1 ? "día" : "días"} antes`}
+          icon={CalendarClock}
+        >
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setAgregando(true)}
+              className="flex h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background/60 px-3 text-sm font-medium transition-colors hover:border-primary"
+            >
+              <CalendarPlus className="size-4" /> Cargar vencimiento
+            </button>
+          )}
+        </PageHeader>
+      </div>
 
       <PushCard vapidPublicKey={vapidPublicKey} onAviso={setAviso} />
 

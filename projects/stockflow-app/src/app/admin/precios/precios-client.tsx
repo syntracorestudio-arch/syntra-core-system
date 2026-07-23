@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, LoaderCircle, TriangleAlert, TrendingDown, X, Pencil } from "lucide-react";
+import { Check, LoaderCircle, TriangleAlert, TrendingDown, TrendingUp, X, Pencil } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/cn";
 import { money } from "@/lib/format";
 import { aplicarPrecio } from "./actions";
@@ -68,12 +69,13 @@ export function PreciosClient({ datos }: { datos: Erosionados | null }) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5">
-        <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Precios</h1>
-        <p className="text-sm text-muted-foreground">
-          Productos cuyo margen se achicó porque subió lo que te sale reponerlos.
-        </p>
-      </header>
+      <div className="mb-5">
+        <PageHeader
+          title="Precios"
+          subtitle="Productos cuyo margen se achicó porque subió lo que te sale reponerlos."
+          icon={TrendingUp}
+        />
+      </div>
 
       {aviso && (
         <div

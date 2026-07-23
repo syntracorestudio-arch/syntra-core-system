@@ -13,6 +13,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { PageHeader } from "@/components/ui/page-header";
 import { crearEmpleado, actualizarPermisos, cambiarEstado, type AltaEmpleado } from "./actions";
 
 export type Miembro = {
@@ -51,15 +52,16 @@ export function EquipoClient({ miembros, yoId }: { miembros: Miembro[]; yoId: st
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Equipo</h1>
-          <p className="text-sm text-muted-foreground">
-            {empleados.length === 0
-              ? "Trabajás solo."
-              : `${empleados.length} ${empleados.length === 1 ? "empleado" : "empleados"}`}
-          </p>
-        </div>
+      <div className="mb-5">
+      <PageHeader
+        title="Equipo"
+        subtitle={
+          empleados.length === 0
+            ? "Trabajás solo."
+            : `${empleados.length} ${empleados.length === 1 ? "empleado" : "empleados"}`
+        }
+        icon={Users}
+      >
         <button
           type="button"
           onClick={() => setCreando(true)}
@@ -67,7 +69,8 @@ export function EquipoClient({ miembros, yoId }: { miembros: Miembro[]; yoId: st
         >
           <UserPlus className="size-4" /> Sumar a alguien
         </button>
-      </header>
+      </PageHeader>
+      </div>
 
       {aviso && (
         <div

@@ -13,10 +13,12 @@ import {
   Check,
   Archive,
   CalendarClock,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { money } from "@/lib/format";
 import { EmojiPicker } from "@/components/ui/emoji-picker";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   createProduct,
   updateProduct,
@@ -123,19 +125,16 @@ export function ProductsClient({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Productos</h1>
-          <p className="text-sm text-muted-foreground">
-            {products.length} activos
-            {sinCosto > 0 && ` · ${sinCosto} sin costo cargado`}
-          </p>
-        </div>
-        <div className="flex gap-2">
+      <div className="mb-5">
+        <PageHeader
+          title="Productos"
+          subtitle={`${products.length} activos${sinCosto > 0 ? ` · ${sinCosto} sin costo cargado` : ""}`}
+          icon={Package}
+        >
           <button
             type="button"
             onClick={() => setRemarcando(true)}
-            className="flex h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium transition-colors hover:border-primary"
+            className="flex h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background/60 px-3 text-sm font-medium transition-colors hover:border-primary"
           >
             <Percent className="size-4" /> Remarcar
           </button>
@@ -146,8 +145,8 @@ export function ProductsClient({
           >
             <Plus className="size-4" /> Nuevo
           </button>
-        </div>
-      </header>
+        </PageHeader>
+      </div>
 
       {aviso && (
         <div

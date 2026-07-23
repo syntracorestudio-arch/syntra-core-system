@@ -17,6 +17,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { PageHeader } from "@/components/ui/page-header";
 import { money } from "@/lib/format";
 import { anularVenta } from "./actions";
 
@@ -103,17 +104,17 @@ export function CajaClient({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Caja</h1>
-          <p className="text-sm text-muted-foreground first-letter:uppercase">{fechaLarga}</p>
-        </div>
-        <div className="flex items-center gap-1">
+      <div className="mb-5">
+        <PageHeader
+          title="Caja"
+          subtitle={fechaLarga.charAt(0).toUpperCase() + fechaLarga.slice(1)}
+          icon={Wallet}
+        >
           <button
             type="button"
             onClick={() => irA(-1)}
             aria-label="Día anterior"
-            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
+            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border bg-background/60 text-muted-foreground transition-colors hover:text-foreground"
           >
             <ChevronLeft className="size-4" />
           </button>
@@ -122,12 +123,12 @@ export function CajaClient({
             disabled={esHoy}
             onClick={() => irA(1)}
             aria-label="Día siguiente"
-            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border bg-background/60 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
           >
             <ChevronRight className="size-4" />
           </button>
-        </div>
-      </header>
+        </PageHeader>
+      </div>
 
       {aviso && (
         <div

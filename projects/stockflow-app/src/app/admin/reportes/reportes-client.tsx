@@ -23,8 +23,10 @@ import {
   Wallet,
   Info,
   Lock,
+  ChartColumn,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { PageHeader } from "@/components/ui/page-header";
 import { money, signedPct } from "@/lib/format";
 
 export type Periodo = "semana" | "mes" | "anio";
@@ -102,10 +104,9 @@ export function ReportesClient({
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-4">
-        <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Cómo viene el negocio</h1>
-        <p className="text-sm text-muted-foreground">{rangoTexto}</p>
-      </header>
+      <div className="mb-4">
+        <PageHeader title="Cómo viene el negocio" subtitle={rangoTexto} icon={ChartColumn} />
+      </div>
 
       {/* Selector: chips de nivel + flechas dentro del nivel. Sin dropdown de 12
           meses ni fechas tipeadas en el teléfono. */}
