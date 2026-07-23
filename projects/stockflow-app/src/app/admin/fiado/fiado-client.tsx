@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyArt } from "@/components/ui/empty-art";
 import { Button } from "@/components/ui/button";
 import { money } from "@/lib/format";
 import { createClient } from "./actions";
@@ -113,7 +114,7 @@ export function FiadoClient({
 
       {clients.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
-          <Wallet className="mx-auto mb-3 size-8 text-muted-foreground" />
+          <EmptyArt name="fiado" alt="Una libreta cerrada" />
           <p className="text-sm font-medium">Todavía no llevás fiado</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Cuando le fíes a alguien desde la caja, su cuenta aparece acá. Se acabó el

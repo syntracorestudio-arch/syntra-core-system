@@ -9,13 +9,13 @@ import {
   BellRing,
   X,
   LoaderCircle,
-  PartyPopper,
   CalendarPlus,
   CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyArt } from "@/components/ui/empty-art";
 import { Button } from "@/components/ui/button";
 import {
   resolveExpiry,
@@ -107,7 +107,7 @@ export function VencimientosClient({
 
       {expiries.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
-          <PartyPopper className="mx-auto mb-3 size-8 text-success-ink" />
+          <EmptyArt name="vencimientos" alt="Un calendario con un tilde" />
           <p className="text-sm font-medium">Todo al día</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Cargá la fecha de vencimiento cuando recibís mercadería y te avisamos antes.

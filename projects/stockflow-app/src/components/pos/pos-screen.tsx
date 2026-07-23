@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { CategoryChips } from "@/components/ui/category-chips";
+import { EmptyArt } from "@/components/ui/empty-art";
 import { money } from "@/lib/format";
 import {
   registerSale,
@@ -351,6 +352,9 @@ export function PosScreen({
         {visibles.length === 0 ? (
           <div className="grid flex-1 place-items-center px-8 py-16 text-center">
             <div>
+              {products.length === 0 && (
+                <EmptyArt name="productos" alt="Una repisa vacía con un escáner" />
+              )}
               <p className="text-sm text-muted-foreground">
                 {products.length === 0
                   ? "Todavía no cargaste productos. Escaneá uno y lo damos de alta en 10 segundos."

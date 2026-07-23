@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyArt } from "@/components/ui/empty-art";
 import { money } from "@/lib/format";
 import { registerPurchase } from "@/app/admin/productos/actions";
 import { useWedgeScanner } from "@/components/pos/use-wedge-scanner";
@@ -183,7 +184,7 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
 
       {lineas.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-12 text-center">
-          <PackagePlus className="mx-auto mb-3 size-8 text-muted-foreground" />
+          <EmptyArt name="recibir" alt="Una caja abierta con una flecha subiendo" />
           <p className="text-sm text-muted-foreground">
             Todavía no cargaste nada. Escaneá el primer producto que entró.
           </p>

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, LoaderCircle, TrendingDown, TrendingUp, X, Pencil } from "lucide-react";
+import { LoaderCircle, TrendingDown, TrendingUp, X, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyArt } from "@/components/ui/empty-art";
 import { CountUp } from "@/components/ui/count-up";
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
@@ -83,7 +84,7 @@ export function PreciosClient({ datos }: { datos: Erosionados | null }) {
 
       {productos.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
-          <Check className="mx-auto mb-3 size-8 text-success-ink" />
+          <EmptyArt name="precios" alt="Una etiqueta de precio colgando" />
           <p className="text-sm font-medium">Tus precios están al día</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Ningún producto activo quedó por debajo del {minMargen}% de margen.

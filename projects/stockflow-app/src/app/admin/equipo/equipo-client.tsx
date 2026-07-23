@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyArt } from "@/components/ui/empty-art";
 import { Button } from "@/components/ui/button";
 import { crearEmpleado, actualizarPermisos, cambiarEstado, type AltaEmpleado } from "./actions";
 
@@ -73,7 +74,7 @@ export function EquipoClient({ miembros, yoId }: { miembros: Miembro[]; yoId: st
 
       {empleados.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
-          <Users className="mx-auto mb-3 size-8 text-muted-foreground" />
+          <EmptyArt name="equipo" alt="Tarjetas de acceso apiladas" />
           <p className="text-sm font-medium">Todavía no sumaste a nadie</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Cuando sumás a alguien, entra con su propio usuario y vos elegís qué puede hacer.

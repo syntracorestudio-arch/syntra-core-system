@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyArt } from "@/components/ui/empty-art";
 import { money, signedPct } from "@/lib/format";
 
 export type Periodo = "semana" | "mes" | "anio";
@@ -180,6 +181,7 @@ export function ReportesClient({
 
       {sinDatos ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
+          <EmptyArt name="reportes" alt="Un gráfico de barras" />
           <p className="text-sm font-medium">No hay ventas en este período</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Probá con otro período o empezá a vender desde la caja.
