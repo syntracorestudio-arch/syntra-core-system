@@ -229,13 +229,13 @@ function Scene() {
       />
       {/* Violeta SIN castShadow: su sombra PCF cortaba el recorrido del violeta
           en parches (en Spline fluye continuo). Posición EXACTA del dump.
-          2026-07-22: intensidad 6.5 → 3.0. Sobre negro puro el violeta separaba el
-          nudo del vacío; con "LA TINTA" azul detrás el fondo ya hace ese trabajo, y
-          azul + violeta juntos son la firma cromática del render de IA genérico que
-          la marca evita. El hue aprobado no se toca; solo la dosis. */}
+          2026-07-22: intensidad 6.5 → 3.0 (azul + violeta fuerte tiraba al render
+          de IA genérico). 2026-07-23: el owner la sube un paso, 3.0 → 4.0 — más
+          presencia del violeta aprobado sin volver a la dosis vieja. El hue no se
+          toca; solo la dosis. */}
       <pointLight
         color="#7136ff"
-        intensity={3.0}
+        intensity={4.0}
         decay={0}
         distance={2000}
         position={[96.5, 0, 0]}
