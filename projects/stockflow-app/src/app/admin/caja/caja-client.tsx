@@ -15,6 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { Card, CardHero } from "@/components/ui/card-system";
 import { AvisoBanner } from "@/components/ui/aviso";
 import { PageHeader } from "@/components/ui/page-header";
 import { money } from "@/lib/format";
@@ -132,7 +133,7 @@ export function CajaClient({
       <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
       {/* Lo que el kiosquero necesita saber para cerrar */}
-      <section className="rounded-xl border border-border bg-card p-5">
+      <CardHero glow="success">
         <h2 className="text-sm font-medium text-muted-foreground">Entró en caja</h2>
         <p className="tabular text-3xl font-semibold text-success-ink lg:text-4xl">
           {money(Number(data.entro_en_caja))}
@@ -155,10 +156,10 @@ export function CajaClient({
             </div>
           )}
         </dl>
-      </section>
+      </CardHero>
 
       {data.by_method.length > 0 && (
-        <section className="mt-4 rounded-xl border border-border bg-card p-5">
+        <Card className="mt-4">
           <h2 className="mb-3 text-sm font-medium text-muted-foreground">Cómo te pagaron</h2>
           <ul className="space-y-2">
             {data.by_method.map((m) => {
@@ -175,11 +176,11 @@ export function CajaClient({
               );
             })}
           </ul>
-        </section>
+        </Card>
       )}
 
       {/* Conteo del cajón: la razón de ser del cierre */}
-      <section className="mt-4 rounded-xl border border-border bg-card p-5">
+      <Card className="mt-4">
         <h2 className="text-sm font-medium">Contá el efectivo</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
           Deberías tener{" "}
@@ -214,7 +215,7 @@ export function CajaClient({
             </span>
           )}
         </div>
-      </section>
+      </Card>
 
       {/* Detalle para revisar y corregir */}
       <h2 className="mb-2 mt-6 flex items-center justify-between text-sm font-medium text-muted-foreground">
@@ -231,7 +232,7 @@ export function CajaClient({
           No hubo ventas este día.
         </p>
       ) : (
-        <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+        <ul className="divide-y divide-border rounded-xl border border-border bg-[#0e1219]">
           {data.ventas.map((v) => {
             const anulada = v.status === "voided";
             const meta = MEDIOS[v.payment_method] ?? { label: v.payment_method, icon: Banknote };

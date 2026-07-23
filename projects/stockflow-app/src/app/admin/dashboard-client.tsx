@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/cn";
 import { money, signedPct } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHero, CardList, CardAlert } from "@/components/ui/card-system";
 import { CountUp } from "@/components/ui/count-up";
 
 export type DashboardData = {
@@ -98,7 +99,7 @@ export function DashboardClient({
 
       {/* Fila 1 — los dos números que importan */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
+        <CardHero>
           <CardLabel>Vendido hoy</CardLabel>
           {/* Count-up al montar (patrón StudioFlow): el número que más importa
               del día entra con vida. reduced-motion → directo. */}
@@ -145,9 +146,9 @@ export function DashboardClient({
               )}
             </dl>
           )}
-        </Card>
+        </CardHero>
 
-        <Card>
+        <CardHero glow="success">
           <CardLabel>Ganancia estimada</CardLabel>
           {/* Degradar con honestidad: si faltan costos, el número miente y hay que
               decirlo en vez de mostrarlo como si fuera exacto. */}
@@ -177,7 +178,7 @@ export function DashboardClient({
               </p>
             </>
           )}
-        </Card>
+        </CardHero>
       </div>
 
       {/* Fila 2 — cómo te pagaron */}
@@ -207,7 +208,7 @@ export function DashboardClient({
 
       {/* Fila 3 — lo que requiere acción */}
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card>
+        <CardAlert tone="warning">
           <div className="flex items-center justify-between">
             <CardLabel>
               <AlertTriangle className="size-4 text-warning-ink" />
@@ -235,9 +236,9 @@ export function DashboardClient({
           {low_stock.length > 0 && (
             <VerTodo href="/admin/productos">Ver productos</VerTodo>
           )}
-        </Card>
+        </CardAlert>
 
-        <Card>
+        <CardAlert tone="danger">
           <div className="flex items-center justify-between">
             <CardLabel>
               <Clock className="size-4 text-danger-ink" />
@@ -267,12 +268,12 @@ export function DashboardClient({
             </ul>
           )}
           {expiring.length > 0 && <VerTodo href="/admin/vencimientos">Ver vencimientos</VerTodo>}
-        </Card>
+        </CardAlert>
       </div>
 
       {/* Fila 4 — fiado y top */}
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card>
+        <CardList>
           <div className="flex items-center justify-between">
             <CardLabel>
               <Wallet className="size-4" />
@@ -316,12 +317,12 @@ export function DashboardClient({
               </ul>
             </>
           )}
-        </Card>
+        </CardList>
 
         {/* Reemplaza al viejo "top de la semana", que era tendencia y se mudó a
             Reportes. La decisión de la mañana no es "qué está bajo" sino "qué se
             me acaba primero": por eso ordena por ritmo de venta, no alfabético. */}
-        <Card>
+        <CardList>
           <CardLabel>
             <ShoppingBasket className="size-4" />
             Para reponer
@@ -364,7 +365,7 @@ export function DashboardClient({
               ))}
             </ul>
           )}
-        </Card>
+        </CardList>
       </div>
 
       {sinVentas && (
@@ -413,18 +414,6 @@ function VerTodo({ href, children }: { href: string; children: React.ReactNode }
     >
       {children} <ChevronRight className="size-3.5" />
     </Link>
-  );
-}
-
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  /* Entrada suave al montar, pareja con la banda del header (V5). El guard
-     global de reduced-motion la apaga. */
-  return (
-    <section
-      className={`rounded-xl border border-border bg-card p-4 duration-500 animate-in fade-in slide-in-from-bottom-2 lg:p-5 ${className}`}
-    >
-      {children}
-    </section>
   );
 }
 

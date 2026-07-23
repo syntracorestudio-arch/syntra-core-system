@@ -16,6 +16,7 @@ import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyArt } from "@/components/ui/empty-art";
+import { CardHero } from "@/components/ui/card-system";
 import { Button } from "@/components/ui/button";
 import { money } from "@/lib/format";
 import { createClient } from "./actions";
@@ -87,7 +88,7 @@ export function FiadoClient({
       <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
       {deudores.length > 0 && (
-        <section className="mb-4 rounded-xl border border-border bg-card p-4">
+        <CardHero className="mb-4">
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Wallet className="size-4" />
             Fiado en la calle
@@ -96,7 +97,7 @@ export function FiadoClient({
           <p className="mt-1 text-xs text-muted-foreground">
             Es plata tuya que todavía no cobraste.
           </p>
-        </section>
+        </CardHero>
       )}
 
       {clients.length > 3 && (
@@ -122,7 +123,7 @@ export function FiadoClient({
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+        <ul className="divide-y divide-border rounded-xl border border-border bg-[#0e1219]">
           {visibles.map((c) => {
             const debe = c.balance < 0;
             const monto = Math.abs(c.balance);
