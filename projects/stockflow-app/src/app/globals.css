@@ -193,3 +193,89 @@
   transform-box: fill-box;
   animation: sf-logo3d-shadow 8s ease-in-out infinite;
 }
+
+/* ── Login hero: la foto entra con blur-up; después queda QUIETA ──────
+   Sin Ken Burns a propósito: un scale animado sobre el ancestro obligaba a
+   la GPU a re-escalar el texto de la pantalla viva en continuo y lo dejaba
+   borroso. La "vida" del panel la pone la pantalla en uso (ScreenOverlay),
+   no el paneo. El blur-up es transitorio (1.1s) → al terminar, raster nítido. */
+@keyframes sf-hero-blurup {
+  0% {
+    opacity: 0;
+    filter: blur(18px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+.sf-hero-img {
+  animation: sf-hero-blurup 1.1s ease-out both;
+}
+
+/* Lienzo de la foto del login: emula object-cover/object-bottom pero como
+   CONTENEDOR (aspect-ratio de la foto + min 100% en ambos ejes), para que la
+   pantalla viva (ScreenOverlay) escale y se recorte JUNTO a la imagen y quede
+   siempre pegada al vidrio de la notebook. */
+.sf-hero-canvas {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  aspect-ratio: 1122 / 1402; /* proporción de login-hero (frontal) */
+  min-width: 100%;
+  min-height: 100%;
+}
+
+/* La pantalla "en uso": toast de venta que entra y se va, y pop del total.
+   El guard global de reduced-motion los congela. */
+@keyframes sf-screen-toast {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  7%,
+  78% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@keyframes sf-screen-pop {
+  0% {
+    opacity: 0.25;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+.sf-screen-toast {
+  animation: sf-screen-toast 3.4s ease-in-out both;
+}
+/* Texto que "se tipea" en el login de la pantalla (revela por ancho). */
+@keyframes sf-screen-type {
+  from {
+    max-width: 0;
+  }
+  to {
+    max-width: 100%;
+  }
+}
+.sf-screen-type {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  animation: sf-screen-type 0.7s steps(16) both;
+}
+/* El total "entra" con un deslizamiento corto hacia arriba, una sola
+   dirección — sin scale, que hacía que el número pareciera moverse hacia
+   los costados al cambiar de valor. */
+.sf-screen-pop {
+  display: inline-block;
+  animation: sf-screen-pop 0.45s ease-out both;
+}
