@@ -8,7 +8,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function PanelLoginPage() {
+interface PanelLoginPageProps {
+  searchParams: Promise<{ from?: string }>;
+}
+
+export default async function PanelLoginPage({
+  searchParams,
+}: PanelLoginPageProps) {
+  const { from } = await searchParams;
   return (
     <main id="contenido" tabIndex={-1} className="flex min-h-screen items-center justify-center px-5">
       <Card className="w-full max-w-sm gap-6 p-8">
@@ -18,7 +25,7 @@ export default function PanelLoginPage() {
           </span>
           <p className="text-sm text-muted-foreground">Panel interno de leads</p>
         </div>
-        <LoginForm />
+        <LoginForm from={from} />
       </Card>
     </main>
   );
