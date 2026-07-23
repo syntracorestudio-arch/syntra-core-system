@@ -50,10 +50,13 @@ const RAMP = {
   vacio: "#04070E", // fundido con Servicios — ya en uso, no tocar
   aire: "#060B14", // aire oscuro (mitad izquierda, detrás del texto)
   insinuacion: "#09182F", // primera insinuación: ya es azul, no gris
-  profunda: "#0F2A5C", // masa en sombra
-  cuerpo: "#17459E", // cuerpo iluminado — el PROMEDIO del área azul
-  cresta: "#1D4ED8", // bordes luminosos
-  nucleo: "#2563EB", // acento máximo — ≤5% del encuadre
+  // 2026-07-23: azul un paso más oscuro (owner). Baja ~33% de luminancia +
+  // un toque de croma en cuerpo/cresta; hue 218-219° intacto (sin virar). El
+  // núcleo (brand-electric) se conserva: es la chispa que mantiene viva la escena.
+  profunda: "#0D2452", // masa en sombra
+  cuerpo: "#143A7D", // cuerpo iluminado — el PROMEDIO del área azul
+  cresta: "#1A46B0", // bordes luminosos (bajado en paralelo: si no, grita más)
+  nucleo: "#2563EB", // acento máximo — ≤5% del encuadre (token de marca, sin tocar)
 } as const;
 
 /** hex → vec3 sRGB crudo (sin THREE.Color: NO queremos conversión a lineal). */
