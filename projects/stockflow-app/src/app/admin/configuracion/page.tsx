@@ -2,6 +2,8 @@ import { AppShell } from "@/components/shell/app-shell";
 import { requireOwner } from "@/lib/session";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { ConfiguracionClient, type Settings } from "./configuracion-client";
+import { MercadoPagoCard } from "./mercadopago-card";
+import { estadoMercadoPago } from "./mercadopago-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +13,7 @@ export default async function ConfiguracionPage() {
 
   const { data } = await supabase
     .from("store_settings")
-    .select("expiry_warning_days, low_stock_threshold_default, reprice_rounding, allow_negative_stock")
+    .select("expiry_warning_days, low_stock_threshold_default, reprice_rounding, allow_negative_stock, min_margin_pct")
     .eq("store_id", session.store.id)
     .maybeSingle();
 
@@ -20,6 +22,7 @@ export default async function ConfiguracionPage() {
     lowStockThresholdDefault: data?.low_stock_threshold_default ?? 3,
     repriceRounding: Number(data?.reprice_rounding ?? 50),
     allowNegativeStock: data?.allow_negative_stock ?? true,
+    minMarginPct: Number(data?.min_margin_pct ?? 25),
   };
 
   return (
@@ -28,7 +31,9 @@ export default async function ConfiguracionPage() {
       storeName={session.store.name}
       userLabel={`${session.member.display_name ?? "Vos"} · Dueño`}
     >
-      <ConfiguracionClient settings={settings} storeName={session.store.name} />
+      <ConfiguracionClient settings={settings} storeName={session.store.name}>
+        <MercadoPagoCard estado={await estadoMercadoPago()} />
+      </ConfiguracionClient>
     </AppShell>
   );
 }

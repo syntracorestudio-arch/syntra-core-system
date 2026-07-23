@@ -9,11 +9,14 @@ import {
   BellRing,
   X,
   LoaderCircle,
-  TriangleAlert,
-  PartyPopper,
   CalendarPlus,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { AvisoBanner } from "@/components/ui/aviso";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyArt } from "@/components/ui/empty-art";
+import { Button } from "@/components/ui/button";
 import {
   resolveExpiry,
   subscribeToPush,
@@ -78,56 +81,33 @@ export function VencimientosClient({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Vencimientos</h1>
-          <p className="text-sm text-muted-foreground">
-            {expiries.length === 0
+      <div className="mb-5">
+        <PageHeader
+          title="Vencimientos"
+          subtitle={`${
+            expiries.length === 0
               ? "No tenés nada por vencer."
               : `${expiries.length} pendiente${expiries.length === 1 ? "" : "s"}${
                   urgentes > 0 ? ` · ${urgentes} requiere${urgentes === 1 ? "" : "n"} atención` : ""
-                }`}
-            {" · "}te avisamos {warningDays} {warningDays === 1 ? "día" : "días"} antes
-          </p>
-        </div>
-        {canEdit && (
-          <button
-            type="button"
-            onClick={() => setAgregando(true)}
-            className="flex h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium transition-colors hover:border-primary"
-          >
-            <CalendarPlus className="size-4" /> Cargar vencimiento
-          </button>
-        )}
-      </header>
+                }`
+          } · te avisamos ${warningDays} ${warningDays === 1 ? "día" : "días"} antes`}
+          icon={CalendarClock}
+        >
+          {canEdit && (
+            <Button variant="secondary" className="bg-background/60" onClick={() => setAgregando(true)}>
+              <CalendarPlus className="size-4" /> Cargar vencimiento
+            </Button>
+          )}
+        </PageHeader>
+      </div>
 
       <PushCard vapidPublicKey={vapidPublicKey} onAviso={setAviso} />
 
-      {aviso && (
-        <div
-          role="status"
-          className={cn(
-            "mb-4 flex items-start gap-2 rounded-lg px-3 py-2 text-sm ring-1",
-            aviso.tone === "ok"
-              ? "bg-success/10 text-success-ink ring-success/25"
-              : "bg-danger/10 text-danger-ink ring-danger/25",
-          )}
-        >
-          {aviso.tone === "ok" ? (
-            <Check className="mt-0.5 size-4 shrink-0" />
-          ) : (
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-          )}
-          <span className="flex-1">{aviso.text}</span>
-          <button type="button" onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="cursor-pointer opacity-60 hover:opacity-100">
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+      <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
       {expiries.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
-          <PartyPopper className="mx-auto mb-3 size-8 text-success-ink" />
+          <EmptyArt name="vencimientos" alt="Un calendario con un tilde" />
           <p className="text-sm font-medium">Todo al día</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Cargá la fecha de vencimiento cuando recibís mercadería y te avisamos antes.
@@ -140,7 +120,7 @@ export function VencimientosClient({
             return (
               <li key={e.id} className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-start gap-3">
-                  <span className="text-xl" aria-hidden>
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-lg" aria-hidden>
                     {e.productEmoji ?? "📦"}
                   </span>
                   <div className="min-w-0 flex-1">

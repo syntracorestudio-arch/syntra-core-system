@@ -23,8 +23,11 @@ import {
   Wallet,
   Info,
   Lock,
+  ChartColumn,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyArt } from "@/components/ui/empty-art";
 import { money, signedPct } from "@/lib/format";
 
 export type Periodo = "semana" | "mes" | "anio";
@@ -76,7 +79,7 @@ export function ReportesClient({
 
   if (!data) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-10 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 py-10 lg:px-8">
         <p className="text-sm text-muted-foreground">No pudimos cargar los reportes.</p>
       </div>
     );
@@ -101,11 +104,10 @@ export function ReportesClient({
       : `${etiqueta.format(new Date(from))} – ${etiqueta.format(new Date(to))}`;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-4">
-        <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Cómo viene el negocio</h1>
-        <p className="text-sm text-muted-foreground">{rangoTexto}</p>
-      </header>
+    <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
+      <div className="mb-4">
+        <PageHeader title="Cómo viene el negocio" subtitle={rangoTexto} icon={ChartColumn} />
+      </div>
 
       {/* Selector: chips de nivel + flechas dentro del nivel. Sin dropdown de 12
           meses ni fechas tipeadas en el teléfono. */}
@@ -179,6 +181,7 @@ export function ReportesClient({
 
       {sinDatos ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
+          <EmptyArt name="reportes" alt="Un gráfico de barras" />
           <p className="text-sm font-medium">No hay ventas en este período</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Probá con otro período o empezá a vender desde la caja.

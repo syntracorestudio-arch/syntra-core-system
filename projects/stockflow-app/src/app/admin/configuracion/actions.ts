@@ -13,6 +13,9 @@ const settingsSchema = z.object({
   expiry_warning_days: z.number().int().min(1, "Mínimo 1 día.").max(90, "Máximo 90 días."),
   low_stock_threshold_default: z.number().int().min(0).max(999),
   reprice_rounding: z.number().min(0).max(10000),
+  // Cota alta a propósito: un margen mínimo de 90% no es un umbral, es un error
+  // de tipeo que marcaría medio catálogo como problemático.
+  min_margin_pct: z.number().min(0, "No puede ser negativo.").max(80, "Máximo 80%."),
   allow_negative_stock: z.boolean(),
 });
 
@@ -35,6 +38,7 @@ export async function updateSettings(input: unknown): Promise<Result> {
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/vencimientos");
   revalidatePath("/admin/productos");
+  revalidatePath("/admin/precios");
   revalidatePath("/admin");
   return { ok: true };
 }

@@ -10,13 +10,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Ban,
-  Check,
-  TriangleAlert,
   X,
   LoaderCircle,
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { AvisoBanner } from "@/components/ui/aviso";
+import { PageHeader } from "@/components/ui/page-header";
 import { money } from "@/lib/format";
 import { anularVenta } from "./actions";
 
@@ -103,17 +103,17 @@ export function CajaClient({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Caja</h1>
-          <p className="text-sm text-muted-foreground first-letter:uppercase">{fechaLarga}</p>
-        </div>
-        <div className="flex items-center gap-1">
+      <div className="mb-5">
+        <PageHeader
+          title="Caja"
+          subtitle={fechaLarga.charAt(0).toUpperCase() + fechaLarga.slice(1)}
+          icon={Wallet}
+        >
           <button
             type="button"
             onClick={() => irA(-1)}
             aria-label="Día anterior"
-            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
+            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border bg-background/60 text-muted-foreground transition-colors hover:text-foreground"
           >
             <ChevronLeft className="size-4" />
           </button>
@@ -122,34 +122,14 @@ export function CajaClient({
             disabled={esHoy}
             onClick={() => irA(1)}
             aria-label="Día siguiente"
-            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border bg-background/60 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
           >
             <ChevronRight className="size-4" />
           </button>
-        </div>
-      </header>
+        </PageHeader>
+      </div>
 
-      {aviso && (
-        <div
-          role="status"
-          className={cn(
-            "mb-4 flex items-start gap-2 rounded-lg px-3 py-2 text-sm ring-1",
-            aviso.tone === "ok"
-              ? "bg-success/10 text-success-ink ring-success/25"
-              : "bg-danger/10 text-danger-ink ring-danger/25",
-          )}
-        >
-          {aviso.tone === "ok" ? (
-            <Check className="mt-0.5 size-4 shrink-0" />
-          ) : (
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-          )}
-          <span className="flex-1">{aviso.text}</span>
-          <button type="button" onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="cursor-pointer opacity-60 hover:opacity-100">
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+      <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
       {/* Lo que el kiosquero necesita saber para cerrar */}
       <section className="rounded-xl border border-border bg-card p-5">

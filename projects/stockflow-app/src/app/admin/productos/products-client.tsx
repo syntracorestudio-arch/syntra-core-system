@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   Plus,
@@ -10,13 +11,17 @@ import {
   X,
   LoaderCircle,
   TriangleAlert,
-  Check,
   Archive,
   CalendarClock,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { AvisoBanner } from "@/components/ui/aviso";
 import { money } from "@/lib/format";
 import { EmojiPicker } from "@/components/ui/emoji-picker";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { CategoryChips } from "@/components/ui/category-chips";
 import {
   createProduct,
   updateProduct,
@@ -113,63 +118,49 @@ export function ProductsClient({
   const [remarcando, setRemarcando] = useState(false);
   const [aviso, setAviso] = useState<Aviso>(null);
 
+  /* El filtro de categoría vive en la URL (?cat=): volver atrás o refrescar
+     respeta lo que estabas mirando, y un link a "Productos > Bebidas" se puede
+     compartir. replace y no push: cambiar de chip no debe apilar historial. */
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const cat = searchParams.get("cat");
+  const setCat = (id: string | null) => {
+    const params = new URLSearchParams(searchParams);
+    if (id) params.set("cat", id);
+    else params.delete("cat");
+    router.replace(`/admin/productos${params.size ? `?${params}` : ""}`, { scroll: false });
+  };
+
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((p) => p.name.toLowerCase().includes(q));
-  }, [busqueda, products]);
+    let base = products;
+    if (cat) base = base.filter((p) => p.categoryId === cat);
+    if (!q) return base;
+    return base.filter((p) => p.name.toLowerCase().includes(q));
+  }, [busqueda, cat, products]);
 
   const sinCosto = products.filter((p) => p.cost === null).length;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Productos</h1>
-          <p className="text-sm text-muted-foreground">
-            {products.length} activos
-            {sinCosto > 0 && ` · ${sinCosto} sin costo cargado`}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setRemarcando(true)}
-            className="flex h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium transition-colors hover:border-primary"
-          >
-            <Percent className="size-4" /> Remarcar
-          </button>
-          <button
-            type="button"
-            onClick={() => setCreando(true)}
-            className="flex h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            <Plus className="size-4" /> Nuevo
-          </button>
-        </div>
-      </header>
-
-      {aviso && (
-        <div
-          role="status"
-          className={cn(
-            "mb-4 flex items-start gap-2 rounded-lg px-3 py-2 text-sm ring-1",
-            aviso.tone === "ok"
-              ? "bg-success/10 text-success-ink ring-success/25"
-              : "bg-danger/10 text-danger-ink ring-danger/25",
-          )}
+      <div className="mb-5">
+        <PageHeader
+          title="Productos"
+          subtitle={`${products.length} activos${sinCosto > 0 ? ` · ${sinCosto} sin costo cargado` : ""}`}
+          icon={Package}
         >
-          {aviso.tone === "ok" ? (
-            <Check className="mt-0.5 size-4 shrink-0" />
-          ) : (
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-          )}
-          <span className="flex-1">{aviso.text}</span>
-          <button type="button" onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="cursor-pointer opacity-60 hover:opacity-100">
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+          <Button variant="secondary" className="bg-background/60" onClick={() => setRemarcando(true)}>
+            <Percent className="size-4" /> Remarcar
+          </Button>
+          <Button variant="primary" onClick={() => setCreando(true)}>
+            <Plus className="size-4" /> Nuevo
+          </Button>
+        </PageHeader>
+      </div>
+
+      <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
+
+      <CategoryChips categories={categories} value={cat} onChange={setCat} className="mb-3" />
 
       <div className="relative mb-4">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -189,7 +180,10 @@ export function ProductsClient({
           const bajo = p.stock <= umbral;
           return (
             <li key={p.id} className="flex items-center gap-3 px-4 py-3">
-              <span className="text-xl" aria-hidden>
+              {/* Chip y no emoji suelto: la fila pasa de "texto con dibujito" a
+                  fila compuesta (V5). El emoji sigue siendo la identidad que
+                  elige el kiosquero. */}
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-lg" aria-hidden>
                 {p.emoji ?? "📦"}
               </span>
               <div className="min-w-0 flex-1">

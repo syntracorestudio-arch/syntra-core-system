@@ -8,12 +8,15 @@ import {
   ChevronRight,
   X,
   LoaderCircle,
-  Check,
-  TriangleAlert,
   Wallet,
   PartyPopper,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { AvisoBanner } from "@/components/ui/aviso";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyArt } from "@/components/ui/empty-art";
+import { Button } from "@/components/ui/button";
 import { money } from "@/lib/format";
 import { createClient } from "./actions";
 
@@ -63,48 +66,25 @@ export function FiadoClient({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Fiado</h1>
-          <p className="text-sm text-muted-foreground">
-            {deudores.length === 0
+      <div className="mb-5">
+        <PageHeader
+          title="Fiado"
+          subtitle={`${
+            deudores.length === 0
               ? "Nadie te debe nada."
-              : `${deudores.length} ${deudores.length === 1 ? "persona te debe" : "personas te deben"}`}
-            {sobreLimite > 0 && ` · ${sobreLimite} pasó su límite`}
-          </p>
-        </div>
-        {canCreate && (
-          <button
-            type="button"
-            onClick={() => setCreando(true)}
-            className="flex h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            <UserPlus className="size-4" /> Nueva cuenta
-          </button>
-        )}
-      </header>
-
-      {aviso && (
-        <div
-          role="status"
-          className={cn(
-            "mb-4 flex items-start gap-2 rounded-lg px-3 py-2 text-sm ring-1",
-            aviso.tone === "ok"
-              ? "bg-success/10 text-success-ink ring-success/25"
-              : "bg-danger/10 text-danger-ink ring-danger/25",
-          )}
+              : `${deudores.length} ${deudores.length === 1 ? "persona te debe" : "personas te deben"}`
+          }${sobreLimite > 0 ? ` · ${sobreLimite} pasó su límite` : ""}`}
+          icon={UsersRound}
         >
-          {aviso.tone === "ok" ? (
-            <Check className="mt-0.5 size-4 shrink-0" />
-          ) : (
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+          {canCreate && (
+            <Button variant="primary" onClick={() => setCreando(true)}>
+              <UserPlus className="size-4" /> Nueva cuenta
+            </Button>
           )}
-          <span className="flex-1">{aviso.text}</span>
-          <button type="button" onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="cursor-pointer opacity-60 hover:opacity-100">
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+        </PageHeader>
+      </div>
+
+      <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
       {deudores.length > 0 && (
         <section className="mb-4 rounded-xl border border-border bg-card p-4">
@@ -134,7 +114,7 @@ export function FiadoClient({
 
       {clients.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
-          <Wallet className="mx-auto mb-3 size-8 text-muted-foreground" />
+          <EmptyArt name="fiado" alt="Una libreta cerrada" />
           <p className="text-sm font-medium">Todavía no llevás fiado</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Cuando le fíes a alguien desde la caja, su cuenta aparece acá. Se acabó el

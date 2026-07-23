@@ -23,6 +23,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { CategoryChips } from "@/components/ui/category-chips";
+import { EmptyArt } from "@/components/ui/empty-art";
 import { money } from "@/lib/format";
 import {
   registerSale,
@@ -30,9 +32,11 @@ import {
   buscarEnCatalogo,
   buscarPorNombre,
 } from "@/app/pos/actions";
+import { vincularVenta } from "@/app/pos/cobro-qr-actions";
 import { signOut } from "@/app/login/actions";
 import { useWedgeScanner } from "./use-wedge-scanner";
 import { CameraScanner } from "./camera-scanner";
+import { CobroQrDialog } from "./cobro-qr-dialog";
 
 export type PosProduct = {
   id: string;
@@ -41,6 +45,7 @@ export type PosProduct = {
   color: string | null;
   price: number;
   stock: number;
+  categoryId: string | null;
   categoryName: string | null;
   barcodes: string[];
 };
@@ -64,16 +69,21 @@ export function PosScreen({
   clients,
   canSellOnCredit,
   isOwner,
+  mpConectado,
 }: {
   storeName: string;
   products: PosProduct[];
   clients: Client[];
   canSellOnCredit: boolean;
   isOwner: boolean;
+  /** ¿El negocio conectó su cuenta de MercadoPago? Decide si el QR lo genera la app. */
+  mpConectado: boolean;
 }) {
   const [busqueda, setBusqueda] = useState("");
+  const [cat, setCat] = useState<string | null>(null);
   const [carrito, setCarrito] = useState<Linea[]>([]);
   const [medio, setMedio] = useState<Medio>("cash");
+  const [cobrandoQr, setCobrandoQr] = useState(false);
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [camaraAbierta, setCamaraAbierta] = useState(false);
   const [aviso, setAviso] = useState<{ tone: "ok" | "warn" | "error"; text: string } | null>(null);
@@ -93,13 +103,27 @@ export function PosScreen({
     return map;
   }, [products]);
 
+  /* Categorías derivadas del catálogo (no viajan aparte): las que tienen al
+     menos un producto. El color viene del primer producto que la lleva. */
+  const categorias = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; color: string | null }>();
+    for (const p of products) {
+      if (p.categoryId && p.categoryName && !map.has(p.categoryId)) {
+        map.set(p.categoryId, { id: p.categoryId, name: p.categoryName, color: p.color });
+      }
+    }
+    return [...map.values()];
+  }, [products]);
+
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
+    let base = products;
+    if (cat) base = base.filter((p) => p.categoryId === cat);
+    if (!q) return base;
+    return base.filter(
       (p) => p.name.toLowerCase().includes(q) || p.barcodes.some((b) => b.includes(q)),
     );
-  }, [busqueda, products]);
+  }, [busqueda, cat, products]);
 
   const total = carrito.reduce((a, l) => a + l.producto.price * l.cantidad, 0);
   const unidades = carrito.reduce((a, l) => a + l.cantidad, 0);
@@ -153,6 +177,20 @@ export function PosScreen({
       return;
     }
 
+    /* QR con la cuenta del negocio conectada: primero el cliente paga, DESPUÉS se
+       registra la venta. Al revés quedarían ventas fantasma esperando un pago que
+       tal vez nunca llega. Sin cuenta conectada, "QR" sigue siendo lo que era: un
+       medio de pago que el cajero marca a mano. */
+    if (medio === "qr" && mpConectado) {
+      setCobrandoQr(true);
+      return;
+    }
+
+    registrar(null);
+  }
+
+  /** Registra la venta. `intentId` viene del cobro con QR cuando lo hubo. */
+  function registrar(intentId: string | null) {
     startTransition(async () => {
       const res = await registerSale({
         items: carrito.map((l) => ({
@@ -169,7 +207,12 @@ export function PosScreen({
         return;
       }
 
+      // Cierra el círculo: este cobro con QR terminó en esta venta. Sin esto, el
+      // cobro quedaría como "aprobado sin venta" y aparecería en Caja para recuperar.
+      if (intentId) void vincularVenta(intentId, res.saleId);
+
       // Venta cerrada: carrito nuevo y clave nueva.
+      setCobrandoQr(false);
       setCarrito([]);
       setClienteId(null);
       setMedio("cash");
@@ -198,6 +241,17 @@ export function PosScreen({
         <CameraScanner onScan={onScan} onClose={() => setCamaraAbierta(false)} />
       )}
 
+      {cobrandoQr && (
+        <CobroQrDialog
+          items={carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad }))}
+          amount={total}
+          idempotencyKey={idempotencyKey.current}
+          descripcion={carrito.map((l) => l.producto.name).join(", ")}
+          onPagado={(intentId) => registrar(intentId)}
+          onCerrar={() => setCobrandoQr(false)}
+        />
+      )}
+
       {altaRapida && (
         <AltaRapida
           barcode={altaRapida.barcode}
@@ -206,7 +260,7 @@ export function PosScreen({
           onCancel={() => setAltaRapida(null)}
           onCreated={(p) => {
             setAltaRapida(null);
-            agregar({ ...p, emoji: "📦", color: null, stock: 0, categoryName: null, barcodes: [] });
+            agregar({ ...p, emoji: "📦", color: null, stock: 0, categoryId: null, categoryName: null, barcodes: [] });
             setAviso({ tone: "ok", text: `${p.name} creado y agregado` });
           }}
         />
@@ -256,6 +310,15 @@ export function PosScreen({
               <ScanBarcode className="size-5" />
             </button>
           </div>
+          {/* Chips táctiles (h-10): en el mostrador se filtra con el pulgar,
+              nunca con un dropdown de dos toques. */}
+          <CategoryChips
+            categories={categorias}
+            value={cat}
+            onChange={setCat}
+            size="lg"
+            className="mt-2.5"
+          />
           <p className="mt-1.5 truncate text-xs text-muted-foreground">{storeName}</p>
         </header>
 
@@ -289,6 +352,9 @@ export function PosScreen({
         {visibles.length === 0 ? (
           <div className="grid flex-1 place-items-center px-8 py-16 text-center">
             <div>
+              {products.length === 0 && (
+                <EmptyArt name="productos" alt="Una repisa vacía con un escáner" />
+              )}
               <p className="text-sm text-muted-foreground">
                 {products.length === 0
                   ? "Todavía no cargaste productos. Escaneá uno y lo damos de alta en 10 segundos."

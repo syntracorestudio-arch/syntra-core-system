@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { money, signedPct } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
+import { CountUp } from "@/components/ui/count-up";
 
 export type DashboardData = {
   today: {
@@ -82,18 +84,27 @@ export function DashboardClient({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Hoy</h1>
-        {/* `first-letter` y no `capitalize`: este último pone mayúscula en CADA
-            palabra y deja "22 De Julio". Solo la primera letra de la frase. */}
-        <p className="text-sm text-muted-foreground first-letter:uppercase">{fecha}</p>
-      </header>
+      <div className="mb-6">
+        {/* `first-letter` en el subtítulo lo maneja PageHeader vía el string ya
+            formateado: acá capitalizamos a mano la primera letra de la fecha
+            ("miércoles" → "Miércoles") en vez de `capitalize`, que pondría
+            mayúscula en CADA palabra y dejaría "22 De Julio". */}
+        <PageHeader
+          title="Hoy"
+          subtitle={fecha.charAt(0).toUpperCase() + fecha.slice(1)}
+          icon={ShoppingBasket}
+        />
+      </div>
 
       {/* Fila 1 — los dos números que importan */}
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardLabel>Vendido hoy</CardLabel>
-          <p className="tabular text-3xl font-semibold lg:text-4xl">{money(today.total)}</p>
+          {/* Count-up al montar (patrón StudioFlow): el número que más importa
+              del día entra con vida. reduced-motion → directo. */}
+          <p className="tabular text-3xl font-semibold lg:text-4xl">
+            <CountUp value={today.total} prefix="$ " />
+          </p>
           <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
             {sinVentas ? (
               <span className="text-muted-foreground">Todavía no vendiste nada hoy.</span>
@@ -152,7 +163,7 @@ export function DashboardClient({
           ) : (
             <>
               <p className="tabular text-3xl font-semibold text-success-ink lg:text-4xl">
-                {money(today.profit)}
+                <CountUp value={today.profit} prefix="$ " />
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
                 {today.profit_coverage >= 90 ? (
@@ -406,8 +417,12 @@ function VerTodo({ href, children }: { href: string; children: React.ReactNode }
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  /* Entrada suave al montar, pareja con la banda del header (V5). El guard
+     global de reduced-motion la apaga. */
   return (
-    <section className={`rounded-xl border border-border bg-card p-4 lg:p-5 ${className}`}>
+    <section
+      className={`rounded-xl border border-border bg-card p-4 duration-500 animate-in fade-in slide-in-from-bottom-2 lg:p-5 ${className}`}
+    >
       {children}
     </section>
   );

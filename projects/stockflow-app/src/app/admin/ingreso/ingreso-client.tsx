@@ -6,13 +6,14 @@ import {
   Trash2,
   PackagePlus,
   LoaderCircle,
-  Check,
-  TriangleAlert,
   X,
   ScanBarcode,
   CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { AvisoBanner } from "@/components/ui/aviso";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyArt } from "@/components/ui/empty-art";
 import { money } from "@/lib/format";
 import { registerPurchase } from "@/app/admin/productos/actions";
 import { useWedgeScanner } from "@/components/pos/use-wedge-scanner";
@@ -131,34 +132,15 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
       {camara && <CameraScanner onScan={onScan} onClose={() => setCamara(false)} />}
 
-      <header className="mb-5">
-        <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Recibí mercadería</h1>
-        <p className="text-sm text-muted-foreground">
-          Escaneá o buscá, poné cuánto entró y confirmá.
-        </p>
-      </header>
+      <div className="mb-5">
+        <PageHeader
+          title="Recibí mercadería"
+          subtitle="Escaneá o buscá, poné cuánto entró y confirmá."
+          icon={PackagePlus}
+        />
+      </div>
 
-      {aviso && (
-        <div
-          role="status"
-          className={cn(
-            "mb-4 flex items-start gap-2 rounded-lg px-3 py-2 text-sm ring-1",
-            aviso.tone === "ok"
-              ? "bg-success/10 text-success-ink ring-success/25"
-              : "bg-danger/10 text-danger-ink ring-danger/25",
-          )}
-        >
-          {aviso.tone === "ok" ? (
-            <Check className="mt-0.5 size-4 shrink-0" />
-          ) : (
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-          )}
-          <span className="flex-1">{aviso.text}</span>
-          <button type="button" onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="cursor-pointer opacity-60 hover:opacity-100">
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+      <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
       <div className="mb-4 flex gap-2">
         <div className="relative flex-1">
@@ -202,7 +184,7 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
 
       {lineas.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-12 text-center">
-          <PackagePlus className="mx-auto mb-3 size-8 text-muted-foreground" />
+          <EmptyArt name="recibir" alt="Una caja abierta con una flecha subiendo" />
           <p className="text-sm text-muted-foreground">
             Todavía no cargaste nada. Escaneá el primer producto que entró.
           </p>

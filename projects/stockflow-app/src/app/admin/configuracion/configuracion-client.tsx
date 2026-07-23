@@ -1,28 +1,42 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, LoaderCircle, TriangleAlert, X, Clock, Package, Percent, ShoppingCart } from "lucide-react";
+import {
+  LoaderCircle,
+  Clock,
+  Package,
+  Percent,
+  ShoppingCart,
+  TrendingUp,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
+import { AvisoBanner } from "@/components/ui/aviso";
 import { money } from "@/lib/format";
+import { PageHeader } from "@/components/ui/page-header";
 import { updateSettings } from "./actions";
 
 export type Settings = {
   expiryWarningDays: number;
   lowStockThresholdDefault: number;
   repriceRounding: number;
+  minMarginPct: number;
   allowNegativeStock: boolean;
 };
 
 export function ConfiguracionClient({
   settings,
   storeName,
+  children,
 }: {
   settings: Settings;
   storeName: string;
+  children?: React.ReactNode;
 }) {
   const [dias, setDias] = useState(String(settings.expiryWarningDays));
   const [umbral, setUmbral] = useState(String(settings.lowStockThresholdDefault));
   const [redondeo, setRedondeo] = useState(String(settings.repriceRounding));
+  const [margenMin, setMargenMin] = useState(String(settings.minMarginPct));
   const [negativo, setNegativo] = useState(settings.allowNegativeStock);
   const [aviso, setAviso] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -33,6 +47,7 @@ export function ConfiguracionClient({
         expiry_warning_days: Number(dias),
         low_stock_threshold_default: Number(umbral),
         reprice_rounding: Number(redondeo),
+        min_margin_pct: Number(margenMin),
         allow_negative_stock: negativo,
       });
       setAviso(
@@ -45,32 +60,15 @@ export function ConfiguracionClient({
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5">
-        <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Ajustes</h1>
-        <p className="text-sm text-muted-foreground">Cómo trabaja StockFlow en {storeName}.</p>
-      </header>
+      <div className="mb-5">
+        <PageHeader
+          title="Ajustes"
+          subtitle={`Cómo trabaja StockFlow en ${storeName}.`}
+          icon={SettingsIcon}
+        />
+      </div>
 
-      {aviso && (
-        <div
-          role="status"
-          className={cn(
-            "mb-4 flex items-start gap-2 rounded-lg px-3 py-2 text-sm ring-1",
-            aviso.tone === "ok"
-              ? "bg-success/10 text-success-ink ring-success/25"
-              : "bg-danger/10 text-danger-ink ring-danger/25",
-          )}
-        >
-          {aviso.tone === "ok" ? (
-            <Check className="mt-0.5 size-4 shrink-0" />
-          ) : (
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-          )}
-          <span className="flex-1">{aviso.text}</span>
-          <button type="button" onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="cursor-pointer opacity-60 hover:opacity-100">
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+      <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
       <div className="space-y-3">
         <Setting
@@ -133,6 +131,33 @@ export function ConfiguracionClient({
         </Setting>
 
         <Setting
+          icon={TrendingUp}
+          title="Avisarme si un precio se queda corto"
+          help="Debajo de este margen consideramos que un producto ya no te deja plata. Te avisamos una vez por semana y aparece en Precios."
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">menos de</span>
+            <input
+              value={margenMin}
+              onChange={(e) => setMargenMin(e.target.value.replace(/[^\d]/g, ""))}
+              inputMode="numeric"
+              aria-label="Margen mínimo"
+              className="tabular h-11 w-20 rounded-lg border border-input bg-background px-3 text-center text-sm outline-none focus:border-primary"
+            />
+            <span className="text-sm text-muted-foreground">% de ganancia</span>
+          </div>
+          {Number(margenMin) > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Con {margenMin}%: algo que te sale {money(1000)} tiene que venderse a{" "}
+              <span className="tabular font-semibold text-foreground">
+                {money(Math.ceil(1000 / (1 - Number(margenMin) / 100)))}
+              </span>{" "}
+              o más.
+            </p>
+          )}
+        </Setting>
+
+        <Setting
           icon={ShoppingCart}
           title="Vender sin stock"
           help="Si está activado, la caja nunca se frena: si el sistema dice que no hay stock igual podés vender y te avisamos para que ajustes. Recomendado, porque el stock del sistema arranca incompleto."
@@ -171,6 +196,10 @@ export function ConfiguracionClient({
         {pending && <LoaderCircle className="size-4 animate-spin" />}
         Guardar ajustes
       </button>
+
+      {/* Los cobros van aparte: se conectan una vez y tienen su propio guardado,
+          así que no cuelgan del botón "Guardar ajustes". */}
+      {children && <div className="mt-6">{children}</div>}
     </div>
   );
 }

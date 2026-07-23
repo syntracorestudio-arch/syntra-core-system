@@ -1,14 +1,18 @@
 "use client";
 
-import { useActionState } from "react";
-import { LogIn, LoaderCircle, TriangleAlert } from "lucide-react";
+import { useActionState, useState } from "react";
+import { LogIn, LoaderCircle, TriangleAlert, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { signIn, type LoginState } from "./actions";
 
+/* Form directo sobre el fondo (sin card con borde): en el split panel la caja
+   flotante competía con el panel de imagen. Inputs con ícono leading, patrón
+   StudioFlow, pero manteniendo h-11 (44px táctiles). */
 export function LoginForm() {
   const [state, action, pending] = useActionState<LoginState, FormData>(signIn, {});
+  const [verClave, setVerClave] = useState(false);
 
   return (
-    <form action={action} className="space-y-4 rounded-xl border border-border bg-card p-5">
+    <form action={action} className="space-y-4">
       {state.error && (
         <p
           role="alert"
@@ -23,29 +27,44 @@ export function LoginForm() {
         <label htmlFor="email" className="text-sm font-medium">
           Email
         </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          placeholder="vos@tunegocio.com"
-          className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
-        />
+        <div className="relative">
+          <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="vos@tunegocio.com"
+            className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-transparent focus:ring-2 focus:ring-ring"
+          />
+        </div>
       </div>
 
       <div className="space-y-1.5">
         <label htmlFor="password" className="text-sm font-medium">
           Contraseña
         </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
-        />
+        <div className="relative">
+          <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <input
+            id="password"
+            name="password"
+            type={verClave ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            placeholder="••••••••"
+            className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-11 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-transparent focus:ring-2 focus:ring-ring"
+          />
+          <button
+            type="button"
+            onClick={() => setVerClave((v) => !v)}
+            aria-label={verClave ? "Ocultar contraseña" : "Mostrar contraseña"}
+            className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {verClave ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </button>
+        </div>
       </div>
 
       <button

@@ -5,7 +5,6 @@ import {
   UserPlus,
   X,
   Check,
-  TriangleAlert,
   LoaderCircle,
   Copy,
   Users,
@@ -13,6 +12,10 @@ import {
   UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { AvisoBanner } from "@/components/ui/aviso";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyArt } from "@/components/ui/empty-art";
+import { Button } from "@/components/ui/button";
 import { crearEmpleado, actualizarPermisos, cambiarEstado, type AltaEmpleado } from "./actions";
 
 export type Miembro = {
@@ -51,49 +54,27 @@ export function EquipoClient({ miembros, yoId }: { miembros: Miembro[]; yoId: st
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Equipo</h1>
-          <p className="text-sm text-muted-foreground">
-            {empleados.length === 0
-              ? "Trabajás solo."
-              : `${empleados.length} ${empleados.length === 1 ? "empleado" : "empleados"}`}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setCreando(true)}
-          className="flex h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
+      <div className="mb-5">
+      <PageHeader
+        title="Equipo"
+        subtitle={
+          empleados.length === 0
+            ? "Trabajás solo."
+            : `${empleados.length} ${empleados.length === 1 ? "empleado" : "empleados"}`
+        }
+        icon={Users}
+      >
+        <Button variant="primary" onClick={() => setCreando(true)}>
           <UserPlus className="size-4" /> Sumar a alguien
-        </button>
-      </header>
+        </Button>
+      </PageHeader>
+      </div>
 
-      {aviso && (
-        <div
-          role="status"
-          className={cn(
-            "mb-4 flex items-start gap-2 rounded-lg px-3 py-2 text-sm ring-1",
-            aviso.tone === "ok"
-              ? "bg-success/10 text-success-ink ring-success/25"
-              : "bg-danger/10 text-danger-ink ring-danger/25",
-          )}
-        >
-          {aviso.tone === "ok" ? (
-            <Check className="mt-0.5 size-4 shrink-0" />
-          ) : (
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-          )}
-          <span className="flex-1">{aviso.text}</span>
-          <button type="button" onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="cursor-pointer opacity-60 hover:opacity-100">
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
+      <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
       {empleados.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
-          <Users className="mx-auto mb-3 size-8 text-muted-foreground" />
+          <EmptyArt name="equipo" alt="Tarjetas de acceso apiladas" />
           <p className="text-sm font-medium">Todavía no sumaste a nadie</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Cuando sumás a alguien, entra con su propio usuario y vos elegís qué puede hacer.
