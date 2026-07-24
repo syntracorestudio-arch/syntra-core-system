@@ -95,6 +95,7 @@ export function DashboardClient({
           subtitle={fecha.charAt(0).toUpperCase() + fecha.slice(1)}
           icon={ShoppingBasket}
           art="resumen"
+          artSize="lg"
         />
       </div>
 

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { cn } from "@/lib/cn";
 import { artSrc, type BrandArt } from "@/lib/brand-art";
 
@@ -22,15 +23,18 @@ export function EmptyArt({
   className?: string;
 }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- asset estático local, sin optimización de next/image necesaria
-    <img
+    // next/image y no <img>: la fuente es de 512² y bajarla de golpe a 112px
+    // con el remuestreo del navegador dejaba ver los artefactos del WebP.
+    <Image
       src={artSrc(name)}
       alt={alt}
       width={112}
       height={112}
+      sizes="112px"
+      quality={90}
       loading="lazy"
       draggable={false}
-      className={cn("mx-auto mb-4 size-28 select-none", className)}
+      className={cn("mx-auto mb-4 size-28 select-none object-contain", className)}
     />
   );
 }

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import type { LucideIcon } from "lucide-react";
 import { artSrc, type BrandArt } from "@/lib/brand-art";
 
@@ -13,10 +14,11 @@ import { artSrc, type BrandArt } from "@/lib/brand-art";
  * sobre dark sin overlay que gestionar: foreground sobre accent/card ≈ 14:1.
  *
  *  - icon: la Lucide de la sección (chip, y watermark de reserva).
- *  - art: el objeto 3D de la marca para el watermark (auditoría 2026-07-23).
- *    Va en `mix-blend-screen`, así que el vidrio negro desaparece contra el
- *    fondo y solo quedan las aristas encendidas: mucho más rico que el
- *    line-art plano, sin ensuciar ni tapar el título.
+ *  - art: el objeto 3D de la marca (auditoría 2026-07-23). Las piezas tienen
+ *    transparencia real, así que se apoyan directo sobre el color de la card:
+ *    no llevan `mix-blend-screen`, que era el parche para las que traían el
+ *    fondo horneado y sobre una pieza recortada le apagaba el cuerpo oscuro.
+ *  - artSize: cuánta presencia tiene ese objeto (ver abajo).
  *  - stat: dato contextual YA computado por la página (oculto en mobile).
  *  - children: acciones/filtros de la página (buscador, botones, chips).
  */
@@ -25,6 +27,7 @@ export function PageHeader({
   subtitle,
   icon: Icon,
   art,
+  artSize = "md",
   stat,
   children,
 }: {
@@ -32,9 +35,18 @@ export function PageHeader({
   subtitle?: string;
   icon?: LucideIcon;
   art?: BrandArt;
+  /**
+   * Presencia del objeto en la banda. Las piezas están todas encuadradas al
+   * mismo 82% de su cuadro, así que el tamaño CSS es lo único que decide cuánto
+   * pesa cada una. `lg` es para las bandas más altas —la portada del Resumen y
+   * las secciones cuyo subtítulo pasa a dos líneas— donde la talla chica deja
+   * al objeto perdido en el aire.
+   */
+  artSize?: "md" | "lg";
   stat?: ReactNode;
   children?: ReactNode;
 }) {
+  const grande = artSize === "lg";
   return (
     <header className="relative overflow-hidden rounded-2xl border border-border px-5 py-4 duration-500 animate-in fade-in slide-in-from-bottom-2 sm:px-6 sm:py-5">
       <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-accent/60 via-card to-card" />
@@ -45,7 +57,7 @@ export function PageHeader({
       ) : null}
       <div aria-hidden className="absolute inset-y-3 left-0 w-1 rounded-r-full bg-primary" />
       <div className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           {Icon ? (
             <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary-ink ring-1 ring-primary/25">
               <Icon className="size-4" aria-hidden />
@@ -61,21 +73,45 @@ export function PageHeader({
             entra entero en la banda (antes medía 192px dentro de 99px y se
             cortaba) y ningún botón lo tapa. */}
         {art ? (
-          <div aria-hidden className="pointer-events-none flex flex-1 justify-end">
-            {/* eslint-disable-next-line @next/next/no-img-element -- asset estático local */}
-            <img
-              src={artSrc(art)}
-              alt=""
-              width={512}
-              height={512}
-              loading="lazy"
-              draggable={false}
-              /* `shrink-0` es obligatorio: como flex item, el default
-                 flex-shrink:1 lo aplastaba a una tira (23x80 en Vencimientos,
-                 donde el subtítulo largo se come el hueco) y `object-fill` lo
-                 estiraba. Con object-contain el cuadrado nunca se deforma. */
-              className="size-24 shrink-0 select-none object-contain sm:size-28"
-            />
+          <div aria-hidden className="pointer-events-none ml-auto flex shrink-0 justify-end">
+            {/* Caja de tamaño fijo. `shrink-0` es obligatorio: como flex item,
+                el shrink por defecto aplastaba el objeto a una tira (23x80 en
+                Vencimientos, donde el subtítulo largo se come el hueco).
+                El tamaño se elige por sección con `artSize` para que la
+                proporción contra la banda quede pareja: las bandas cuyo
+                subtítulo pasa a dos líneas son más altas y con la talla chica
+                el objeto quedaba perdido (54% del alto). */}
+            <div
+              className={
+                grande ? "size-32 shrink-0 sm:size-40" : "size-28 shrink-0 sm:size-32"
+              }
+            >
+              {/* next/image y no <img>: la fuente es de 512² y el navegador la
+                  bajaba de golpe a ~100px con un remuestreo pobre, así que los
+                  artefactos del WebP se veían como dientes. Con `sizes` Next
+                  sirve una variante ya escalada (y su 2x para pantallas de
+                  densidad alta), remuestreada del lado del servidor. */}
+              {/* `eager` y no `lazy`: la banda es lo primero de cada pantalla,
+                  así que el objeto SIEMPRE cae sobre el pliegue y Next lo
+                  detecta como elemento LCP. Diferirlo retrasaba justo la
+                  métrica que la app tiene que cuidar. El de los estados vacíos
+                  sí sigue perezoso: ese vive más abajo. */}
+              <Image
+                src={artSrc(art)}
+                alt=""
+                width={grande ? 160 : 128}
+                height={grande ? 160 : 128}
+                sizes={
+                  grande
+                    ? "(min-width: 640px) 160px, 128px"
+                    : "(min-width: 640px) 128px, 112px"
+                }
+                quality={90}
+                loading="eager"
+                draggable={false}
+                className="size-full select-none object-contain"
+              />
+            </div>
           </div>
         ) : null}
         {stat ? <div className="hidden shrink-0 text-right sm:block">{stat}</div> : null}
