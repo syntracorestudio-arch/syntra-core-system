@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { LoaderCircle, TrendingDown, TrendingUp, X, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyArt } from "@/components/ui/empty-art";
+import { CardHero } from "@/components/ui/card-system";
 import { CountUp } from "@/components/ui/count-up";
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
@@ -93,7 +94,7 @@ export function PreciosClient({ datos }: { datos: Erosionados | null }) {
       ) : (
         <>
           {totalPorMes > 0 && (
-            <div className="mb-4 rounded-xl border border-border bg-card p-4">
+            <CardHero glow="danger" className="mb-4">
               <p className="text-sm text-muted-foreground">Estás dejando de ganar</p>
               <p className="text-3xl font-semibold tabular text-danger-ink lg:text-4xl">
                 <CountUp value={totalPorMes} prefix="$ " />
@@ -105,7 +106,7 @@ export function PreciosClient({ datos }: { datos: Erosionados | null }) {
                 Calculado sobre lo que vendiste el último mes, si corregís los precios y seguís
                 vendiendo lo mismo.
               </p>
-            </div>
+            </CardHero>
           )}
 
           <ul className="space-y-2">

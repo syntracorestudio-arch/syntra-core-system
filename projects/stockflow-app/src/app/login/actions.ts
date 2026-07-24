@@ -43,7 +43,16 @@ export async function signIn(_prev: LoginState, formData: FormData): Promise<Log
   });
 
   if (error) {
-    return { error: "Email o contraseña incorrectos." };
+    // Degradar con honestidad: "credenciales malas" solo cuando GoTrue lo dijo
+    // (400). Cualquier otra cosa (Supabase local apagado, red caída, 5xx) es un
+    // problema NUESTRO y decirle "contraseña incorrecta" al dueño lo manda a
+    // pelearse con su clave — pasó el 2026-07-23 con Docker cerrado.
+    if (error.status === 400) {
+      return { error: "Email o contraseña incorrectos." };
+    }
+    return {
+      error: "No pudimos conectar con el sistema. Esperá un momento y probá de nuevo.",
+    };
   }
 
   redirect("/");
