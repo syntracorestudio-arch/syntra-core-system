@@ -5,11 +5,15 @@ import { useRouter } from "next/navigation";
 import {
   BarChart,
   Bar,
+  AreaChart,
+  Area,
+  Cell,
+  PieChart,
+  Pie,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Legend,
   CartesianGrid,
 } from "recharts";
 import {
@@ -28,6 +32,7 @@ import {
 import { cn } from "@/lib/cn";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyArt } from "@/components/ui/empty-art";
+import { Card, CardHero } from "@/components/ui/card-system";
 import { money, signedPct } from "@/lib/format";
 
 export type Periodo = "semana" | "mes" | "anio";
@@ -109,10 +114,19 @@ export function ReportesClient({
         <PageHeader title="Cómo viene el negocio" subtitle={rangoTexto} icon={ChartColumn} />
       </div>
 
-      {/* Selector: chips de nivel + flechas dentro del nivel. Sin dropdown de 12
-          meses ni fechas tipeadas en el teléfono. */}
+      {/* Selector: segmented control con thumb deslizante (auditoría parte C)
+          + flechas de 44px táctiles. Sin dropdown de 12 meses ni fechas
+          tipeadas en el teléfono. */}
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <div className="flex rounded-lg border border-border p-0.5">
+        <div className="relative grid grid-cols-3 rounded-lg border border-border bg-[#0e1420] p-1">
+          {/* thumb: se desliza al segmento activo */}
+          <span
+            aria-hidden
+            className="absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-md bg-[#1c2637] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-transform duration-200 ease-out"
+            style={{
+              transform: `translateX(${(["semana", "mes", "anio"] as const).indexOf(periodo) * 100}%)`,
+            }}
+          />
           {(
             [
               ["semana", "Semana"],
@@ -129,10 +143,8 @@ export function ReportesClient({
                 onClick={() => ir(key, 0)}
                 title={bloqueado ? "Vas a poder verlo cuando tengas 3 meses de uso" : undefined}
                 className={cn(
-                  "cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  periodo === key
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                  "relative z-10 h-10 cursor-pointer rounded-md px-4 text-sm font-medium transition-colors",
+                  periodo === key ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                   bloqueado && "cursor-not-allowed opacity-40",
                 )}
               >
@@ -146,7 +158,7 @@ export function ReportesClient({
             type="button"
             onClick={() => ir(periodo, offset - 1)}
             aria-label="Período anterior"
-            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
+            className="grid h-11 w-11 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
           >
             <ChevronLeft className="size-4" />
           </button>
@@ -155,7 +167,7 @@ export function ReportesClient({
             disabled={offset >= 0}
             onClick={() => ir(periodo, offset + 1)}
             aria-label="Período siguiente"
-            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            className="grid h-11 w-11 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
           >
             <ChevronRight className="size-4" />
           </button>
@@ -191,25 +203,34 @@ export function ReportesClient({
         <>
           {/* ---------------- A. La plata ---------------- */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="Vendiste" valor={money(m.sold)}>
-              {dias >= UMBRALES.comparacion ? (
-                <Comparacion pct={m.vs_prev_pct} unidadesAhora={m.units} unidadesAntes={m.prev_units} />
-              ) : (
-                <Dormida faltan={UMBRALES.comparacion - dias} que="comparar con el período anterior" />
-              )}
-            </Metric>
+            {/* Los dos números que importan van como HEROES; el sparkline le da
+                la tendencia del período sin abrir el gráfico grande. */}
+            <CardHero className="p-4 lg:p-4">
+              <h2 className="text-sm font-medium text-muted-foreground">Vendiste</h2>
+              <p className="tabular mt-1 text-2xl font-semibold">{money(m.sold)}</p>
+              <div className="mt-1.5">
+                {dias >= UMBRALES.comparacion ? (
+                  <Comparacion pct={m.vs_prev_pct} unidadesAhora={m.units} unidadesAntes={m.prev_units} />
+                ) : (
+                  <Dormida faltan={UMBRALES.comparacion - dias} que="comparar con el período anterior" />
+                )}
+              </div>
+              {data.by_date.length >= 5 && <Spark data={data.by_date} />}
+            </CardHero>
 
-            <Metric
-              label="Ganancia sobre la mercadería"
-              valor={m.margin_pct === null ? "—" : money(m.profit)}
-              tono="success"
-            >
-              <span className="text-xs text-muted-foreground">
+            <CardHero glow="success" className="p-4 lg:p-4">
+              <h2 className="text-sm font-medium text-muted-foreground">
+                Ganancia sobre la mercadería
+              </h2>
+              <p className="tabular mt-1 text-2xl font-semibold text-success-ink">
+                {m.margin_pct === null ? "—" : money(m.profit)}
+              </p>
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 {m.margin_pct === null
                   ? "Cargá costos para verla"
                   : `Margen ${m.margin_pct}% · no incluye alquiler ni servicios`}
-              </span>
-            </Metric>
+              </p>
+            </CardHero>
 
             <Metric label="Compraste mercadería" valor={money(m.purchased)}>
               <span className="text-xs text-muted-foreground">
@@ -226,14 +247,14 @@ export function ReportesClient({
             </Metric>
           </div>
 
-          {/* Evolución */}
+          {/* Evolución: tendencia → área con línea, no barras (la forma la
+              elige el trabajo del dato). */}
           <Panel title="Cómo se movió" className="mt-4">
-            <Chart
+            <AreaTrend
               data={data.by_date.map((d) => ({
                 name: periodo === "anio" ? d.fecha.slice(5) : d.fecha.slice(8),
                 Facturación: Number(d.total),
               }))}
-              series={[{ key: "Facturación", color: "var(--chart-1)" }]}
             />
           </Panel>
 
@@ -270,41 +291,28 @@ export function ReportesClient({
           </div>
 
           {data.by_category.length >= 2 && (
-            <Panel title="Por categoría" className="mt-4">
-              <Chart
-                data={data.by_category.map((c) => ({
-                  name: c.name,
-                  Facturación: Number(c.revenue),
-                  Ganancia: Number(c.profit),
-                }))}
-                series={[
-                  { key: "Facturación", color: "var(--chart-1)" },
-                  { key: "Ganancia", color: "var(--chart-2)" },
-                ]}
-              />
+            <Panel
+              title="Por categoría"
+              subtitle="La barra es lo que facturaste; el relleno verde, lo que te quedó"
+              className="mt-4"
+            >
+              <CategoriasAnidadas cats={data.by_category} />
             </Panel>
           )}
 
           {/* ---------------- C. Cuándo vendés ---------------- */}
           {dias >= UMBRALES.ritmos ? (
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              <Panel title="Qué días vendés más">
-                <Chart
+              <Panel title="Qué días vendés más" subtitle="El día fuerte, a todo color">
+                <DiasChart
                   data={data.by_weekday.map((d) => ({
                     name: DIAS[d.dow],
                     Promedio: d.dias > 0 ? Math.round(Number(d.total) / d.dias) : 0,
                   }))}
-                  series={[{ key: "Promedio", color: "var(--chart-1)" }]}
                 />
               </Panel>
-              <Panel title="A qué hora vendés">
-                <Chart
-                  data={data.by_slot.map((f) => ({
-                    name: f.name,
-                    Facturación: Number(f.total),
-                  }))}
-                  series={[{ key: "Facturación", color: "var(--chart-1)" }]}
-                />
+              <Panel title="A qué hora vendés" subtitle="Proporción del total del período">
+                <SlotDonut slots={data.by_slot} />
               </Panel>
             </div>
           ) : (
@@ -365,19 +373,13 @@ export function ReportesClient({
             </Panel>
           </div>
 
-          <Panel title="Fiado del período" icon={Wallet} className="mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Fiaste</p>
-                <p className="tabular text-xl font-semibold">{money(Number(data.credit.given))}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Cobraste</p>
-                <p className="tabular text-xl font-semibold text-success-ink">
-                  {money(Number(data.credit.collected))}
-                </p>
-              </div>
-            </div>
+          <Panel
+            title="Fiado del período"
+            subtitle="El hueco entre las dos barras es lo que falta cobrar"
+            icon={Wallet}
+            className="mt-4"
+          >
+            <FiadoPareado given={Number(data.credit.given)} collected={Number(data.credit.collected)} />
             {dias >= UMBRALES.fiadoViejo && data.credit.overdue.length > 0 && (
               <div className="mt-4 border-t border-border pt-3">
                 <p className="mb-2 text-xs font-medium text-muted-foreground">
@@ -412,54 +414,252 @@ export function ReportesClient({
 
 /* ------------------------------------------------------------------ */
 
-/**
- * Barras. Marcas finas, punta redondeada, grilla recesiva y tooltip siempre
- * (un gráfico en HTML es interactivo por definición). Sin doble eje jamás:
- * facturación y ganancia comparten unidad, así que comparten escala.
- */
-function Chart({
-  data,
-  series,
-}: {
-  data: Record<string, string | number>[];
-  series: { key: string; color: string }[];
-}) {
+/* Estilos compartidos de ejes/tooltip: grilla recesiva, tipografía 11px.
+   Sin doble eje jamás: lo que comparte unidad comparte escala. */
+const EJE = {
+  tick: { fill: "var(--muted-foreground)", fontSize: 11 },
+  tickLine: false,
+} as const;
+const TOOLTIP = {
+  cursor: { fill: "var(--secondary)", opacity: 0.4 },
+  contentStyle: {
+    background: "var(--popover)",
+    border: "1px solid var(--border)",
+    borderRadius: "0.5rem",
+    fontSize: "0.8rem",
+  },
+  labelStyle: { color: "var(--foreground)" },
+  itemStyle: { color: "var(--foreground)" },
+} as const;
+const kFmt = (v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v));
+
+/** Tendencia → área con línea (la forma la elige el trabajo del dato). */
+function AreaTrend({ data }: { data: { name: string; Facturación: number }[] }) {
+  return (
+    <div className="h-56 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -18 }}>
+          <defs>
+            <linearGradient id="gVentas" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.18} />
+              <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+          <XAxis dataKey="name" {...EJE} axisLine={{ stroke: "var(--border)" }} />
+          <YAxis {...EJE} axisLine={false} tickFormatter={kFmt} />
+          <Tooltip {...TOOLTIP} formatter={(v, name) => [money(Number(v ?? 0)), String(name)]} />
+          <Area
+            type="monotone"
+            dataKey="Facturación"
+            stroke="var(--primary)"
+            strokeWidth={2}
+            fill="url(#gVentas)"
+            dot={false}
+            activeDot={{ r: 4, fill: "var(--primary-ink)", stroke: "var(--card)" }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** Comparación de días: barras, pero el día fuerte grita y el resto acompaña. */
+function DiasChart({ data }: { data: { name: string; Promedio: number }[] }) {
+  const max = Math.max(...data.map((d) => d.Promedio), 0);
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -18 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-          <XAxis
-            dataKey="name"
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-            tickLine={false}
-            axisLine={{ stroke: "var(--border)" }}
-          />
-          <YAxis
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
-          />
-          <Tooltip
-            cursor={{ fill: "var(--secondary)", opacity: 0.4 }}
-            contentStyle={{
-              background: "var(--popover)",
-              border: "1px solid var(--border)",
-              borderRadius: "0.5rem",
-              fontSize: "0.8rem",
-            }}
-            labelStyle={{ color: "var(--foreground)" }}
-            formatter={(v, name) => [money(Number(v ?? 0)), String(name)]}
-          />
-          {/* Leyenda solo con 2+ series: con una, el título ya la nombra. */}
-          {series.length > 1 && (
-            <Legend wrapperStyle={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }} />
-          )}
-          {series.map((s) => (
-            <Bar key={s.key} dataKey={s.key} fill={s.color} radius={[4, 4, 0, 0]} maxBarSize={38} />
-          ))}
+          <XAxis dataKey="name" {...EJE} axisLine={{ stroke: "var(--border)" }} />
+          <YAxis {...EJE} axisLine={false} tickFormatter={kFmt} />
+          <Tooltip {...TOOLTIP} formatter={(v) => [money(Number(v ?? 0)), "Promedio"]} />
+          <Bar dataKey="Promedio" radius={[4, 4, 0, 0]} maxBarSize={38}>
+            {data.map((d) => (
+              <Cell
+                key={d.name}
+                fill="var(--primary)"
+                fillOpacity={d.Promedio === max && max > 0 ? 1 : 0.35}
+              />
+            ))}
+          </Bar>
         </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** Franjas horarias como DONUT (pedido del owner: que no sea todo líneas y
+    barras): proporción del total, con la franja fuerte destacada y la
+    leyenda con % y montos al lado. */
+const SLOT_COLORS = ["#6d9bff", "#2e6bff", "#4a5b78", "#93a5c0"];
+function SlotDonut({ slots }: { slots: { orden: number; name: string; total: number }[] }) {
+  const total = slots.reduce((a, s) => a + Number(s.total), 0);
+  if (total === 0) return <Vacio>Sin ventas en este período.</Vacio>;
+  const datos = slots
+    .filter((s) => Number(s.total) > 0)
+    .map((s, i) => ({ name: s.name, value: Number(s.total), fill: SLOT_COLORS[i % SLOT_COLORS.length] }));
+  const fuerte = datos.reduce((a, b) => (b.value > a.value ? b : a), datos[0]);
+  return (
+    <div className="flex h-full min-h-44 items-center gap-5">
+      <div className="relative h-44 w-44 shrink-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Tooltip {...TOOLTIP} formatter={(v, name) => [money(Number(v ?? 0)), String(name)]} />
+            <Pie
+              data={datos}
+              dataKey="value"
+              nameKey="name"
+              innerRadius="62%"
+              outerRadius="92%"
+              paddingAngle={3}
+              cornerRadius={4}
+              stroke="var(--card)"
+              strokeWidth={2}
+            >
+              {datos.map((d) => (
+                <Cell key={d.name} fill={d.fill} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        {/* centro: la franja fuerte, el dato que importa */}
+        <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+          <div>
+            <p className="tabular text-xl font-bold leading-none">
+              {Math.round((fuerte.value / total) * 100)}%
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{fuerte.name}</p>
+          </div>
+        </div>
+      </div>
+      <ul className="min-w-0 flex-1 space-y-3">
+        {datos.map((d) => (
+          <li key={d.name} className="flex items-start gap-2.5 text-sm">
+            <span
+              aria-hidden
+              className="mt-1.5 size-2.5 shrink-0 rounded-sm"
+              style={{ background: d.fill }}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="truncate text-muted-foreground">{d.name}</span>
+                <span className="tabular font-semibold">
+                  {Math.round((d.value / total) * 100)}%
+                </span>
+              </div>
+              <p className="tabular text-xs text-muted-foreground">{money(d.value)}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Barras anidadas: el total es la facturación; el relleno verde, la ganancia
+    que quedó ADENTRO de eso. Cuenta la historia completa en una sola barra. */
+function CategoriasAnidadas({
+  cats,
+}: {
+  cats: { name: string; color: string | null; revenue: number; profit: number }[];
+}) {
+  const orden = [...cats].sort((a, b) => Number(b.revenue) - Number(a.revenue));
+  const max = Math.max(...orden.map((c) => Number(c.revenue)), 1);
+  return (
+    <ul className="space-y-3.5">
+      {orden.map((c) => {
+        const rev = Number(c.revenue);
+        const prof = Math.max(Number(c.profit), 0);
+        const wRev = (rev / max) * 100;
+        const wProf = rev > 0 ? (prof / rev) * 100 : 0;
+        return (
+          <li key={c.name}>
+            <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
+              <span className="min-w-0 truncate font-medium">{c.name}</span>
+              <span className="tabular shrink-0 text-xs text-muted-foreground">
+                {money(rev)}
+                {prof > 0 && (
+                  <>
+                    {" · "}
+                    <span className="font-semibold text-success-ink">{money(prof)}</span>
+                  </>
+                )}
+              </span>
+            </div>
+            <div className="h-3 rounded-full bg-secondary/50">
+              <div
+                className="relative h-full rounded-full bg-primary/35"
+                style={{ width: `${wRev}%` }}
+              >
+                {wProf > 0 && (
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-full bg-success"
+                    style={{ width: `${wProf}%` }}
+                  />
+                )}
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Fiaste vs. cobraste, pareadas: el hueco entre las dos ES el mensaje. */
+function FiadoPareado({ given, collected }: { given: number; collected: number }) {
+  const max = Math.max(given, collected, 1);
+  const filas = [
+    { label: "Fiaste", valor: given, color: "#e3b378", texto: "" },
+    { label: "Cobraste", valor: collected, color: "var(--success)", texto: "text-success-ink" },
+  ];
+  return (
+    <ul className="space-y-3">
+      {filas.map((f) => (
+        <li key={f.label} className="flex items-center gap-3">
+          <span className="w-16 shrink-0 text-sm text-muted-foreground">{f.label}</span>
+          <div className="h-3 flex-1 rounded-full bg-secondary/50">
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${(f.valor / max) * 100}%`, background: f.color }}
+            />
+          </div>
+          <span className={cn("tabular w-24 shrink-0 text-right text-sm font-semibold", f.texto)}>
+            {money(f.valor)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Sparkline del hero: la tendencia del período en 40px, sin ejes. */
+function Spark({ data }: { data: { fecha: string; total: number }[] }) {
+  return (
+    <div className="mt-2.5 h-10 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart
+          data={data.map((d) => ({ v: Number(d.total) }))}
+          margin={{ top: 2, right: 0, bottom: 0, left: 0 }}
+        >
+          <defs>
+            <linearGradient id="gSpark" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="v"
+            stroke="var(--primary)"
+            strokeWidth={1.5}
+            fill="url(#gSpark)"
+            dot={false}
+            isAnimationActive={false}
+          />
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );
@@ -531,7 +731,7 @@ function Metric({
   children?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-card p-4">
+    <Card className="p-4 lg:p-4">
       <h2 className="text-sm font-medium text-muted-foreground">{label}</h2>
       <p
         className={cn(
@@ -542,7 +742,7 @@ function Metric({
         {valor}
       </p>
       <div className="mt-1.5">{children}</div>
-    </section>
+    </Card>
   );
 }
 
@@ -560,7 +760,7 @@ function Panel({
   className?: string;
 }) {
   return (
-    <section className={`rounded-xl border border-border bg-card p-4 lg:p-5 ${className}`}>
+    <Card className={className}>
       <div className="mb-3">
         <h2 className="flex items-center gap-1.5 text-sm font-medium">
           {Icon && <Icon className="size-4 text-muted-foreground" />}
@@ -569,7 +769,7 @@ function Panel({
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </div>
       {children}
-    </section>
+    </Card>
   );
 }
 
