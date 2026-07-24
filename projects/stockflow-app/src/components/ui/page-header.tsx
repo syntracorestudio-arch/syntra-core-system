@@ -38,21 +38,7 @@ export function PageHeader({
   return (
     <header className="relative overflow-hidden rounded-2xl border border-border px-5 py-4 duration-500 animate-in fade-in slide-in-from-bottom-2 sm:px-6 sm:py-5">
       <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-accent/60 via-card to-card" />
-      {art ? (
-        /* eslint-disable-next-line @next/next/no-img-element -- asset estático local */
-        <img
-          src={artSrc(art)}
-          alt=""
-          aria-hidden
-          width={512}
-          height={512}
-          loading="lazy"
-          draggable={false}
-          /* La máscara lo apaga hacia la izquierda: el objeto vive en el borde
-             derecho y nunca compite con el título ni con los botones. */
-          className="pointer-events-none absolute -bottom-10 -right-5 size-32 select-none opacity-40 mix-blend-screen [mask-image:linear-gradient(to_left,#000_45%,transparent)] sm:-bottom-12 sm:-right-6 sm:size-48"
-        />
-      ) : Icon ? (
+      {!art && Icon ? (
         <div aria-hidden className="absolute -bottom-8 -right-4 rotate-[-8deg] text-primary opacity-[0.08]">
           <Icon className="size-32 sm:size-36" strokeWidth={1.25} />
         </div>
@@ -70,6 +56,24 @@ export function PageHeader({
             {subtitle ? <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p> : null}
           </div>
         </div>
+        {/* El objeto de marca va EN EL FLUJO, no absoluto: ocupa el hueco que
+            queda entre el título y las acciones y se alinea contra ellas. Así
+            entra entero en la banda (antes medía 192px dentro de 99px y se
+            cortaba) y ningún botón lo tapa. */}
+        {art ? (
+          <div aria-hidden className="pointer-events-none flex flex-1 justify-end">
+            {/* eslint-disable-next-line @next/next/no-img-element -- asset estático local */}
+            <img
+              src={artSrc(art)}
+              alt=""
+              width={512}
+              height={512}
+              loading="lazy"
+              draggable={false}
+              className="size-16 select-none opacity-70 mix-blend-screen sm:size-20"
+            />
+          </div>
+        ) : null}
         {stat ? <div className="hidden shrink-0 text-right sm:block">{stat}</div> : null}
         {children ? <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{children}</div> : null}
       </div>
