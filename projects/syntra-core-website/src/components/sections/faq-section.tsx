@@ -207,7 +207,7 @@ function FaqSection() {
               initial="hidden"
               whileInView="show"
               viewport={{ once: true, amount: 0.3 }}
-              className="lg:sticky lg:top-28 lg:self-start"
+              className="reveal-blur lg:sticky lg:top-28 lg:self-start"
             >
               {/* Título un escalón más grande (rail con aire de sobra) */}
               <SectionHeading
@@ -275,6 +275,7 @@ function FaqSection() {
                     initial="hidden"
                     whileInView="show"
                     viewport={{ once: true, amount: 0.25 }}
+                    className="reveal-blur"
                   >
                     <div
                       className="group relative overflow-hidden rounded-2xl border bg-surface-1/90 transition-all duration-300"
