@@ -78,6 +78,7 @@ export function PreciosClient({ datos }: { datos: Erosionados | null }) {
           title="Precios"
           subtitle="Productos cuyo margen se achicó porque subió lo que te sale reponerlos."
           icon={TrendingUp}
+          art="precios"
         />
       </div>
 

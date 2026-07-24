@@ -3,6 +3,13 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
+    /**
+     * Next 16 solo acepta los `quality` que estén declarados acá; cualquier otro
+     * cae a 75 con un warning. El 90 es el que usan las ilustraciones de marca
+     * (`PageHeader` y `EmptyArt`): son objetos de vidrio con degradados suaves y
+     * a 75 el WebP les deja bandas visibles en el resplandor.
+     */
+    qualities: [75, 90],
   },
   /**
    * Orígenes de la red local habilitados en DESARROLLO, para poder abrir la app

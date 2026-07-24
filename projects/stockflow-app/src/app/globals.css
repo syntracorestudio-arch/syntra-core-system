@@ -290,3 +290,20 @@
   display: inline-block;
   animation: sf-screen-pop 0.45s ease-out both;
 }
+
+/* Pulso de confirmación al tocar un producto en la caja: el cajero necesita
+   saber que entró SIN dejar de mirar la grilla. El guard global de
+   reduced-motion lo apaga. */
+@keyframes sf-tap {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 2px var(--primary);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.sf-tap {
+  animation: sf-tap 0.35s ease-out;
+}

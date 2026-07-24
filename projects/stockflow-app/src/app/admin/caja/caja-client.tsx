@@ -109,6 +109,7 @@ export function CajaClient({
           title="Caja"
           subtitle={fechaLarga.charAt(0).toUpperCase() + fechaLarga.slice(1)}
           icon={Wallet}
+          art="caja"
         >
           <button
             type="button"

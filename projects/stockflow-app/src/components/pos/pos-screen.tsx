@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, useCallback, useRef } from "react";
+import { useMemo, useState, useTransition, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -48,9 +48,17 @@ export type PosProduct = {
   categoryId: string | null;
   categoryName: string | null;
   barcodes: string[];
+  /** Unidades vendidas en los últimos 14 días — ordena la grilla por ritmo. */
+  sold14d: number;
 };
 
-type Client = { id: string; name: string; phone: string | null };
+type Client = {
+  id: string;
+  name: string;
+  /** Cuánto debe hoy, en positivo. */
+  owed: number;
+  creditLimit: number | null;
+};
 type Linea = { producto: PosProduct; cantidad: number };
 
 const MEDIOS = [
@@ -87,6 +95,9 @@ export function PosScreen({
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [camaraAbierta, setCamaraAbierta] = useState(false);
   const [aviso, setAviso] = useState<{ tone: "ok" | "warn" | "error"; text: string } | null>(null);
+  /** Card que acaba de tocarse: dispara el pulso de confirmación. */
+  const [pulso, setPulso] = useState<string | null>(null);
+  const buscadorRef = useRef<HTMLInputElement>(null);
   const [altaRapida, setAltaRapida] = useState<{
     barcode: string | null;
     sugerencia: { nombre: string; marca: string | null } | null;
@@ -115,20 +126,30 @@ export function PosScreen({
     return [...map.values()];
   }, [products]);
 
+  /* Orden por RITMO de venta, no alfabético: lo que se vende 20 veces por día
+     queda en la primera fila y el cajero no lo busca. Empate → alfabético. */
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     let base = products;
     if (cat) base = base.filter((p) => p.categoryId === cat);
-    if (!q) return base;
-    return base.filter(
-      (p) => p.name.toLowerCase().includes(q) || p.barcodes.some((b) => b.includes(q)),
+    if (q) {
+      base = base.filter(
+        (p) => p.name.toLowerCase().includes(q) || p.barcodes.some((b) => b.includes(q)),
+      );
+    }
+    return [...base].sort(
+      (a, b) => b.sold14d - a.sold14d || a.name.localeCompare(b.name, "es"),
     );
   }, [busqueda, cat, products]);
 
   const total = carrito.reduce((a, l) => a + l.producto.price * l.cantidad, 0);
   const unidades = carrito.reduce((a, l) => a + l.cantidad, 0);
+  const cliente = clienteId ? (clients.find((c) => c.id === clienteId) ?? null) : null;
 
   const agregar = useCallback((producto: PosProduct) => {
+    // Confirmación visual sin mirar el carrito: la card late al tocarla.
+    setPulso(producto.id);
+    setTimeout(() => setPulso((p) => (p === producto.id ? null : p)), 350);
     setCarrito((prev) => {
       const existente = prev.find((l) => l.producto.id === producto.id);
       if (existente) {
@@ -161,6 +182,23 @@ export function PosScreen({
   );
 
   useWedgeScanner(onScan, !camaraAbierta && !altaRapida);
+
+  /* Atajos para el mostrador con lector USB y teclado: F2 salta a la búsqueda,
+     Escape vacía la venta. Enter queda LIBRE a propósito: es el terminador del
+     lector y atarlo a "cobrar" haría cobrar de más ante un Enter suelto. */
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "F2") {
+        e.preventDefault();
+        buscadorRef.current?.focus();
+        buscadorRef.current?.select();
+      } else if (e.key === "Escape") {
+        setCarrito([]);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   function cambiar(id: string, delta: number) {
     setCarrito((prev) =>
@@ -260,7 +298,16 @@ export function PosScreen({
           onCancel={() => setAltaRapida(null)}
           onCreated={(p) => {
             setAltaRapida(null);
-            agregar({ ...p, emoji: "📦", color: null, stock: 0, categoryId: null, categoryName: null, barcodes: [] });
+            agregar({
+              ...p,
+              emoji: "📦",
+              color: null,
+              stock: 0,
+              categoryId: null,
+              categoryName: null,
+              barcodes: [],
+              sold14d: 0,
+            });
             setAviso({ tone: "ok", text: `${p.name} creado y agregado` });
           }}
         />
@@ -294,6 +341,7 @@ export function PosScreen({
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
+                ref={buscadorRef}
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Buscá o escaneá un código"
@@ -363,7 +411,10 @@ export function PosScreen({
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2.5 p-4 sm:grid-cols-3 xl:grid-cols-4">
+          /* Grilla densa: 3 columnas ya en 390px y ~6 en escritorio. Antes eran
+             2 y 4 con cards de 250px — con 200 SKUs el cajero scrolleaba una
+             cuadra para cobrar un alfajor. */
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2.5 p-4 sm:grid-cols-[repeat(auto-fill,minmax(132px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
             {visibles.map((p) => {
               const sinStock = p.stock <= 0;
               const poco = p.stock > 0 && p.stock <= 3;
@@ -373,11 +424,14 @@ export function PosScreen({
                   key={p.id}
                   type="button"
                   onClick={() => agregar(p)}
-                  className="group flex cursor-pointer flex-col rounded-xl border border-border bg-card p-3 text-left transition-colors duration-150 hover:border-primary/60"
+                  className={cn(
+                    "group flex cursor-pointer flex-col rounded-xl border border-border bg-card p-2.5 text-left transition-colors duration-150 hover:border-primary/60",
+                    pulso === p.id && "sf-tap",
+                  )}
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-1">
                     <span
-                      className="grid size-10 place-items-center rounded-lg text-xl"
+                      className="grid size-8 shrink-0 place-items-center rounded-lg text-lg"
                       style={{
                         backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)`,
                         boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${color} 40%, transparent)`,
@@ -392,12 +446,16 @@ export function PosScreen({
                       </span>
                     ) : poco ? (
                       <span className="tabular rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning-ink ring-1 ring-warning/30">
-                        quedan {p.stock}
+                        {p.stock}
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 line-clamp-2 text-sm font-medium leading-tight">{p.name}</p>
-                  <p className="tabular mt-1 text-base font-semibold">{money(p.price)}</p>
+                  <p className="mt-1.5 line-clamp-2 text-[13px] font-medium leading-tight">
+                    {p.name}
+                  </p>
+                  <p className="tabular mt-auto pt-1 text-[15px] font-semibold">
+                    {money(p.price)}
+                  </p>
                 </button>
               );
             })}
@@ -413,7 +471,14 @@ export function PosScreen({
             carrito.length > 0 ? "flex" : "hidden",
           )}
         >
-          <h2 className="text-sm font-semibold">Venta actual</h2>
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            Venta actual
+            {unidades > 0 && (
+              <span className="tabular rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-accent-foreground">
+                {unidades} u.
+              </span>
+            )}
+          </h2>
           {carrito.length > 0 && (
             <button
               type="button"
@@ -477,32 +542,42 @@ export function PosScreen({
 
         <div className="border-t border-border p-4">
           <div className="mb-3 flex items-baseline justify-between">
-            <span className="text-sm text-muted-foreground">
-              Total {unidades > 0 && `· ${unidades} u.`}
+            <span className="text-sm text-muted-foreground">Total</span>
+            {/* El total late con cada producto: confirmación sin mirar la lista. */}
+            <span key={total} className="sf-screen-pop tabular text-3xl font-semibold">
+              {money(total)}
             </span>
-            <span className="tabular text-3xl font-semibold">{money(total)}</span>
           </div>
 
           <div className="mb-3 grid grid-cols-5 gap-1.5">
             {MEDIOS.map((m) => {
               const bloqueado = m.key === "account" && !canSellOnCredit;
+              const elegido = medio === m.key;
               return (
                 <button
                   key={m.key}
                   type="button"
                   disabled={bloqueado}
                   onClick={() => setMedio(m.key)}
-                  aria-pressed={medio === m.key}
+                  aria-pressed={elegido}
                   title={bloqueado ? "No tenés permiso para fiar" : undefined}
                   className={cn(
-                    "flex cursor-pointer flex-col items-center gap-1 rounded-lg border px-1 py-2 text-[10px] transition-colors duration-150",
-                    medio === m.key
-                      ? "border-primary bg-accent text-accent-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground",
+                    "flex h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border px-1 text-[11px] transition-all duration-150",
+                    elegido
+                      ? "border-primary text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                      : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
                     bloqueado && "cursor-not-allowed opacity-35 hover:text-muted-foreground",
                   )}
+                  style={
+                    elegido
+                      ? {
+                          background:
+                            "linear-gradient(180deg, color-mix(in srgb, var(--primary) 22%, transparent), color-mix(in srgb, var(--primary) 8%, transparent))",
+                        }
+                      : undefined
+                  }
                 >
-                  <m.icon className="size-4" />
+                  <m.icon className={cn("size-5", elegido && "text-primary-ink")} />
                   {m.label}
                 </button>
               );
@@ -510,19 +585,24 @@ export function PosScreen({
           </div>
 
           {medio === "account" && (
-            <select
-              value={clienteId ?? ""}
-              onChange={(e) => setClienteId(e.target.value || null)}
-              aria-label="Cliente al que se le fía"
-              className="mb-3 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
-            >
-              <option value="">¿A quién le fiás?</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <div className="mb-3">
+              <select
+                value={clienteId ?? ""}
+                onChange={(e) => setClienteId(e.target.value || null)}
+                aria-label="Cliente al que se le fía"
+                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+              >
+                <option value="">¿A quién le fiás?</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              {/* Fiar a ciegas era la norma: acá el cajero ve la deuda y el
+                  límite ANTES de confirmar, que es cuando se decide. */}
+              {cliente && <SaldoCliente cliente={cliente} aFiar={total} />}
+            </div>
           )}
 
           <button
@@ -532,10 +612,55 @@ export function PosScreen({
             className="flex h-13 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-base font-semibold text-primary-foreground transition-opacity duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {pending && <LoaderCircle className="size-4 animate-spin" />}
-            {pending ? "Cobrando…" : `Cobrar ${total > 0 ? money(total) : ""}`}
+            {pending
+              ? "Cobrando…"
+              : carrito.length === 0
+                ? "Escaneá un producto"
+                : `Cobrar ${money(total)} · ${unidades} u.`}
           </button>
         </div>
       </aside>
+    </div>
+  );
+}
+
+/**
+ * Estado de cuenta del cliente al que se le va a fiar. Avisa, nunca bloquea
+ * (business-rules: el límite es un aviso) — pero el cajero decide informado.
+ */
+function SaldoCliente({ cliente, aFiar }: { cliente: Client; aFiar: number }) {
+  const quedaria = cliente.owed + aFiar;
+  const limite = cliente.creditLimit;
+  const pasa = limite !== null && quedaria > limite;
+
+  return (
+    <div
+      className={cn(
+        "mt-2 rounded-lg px-3 py-2 text-xs ring-1",
+        pasa
+          ? "bg-warning/10 text-warning-ink ring-warning/25"
+          : "bg-secondary/60 text-muted-foreground ring-border",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span>{cliente.owed > 0 ? "Ya debe" : "No debe nada"}</span>
+        <span className="tabular font-semibold text-foreground">{money(cliente.owed)}</span>
+      </div>
+      {aFiar > 0 && (
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <span>Quedaría debiendo</span>
+          <span className={cn("tabular font-semibold", pasa ? "" : "text-foreground")}>
+            {money(quedaria)}
+            {limite !== null && ` de ${money(limite)}`}
+          </span>
+        </div>
+      )}
+      {pasa && (
+        <p className="mt-1.5 flex items-start gap-1.5">
+          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+          Pasa su límite. Podés fiarle igual, pero mejor que lo sepas.
+        </p>
+      )}
     </div>
   );
 }

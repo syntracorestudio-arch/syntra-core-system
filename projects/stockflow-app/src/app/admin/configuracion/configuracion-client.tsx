@@ -65,6 +65,7 @@ export function ConfiguracionClient({
           title="Ajustes"
           subtitle={`Cómo trabaja StockFlow en ${storeName}.`}
           icon={SettingsIcon}
+          art="ajustes"
         />
       </div>
 

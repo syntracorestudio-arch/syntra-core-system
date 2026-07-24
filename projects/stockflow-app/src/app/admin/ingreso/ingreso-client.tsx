@@ -9,6 +9,8 @@ import {
   X,
   ScanBarcode,
   CalendarClock,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
@@ -27,6 +29,8 @@ export type IngresoProduct = {
   cost: number | null;
   stock: number;
   barcodes: string[];
+  /** Lo que pagaste la vez pasada por esta misma cosa. */
+  ultimaCompra: { costo: number; fecha: string } | null;
 };
 
 type Linea = {
@@ -35,6 +39,59 @@ type Linea = {
   costo: string;
   vence: string;
 };
+
+/**
+ * Cuánto pagaste la vez pasada y cuánto te aumentaron.
+ *
+ * Es el radar de inflación del producto: el proveedor sube y el kiosquero se
+ * entera meses después, cuando el margen ya se comió. Acá lo ve en el acto,
+ * en el momento exacto en que tipea el costo nuevo.
+ */
+function hace(iso: string): string {
+  const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (dias <= 0) return "hoy";
+  if (dias === 1) return "ayer";
+  if (dias < 60) return `hace ${dias} días`;
+  return `hace ${Math.floor(dias / 30)} meses`;
+}
+
+function UltimoCosto({
+  anterior,
+  ahora,
+}: {
+  anterior: { costo: number; fecha: string };
+  ahora: number | null;
+}) {
+  const cuando = hace(anterior.fecha);
+  const subio =
+    ahora !== null && anterior.costo > 0
+      ? ((ahora - anterior.costo) / anterior.costo) * 100
+      : null;
+
+  return (
+    <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+      <span>
+        La última vez pagaste{" "}
+        <span className="tabular font-semibold text-foreground">{money(anterior.costo)}</span> ·{" "}
+        {cuando}
+      </span>
+      {subio !== null && Math.abs(subio) >= 1 && (
+        <span
+          className={cn(
+            "tabular inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold",
+            subio > 0
+              ? "bg-warning/15 text-warning-ink ring-1 ring-warning/25"
+              : "bg-success/15 text-success-ink ring-1 ring-success/25",
+          )}
+        >
+          {subio > 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+          {subio > 0 ? "+" : ""}
+          {subio.toFixed(0)}%
+        </span>
+      )}
+    </p>
+  );
+}
 
 /** Atajos para el caso frecuente: nadie quiere abrir un calendario para poner
  *  "vence en una semana". La fecha exacta sigue disponible al lado. */
@@ -137,6 +194,7 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
           title="Recibí mercadería"
           subtitle="Escaneá o buscá, poné cuánto entró y confirmá."
           icon={PackagePlus}
+          art="recibir"
         />
       </div>
 
@@ -241,6 +299,12 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
                     />
                   </Field>
                 </div>
+
+                {/* El aumento del proveedor se ve acá o no se ve en ningún lado:
+                    al lado del campo, contra lo que pagaste la vez pasada. */}
+                {l.producto.ultimaCompra && (
+                  <UltimoCosto anterior={l.producto.ultimaCompra} ahora={nuevoCosto} />
+                )}
 
                 {/* El vencimiento tiene su propia fila. En un kiosco la mayoría de los
                     productos vencen dentro de mucho, así que pedir la fecha exacta en

@@ -27,6 +27,9 @@ export type ClientRow = {
   creditLimit: number | null;
   balance: number; // negativo = debe
   lastMovement: string | null;
+  /** Arranque del tramo en rojo: desde cuándo debe sin haberse puesto al día. */
+  debeDesde: string | null;
+  ultimoPago: string | null;
 };
 
 type Aviso = { tone: "ok" | "error"; text: string } | null;
@@ -76,6 +79,7 @@ export function FiadoClient({
               : `${deudores.length} ${deudores.length === 1 ? "persona te debe" : "personas te deben"}`
           }${sobreLimite > 0 ? ` · ${sobreLimite} pasó su límite` : ""}`}
           icon={UsersRound}
+          art="fiado"
         >
           {canCreate && (
             <Button variant="primary" onClick={() => setCreando(true)}>
@@ -136,9 +140,20 @@ export function FiadoClient({
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{c.name}</p>
+                    {/* Antigüedad, no último movimiento: una deuda que crece
+                        hace tres semanas se lee "ayer" si ayer fió otra cosa.
+                        Con el último pago al lado, el dueño distingue al que
+                        paga siempre del que se está colgando. */}
                     <p className="text-xs text-muted-foreground">
                       {debe
-                        ? (haceCuanto(c.lastMovement) ?? "sin movimientos")
+                        ? (() => {
+                            const antiguedad = haceCuanto(c.debeDesde);
+                            const pago = haceCuanto(c.ultimoPago);
+                            return [
+                              antiguedad ? `debe desde ${antiguedad}` : "sin movimientos",
+                              pago ? `pagó ${pago}` : "nunca pagó",
+                            ].join(" · ");
+                          })()
                         : c.balance > 0
                           ? "tiene saldo a favor"
                           : "al día"}
