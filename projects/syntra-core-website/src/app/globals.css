@@ -494,13 +494,32 @@
     animation: atmo-drift-b 200s ease-in-out infinite;
   }
 
+  /* PERF 2026-07-24 — el jank de entrada a Contacto en mobile.
+     `blurReveal` anima filter: blur(8px) → blur(0). Animar un filtro obliga a
+     RE-RASTERIZAR el elemento en cada frame; en Contacto ese reveal envuelve la card
+     entera (563 kpx medidos) ⇒ media megapixel de blur re-rasterizada por frame justo
+     al entrar la sección. Eso trababa el scroll y "se acomodaba" al terminar el reveal.
+     En mobile anulamos SOLO el blur (el !important gana sobre el estilo inline de
+     framer): quedan opacity + y, que son compositor puro y gratis. Desktop conserva la
+     firma de motion aprobada. Sin JS ⇒ sin riesgo de hidratación. */
+  @media (max-width: 1023px) {
+    .reveal-blur { filter: none !important; }
+  }
+
   /* Aurora: blobs de COLOR (no brillo blanco → no toca la banda de luminancia) muy difusos
-     que respiran (transform-only). El blur es estático (rasteriza una vez). */
+     que respiran (transform-only).
+     PERF 2026-07-24: el blur NO sale gratis. Son 8 blobs enormes (~800 kpx de área) y
+     rasterizar+componer blur(64px) en GPU móvil es caro; medido, Contacto concentra 938 kpx
+     de blur (3.5× FAQ) y era el salto que trababa la transición FAQ→Contacto en celular.
+     El background ya es un radial-gradient que cae a transparent al 70% → sin filtro el
+     blob se ve prácticamente igual. Desktop conserva el blur (look aprobado, GPU que sobra). */
   .atmo-blob {
     position: absolute;
     border-radius: 9999px;
-    filter: blur(64px);
     will-change: transform;
+  }
+  @media (min-width: 1024px) {
+    .atmo-blob { filter: blur(64px); }
   }
   .atmo-blob-a { animation: atmo-blob-a 18s ease-in-out infinite; }
   .atmo-blob-b { animation: atmo-blob-b 22s ease-in-out infinite; }
