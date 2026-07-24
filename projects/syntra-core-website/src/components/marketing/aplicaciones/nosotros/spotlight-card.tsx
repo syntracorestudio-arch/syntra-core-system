@@ -56,7 +56,9 @@ function SpotlightCard({
       {/* Cuerpo: gradiente interno TRASLÚCIDO + blur — la atmósfera de la
           sección se filtra apenas por la card (no panel opaco). */}
       <div
-        className="relative h-full overflow-hidden rounded-[calc(1rem-1px)] backdrop-blur-md"
+        // max-lg:backdrop-blur-none — 4 cards con backdrop-filter sobre ~150 kpx c/u
+        // eran ~600 kpx de backdrop en Nosotros; en GPU móvil es de lo más caro que hay.
+        className="relative h-full overflow-hidden rounded-[calc(1rem-1px)] backdrop-blur-md max-lg:backdrop-blur-none"
         style={{
           background:
             "linear-gradient(180deg, rgba(14,20,36,0.88) 0%, rgba(10,15,28,0.84) 55%, rgba(7,11,20,0.80) 100%)",

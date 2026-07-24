@@ -116,7 +116,7 @@ function ServiceDemoSelector() {
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, y: -12, filter: "blur(4px)" }}
               transition={{ duration: DURATION.standard, ease: EASE_PREMIUM }}
-              className="flex min-h-[26rem] items-center lg:min-h-[27rem]"
+              className="reveal-blur flex min-h-[26rem] items-center lg:min-h-[27rem]"
             >
               <ActiveDemo reduce={reduce} />
             </motion.div>
