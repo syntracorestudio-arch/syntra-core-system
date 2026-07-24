@@ -27,6 +27,8 @@ export default async function SuperPage() {
     ventas: Number(s.ventas),
     ultimaVenta: s.ultima_venta,
     createdAt: s.created_at,
+    vertical: s.vertical ?? "kiosco",
+    aiAssistant: Boolean(s.ai_assistant_enabled),
   }));
 
   return <SuperClient stores={stores} email={email} />;

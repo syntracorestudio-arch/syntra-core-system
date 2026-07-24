@@ -21,6 +21,10 @@ const schema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/, "El color va en formato #2E6BFF.")
     .nullable(),
+  // Rubro + add-on del asistente (019). Van con default seguro: si el alta no los
+  // manda, el negocio queda kiosco y sin asistente.
+  vertical: z.enum(["kiosco", "dietetica", "petshop", "otro"]).default("kiosco"),
+  aiAssistant: z.boolean().default(false),
 });
 
 /** Contraseña temporal legible: se la dicta por teléfono al dueño. */
@@ -64,7 +68,7 @@ export async function crearNegocio(input: unknown): Promise<AltaResult> {
     return { ok: false, error: "No pudimos crear el usuario del dueño." };
   }
 
-  const { error: errStore } = await admin.rpc("create_store", {
+  const { data: nuevoStore, error: errStore } = await admin.rpc("create_store", {
     p_name: parsed.data.name,
     p_slug: parsed.data.slug,
     p_owner_profile: creado.user.id,
@@ -89,6 +93,18 @@ export async function crearNegocio(input: unknown): Promise<AltaResult> {
     return { ok: false, error: "No pudimos crear el negocio." };
   }
 
+  // Rubro + asistente se setean POST-alta, no dentro de `create_store`: esa RPC es
+  // un contrato de 010 ya aplicado y no se re-corre. Un update aparte los aplica sin
+  // tocar el onboarding. Si falla, el negocio queda con los defaults (kiosco / sin
+  // asistente) y superadmin lo ajusta desde la fila — no es motivo de rollback.
+  const storeId = (nuevoStore as { id?: string } | null)?.id;
+  if (storeId && (parsed.data.vertical !== "kiosco" || parsed.data.aiAssistant)) {
+    await admin
+      .from("stores")
+      .update({ vertical: parsed.data.vertical, ai_assistant_enabled: parsed.data.aiAssistant })
+      .eq("id", storeId);
+  }
+
   revalidatePath("/super");
   return {
     ok: true,
@@ -106,6 +122,22 @@ export async function cambiarEstado(
   await requireSuperadmin();
   const admin = createAdminClient();
   await admin.from("stores").update({ status }).eq("id", storeId);
+  revalidatePath("/super");
+  return { ok: true };
+}
+
+/**
+ * Prender/apagar el add-on del Asistente IA para un negocio (019). Es el flag que
+ * gatea el reporte mensual: solo los negocios con esto en true entran al cron.
+ * Lo mueve SOLO superadmin por service_role, igual que `cambiarEstado`.
+ */
+export async function setAsistenteIA(
+  storeId: string,
+  enabled: boolean,
+): Promise<{ ok: boolean }> {
+  await requireSuperadmin();
+  const admin = createAdminClient();
+  await admin.from("stores").update({ ai_assistant_enabled: enabled }).eq("id", storeId);
   revalidatePath("/super");
   return { ok: true };
 }

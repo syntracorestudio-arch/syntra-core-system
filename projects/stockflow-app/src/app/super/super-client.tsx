@@ -12,11 +12,22 @@ import {
   Pause,
   Play,
   LogOut,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { crearNegocio, cambiarEstado, type AltaResult } from "./actions";
+import { crearNegocio, cambiarEstado, setAsistenteIA, type AltaResult } from "./actions";
 import { signOut } from "@/app/login/actions";
 import { haceCuanto } from "@/app/admin/fiado/fiado-client";
+
+export type Vertical = "kiosco" | "dietetica" | "petshop" | "otro";
+
+/** Rubros del negocio. El label es cara-al-cliente; el value viaja a la DB. */
+export const VERTICALES: { value: Vertical; label: string }[] = [
+  { value: "kiosco", label: "Kiosco" },
+  { value: "dietetica", label: "Dietética" },
+  { value: "petshop", label: "Pet shop" },
+  { value: "otro", label: "Otro" },
+];
 
 export type StoreRow = {
   id: string;
@@ -29,6 +40,8 @@ export type StoreRow = {
   ventas: number;
   ultimaVenta: string | null;
   createdAt: string;
+  vertical: string;
+  aiAssistant: boolean;
 };
 
 export function SuperClient({
@@ -148,6 +161,40 @@ export function SuperClient({
                     {s.ultimaVenta ? haceCuanto(s.ultimaVenta) : "nunca vendió"}
                   </span>
                 </div>
+                {/* Add-on del Asistente IA: prender/apagar por negocio. Es el flag
+                    que decide si el negocio entra al reporte mensual (cron PR2). */}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={s.aiAssistant}
+                  disabled={pending}
+                  onClick={() =>
+                    startTransition(async () => {
+                      await setAsistenteIA(s.id, !s.aiAssistant);
+                      setAviso({
+                        tone: "ok",
+                        text: s.aiAssistant
+                          ? `Asistente IA apagado en ${s.name}.`
+                          : `Asistente IA activado en ${s.name}.`,
+                      });
+                    })
+                  }
+                  aria-label={
+                    s.aiAssistant
+                      ? `Apagar Asistente IA en ${s.name}`
+                      : `Activar Asistente IA en ${s.name}`
+                  }
+                  title="Asistente IA"
+                  className={cn(
+                    "flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors disabled:opacity-40",
+                    s.aiAssistant
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                  )}
+                >
+                  <Sparkles className="size-3.5" />
+                  IA
+                </button>
                 <button
                   type="button"
                   disabled={pending}
@@ -202,6 +249,8 @@ function AltaDialog({
   const [ownerEmail, setOwnerEmail] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [accent, setAccent] = useState("#2E6BFF");
+  const [vertical, setVertical] = useState<Vertical>("kiosco");
+  const [aiAssistant, setAiAssistant] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -229,6 +278,8 @@ function AltaDialog({
         ownerEmail,
         ownerName: ownerName || null,
         accent: accent || null,
+        vertical,
+        aiAssistant,
       });
       if (!res.ok) {
         setError(res.error);
@@ -305,6 +356,58 @@ function AltaDialog({
             className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
           />
         </Campo>
+
+        <Campo id="sa-vertical" label="Rubro" hint="Ajusta el vocabulario y los umbrales del asistente.">
+          <select
+            id="sa-vertical"
+            value={vertical}
+            onChange={(e) => setVertical(e.target.value as Vertical)}
+            className="h-11 w-full cursor-pointer rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+          >
+            {VERTICALES.map((v) => (
+              <option key={v.value} value={v.value}>
+                {v.label}
+              </option>
+            ))}
+          </select>
+        </Campo>
+
+        {/* Add-on pago: el asistente que manda el reporte mensual por email. */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={aiAssistant}
+          onClick={() => setAiAssistant((v) => !v)}
+          className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-left transition-colors hover:border-primary/50"
+        >
+          <span
+            className={cn(
+              "grid size-9 shrink-0 place-items-center rounded-md transition-colors",
+              aiAssistant ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground",
+            )}
+          >
+            <Sparkles className="size-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium">Asistente IA</span>
+            <span className="block text-xs text-muted-foreground">
+              Reporte mensual del negocio por email. Add-on pago.
+            </span>
+          </span>
+          <span
+            className={cn(
+              "relative h-5 w-9 shrink-0 rounded-full transition-colors",
+              aiAssistant ? "bg-primary" : "bg-muted",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 size-4 rounded-full bg-white transition-all",
+                aiAssistant ? "left-[18px]" : "left-0.5",
+              )}
+            />
+          </span>
+        </button>
 
         <button
           type="button"
