@@ -57,7 +57,94 @@ export type ReportesData = {
   data_health: { cost_coverage: number | null; products_without_cost: number; stale_prices: number };
 };
 
+export type MediosData = {
+  by_method: { method: string; total: number; count: number }[];
+  /** Lo que se fió en el período: es venta, pero todavía no es plata. */
+  on_credit: number;
+};
+
 const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+/**
+ * Medios de pago del período.
+ *
+ * Barra 100% apilada y no torta: la pregunta es "qué proporción de lo que entró
+ * vino por cada medio", y una sola barra la contesta de un vistazo y sin
+ * pelearle a los porcentajes chicos. Sin verde: acá los medios son categorías
+ * neutras y el verde queda reservado para la ganancia.
+ */
+const COLOR_MEDIO: Record<string, string> = {
+  cash: "#6d9bff",
+  qr: "#2e6bff",
+  card: "#93a5c0",
+  transfer: "#4a5b78",
+};
+const NOMBRE_MEDIO: Record<string, string> = {
+  cash: "Efectivo",
+  qr: "QR",
+  card: "Tarjeta",
+  transfer: "Transferencia",
+};
+
+function MediosDePago({ medios }: { medios: MediosData }) {
+  const filas = medios.by_method.map((m) => ({
+    key: m.method,
+    label: NOMBRE_MEDIO[m.method] ?? m.method,
+    color: COLOR_MEDIO[m.method] ?? "#4a5b78",
+    total: Number(m.total),
+    count: Number(m.count),
+  }));
+  const total = filas.reduce((a, f) => a + f.total, 0);
+  if (total === 0) return <Vacio>Sin cobros en este período.</Vacio>;
+  const fiado = Number(medios.on_credit);
+
+  return (
+    <div>
+      <div className="flex h-9 gap-[2px] overflow-hidden rounded-lg">
+        {filas.map((f) => {
+          const pct = (f.total / total) * 100;
+          if (pct <= 0) return null;
+          return (
+            <div
+              key={f.key}
+              style={{ width: `${pct}%`, background: f.color }}
+              title={`${f.label}: ${money(f.total)}`}
+            />
+          );
+        })}
+      </div>
+      <ul className="mt-4 space-y-2.5">
+        {filas.map((f) => (
+          <li key={f.key} className="flex items-center gap-2.5 text-sm">
+            <span aria-hidden className="size-2.5 shrink-0 rounded-sm" style={{ background: f.color }} />
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">{f.label}</span>
+            {/* El contador se esconde en el teléfono: ahí el ancho lo necesita
+                el nombre del medio, que si no se corta ("Transfere…"). */}
+            <span className="tabular hidden text-xs text-muted-foreground sm:inline">
+              {f.count} {f.count === 1 ? "cobro" : "cobros"}
+            </span>
+            <span className="tabular w-12 text-right font-semibold">
+              {Math.round((f.total / total) * 100)}%
+            </span>
+            <span className="tabular w-24 shrink-0 text-right text-muted-foreground">
+              {money(f.total)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {/* El fiado va fuera de la barra a propósito: es venta sin cobrar, y
+          mezclarlo haría que "cómo te pagan" cuente plata que no entró. */}
+      {fiado > 0 && (
+        <p className="mt-3 flex items-center gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+          <Wallet className="size-3.5 shrink-0 text-warning-ink" />
+          Además fiaste{" "}
+          <span className="tabular font-semibold text-warning-ink">{money(fiado)}</span> — es
+          venta, pero todavía no entró.
+        </p>
+      )}
+    </div>
+  );
+}
 
 /** Cada métrica tiene su propio umbral: mostrarla antes sería inventar. */
 const UMBRALES = {
@@ -69,12 +156,14 @@ const UMBRALES = {
 
 export function ReportesClient({
   data,
+  medios,
   periodo,
   offset,
   from,
   to,
 }: {
   data: ReportesData | null;
+  medios: MediosData | null;
   periodo: Periodo;
   offset: number;
   from: string;
@@ -262,6 +351,19 @@ export function ReportesClient({
               }))}
             />
           </Panel>
+
+          {/* Cómo te pagan: Caja ya lo muestra, pero solo del día. Por período
+              es lo que decide si conviene bancar el posnet o pedir la cuenta de
+              MercadoPago. */}
+          {medios && medios.by_method.length > 0 && (
+            <Panel
+              title="Cómo te pagan"
+              subtitle="Del total que entró en el período"
+              className="mt-4"
+            >
+              <MediosDePago medios={medios} />
+            </Panel>
+          )}
 
           {/* ---------------- B. Qué conviene vender ---------------- */}
           <div className="mt-4 grid gap-4 lg:grid-cols-2">

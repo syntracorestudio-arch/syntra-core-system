@@ -1,7 +1,12 @@
 import { AppShell } from "@/components/shell/app-shell";
 import { requireOwner } from "@/lib/session";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { ReportesClient, type ReportesData, type Periodo } from "./reportes-client";
+import {
+  ReportesClient,
+  type ReportesData,
+  type MediosData,
+  type Periodo,
+} from "./reportes-client";
 
 export const dynamic = "force-dynamic";
 
@@ -49,11 +54,21 @@ export default async function ReportesPage({
   const supabase = await createSupabaseServer();
   const { from, to } = rango(periodo, offset);
 
-  const { data } = await supabase.rpc("reportes_summary", {
-    p_store_id: session.store.id,
-    p_from: from,
-    p_to: to,
-  });
+  /* Dos RPC en paralelo y no una: sumarle los medios de pago a
+     `reportes_summary` obligaba a redefinir sus ~300 líneas en la migración,
+     y de ahí en más conviven dos copias del mismo cuerpo. */
+  const [{ data }, { data: medios }] = await Promise.all([
+    supabase.rpc("reportes_summary", {
+      p_store_id: session.store.id,
+      p_from: from,
+      p_to: to,
+    }),
+    supabase.rpc("reportes_medios", {
+      p_store_id: session.store.id,
+      p_from: from,
+      p_to: to,
+    }),
+  ]);
 
   return (
     <AppShell
@@ -63,6 +78,7 @@ export default async function ReportesPage({
     >
       <ReportesClient
         data={data as ReportesData}
+        medios={medios as MediosData}
         periodo={periodo}
         offset={offset}
         from={from}
