@@ -17,8 +17,6 @@ import {
   CartesianGrid,
 } from "recharts";
 import {
-  ChevronLeft,
-  ChevronRight,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -35,7 +33,9 @@ import { cn } from "@/lib/cn";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyArt } from "@/components/ui/empty-art";
 import { Card, CardHero } from "@/components/ui/card-system";
+import { PeriodPicker } from "@/components/ui/date-pickers";
 import { money, signedPct } from "@/lib/format";
+import { MAX_LOOKBACK_DAYS, addDays, formatMonthYear, formatRangeLabel } from "@/lib/date";
 import { CATEGORIA_LABEL } from "../gastos/gastos-client";
 
 export type Periodo = "semana" | "mes" | "anio";
@@ -176,7 +176,8 @@ export function ReportesClient({
   medios,
   gastos,
   periodo,
-  offset,
+  anchor,
+  today,
   from,
   to,
 }: {
@@ -184,7 +185,8 @@ export function ReportesClient({
   medios: MediosData | null;
   gastos: ExpensesData | null;
   periodo: Periodo;
-  offset: number;
+  anchor: string;
+  today: string;
   from: string;
   to: string;
 }) {
@@ -202,19 +204,18 @@ export function ReportesClient({
   const dias = period.days_of_use;
   const sinDatos = m.tickets === 0;
 
-  function ir(p: Periodo, o: number) {
-    router.push(`/admin/reportes?p=${p}&o=${o}`);
+  // El período viaja como fecha ABSOLUTA (?d=YYYY-MM-DD), no como offset relativo a
+  // hoy: así el link es estable (compartir "marzo 2026" sigue siendo marzo el mes
+  // que viene) y el picker mapea 1:1 al anchor, igual que Caja con ?d=.
+  function ir(p: Periodo, a: string) {
+    router.push(`/admin/reportes?p=${p}&d=${a}`);
   }
 
-  const etiqueta = new Intl.DateTimeFormat("es-AR", {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
-  const rangoTexto =
-    periodo === "anio"
-      ? from.slice(0, 4)
-      : `${etiqueta.format(new Date(from))} – ${etiqueta.format(new Date(to))}`;
+  const rangoTexto = formatRangeLabel(periodo, from, to);
+  // Etiqueta del trigger según granularidad: mes → "Marzo 2026", año → "2026",
+  // semana → el rango "12 – 18 may".
+  const etiquetaPicker =
+    periodo === "mes" ? formatMonthYear(from) : periodo === "anio" ? from.slice(0, 4) : rangoTexto;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
@@ -227,9 +228,9 @@ export function ReportesClient({
         />
       </div>
 
-      {/* Selector: segmented control con thumb deslizante (auditoría parte C)
-          + flechas de 44px táctiles. Sin dropdown de 12 meses ni fechas
-          tipeadas en el teléfono. */}
+      {/* Selector: segmented control (granularidad) con thumb deslizante + picker
+          real del período. Semana → calendario que resalta la semana; mes → grilla
+          de 12 meses; año → años. Sin dropdown ni fechas tipeadas en el teléfono. */}
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <div className="relative grid grid-cols-3 rounded-lg border border-border bg-[#0e1420] p-1">
           {/* thumb: se desliza al segmento activo */}
@@ -253,7 +254,7 @@ export function ReportesClient({
                 key={key}
                 type="button"
                 disabled={bloqueado}
-                onClick={() => ir(key, 0)}
+                onClick={() => ir(key, anchor)}
                 title={bloqueado ? "Vas a poder verlo cuando tengas 3 meses de uso" : undefined}
                 className={cn(
                   "relative z-10 h-10 cursor-pointer rounded-md px-4 text-sm font-medium transition-colors",
@@ -266,25 +267,14 @@ export function ReportesClient({
             );
           })}
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => ir(periodo, offset - 1)}
-            aria-label="Período anterior"
-            className="grid h-11 w-11 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <button
-            type="button"
-            disabled={offset >= 0}
-            onClick={() => ir(periodo, offset + 1)}
-            aria-label="Período siguiente"
-            className="grid h-11 w-11 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
+        <PeriodPicker
+          periodo={periodo}
+          anchor={anchor}
+          today={today}
+          min={addDays(today, -MAX_LOOKBACK_DAYS)}
+          onSelect={(d) => ir(periodo, d)}
+          label={etiquetaPicker}
+        />
       </div>
 
       {/* Salud de los datos arriba de todo: sin costos cargados, media pantalla

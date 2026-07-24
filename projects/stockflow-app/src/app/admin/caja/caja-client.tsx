@@ -7,8 +7,6 @@ import {
   QrCode,
   CreditCard,
   ArrowRightLeft,
-  ChevronLeft,
-  ChevronRight,
   Ban,
   X,
   LoaderCircle,
@@ -18,7 +16,9 @@ import { cn } from "@/lib/cn";
 import { Card, CardHero } from "@/components/ui/card-system";
 import { AvisoBanner } from "@/components/ui/aviso";
 import { PageHeader } from "@/components/ui/page-header";
+import { DayPicker } from "@/components/ui/date-pickers";
 import { money } from "@/lib/format";
+import { MAX_LOOKBACK_DAYS, addDays, formatLongDate, formatShortDate, todayInTz } from "@/lib/date";
 import { anularVenta } from "./actions";
 
 export type CierreData = {
@@ -76,23 +76,13 @@ export function CajaClient({
     );
   }
 
-  const hoy = new Date().toISOString().slice(0, 10);
-  const esHoy = data.fecha === hoy;
-
-  function irA(dias: number) {
-    const d = new Date(`${data!.fecha}T12:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + dias);
-    router.push(`/admin/caja?d=${d.toISOString().slice(0, 10)}`);
-  }
+  // "Hoy" en la zona DEL NEGOCIO, no la del server (UTC): si no, cerca de medianoche
+  // ART el calendario dejaría elegir un día que para el kiosco todavía no llegó.
+  const hoy = todayInTz(timezone);
 
   const diferencia = contado === "" ? null : Number(contado) - Number(data.efectivo_esperado);
 
-  const fechaLarga = new Intl.DateTimeFormat("es-AR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  }).format(new Date(`${data.fecha}T12:00:00Z`));
+  const fechaLarga = formatLongDate(data.fecha);
 
   // 24h: así se lee un turno de kiosco ("21:40"), y no rompe el ancho de columna.
   const horaFmt = new Intl.DateTimeFormat("es-AR", {
@@ -107,27 +97,17 @@ export function CajaClient({
       <div className="mb-5">
         <PageHeader
           title="Caja"
-          subtitle={fechaLarga.charAt(0).toUpperCase() + fechaLarga.slice(1)}
+          subtitle={fechaLarga}
           icon={Wallet}
           art="caja"
         >
-          <button
-            type="button"
-            onClick={() => irA(-1)}
-            aria-label="Día anterior"
-            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border bg-background/60 text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <button
-            type="button"
-            disabled={esHoy}
-            onClick={() => irA(1)}
-            aria-label="Día siguiente"
-            className="grid size-9 cursor-pointer place-items-center rounded-lg border border-border bg-background/60 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-          >
-            <ChevronRight className="size-4" />
-          </button>
+          <DayPicker
+            value={data.fecha}
+            today={hoy}
+            min={addDays(hoy, -MAX_LOOKBACK_DAYS)}
+            onSelect={(d) => router.push(`/admin/caja?d=${d}`)}
+            label={formatShortDate(data.fecha)}
+          />
         </PageHeader>
       </div>
 
