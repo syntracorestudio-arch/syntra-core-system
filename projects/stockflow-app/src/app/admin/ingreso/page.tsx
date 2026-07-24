@@ -6,6 +6,11 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
+/** El reloj es impuro: fuera del cuerpo del componente (patrón de Reportes). */
+function desdeHace(dias: number): string {
+  return new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
+}
+
 export default async function IngresoPage() {
   const session = await requireSession();
   if (!(session.member.role === "owner" || session.member.can_receive_stock)) {
@@ -13,7 +18,7 @@ export default async function IngresoPage() {
   }
 
   const supabase = await createSupabaseServer();
-  const [{ data: products }, { data: barcodes }] = await Promise.all([
+  const [{ data: products }, { data: barcodes }, { data: compras }] = await Promise.all([
     supabase
       .from("products")
       .select("id, name, emoji, price, cost, stock")
@@ -21,6 +26,16 @@ export default async function IngresoPage() {
       .order("name")
       .limit(500),
     supabase.from("product_barcodes").select("product_id, barcode").limit(2000),
+    /* Compras del último año: de acá sale "la última vez pagaste $800, hace 20
+       días". Es el radar de inflación en el punto donde entra el dato. */
+    supabase
+      .from("stock_ledger")
+      .select("product_id, unit_cost, created_at")
+      .eq("reason", "purchase")
+      .not("unit_cost", "is", null)
+      .gte("created_at", desdeHace(365))
+      .order("created_at", { ascending: false })
+      .limit(3000),
   ]);
 
   const byProduct = new Map<string, string[]>();
@@ -28,6 +43,14 @@ export default async function IngresoPage() {
     const list = byProduct.get(b.product_id) ?? [];
     list.push(b.barcode);
     byProduct.set(b.product_id, list);
+  }
+
+  // La primera aparición es la más reciente: la consulta ya viene ordenada.
+  const ultimaCompra = new Map<string, { costo: number; fecha: string }>();
+  for (const c of compras ?? []) {
+    if (!ultimaCompra.has(c.product_id)) {
+      ultimaCompra.set(c.product_id, { costo: Number(c.unit_cost), fecha: c.created_at });
+    }
   }
 
   const rows: IngresoProduct[] = (products ?? []).map((p) => ({
@@ -38,6 +61,7 @@ export default async function IngresoPage() {
     cost: p.cost === null ? null : Number(p.cost),
     stock: Number(p.stock),
     barcodes: byProduct.get(p.id) ?? [],
+    ultimaCompra: ultimaCompra.get(p.id) ?? null,
   }));
 
   return (

@@ -39,6 +39,8 @@ export type ProductRow = {
   stock: number;
   lowStockThreshold: number | null;
   categoryId: string | null;
+  /** Días que dura el stock al ritmo de los últimos 30 días. `null` = sin ventas. */
+  diasCobertura: number | null;
 };
 
 export type CategoryRow = { id: string; name: string; emoji: string | null; color: string | null };
@@ -197,16 +199,35 @@ export function ProductsClient({
                   )}
                 </p>
               </div>
-              <span
-                className={cn(
-                  "tabular shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold",
-                  bajo
-                    ? "bg-warning/15 text-warning-ink ring-1 ring-warning/30"
-                    : "text-muted-foreground",
+              {/* El stock en unidades no decide una compra; los días que dura,
+                  sí. "29 u." es un dato; "te dura 6 días" es qué pedir esta
+                  semana. */}
+              <div className="shrink-0 text-right">
+                <span
+                  className={cn(
+                    "tabular inline-block rounded-full px-2 py-0.5 text-xs font-semibold",
+                    bajo
+                      ? "bg-warning/15 text-warning-ink ring-1 ring-warning/30"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {p.stock} u.
+                </span>
+                {p.diasCobertura !== null && p.stock > 0 && (
+                  <p
+                    className={cn(
+                      "tabular mt-0.5 text-[11px]",
+                      p.diasCobertura <= 2
+                        ? "text-danger-ink"
+                        : p.diasCobertura <= 7
+                          ? "text-warning-ink"
+                          : "text-muted-foreground",
+                    )}
+                  >
+                    {p.diasCobertura < 1 ? "dura <1 día" : `dura ~${p.diasCobertura} días`}
+                  </p>
                 )}
-              >
-                {p.stock} u.
-              </span>
+              </div>
               <button
                 type="button"
                 onClick={() => setEditando(p)}
