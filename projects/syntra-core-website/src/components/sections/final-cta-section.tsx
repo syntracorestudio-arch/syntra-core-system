@@ -49,7 +49,9 @@ function FinalCtaSection() {
             />
             {/* Atmósfera interna (lado del form): aurora warm + grano — decorativo. */}
             <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-              <div className="absolute -right-24 -bottom-32 size-[26rem] rounded-full bg-[radial-gradient(circle,rgba(231,200,160,0.07),transparent_65%)] blur-2xl" />
+              {/* max-lg:blur-none — el radial-gradient ya cae a transparent al 65%;
+                  el blur encima son 173 kpx extra de rasterizado en GPU móvil. */}
+              <div className="absolute -right-24 -bottom-32 size-[26rem] rounded-full bg-[radial-gradient(circle,rgba(231,200,160,0.07),transparent_65%)] blur-2xl max-lg:blur-none" />
               <div
                 className="absolute inset-0 opacity-[0.35]"
                 style={{
@@ -133,7 +135,7 @@ function FinalCtaSection() {
                           key={item.icon}
                           className="flex items-start justify-center gap-3 lg:justify-start"
                         >
-                          <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border border-white/15 bg-[#0b1120]/60 text-[#8ab6ff] backdrop-blur-sm">
+                          <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border border-white/15 bg-[#0b1120]/60 max-lg:bg-[#0b1120]/85 text-[#8ab6ff] backdrop-blur-sm max-lg:backdrop-blur-none">
                             <Icon
                               aria-hidden="true"
                               strokeWidth={1.75}

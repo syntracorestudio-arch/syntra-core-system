@@ -46,7 +46,9 @@ const formGroup: Variants = {
  *  térmico): fill oscuro translúcido familia #05070c + hairline interior + bloom
  *  electric al focus. Solo borde/sombra/color → CLS 0. */
 const GLASS_FIELD =
-  "rounded-xl border-white/[0.08] bg-[#070b14]/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),inset_0_2px_10px_rgba(0,0,0,0.35)] backdrop-blur-sm placeholder:text-foreground/30 hover:border-white/[0.16] focus-visible:border-[#60a5fa]/60 focus-visible:bg-[#070b14]/80 focus-visible:ring-[#60a5fa]/25 focus-visible:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_26px_-6px_rgba(96,165,250,0.5)]";
+  // max-lg: sin backdrop-filter (caro en GPU móvil; eran 12 en Contacto) — se
+  // compensa con un fondo más opaco, visualmente equivalente sobre el panel oscuro.
+  "rounded-xl border-white/[0.08] bg-[#070b14]/70 max-lg:bg-[#070b14]/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),inset_0_2px_10px_rgba(0,0,0,0.35)] backdrop-blur-sm max-lg:backdrop-blur-none placeholder:text-foreground/30 hover:border-white/[0.16] focus-visible:border-[#60a5fa]/60 focus-visible:bg-[#070b14]/80 focus-visible:ring-[#60a5fa]/25 focus-visible:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_26px_-6px_rgba(96,165,250,0.5)]";
 
 /**
  * ContactForm — captura de leads.
@@ -226,7 +228,7 @@ function ContactForm() {
           {projectTypeOptions.map((opt) => (
             <label
               key={opt.value}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-white/10 bg-[#070b14]/60 px-4 py-2 text-sm text-foreground/65 max-lg:py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-accent-primary/50 hover:text-foreground hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_18px_-8px_rgba(37,99,235,0.45)] has-[:checked]:border-accent-primary has-[:checked]:bg-accent-primary/15 has-[:checked]:text-foreground has-[:checked]:shadow-[0_0_0_1px_rgba(37,99,235,0.35),0_6px_20px_-8px_rgba(37,99,235,0.5)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-primary/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-white/10 bg-[#070b14]/60 max-lg:bg-[#070b14]/85 px-4 py-2 text-sm text-foreground/65 max-lg:py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm max-lg:backdrop-blur-none transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-accent-primary/50 hover:text-foreground hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_18px_-8px_rgba(37,99,235,0.45)] has-[:checked]:border-accent-primary has-[:checked]:bg-accent-primary/15 has-[:checked]:text-foreground has-[:checked]:shadow-[0_0_0_1px_rgba(37,99,235,0.35),0_6px_20px_-8px_rgba(37,99,235,0.5)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-primary/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
               <input
                 type="checkbox"
