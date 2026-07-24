@@ -70,7 +70,11 @@ export function PageHeader({
               height={512}
               loading="lazy"
               draggable={false}
-              className="size-16 select-none opacity-70 mix-blend-screen sm:size-20"
+              /* `shrink-0` es obligatorio: como flex item, el default
+                 flex-shrink:1 lo aplastaba a una tira (23x80 en Vencimientos,
+                 donde el subtítulo largo se come el hueco) y `object-fill` lo
+                 estiraba. Con object-contain el cuadrado nunca se deforma. */
+              className="size-24 shrink-0 select-none object-contain sm:size-28"
             />
           </div>
         ) : null}
