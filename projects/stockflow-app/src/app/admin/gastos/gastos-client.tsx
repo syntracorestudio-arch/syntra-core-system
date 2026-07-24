@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Receipt,
   Plus,
@@ -21,7 +22,9 @@ import { AvisoBanner, type AvisoData } from "@/components/ui/aviso";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyArt } from "@/components/ui/empty-art";
 import { Button } from "@/components/ui/button";
+import { MonthPicker } from "@/components/ui/date-pickers";
 import { money } from "@/lib/format";
+import { MAX_LOOKBACK_DAYS, addDays, clampAnchor, formatMonthYear, formatShortDate } from "@/lib/date";
 import { registerExpenseAction, voidExpenseAction } from "./actions";
 
 export type ExpenseRow = {
@@ -64,44 +67,31 @@ const CATEGORIA_ICON: Record<string, LucideIcon> = Object.fromEntries(
   CATEGORIAS.map((c) => [c.key, c.icon]),
 );
 
-const hoyISO = () => new Date().toISOString().slice(0, 10);
-
-const mesLabel = (key: string) => {
-  const s = new Intl.DateTimeFormat("es-AR", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${key}-01T00:00:00Z`));
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
-
-const diaLabel = (iso: string) =>
-  new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", timeZone: "UTC" }).format(
-    new Date(`${iso}T00:00:00Z`),
-  );
-
-export function GastosClient({ expenses }: { expenses: ExpenseRow[] }) {
+export function GastosClient({
+  expenses,
+  anchor,
+  today,
+  hayGastos,
+}: {
+  expenses: ExpenseRow[];
+  /** Primer día del mes en pantalla (YYYY-MM-01). */
+  anchor: string;
+  /** Hoy en la zona del negocio (tope del picker). */
+  today: string;
+  /** ¿Cargó algún gasto ALGUNA vez? Distingue "sin gastos este mes" de "nunca cargó". */
+  hayGastos: boolean;
+}) {
+  const router = useRouter();
   const [creando, setCreando] = useState(false);
   const [anulando, setAnulando] = useState<ExpenseRow | null>(null);
   const [aviso, setAviso] = useState<AvisoData>(null);
 
-  // Agrupado por mes (YYYY-MM), meses desc; el total del mes suma solo activos.
-  const meses = useMemo(() => {
-    const map = new Map<string, ExpenseRow[]>();
-    for (const e of expenses) {
-      const key = e.incurred_on.slice(0, 7);
-      const list = map.get(key) ?? [];
-      list.push(e);
-      map.set(key, list);
-    }
-    return [...map.entries()]
-      .sort((a, b) => (a[0] < b[0] ? 1 : -1))
-      .map(([key, items]) => ({
-        key,
-        items,
-        total: items.reduce((a, e) => a + (e.status === "active" ? e.amount : 0), 0),
-      }));
-  }, [expenses]);
+  const total = expenses.reduce((a, e) => a + (e.status === "active" ? e.amount : 0), 0);
+  const min = addDays(today, -MAX_LOOKBACK_DAYS);
+
+  function verMes(ymd: string) {
+    router.push(`/admin/gastos?m=${ymd.slice(0, 7)}`);
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
@@ -120,7 +110,7 @@ export function GastosClient({ expenses }: { expenses: ExpenseRow[] }) {
 
       <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
-      {expenses.length === 0 ? (
+      {!hayGastos ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
           <EmptyArt name="caja" alt="Un billete de vidrio negro" />
           <p className="text-sm font-medium">Todavía no cargaste gastos</p>
@@ -135,77 +125,96 @@ export function GastosClient({ expenses }: { expenses: ExpenseRow[] }) {
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
-          {meses.map((mes) => (
-            <section key={mes.key}>
-              <div className="mb-2 flex items-baseline justify-between gap-3">
-                <h2 className="text-sm font-semibold">{mesLabel(mes.key)}</h2>
-                <span className="tabular text-sm font-semibold text-muted-foreground">
-                  {money(mes.total)}
-                </span>
+        <>
+          {/* Filtro por mes: mismo MonthPicker que Reportes. El total del mes al lado. */}
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <MonthPicker
+              value={anchor}
+              today={today}
+              min={min}
+              onSelect={verMes}
+              label={formatMonthYear(anchor)}
+            />
+            <span className="tabular shrink-0 text-sm font-semibold text-muted-foreground">
+              {money(total)}
+            </span>
+          </div>
+
+          {expenses.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border px-6 py-10 text-center">
+              <p className="text-sm text-muted-foreground">
+                No cargaste gastos en {formatMonthYear(anchor).toLowerCase()}.
+              </p>
+              <div className="mt-4">
+                <Button variant="secondary" onClick={() => setCreando(true)}>
+                  <Plus className="size-4" /> Cargar un gasto
+                </Button>
               </div>
-              <ul className="divide-y divide-border rounded-xl border border-border bg-[#0e1219]">
-                {mes.items.map((e) => {
-                  const anulada = e.status === "voided";
-                  const Icon = CATEGORIA_ICON[e.category] ?? CircleDashed;
-                  return (
-                    <li
-                      key={e.id}
-                      className={cn("flex items-center gap-3 px-4 py-3", anulada && "opacity-50")}
-                    >
-                      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-muted-foreground">
-                        <Icon className="size-4" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className={cn("truncate text-sm font-medium", anulada && "line-through")}>
-                            {CATEGORIA_LABEL[e.category] ?? e.category}
+            </div>
+          ) : (
+            <ul className="divide-y divide-border rounded-xl border border-border bg-[#0e1219]">
+              {expenses.map((e) => {
+                const anulada = e.status === "voided";
+                const Icon = CATEGORIA_ICON[e.category] ?? CircleDashed;
+                return (
+                  <li
+                    key={e.id}
+                    className={cn("flex items-center gap-3 px-4 py-3", anulada && "opacity-50")}
+                  >
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-muted-foreground">
+                      <Icon className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={cn("truncate text-sm font-medium", anulada && "line-through")}>
+                          {CATEGORIA_LABEL[e.category] ?? e.category}
+                        </span>
+                        {e.is_recurring && (
+                          <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            fijo
                           </span>
-                          {e.is_recurring && (
-                            <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                              fijo
-                            </span>
-                          )}
-                          {anulada && (
-                            <span className="shrink-0 rounded bg-danger/15 px-1.5 py-0.5 text-[10px] font-medium text-danger-ink">
-                              Anulado
-                            </span>
-                          )}
-                        </div>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {diaLabel(e.incurred_on)}
-                          {e.note && ` · ${e.note}`}
-                        </p>
-                      </div>
-                      <span
-                        className={cn(
-                          "tabular shrink-0 text-sm font-semibold",
-                          anulada && "line-through",
                         )}
-                      >
-                        {money(e.amount)}
-                      </span>
-                      {!anulada && (
-                        <button
-                          type="button"
-                          onClick={() => setAnulando(e)}
-                          aria-label="Anular este gasto"
-                          className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md border border-border text-muted-foreground transition-colors hover:border-danger hover:text-danger-ink"
-                        >
-                          <Ban className="size-3.5" />
-                        </button>
+                        {anulada && (
+                          <span className="shrink-0 rounded bg-danger/15 px-1.5 py-0.5 text-[10px] font-medium text-danger-ink">
+                            Anulado
+                          </span>
+                        )}
+                      </div>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {formatShortDate(e.incurred_on)}
+                        {e.note && ` · ${e.note}`}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        "tabular shrink-0 text-sm font-semibold",
+                        anulada && "line-through",
                       )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
-        </div>
+                    >
+                      {money(e.amount)}
+                    </span>
+                    {!anulada && (
+                      <button
+                        type="button"
+                        onClick={() => setAnulando(e)}
+                        aria-label="Anular este gasto"
+                        className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md border border-border text-muted-foreground transition-colors hover:border-danger hover:text-danger-ink"
+                      >
+                        <Ban className="size-3.5" />
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
       )}
 
       {creando && (
         <NuevoGastoDialog
+          today={today}
+          min={min}
           onClose={() => setCreando(false)}
           onDone={() => {
             setCreando(false);
@@ -231,17 +240,23 @@ export function GastosClient({ expenses }: { expenses: ExpenseRow[] }) {
 }
 
 function NuevoGastoDialog({
+  today,
+  min,
   onClose,
   onDone,
   onError,
 }: {
+  today: string;
+  min: string;
   onClose: () => void;
   onDone: () => void;
   onError: (msg: string) => void;
 }) {
   const [category, setCategory] = useState("rent");
   const [monto, setMonto] = useState("");
-  const [fecha, setFecha] = useState(hoyISO());
+  // Imputación por MES (es un gasto mensual). Por defecto el mes en curso; si elegís
+  // otro mes se guarda su día 1 (encajonado al piso), porque el reporte bucketea por mes.
+  const [fecha, setFecha] = useState(today);
   const [nota, setNota] = useState("");
   const [fijo, setFijo] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -279,7 +294,9 @@ function NuevoGastoDialog({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <span className="text-sm font-medium">¿Qué gasto es?</span>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {/* flex-wrap (no grid fijo): cada chip se ajusta a su texto, así
+                "Mantenimiento" entra completo sin cortarse. */}
+            <div className="flex flex-wrap gap-2">
               {CATEGORIAS.map((c) => {
                 const activo = c.key === category;
                 return (
@@ -288,14 +305,14 @@ function NuevoGastoDialog({
                     type="button"
                     onClick={() => setCategory(c.key)}
                     className={cn(
-                      "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
+                      "flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-colors",
                       activo
                         ? "border-primary bg-primary/10 text-foreground"
                         : "border-border text-muted-foreground hover:border-[#2e3c55] hover:text-foreground",
                     )}
                   >
                     <c.icon className="size-4 shrink-0" />
-                    <span className="truncate">{c.label}</span>
+                    <span>{c.label}</span>
                   </button>
                 );
               })}
@@ -319,16 +336,16 @@ function NuevoGastoDialog({
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="ng-fecha" className="text-sm font-medium">¿De qué mes es?</label>
-            <input
-              id="ng-fecha"
-              type="date"
+            <span className="text-sm font-medium">¿De qué mes es?</span>
+            <MonthPicker
               value={fecha}
-              max={hoyISO()}
-              onChange={(e) => setFecha(e.target.value)}
-              className="tabular h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+              today={today}
+              min={min}
+              onSelect={(ymd) => setFecha(clampAnchor(ymd, today))}
+              label={formatMonthYear(fecha)}
+              triggerClassName="w-full"
             />
-            <p className="text-xs text-muted-foreground">Se imputa al mes de esta fecha.</p>
+            <p className="text-xs text-muted-foreground">Se imputa a este mes.</p>
           </div>
 
           <div className="space-y-1.5">
