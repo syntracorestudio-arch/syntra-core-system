@@ -41,6 +41,9 @@ yarn-error.log*
 # artefactos locales del loop visual (capturas descartables)
 .playwright-mcp/
 
+# snippets del SQL Editor de Supabase Studio (se generan al correr queries local)
+supabase/snippets/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
