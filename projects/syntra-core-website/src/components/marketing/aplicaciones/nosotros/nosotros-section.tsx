@@ -6,6 +6,7 @@ import Image from "next/image";
 import { MotionConfig, motion } from "framer-motion";
 
 import { aboutPillars, aboutStatement, siteConfig } from "@/config/site";
+import { cn } from "@/lib/utils";
 import { EASE_PREMIUM } from "@/lib/motion";
 import { Section } from "@/components/layout/section";
 import { Container } from "@/components/layout/container";
@@ -107,6 +108,7 @@ function NosotrosSection() {
             initial="hidden"
             whileInView="show"
             viewport={{ once: true, amount: 0.4 }}
+            className="reveal-blur"
           >
             <SectionHeading
               align="left"
@@ -144,7 +146,7 @@ function NosotrosSection() {
                   initial="hidden"
                   whileInView="show"
                   viewport={{ once: true, amount: 0.35 }}
-                  className={offset ? "lg:translate-y-14" : undefined}
+                  className={cn("reveal-blur", offset && "lg:translate-y-14")}
                 >
                   <SpotlightCard
                     className="h-full"
@@ -202,7 +204,7 @@ function NosotrosSection() {
             initial="hidden"
             whileInView="show"
             viewport={{ once: true, amount: 0.5 }}
-            className="mt-16 text-center lg:mt-20"
+            className="reveal-blur mt-16 text-center lg:mt-20"
           >
             <p className="font-heading text-[2rem] font-semibold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">
               <StatementText text={aboutStatement} />
