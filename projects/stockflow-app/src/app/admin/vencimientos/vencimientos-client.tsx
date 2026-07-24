@@ -92,6 +92,7 @@ export function VencimientosClient({
                 }`
           } · te avisamos ${warningDays} ${warningDays === 1 ? "día" : "días"} antes`}
           icon={CalendarClock}
+          art="vencimientos"
         >
           {canEdit && (
             <Button variant="secondary" className="bg-background/60" onClick={() => setAgregando(true)}>

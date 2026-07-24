@@ -111,7 +111,12 @@ export function ReportesClient({
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
       <div className="mb-4">
-        <PageHeader title="Cómo viene el negocio" subtitle={rangoTexto} icon={ChartColumn} />
+        <PageHeader
+          title="Cómo viene el negocio"
+          subtitle={rangoTexto}
+          icon={ChartColumn}
+          art="reportes"
+        />
       </div>
 
       {/* Selector: segmented control con thumb deslizante (auditoría parte C)

@@ -63,6 +63,7 @@ export function EquipoClient({ miembros, yoId }: { miembros: Miembro[]; yoId: st
             : `${empleados.length} ${empleados.length === 1 ? "empleado" : "empleados"}`
         }
         icon={Users}
+        art="equipo"
       >
         <Button variant="primary" onClick={() => setCreando(true)}>
           <UserPlus className="size-4" /> Sumar a alguien

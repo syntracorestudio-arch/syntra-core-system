@@ -150,6 +150,7 @@ export function ProductsClient({
           title="Productos"
           subtitle={`${products.length} activos${sinCosto > 0 ? ` · ${sinCosto} sin costo cargado` : ""}`}
           icon={Package}
+          art="productos"
         >
           <Button variant="secondary" className="bg-background/60" onClick={() => setRemarcando(true)}>
             <Percent className="size-4" /> Remarcar

@@ -79,6 +79,7 @@ export function FiadoClient({
               : `${deudores.length} ${deudores.length === 1 ? "persona te debe" : "personas te deben"}`
           }${sobreLimite > 0 ? ` · ${sobreLimite} pasó su límite` : ""}`}
           icon={UsersRound}
+          art="fiado"
         >
           {canCreate && (
             <Button variant="primary" onClick={() => setCreando(true)}>

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
+import { artSrc, type BrandArt } from "@/lib/brand-art";
 
 /**
  * Banda de sección — portada del patrón aprobado de StudioFlow (page-header v2),
@@ -11,7 +12,11 @@ import type { LucideIcon } from "lucide-react";
  * `--accent` acá ya es azul-teñido (#16233c), así que el wash funciona directo
  * sobre dark sin overlay que gestionar: foreground sobre accent/card ≈ 14:1.
  *
- *  - icon: la Lucide de la sección (chip + watermark salen del mismo).
+ *  - icon: la Lucide de la sección (chip, y watermark de reserva).
+ *  - art: el objeto 3D de la marca para el watermark (auditoría 2026-07-23).
+ *    Va en `mix-blend-screen`, así que el vidrio negro desaparece contra el
+ *    fondo y solo quedan las aristas encendidas: mucho más rico que el
+ *    line-art plano, sin ensuciar ni tapar el título.
  *  - stat: dato contextual YA computado por la página (oculto en mobile).
  *  - children: acciones/filtros de la página (buscador, botones, chips).
  */
@@ -19,19 +24,35 @@ export function PageHeader({
   title,
   subtitle,
   icon: Icon,
+  art,
   stat,
   children,
 }: {
   title: string;
   subtitle?: string;
   icon?: LucideIcon;
+  art?: BrandArt;
   stat?: ReactNode;
   children?: ReactNode;
 }) {
   return (
     <header className="relative overflow-hidden rounded-2xl border border-border px-5 py-4 duration-500 animate-in fade-in slide-in-from-bottom-2 sm:px-6 sm:py-5">
       <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-accent/60 via-card to-card" />
-      {Icon ? (
+      {art ? (
+        /* eslint-disable-next-line @next/next/no-img-element -- asset estático local */
+        <img
+          src={artSrc(art)}
+          alt=""
+          aria-hidden
+          width={512}
+          height={512}
+          loading="lazy"
+          draggable={false}
+          /* La máscara lo apaga hacia la izquierda: el objeto vive en el borde
+             derecho y nunca compite con el título ni con los botones. */
+          className="pointer-events-none absolute -bottom-10 -right-5 size-32 select-none opacity-40 mix-blend-screen [mask-image:linear-gradient(to_left,#000_45%,transparent)] sm:-bottom-12 sm:-right-6 sm:size-48"
+        />
+      ) : Icon ? (
         <div aria-hidden className="absolute -bottom-8 -right-4 rotate-[-8deg] text-primary opacity-[0.08]">
           <Icon className="size-32 sm:size-36" strokeWidth={1.25} />
         </div>

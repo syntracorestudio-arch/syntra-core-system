@@ -194,6 +194,7 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
           title="Recibí mercadería"
           subtitle="Escaneá o buscá, poné cuánto entró y confirmá."
           icon={PackagePlus}
+          art="recibir"
         />
       </div>
 
