@@ -13,6 +13,7 @@ import {
   UserRound,
   ChevronRight,
   ShoppingBasket,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { money, signedPct } from "@/lib/format";
@@ -60,9 +61,12 @@ const MEDIOS: Record<string, { label: string; icon: React.ComponentType<{ classN
 export function DashboardClient({
   data,
   timezone,
+  sinGastosEsteMes = false,
 }: {
   data: DashboardData | null;
   timezone: string;
+  /** No hay ningún gasto cargado en el mes actual → nudge discreta (sin números). */
+  sinGastosEsteMes?: boolean;
 }) {
   if (!data) {
     return (
@@ -98,6 +102,19 @@ export function DashboardClient({
           artSize="lg"
         />
       </div>
+
+      {/* Nudge discreta, SIN números: el neto del mes vive en Reportes, acá solo
+          el recordatorio de cargar los gastos fijos si el mes está en blanco. */}
+      {sinGastosEsteMes && (
+        <Link
+          href="/admin/gastos"
+          className="group mb-4 flex items-center gap-2.5 rounded-lg border border-border bg-card px-3.5 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+        >
+          <Receipt className="size-4 shrink-0 text-muted-foreground" />
+          <span className="flex-1">Cargá los gastos de este mes para ver tu ganancia real.</span>
+          <ChevronRight className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      )}
 
       {/* Fila 1 — los dos números que importan */}
       <div className="grid gap-4 sm:grid-cols-2">

@@ -120,3 +120,46 @@
 - `products.sale_unit` (default `'unit'`) y `products.attrs jsonb` dejan lugar a
   granel/pesables (dietética) y atributos por rubro (pet shop) sin migración
   estructural. `stock_ledger.delta` es `numeric` (no int) por la misma razón.
+
+## 11. Egresos (gastos operativos)
+
+- La verdad de los egresos es `expenses` (append-only): cada gasto es una fila con
+  monto positivo, categoría de un set **cerrado por CHECK** (`rent`, `utilities`,
+  `salary`, `taxes`, `supplies`, `maintenance`, `other` — labels castellanos:
+  Alquiler · Servicios · Sueldos · Impuestos · Insumos · Mantenimiento · Otros) y
+  fecha de imputación (`incurred_on`). Nunca se edita ni se borra; corregir =
+  **anular** (estado `voided`, patrón `void_sale`) + volver a cargar.
+- **Regla anti doble conteo (dura).** Las **compras de mercadería NO son egresos** y
+  jamás pueden serlo. El costo de la mercadería ya impacta el resultado por dos vías
+  que no se tocan: (a) el ingreso queda en `stock_ledger(reason='purchase')` con su
+  `unit_cost`, y (b) ese costo se congela por línea en `sale_items.unit_cost` y se
+  resta en el **margen bruto**. Cargar una compra como egreso la restaría **dos
+  veces** y hundiría la ganancia neta con un número falso. Por eso el set de
+  categorías es cerrado y **no existe —ni puede crearse— una categoría
+  'mercadería'/'compras'**. `expenses` es exclusivamente estructura operativa.
+- **Ganancia neta = margen bruto − egresos activos del período** (imputados por
+  `incurred_on`, no por `created_at`). El bruto ya descontó el costo de la mercadería
+  vendida; los egresos descuentan la estructura.
+- **Degradar con honestidad** (patrón `cost_coverage`): si el negocio **nunca**
+  cargó egresos, NO se muestra neto —sería igual al bruto = mentira por exceso— sino
+  una invitación a cargarlos ("Cargá tus gastos fijos para ver tu ganancia real"). Si
+  cargó históricamente pero el período elegido no tiene ninguno, se muestra el neto
+  con la aclaración "sin gastos imputados a este período". Si faltan **costos**
+  (`margin_pct` nulo), el bruto ya es incierto → tampoco hay neto: manda el nudge de
+  costos existente.
+- Los egresos son una capa de **rentabilidad (P&L), no de arqueo**: en el MVP **no**
+  impactan el cierre de caja ni el "entró hoy" del dashboard. Pagar el alquiler en
+  efectivo no baja el efectivo del día en `daily_totals`. (Vincular egreso ↔ caja =
+  fuera de alcance.)
+- **Carga manual mensual**, sin recurrencia automática. El flag `is_recurring` marca
+  los fijos como dato informativo (para un futuro "repetir gastos del mes pasado" como
+  prefill); nunca genera asientos solo.
+- **Comisiones de medios de pago** (posnet/MP) quedan **fuera**: se calcularán solas
+  sobre los cobros en una fase futura; cargarlas a mano sería otro doble conteo.
+- **Visibilidad solo-dueño**: `expenses` se cierra por **RLS owner-only** (no solo
+  UI, a diferencia de costo/margen), sin entrada de nav ni ruta accesible para el
+  staff. Toda escritura pasa por RPC (`register_expense` / `void_expense`).
+- **Sin edición ni cierre de mes**: se puede anular un egreso de un mes ya pasado (no
+  hay cierre formal en el MVP — el cierre de caja es derivado, no bloqueante); el
+  reporte de ese período se recalcula en vivo. El void **pide confirmación** (cambia
+  el resultado de un período) y admite razón opcional.

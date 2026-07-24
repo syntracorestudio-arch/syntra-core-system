@@ -141,6 +141,80 @@ Solo owner. Actualiza `price` de products activos del alcance con redondeo
 inserta notificación de auditoría ("remarcaste N productos +X%"). La preview la
 hace la UI (misma fórmula, client-side, sin RPC).
 
+## register_expense — cargar un gasto operativo (feature Egresos, migración 018)
+
+```
+register_expense(
+  p_store_id     uuid,
+  p_category     text,          -- rent|utilities|salary|taxes|supplies|maintenance|other
+  p_amount       numeric,       -- > 0
+  p_incurred_on  date,          -- fecha de imputación al período
+  p_note         text default null,
+  p_is_recurring boolean default false   -- solo dato informativo
+) returns expenses
+```
+
+1. Member activo (`not_a_member`). **Owner-only**: si el member no es `owner` →
+   `not_allowed` (el staff nunca carga ni ve gastos; patrón `adjust_stock`).
+2. Validaciones (defensa en profundidad, además del CHECK y de Zod client-side):
+   categoría fuera del set → `invalid_category`; `p_amount <= 0` → `invalid_amount`;
+   `p_incurred_on` en el futuro o por debajo del piso de 24 meses (coherente con la
+   cota de lectura de reportes) → `invalid_date`.
+3. Insert en `expenses` (`status='active'`, `created_by` = member). Devuelve la fila.
+4. **NUNCA** una categoría de mercadería/compra: el CHECK la rechaza en la capa de
+   datos y la UI no la ofrece (regla anti-doble-conteo, business-rules §11).
+
+## void_expense — anular un gasto (feature Egresos, migración 018)
+
+```
+void_expense(p_store_id uuid, p_expense_id uuid, p_reason text default null)
+  returns expenses
+```
+
+1. Member activo + **owner** → si no `not_allowed`.
+2. `FOR UPDATE` de la fila; de otro store / inexistente → `expense_not_found`; ya
+   `voided` → **idempotente** (devolver tal cual, cero efectos).
+3. `status='voided'`, `voided_at/by`, `void_reason`. Nunca UPDATE de
+   monto/categoría/fecha, nunca DELETE. La fila queda visible tachada.
+
+## reportes_expenses — gastos del período para Reportes (migración 018)
+
+```
+reportes_expenses(p_store_id uuid, p_from date, p_to date) returns jsonb
+```
+
+Función **ADITIVA y APARTE**, espejo exacto del patrón `reportes_medios` (017):
+`reportes_summary` NO se toca (009 ya está aplicada y las migraciones viejas nunca
+se re-corren — regla aditiva del proyecto). La página de Reportes la llama en el
+mismo `Promise.all` que las otras dos.
+
+1. `perform rpc_member(p_store_id)` → `not_a_member`. (La página ya es
+   `requireOwner`; RLS de `expenses` es owner-only además.)
+2. Timezone del store + **piso de 24 meses** sobre `p_from` (baseline, igual que
+   009/017).
+3. Agrega `expenses` con `status = 'active'` e `incurred_on between p_from and p_to`
+   (por `incurred_on`, NUNCA `created_at`: es fecha de imputación).
+
+```
+returns: {
+  expenses:             numeric,      -- Σ activos del período
+  expenses_by_category: [{category, total}],  -- desc por total; solo categorías con gasto
+  expenses_loaded_ever: boolean       -- ¿existe algún expense activo en el store (cualquier fecha)?
+}
+```
+
+**`net_profit` NO viene de SQL: lo computa la página/cliente de Reportes** —
+`net = money.profit − expenses` — que ya tiene el bruto de `reportes_summary` y ya
+es dueña de las reglas de degradación honesta:
+- `margin_pct === null` → sin costos: manda el nudge de costos existente (no hay neto).
+- costos OK **y** `!expenses_loaded_ever` → tarjeta-CTA "Cargá tus gastos fijos para
+  ver tu ganancia real" (NUNCA mostrar un neto = bruto).
+- costos OK **y** `expenses_loaded_ever` → bloque "Tu ganancia real": bruto −
+  `expenses` = neto + desglose `expenses_by_category`. Si `expenses === 0` en el
+  período: aclaración "sin gastos imputados a este período".
+- El caveat de `reportes-client.tsx:325` ("· no incluye alquiler ni servicios") se
+  reemplaza por el puntero "· antes de gastos fijos".
+
 ## create_store — alta de negocio (tanda 1C)
 
 ```
@@ -166,11 +240,13 @@ p_window interval) returns bool`, **fail-open**, GRANT a `authenticated` y `anon
 | --- | --- | --- |
 | `not_a_member` | todas | sesión inválida → re-login |
 | `not_allowed` | todas | "No tenés permiso para esta acción" |
-| `empty_items` / `invalid_qty` / `invalid_amount` / `invalid_delta` | sale, purchase, payment, adjust | validación de formulario (no debería llegar: Zod primero) |
+| `empty_items` / `invalid_qty` / `invalid_amount` / `invalid_delta` | sale, purchase, payment, adjust, expense | validación de formulario (no debería llegar: Zod primero) |
+| `invalid_category` / `invalid_date` | register_expense | validación de formulario (no debería llegar: Zod + set cerrado primero) |
 | `product_not_found` / `product_archived` | sale, purchase | "Producto no disponible" + refrescar catálogo |
 | `insufficient_stock` | sale (solo modo estricto) | "Sin stock de ‹producto›" |
 | `client_required` / `client_not_found` | sale, payment | selector de cliente |
-| `sale_not_found` | void | refrescar lista |
+| `sale_not_found` | void_sale | refrescar lista |
+| `expense_not_found` | void_expense | refrescar lista |
 
 QA de la tanda 1C (gate): N `register_sale` concurrentes sobre el mismo producto ⇒
 ledger suma exacta y cache consistente; mismo `idempotency_key` en paralelo ⇒ UNA

@@ -10,6 +10,7 @@ import {
   Wallet,
   Users2,
   TrendingUp,
+  Receipt,
 } from "lucide-react";
 
 /**
@@ -65,6 +66,7 @@ export const NAV_GROUPS: NavGroup[] = [
     hue: "#ec8d6f", // terracota — "mirar/cobrar", cálido sin pisar el danger (rosa rechazado 2026-07-23)
     items: [
       { href: "/admin/fiado", label: "Fiado", icon: Users },
+      { href: "/admin/gastos", label: "Gastos", icon: Receipt },
       { href: "/admin/reportes", label: "Reportes", icon: ChartColumn },
     ],
   },
