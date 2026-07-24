@@ -64,6 +64,22 @@
   `expiry_date date`, `qty numeric`, `note`, `resolved_at null`,
   `resolution null` CHECK `('sold','wasted')`, `created_by`, `created_at`.
   Informativa: sin FK desde el ledger, sin FEFO.
+- **expenses** — gastos operativos (alquiler, luz, sueldos…), **migración 018**
+  (tabla + RLS + RPCs + `reportes_expenses`, todo junto y aditivo — `reportes_summary`
+  de 009 NO se toca), append-only estilo
+  header de `sales`: `store_id`, `category text` CHECK
+  `('rent','utilities','salary','taxes','supplies','maintenance','other')` —
+  **el CHECK ES la garantía anti-doble-conteo: NO existe ni puede crearse
+  'merchandise'/'purchase'** (§11 de business-rules), `amount numeric(12,2) CHECK
+  (> 0)`, `incurred_on date` (**fecha de imputación al período**, distinta de
+  `created_at`; los reportes bucketean por acá, igual que `sales.sold_at`),
+  `note text null`, `is_recurring bool default false` (**solo informativo**, jamás
+  genera asientos), `status` CHECK `('active','voided')` +
+  `voided_at`/`voided_by`/`void_reason`, `created_by` (member), `created_at`,
+  `updated_at`. `amount`/`category`/`incurred_on` **inmutables**: corregir = **void**
+  (patrón `void_sale`, flip de estado por RPC) + volver a cargar; nunca UPDATE de
+  esos campos, nunca DELETE. Sin efecto downstream que revertir (a diferencia de una
+  venta que mueve stock/fiado): el egreso es el registro mismo, es P&L, no arqueo.
 
 ## 4. Notificaciones y push
 
@@ -110,6 +126,12 @@
   inserta un asiento suelto; es la garantía de integridad más fuerte del diseño y
   evita el churn de policies correctivas que StudioFlow sufrió (007).
 - **stock_expiries**: select tenant; insert staff con permiso; resolve vía RPC.
+- **expenses**: **select OWNER-ONLY** (`auth_has_role(store, array['owner'])`) +
+  `force` + **CERO policies de escritura** (todo por RPC SECURITY DEFINER). A
+  diferencia de costo/margen —columna en filas compartidas, que RLS no puede
+  filtrar y se oculta solo en UI (§7 nota abajo)— `expenses` es una tabla entera
+  sin caso de uso del staff, así que **sí se cierra por RLS de verdad**: staff del
+  mismo store obtiene 0 filas, cross-tenant 0 filas. Aislamiento duro gratis.
 - **notifications**: select/update(read_at) del member propio (o owner si
   member_id null). **push_subscriptions**: insert/select/delete propias; envío
   server-side por admin client.
@@ -130,6 +152,9 @@
   `sale_items (store_id, product_id)` (top productos).
 - Fiado: `clients (store_id, status)`. Vencimientos: `stock_expiries (store_id,
   expiry_date) where resolved_at is null`.
+- Egresos: `expenses (store_id, incurred_on) where status = 'active'` — todo
+  reporte de gastos filtra por rango + activos. FKs `(created_by)`, `(voided_by)`
+  con índice.
 - Notificaciones: parcial por member no-leídas; `push_subscriptions (store_id)`.
 - Toda FK nueva con índice (Postgres no los crea solo — baseline).
 

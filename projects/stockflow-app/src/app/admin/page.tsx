@@ -16,9 +16,26 @@ export default async function AdminDashboard() {
   const session = await requireOwner();
   const supabase = await createSupabaseServer();
 
-  const { data } = await supabase.rpc("dashboard_summary", {
-    p_store_id: session.store.id,
-  });
+  // Primer día del mes actual (imputación por `incurred_on`). Query mínima y
+  // acotada: solo saber SI hay algún gasto activo este mes, sin traer montos.
+  const hoy = new Date();
+  const inicioMes = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), 1))
+    .toISOString()
+    .slice(0, 10);
+
+  const [{ data }, { count: gastosEsteMes, error: errGastos }] = await Promise.all([
+    supabase.rpc("dashboard_summary", { p_store_id: session.store.id }),
+    supabase
+      .from("expenses")
+      .select("id", { count: "exact", head: true })
+      .eq("store_id", session.store.id)
+      .eq("status", "active")
+      .gte("incurred_on", inicioMes)
+      .limit(1),
+  ]);
+
+  // Fail-safe: si no pudimos saberlo (tabla/RLS), NO molestamos con el nudge.
+  const sinGastosEsteMes = !errGastos && (gastosEsteMes ?? 0) === 0;
 
   return (
     <AppShell
@@ -29,6 +46,7 @@ export default async function AdminDashboard() {
       <DashboardClient
         data={data as DashboardData}
         timezone={session.store.timezone}
+        sinGastosEsteMes={sinGastosEsteMes}
       />
     </AppShell>
   );

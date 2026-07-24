@@ -5,6 +5,7 @@ import {
   ReportesClient,
   type ReportesData,
   type MediosData,
+  type ExpensesData,
   type Periodo,
 } from "./reportes-client";
 
@@ -57,13 +58,21 @@ export default async function ReportesPage({
   /* Dos RPC en paralelo y no una: sumarle los medios de pago a
      `reportes_summary` obligaba a redefinir sus ~300 líneas en la migración,
      y de ahí en más conviven dos copias del mismo cuerpo. */
-  const [{ data }, { data: medios }] = await Promise.all([
+  const [{ data }, { data: medios }, { data: gastos }] = await Promise.all([
     supabase.rpc("reportes_summary", {
       p_store_id: session.store.id,
       p_from: from,
       p_to: to,
     }),
     supabase.rpc("reportes_medios", {
+      p_store_id: session.store.id,
+      p_from: from,
+      p_to: to,
+    }),
+    /* Aditiva y aparte (patrón 017): sumarle los gastos a `reportes_summary`
+       obligaba a redefinir su cuerpo en la migración. El neto lo computa el
+       cliente (bruto de summary − gastos). */
+    supabase.rpc("reportes_expenses", {
       p_store_id: session.store.id,
       p_from: from,
       p_to: to,
@@ -79,6 +88,7 @@ export default async function ReportesPage({
       <ReportesClient
         data={data as ReportesData}
         medios={medios as MediosData}
+        gastos={gastos as ExpensesData}
         periodo={periodo}
         offset={offset}
         from={from}

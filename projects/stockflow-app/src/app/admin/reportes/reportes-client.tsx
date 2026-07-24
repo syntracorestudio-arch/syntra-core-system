@@ -28,12 +28,15 @@ import {
   Info,
   Lock,
   ChartColumn,
+  Receipt,
+  ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyArt } from "@/components/ui/empty-art";
 import { Card, CardHero } from "@/components/ui/card-system";
 import { money, signedPct } from "@/lib/format";
+import { CATEGORIA_LABEL } from "../gastos/gastos-client";
 
 export type Periodo = "semana" | "mes" | "anio";
 
@@ -61,6 +64,20 @@ export type MediosData = {
   by_method: { method: string; total: number; count: number }[];
   /** Lo que se fió en el período: es venta, pero todavía no es plata. */
   on_credit: number;
+};
+
+/**
+ * Gastos operativos del período (RPC `reportes_expenses`, migración 018).
+ * Espejo de `MediosData`: función aditiva y aparte de `reportes_summary`. El
+ * neto NO viene de SQL — lo computa este cliente (`net = money.profit −
+ * expenses`), que ya es dueño de la degradación honesta.
+ */
+export type ExpensesData = {
+  expenses: number;
+  expenses_by_category: { category: string; total: number }[];
+  /** ¿Existe algún gasto activo en el store (cualquier fecha)? Distingue "todavía
+      no cargó nada nunca" de "cargó, pero no en este período". */
+  expenses_loaded_ever: boolean;
 };
 
 const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -157,6 +174,7 @@ const UMBRALES = {
 export function ReportesClient({
   data,
   medios,
+  gastos,
   periodo,
   offset,
   from,
@@ -164,6 +182,7 @@ export function ReportesClient({
 }: {
   data: ReportesData | null;
   medios: MediosData | null;
+  gastos: ExpensesData | null;
   periodo: Periodo;
   offset: number;
   from: string;
@@ -322,7 +341,7 @@ export function ReportesClient({
               <p className="mt-1.5 text-xs text-muted-foreground">
                 {m.margin_pct === null
                   ? "Cargá costos para verla"
-                  : `Margen ${m.margin_pct}% · no incluye alquiler ni servicios`}
+                  : `Margen ${m.margin_pct}% · antes de gastos fijos`}
               </p>
             </CardHero>
 
@@ -340,6 +359,15 @@ export function ReportesClient({
               </span>
             </Metric>
           </div>
+
+          {/* Tu ganancia real: el bruto de arriba menos los gastos fijos. Cierra
+              el caveat que antes admitía "no incluye alquiler ni servicios".
+              Degradación honesta: sin costos no hay neto (manda el nudge de
+              arriba); con costos pero sin gastos cargados nunca → CTA, jamás un
+              neto inflado = bruto. */}
+          {m.margin_pct !== null && gastos && (
+            <GananciaReal profit={m.profit} gastos={gastos} className="mt-4" />
+          )}
 
           {/* Evolución: tendencia → área con línea, no barras (la forma la
               elige el trabajo del dato). */}
@@ -921,4 +949,117 @@ function Ranking({
 
 function Vacio({ children }: { children: React.ReactNode }) {
   return <p className="py-6 text-center text-sm text-muted-foreground">{children}</p>;
+}
+
+/**
+ * "Tu ganancia real": bruto − gastos fijos = neto. El número que separa "vendí
+ * bien" de "me quedó plata". Solo se llama con costos cargados (`margin_pct` no
+ * null); acá se resuelve el resto de la degradación honesta.
+ *
+ * El verde queda SAGRADO para el neto positivo (plata de verdad); el desglose de
+ * gastos va en barras neutras, nunca en verde.
+ */
+function GananciaReal({
+  profit,
+  gastos,
+  className,
+}: {
+  profit: number;
+  gastos: ExpensesData;
+  className?: string;
+}) {
+  // Costos OK pero jamás cargó un gasto: CTA, nunca un neto = bruto (sería mentir
+  // diciendo que todo lo que quedó del margen es ganancia limpia).
+  if (!gastos.expenses_loaded_ever) {
+    return (
+      <Link
+        href="/admin/gastos"
+        className={cn(
+          "group flex items-center gap-3 rounded-xl border border-dashed border-border bg-card px-5 py-4 duration-500 animate-in fade-in slide-in-from-bottom-2 transition-colors hover:border-primary/40",
+          className,
+        )}
+      >
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary-ink ring-1 ring-primary/25">
+          <Receipt className="size-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">
+            Cargá tus gastos fijos para ver tu ganancia real
+          </span>
+          <span className="block text-xs text-muted-foreground">
+            Alquiler, luz, sueldos: lo que separa lo que vendiste de lo que te quedó.
+          </span>
+        </span>
+        <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </Link>
+    );
+  }
+
+  const expenses = Number(gastos.expenses);
+  const net = profit - expenses;
+  const sinGastosEnPeriodo = expenses === 0;
+
+  return (
+    <CardHero glow={net > 0 ? "success" : undefined} className={className}>
+      <h2 className="text-sm font-medium text-muted-foreground">Tu ganancia real</h2>
+      <p
+        className={cn(
+          "tabular mt-1 text-2xl font-semibold",
+          net > 0 && "text-success-ink",
+          net < 0 && "text-danger-ink",
+        )}
+      >
+        {money(net)}
+      </p>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        {sinGastosEnPeriodo
+          ? "Sin gastos imputados a este período."
+          : `${money(profit)} de ganancia − ${money(expenses)} de gastos fijos`}
+      </p>
+      {!sinGastosEnPeriodo && gastos.expenses_by_category.length > 0 && (
+        <div className="mt-4 border-t border-border pt-4">
+          <GastosDesglose items={gastos.expenses_by_category} total={expenses} />
+        </div>
+      )}
+    </CardHero>
+  );
+}
+
+/** Desglose de gastos por categoría: barras de proporción neutras (mismo lenguaje
+    visual que "Por categoría", pero de un solo valor). El verde es del neto. */
+function GastosDesglose({
+  items,
+  total,
+}: {
+  items: { category: string; total: number }[];
+  total: number;
+}) {
+  const orden = [...items].sort((a, b) => Number(b.total) - Number(a.total));
+  const max = Math.max(...orden.map((c) => Number(c.total)), 1);
+  return (
+    <ul className="space-y-3">
+      {orden.map((c) => {
+        const val = Number(c.total);
+        const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+        return (
+          <li key={c.category}>
+            <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
+              <span className="min-w-0 truncate">
+                {CATEGORIA_LABEL[c.category] ?? c.category}
+              </span>
+              <span className="tabular shrink-0 text-xs text-muted-foreground">
+                {pct}% · <span className="font-semibold text-foreground">{money(val)}</span>
+              </span>
+            </div>
+            <div className="h-2.5 rounded-full bg-secondary/50">
+              <div
+                className="h-full rounded-full bg-primary/35"
+                style={{ width: `${(val / max) * 100}%` }}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
