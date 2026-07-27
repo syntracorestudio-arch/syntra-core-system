@@ -7,7 +7,7 @@ import { z } from "zod";
 import { HONEYPOT_FIELD, leadSchema } from "@/lib/validations/lead";
 import { rateLimit } from "@/lib/rate-limit";
 import { createLead } from "@/services/lead-service";
-import { notifyNewLead } from "@/services/lead-notifications";
+import { notifyNewLead, sendLeadAutoReply } from "@/services/lead-notifications";
 import type { LeadFormState } from "@/app/actions/lead-form-state";
 
 /** Obtiene la IP del cliente desde los headers de proxy (Vercel/Cloudflare). */
@@ -28,7 +28,12 @@ export async function submitLead(
 ): Promise<LeadFormState> {
   // Honeypot: si viene relleno, es un bot. Fingimos éxito sin persistir.
   if (formData.get(HONEYPOT_FIELD)) {
-    return { status: "success", message: "¡Gracias! Te contactaremos pronto." };
+    // Mismo texto que el éxito real: un humano mal clasificado no debe notar
+    // diferencia (y un bot no la lee).
+    return {
+      status: "success",
+      message: "Listo, recibimos tu consulta. Te escribimos por email apenas la leamos.",
+    };
   }
 
   // Checkboxes MULTI (0005): el form envía 0..N valores con name="projectType".
@@ -102,11 +107,15 @@ export async function submitLead(
   // Si falla, el lead ya está persistido en Supabase (fuente de verdad).
   if (result.lead) {
     const lead = result.lead;
+    // Aviso interno (crítico, con reintentos y observabilidad en el panel) y
+    // acuse al lead (cortesía, best-effort). Independientes: que falle el
+    // acuse no debe ensuciar el estado de notificación del panel.
     after(() => notifyNewLead(lead));
+    after(() => sendLeadAutoReply(lead));
   }
 
   return {
     status: "success",
-    message: "¡Gracias! Recibimos tu mensaje y te contactaremos pronto.",
+    message: "Listo, recibimos tu consulta. Te escribimos por email apenas la leamos.",
   };
 }

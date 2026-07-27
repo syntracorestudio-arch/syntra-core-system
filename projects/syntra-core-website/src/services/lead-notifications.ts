@@ -158,6 +158,110 @@ function buildEmailHtml(lead: Lead): string {
 </html>`;
 }
 
+/**
+ * Acuse para EL LEAD (no para el estudio). Sin esto, la persona manda su
+ * consulta y no recibe nada: queda dudando si entró — y perdemos el segundo
+ * punto de contacto de marca.
+ *
+ * Cortesía, no transporte crítico: es best-effort y NUNCA toca
+ * `notification_status`, que es el eje de observabilidad del aviso INTERNO (el
+ * que mira el panel). Mezclarlos haría que el panel mienta.
+ */
+function buildAutoReplyHtml(lead: Lead): string {
+  const nombre = esc(lead.name.split(" ")[0] ?? lead.name);
+  const mensaje = esc(lead.message).replace(/\n/g, "<br />");
+
+  return `<!DOCTYPE html>
+<html lang="es">
+  <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Recibimos tu consulta. Te escribimos apenas la leamos.</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 12px;">
+      <tr><td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+          <tr>
+            <td style="background:#0b1120;border-radius:12px 12px 0 0;padding:22px 28px;">
+              <span style="font-size:16px;font-weight:bold;letter-spacing:3px;color:#f8fafc;">SYNTRA <span style="color:#60a5fa;">CORE</span></span>
+            </td>
+          </tr>
+          <tr>
+            <td style="height:3px;background:#2563eb;background:linear-gradient(90deg,#2563eb,#60a5fa 45%,#e7c8a0);font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;padding:26px 28px 28px;color:#0f172a;">
+              <p style="margin:0 0 14px;font-size:16px;">Hola ${nombre},</p>
+              <p style="margin:0 0 14px;font-size:15px;line-height:1.6;">
+                Recibimos tu consulta. Te escribimos por email apenas la leamos.
+              </p>
+              <p style="margin:0 0 22px;font-size:15px;line-height:1.6;">
+                Te responde quien va a trabajar en tu proyecto, no un intermediario.
+              </p>
+              <div style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Esto es lo que nos contaste</div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid #e7c8a0;border-radius:8px;padding:14px 16px;font-size:14px;line-height:1.6;color:#334155;">${mensaje}</div>
+              <p style="margin:22px 0 0;font-size:14px;line-height:1.6;color:#475569;">
+                Si querés sumar algo, respondé este mismo mail.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;border-radius:0 0 12px 12px;border-top:1px solid #e2e8f0;padding:16px 28px;font-size:12px;color:#94a3b8;">
+              SYNTRA CORE — Un estudio, no una agencia.
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>`;
+}
+
+/**
+ * Manda el acuse al lead. Best-effort: si falla, se loguea y sigue — el lead ya
+ * está persistido y el estudio ya fue notificado por su propia vía.
+ *
+ * OJO (config): con el sandbox de Resend (`onboarding@resend.dev`) este mail
+ * SOLO llega a la casilla dueña de la cuenta. Para que le llegue al lead real
+ * hace falta verificar el dominio en Resend y setear LEAD_EMAIL_FROM.
+ */
+export async function sendLeadAutoReply(lead: Lead): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return; // sin transporte no hay acuse; no es un error del lead
+
+  const body = JSON.stringify({
+    from: process.env.LEAD_EMAIL_FROM ?? DEFAULT_FROM,
+    to: [lead.email],
+    // Si responde el acuse, va al estudio (no al remitente técnico).
+    reply_to: process.env.LEAD_NOTIFY_TO ?? undefined,
+    subject: "Recibimos tu consulta",
+    html: buildAutoReplyHtml(lead),
+  });
+
+  // 2 intentos: es cortesía, no vale la pena castigar el runtime por un blip.
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(RESEND_ENDPOINT, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+          // Clave propia: no debe colisionar con la del aviso interno.
+          "idempotency-key": `lead-autoreply/${lead.id}`,
+        },
+        body,
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (res.ok) return;
+      console.error(`[autoreply] intento ${attempt}: Resend respondió ${res.status}.`);
+    } catch (err) {
+      console.error(
+        `[autoreply] intento ${attempt} falló:`,
+        err instanceof Error ? err.message : "error desconocido",
+      );
+    }
+    if (attempt === 1) await sleep(BACKOFF_MS[0] ?? 500);
+  }
+  console.error(`[autoreply] no se pudo enviar el acuse del lead ${lead.id}.`);
+}
+
 export async function notifyNewLead(lead: Lead): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const to = process.env.LEAD_NOTIFY_TO;

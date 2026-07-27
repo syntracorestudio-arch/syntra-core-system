@@ -335,6 +335,12 @@ function ContactForm() {
               entre estados (CLS 0 en interacción). Se atenúa al enviar. */}
           <Send data-icon="inline-end" aria-hidden="true" className={isPending ? "opacity-0" : undefined} />
         </Button>
+
+        {/* Expectativa de respuesta: contesta "quién te responde" en el momento
+            exacto en que la persona decide si deja el dato. */}
+        <p className="text-xs text-muted-foreground sm:text-right">
+          {finalCta.submitNote}
+        </p>
       </motion.div>
 
     </motion.form>
