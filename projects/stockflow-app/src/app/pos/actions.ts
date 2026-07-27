@@ -142,7 +142,8 @@ export async function registerSale(input: unknown): Promise<SaleResult> {
  * misma transacción y valida que sume el total server-side). Acá solo validamos forma.
  */
 const splitPaymentSchema = z.object({
-  method: z.enum(["cash", "card", "transfer"]),
+  // 'qr' se admite desde el Paso 2 (una parte del split cobrada por QR).
+  method: z.enum(["cash", "card", "transfer", "qr"]),
   amount: z.number().positive(),
 });
 
@@ -150,6 +151,9 @@ const splitSaleSchema = z.object({
   items: z.array(itemSchema).min(1),
   pagos: z.array(splitPaymentSchema).min(2),
   idempotency_key: z.string().min(8).max(64),
+  // true cuando la parte QR ya se acreditó (Paso 2): la venta es un hecho, no la frena
+  // el stock estricto ni un producto archivado (M4). El split offline va sin esto.
+  paid: z.boolean().optional(),
 });
 
 export async function registerSplitSale(input: unknown): Promise<SaleResult> {
@@ -167,6 +171,7 @@ export async function registerSplitSale(input: unknown): Promise<SaleResult> {
     p_items: parsed.data.items,
     p_pagos: parsed.data.pagos,
     p_idempotency_key: parsed.data.idempotency_key,
+    p_paid: parsed.data.paid ?? false,
   });
 
   if (error) {

@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { X, LoaderCircle, Check, TriangleAlert, Smartphone } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { money } from "@/lib/format";
-import { crearCobroQR, estadoCobro, cancelarCobro } from "@/app/pos/cobro-qr-actions";
-
-type Item = { product_id: string | null; qty: number };
+import { estadoCobro, cancelarCobro, type CobroQR } from "@/app/pos/cobro-qr-actions";
 
 type Fase =
   | { f: "pidiendo" }
@@ -25,17 +23,15 @@ type Fase =
  * queda registrado como no confirmado — honesto, y el dueño lo ve en Caja.
  */
 export function CobroQrDialog({
-  items,
   amount,
-  idempotencyKey,
-  descripcion,
+  crear,
   onPagado,
   onCerrar,
 }: {
-  items: Item[];
+  /** Monto que muestra el diálogo (en un split, la parte QR). */
   amount: number;
-  idempotencyKey: string;
-  descripcion: string;
+  /** Crea el intento + pide el QR. El padre decide: QR de venta entera o parte de un split. */
+  crear: () => Promise<CobroQR>;
   /** `intentId` null = el cajero cobró sin confirmación de MercadoPago. */
   onPagado: (intentId: string | null) => void;
   onCerrar: () => void;
@@ -60,12 +56,19 @@ export function CobroQrDialog({
     onPagadoRef.current = onPagado;
   }, [onPagado]);
 
-  // Pedir el QR una sola vez, aunque React monte el efecto dos veces en dev.
+  // `crear` es una flecha inline del padre (cambia de identidad cada render). El ref lo
+  // desacopla para pedir el QR UNA sola vez (aunque React monte el efecto dos veces en dev).
+  const crearRef = useRef(crear);
+  useEffect(() => {
+    crearRef.current = crear;
+  }, [crear]);
+
   useEffect(() => {
     if (pedido.current) return;
     pedido.current = true;
 
-    crearCobroQR({ items, amount, idempotency_key: idempotencyKey, descripcion })
+    crearRef
+      .current()
       .then((res) => {
         if (!res.ok) {
           setFase({ f: "error", mensaje: res.error, sinCuenta: Boolean(res.sinCuenta) });
@@ -74,7 +77,7 @@ export function CobroQrDialog({
         setFase({ f: "esperando", intentId: res.intentId, svg: res.qrSvg });
       })
       .catch(() => setFase({ f: "error", mensaje: "No pudimos generar el QR.", sinCuenta: false }));
-  }, [items, amount, idempotencyKey, descripcion]);
+  }, []);
 
   // Consultar el estado mientras el cliente escanea.
   const intentId = fase.f === "esperando" ? fase.intentId : null;

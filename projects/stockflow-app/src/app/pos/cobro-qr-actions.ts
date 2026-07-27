@@ -115,6 +115,83 @@ export async function crearCobroQR(input: unknown): Promise<CobroQR> {
   return { ok: true, intentId: row.id, qrSvg: qrSvg(qrData), amount: Number(row.amount) };
 }
 
+/**
+ * Cobro QR de una PARTE de un split (Cobros Paso 2). Igual que `crearCobroQR`, pero
+ * el intento cobra solo la parte QR del reparto (guardando el reparto completo) — así
+ * `estadoCobro` bindea el acreditado contra esa parte, no contra el carrito entero.
+ */
+const splitQrPagoSchema = z.object({
+  method: z.enum(["cash", "card", "transfer", "qr"]),
+  amount: z.number().positive(),
+});
+
+const crearSplitSchema = z.object({
+  items: z.array(itemSchema).min(1),
+  pagos: z.array(splitQrPagoSchema).min(2),
+  idempotency_key: z.string().min(8).max(64),
+  descripcion: z.string().max(120).optional(),
+  client_id: z.guid().nullable().optional(),
+});
+
+export async function crearCobroSplit(input: unknown): Promise<CobroQR> {
+  const session = await requireSession();
+
+  const parsed = crearSplitSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Datos del cobro inválidos." };
+
+  if (!(await checkRateLimit(`cobro-qr:${session.store.id}`, 60, 60))) {
+    return { ok: false, error: "Demasiados cobros seguidos. Esperá unos segundos." };
+  }
+
+  const auth = await getStoreMpAuth(session.store.id);
+  if (!auth) {
+    return { ok: false, sinCuenta: true, error: "Este negocio todavía no conectó su cuenta de MercadoPago." };
+  }
+  if (!auth.externalPosId) {
+    return { ok: false, sinCuenta: true, error: "Falta terminar de configurar la caja en MercadoPago." };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { data: intento, error } = await supabase.rpc("crear_intento_cobro_split", {
+    p_store_id: session.store.id,
+    p_items: parsed.data.items,
+    p_pagos: parsed.data.pagos,
+    p_idempotency_key: parsed.data.idempotency_key,
+    p_client_id: parsed.data.client_id ?? null,
+  });
+
+  if (error || !intento) return { ok: false, error: "No pudimos preparar el cobro." };
+
+  const row = intento as { id: string; amount: string; qr_data: string | null };
+
+  // Reintento: el QR de la parte ya existe.
+  if (row.qr_data) {
+    return { ok: true, intentId: row.id, qrSvg: qrSvg(row.qr_data), amount: Number(row.amount) };
+  }
+
+  // El QR cobra SOLO la parte QR (row.amount ya es el parcial, fijado server-side).
+  const orden = await mpCrearOrdenQR({
+    token: auth.token,
+    externalPosId: auth.externalPosId,
+    amount: Number(row.amount),
+    externalReference: row.id,
+    descripcion: parsed.data.descripcion ?? `Venta ${session.store.name}`,
+  });
+
+  if (!orden.ok) {
+    await createAdminClient().from("payment_intents").update({ status: "cancelled" }).eq("id", row.id);
+    return { ok: false, error: `MercadoPago no pudo generar el QR: ${orden.error}` };
+  }
+
+  const qrData = orden.orden.type_response!.qr_data!;
+  await createAdminClient()
+    .from("payment_intents")
+    .update({ mp_order_id: String(orden.orden.id), qr_data: qrData })
+    .eq("id", row.id);
+
+  return { ok: true, intentId: row.id, qrSvg: qrSvg(qrData), amount: Number(row.amount) };
+}
+
 export type CobroPoint =
   | { ok: true; intentId: string; amount: number }
   | { ok: false; error: string; sinCuenta?: boolean; sinTerminal?: boolean };
