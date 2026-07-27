@@ -298,6 +298,11 @@ function FaqSection() {
                       <button
                         type="button"
                         aria-expanded={isOpen}
+                        // aria-controls + id en el panel: sin el par, un lector
+                        // de pantalla anuncia "expandido" sin poder decir QUÉ se
+                        // expandió ni saltar a la respuesta.
+                        aria-controls={`faq-panel-${i}`}
+                        id={`faq-trigger-${i}`}
                         onClick={() => toggle(i)}
                         className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left sm:px-6 sm:py-5"
                       >
@@ -347,6 +352,9 @@ function FaqSection() {
 
                       {/* Respuesta: apertura grid-rows (CSS puro, CLS-safe) */}
                       <div
+                        id={`faq-panel-${i}`}
+                        role="region"
+                        aria-labelledby={`faq-trigger-${i}`}
                         className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${
                           isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                         }`}
