@@ -136,6 +136,9 @@ const crearSplitSchema = z.object({
   // Grupo del split de DOS patas electrónicas (tarjeta + QR): liga esta pata con la
   // otra electrónica de la misma venta para el cierre verificado. null = una sola pata.
   group_id: z.guid().nullable().optional(),
+  // Qué método electrónico cobra esta pata ('card' | 'qr'): deja el estado del grupo sin
+  // ambigüedad para la recuperación "a medio cobrar". Solo en las patas de un grupo.
+  leg_method: z.enum(["card", "qr"]).nullable().optional(),
 });
 
 export async function crearCobroSplit(input: unknown): Promise<CobroQR> {
@@ -165,6 +168,7 @@ export async function crearCobroSplit(input: unknown): Promise<CobroQR> {
     p_idempotency_key: parsed.data.idempotency_key,
     p_client_id: parsed.data.client_id ?? null,
     p_group_id: parsed.data.group_id ?? null,
+    p_leg_method: parsed.data.leg_method ?? null,
   });
 
   if (error || !intento) return { ok: false, error: "No pudimos preparar el cobro." };
@@ -235,6 +239,7 @@ export async function crearCobroSplitPoint(input: unknown): Promise<CobroPoint> 
     p_idempotency_key: parsed.data.idempotency_key,
     p_client_id: parsed.data.client_id ?? null,
     p_group_id: parsed.data.group_id ?? null,
+    p_leg_method: parsed.data.leg_method ?? null,
   });
 
   if (error || !intento) return { ok: false, error: "No pudimos preparar el cobro." };

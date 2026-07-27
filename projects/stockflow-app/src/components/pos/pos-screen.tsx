@@ -834,6 +834,7 @@ export function PosScreen({
               leg_amount: splitGroup.cardAmount,
               idempotency_key: `${splitGroup.groupId}-C`,
               group_id: splitGroup.groupId,
+              leg_method: "card",
               descripcion: carrito.map((l) => l.producto.name).join(", "),
               payment_type: splitGroup.cardPaymentType,
             })
@@ -884,6 +885,7 @@ export function PosScreen({
               leg_amount: splitGroup.qrAmount,
               idempotency_key: `${splitGroup.groupId}-Q`,
               group_id: splitGroup.groupId,
+              leg_method: "qr",
               descripcion: carrito.map((l) => l.producto.name).join(", "),
             })
           }
@@ -903,6 +905,7 @@ export function PosScreen({
               leg_amount: splitGroup.qrAmount,
               idempotency_key: `${splitGroup.groupId}-Q`,
               group_id: splitGroup.groupId,
+              leg_method: "qr",
               descripcion: carrito.map((l) => l.producto.name).join(", "),
             })
           }

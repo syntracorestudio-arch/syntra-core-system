@@ -1,8 +1,10 @@
 import { AppShell } from "@/components/shell/app-shell";
 import { requireOwner } from "@/lib/session";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { getStoreMpAuth } from "@/lib/mercadopago";
 import { CajaClient, type CierreData } from "./caja-client";
 import { CobrosHuerfanos, type CobroHuerfano } from "./cobros-huerfanos";
+import { GruposMedioCobrar, type GrupoMedioCobrar } from "./grupos-medio-cobrar";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +23,24 @@ export default async function CajaPage({
   // Fecha explícita para poder revisar días anteriores; por defecto, hoy.
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(sp.d ?? "") ? sp.d : null;
 
-  const [{ data }, { data: huerfanos }] = await Promise.all([
-    supabase.rpc("cierre_caja", { p_store_id: session.store.id, p_fecha: fecha }),
-    supabase.rpc("cobros_sin_venta", { p_store_id: session.store.id }),
-  ]);
+  const [{ data }, { data: huerfanos }, { data: medioCobrar }, mpAuth, { data: settings }] =
+    await Promise.all([
+      supabase.rpc("cierre_caja", { p_store_id: session.store.id, p_fecha: fecha }),
+      supabase.rpc("cobros_sin_venta", { p_store_id: session.store.id }),
+      supabase.rpc("grupos_a_medio_cobrar", { p_store_id: session.store.id }),
+      getStoreMpAuth(session.store.id),
+      supabase
+        .from("store_settings")
+        .select("has_posnet")
+        .eq("store_id", session.store.id)
+        .maybeSingle(),
+    ]);
 
   const cobros = (huerfanos ?? []) as CobroHuerfano[];
+  const grupos = (medioCobrar ?? []) as GrupoMedioCobrar[];
+  // La terminal Point se ofrece para resumir solo si el negocio la prendió y quedó una
+  // terminal configurada (mismo criterio que el POS).
+  const posnetActivo = !!mpAuth?.mpTerminalId && Boolean(settings?.has_posnet);
 
   return (
     <AppShell
@@ -36,9 +50,10 @@ export default async function CajaPage({
         session.member.role === "owner" ? "Dueño" : "Empleado"
       }`}
     >
-      {cobros.length > 0 && (
+      {(cobros.length > 0 || grupos.length > 0) && (
         <div className="mx-auto max-w-3xl px-4 pt-6 lg:px-8 lg:pt-8">
-          <CobrosHuerfanos cobros={cobros} />
+          {grupos.length > 0 && <GruposMedioCobrar grupos={grupos} posnetActivo={posnetActivo} />}
+          {cobros.length > 0 && <CobrosHuerfanos cobros={cobros} />}
         </div>
       )}
       <CajaClient

@@ -53,11 +53,11 @@ begin
   v_legc := public.crear_intento_cobro_split(
     '11111111-1111-1111-1111-111111111111',
     '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
-    v_pagos, v_card, 'SPLIT2-C-0001', null, v_group);
+    v_pagos, v_card, 'SPLIT2-C-0001', null, v_group, 'card');
   v_legq := public.crear_intento_cobro_split(
     '11111111-1111-1111-1111-111111111111',
     '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
-    v_pagos, v_qr, 'SPLIT2-Q-0001', null, v_group);
+    v_pagos, v_qr, 'SPLIT2-Q-0001', null, v_group, 'qr');
 
   if v_legc.split_group_id is distinct from v_group or v_legq.split_group_id is distinct from v_group then
     raise exception 'FALLA 1: las patas no quedaron en el grupo';
@@ -127,11 +127,11 @@ begin
   v_legc := public.crear_intento_cobro_split(
     '11111111-1111-1111-1111-111111111111',
     '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
-    v_pagos, v_card, 'SPLIT2-C-0002', null, v_group);
+    v_pagos, v_card, 'SPLIT2-C-0002', null, v_group, 'card');
   v_legq := public.crear_intento_cobro_split(
     '11111111-1111-1111-1111-111111111111',
     '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
-    v_pagos, v_qr, 'SPLIT2-Q-0002', null, v_group);
+    v_pagos, v_qr, 'SPLIT2-Q-0002', null, v_group, 'qr');
 
   -- SOLO la tarjeta acreditó; el QR sigue pendiente.
   update public.payment_intents set status = 'approved' where id = v_legc.id;
@@ -185,11 +185,11 @@ begin
   v_legc := public.crear_intento_cobro_split(
     '11111111-1111-1111-1111-111111111111',
     '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
-    v_pagos, v_card, 'SPLIT2-C-0003', null, v_group);
+    v_pagos, v_card, 'SPLIT2-C-0003', null, v_group, 'card');
   v_legq := public.crear_intento_cobro_split(
     '11111111-1111-1111-1111-111111111111',
     '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
-    v_pagos, v_qr, 'SPLIT2-Q-0003', null, v_group);
+    v_pagos, v_qr, 'SPLIT2-Q-0003', null, v_group, 'qr');
   update public.payment_intents set status = 'approved' where id in (v_legc.id, v_legq.id);
 
   v_sale1 := (public.register_split_group(
@@ -242,11 +242,11 @@ begin
   v_legc := public.crear_intento_cobro_split(
     '11111111-1111-1111-1111-111111111111',
     '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
-    v_pagos, v_card, 'SPLIT2-C-0004', null, v_group);
+    v_pagos, v_card, 'SPLIT2-C-0004', null, v_group, 'card');
   v_legq := public.crear_intento_cobro_split(
     '11111111-1111-1111-1111-111111111111',
     '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
-    v_pagos, v_qr, 'SPLIT2-Q-0004', null, v_group);
+    v_pagos, v_qr, 'SPLIT2-Q-0004', null, v_group, 'qr');
   update public.payment_intents set status = 'approved' where id in (v_legc.id, v_legq.id);
   -- Manipulación: la pata QR "acreditó" un monto distinto al de su parte.
   update public.payment_intents set amount = v_qr + 500 where id = v_legq.id;
