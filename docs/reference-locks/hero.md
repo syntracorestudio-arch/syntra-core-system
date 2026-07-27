@@ -280,3 +280,64 @@ quiebres temporales del ruido (cero en 60s). **La rampa aprobada no se tocó.**
 - [x] El bloque above-the-fold viaja VISIBLE en el HTML servido en mobile.
 - [x] El ciclo del fondo no salta al volver de otra pestaña ni al re-entrar al viewport.
 - [x] Desktop conserva la entrada escalonada (verificado cuadro a cuadro).
+
+---
+
+## Actualización 2026-07-27 — color aprobado (azul del fondo · violeta del objeto)
+
+Dos ajustes de color pedidos por el owner y **aprobados en vivo en su navegador**
+(mobile + desktop). No cambian la composición ni la mecánica: solo la dosis.
+PR #161. Sustituyen los valores citados más arriba en este mismo lock.
+
+### 1 · El azul del fondo, un paso más oscuro
+
+El owner: *"el tono del azul me parece muy fuerte, quiero un azul un poco más
+oscuro"*. Diagnóstico (`design-director`, luminancia WCAG): **el hue estaba bien**
+(~219°, dentro del hue-lock). Lo que "gritaba" era **luminancia + saturación** —
+el cuerpo tenía Y≈0.069 contra Y≈0.0079 del navy base: un salto de ~9× que el ojo
+lee como foco brillante, no como masa de fondo.
+
+Rampa vigente (`hero-liquido.tsx`, y su eco en el mesh CSS de `hero-camara.tsx`):
+
+| stop | antes | **ahora** | rol |
+| --- | --- | --- | --- |
+| profunda | `#0F2A5C` | **`#0D2452`** | masa en sombra |
+| cuerpo | `#17459E` | **`#143A7D`** | cuerpo iluminado — el promedio del área azul |
+| cresta | `#1D4ED8` | **`#1A46B0`** | bordes luminosos |
+| núcleo | `#2563EB` | **`#2563EB`** (sin tocar) | acento máximo, ≤5% del encuadre |
+
+Mesh mobile: `rgba(20,58,125,0.31)` (era `rgba(23,69,158,0.34)`).
+
+**Por qué la cresta baja en paralelo y el núcleo no:** si solo se oscurece el
+cuerpo, el highlight **grita más** (aumenta el Δluminancia cresta↔cuerpo). El
+núcleo es el token de marca (`brand-electric`) y su rol es la chispa que sostiene
+la escena viva sobre un cuerpo ya oscurecido — por eso se conserva.
+
+### 2 · El violeta del objeto, un paso más intenso
+
+`pointLight #7136ff` del rig: **3.0 → 4.0**. El hue aprobado no se toca, solo la
+dosis. Contexto histórico: venía de 6.5 → 3.0 (2026-07-22, porque azul + violeta
+fuertes juntos son la firma del render de IA genérico que la marca evita); el
+owner lo sube un paso sin volver a la dosis vieja.
+
+### 3 · Mobile: sin objeto (ni 3D ni póster)
+
+Confirmado como estado aprobado: **debajo de 1024px el hero no lleva nudo**. El
+póster estático se leía "frezado" y el owner pidió sacarlo. El hero mobile es
+copy + placa de capacidades + fondo CSS. El asset `vortice-poster.webp` se
+eliminó del repo por quedar huérfano.
+
+### Regla que deja
+
+**El hue del hero está bloqueado; la dosis es lo negociable.** Ante un pedido de
+"más/menos color", mover **luminancia, saturación u opacidad** — nunca el hue, y
+nunca hacia violeta/cyan en la web (estética "IA genérica" que la marca evita).
+Al oscurecer la masa, bajar el highlight en paralelo y conservar el núcleo.
+
+### Criterios binarios
+
+- [x] El fondo sigue leyéndose azul, no negro-azulado muerto.
+- [x] El H1 blanco conserva contraste AA holgado (oscurecer solo lo mejora).
+- [x] La escena no se aplana: la rampa conserva el rango sombra→masa→cresta→núcleo.
+- [x] Mobile y desktop comparten tono (el mesh CSS usa el cuerpo nuevo).
+- [x] Render verificado tras subir a Next 16.2.12: idéntico, sin regresión.
