@@ -37,7 +37,7 @@ begin
     jsonb_build_array(
       jsonb_build_object('method','cash','amount', v_cash),
       jsonb_build_object('method','qr','amount', v_qr)),
-    'SPLITQR-0001');
+    v_qr, 'SPLITQR-0001');
 
   if v_intent.amount is distinct from v_qr then
     raise exception 'FALLA 1: el intento cobra % (esperado la parte QR %)', v_intent.amount, v_qr;
@@ -54,16 +54,20 @@ end $$;
 rollback;
 
 -- ---------------------------------------------------------------------------
--- 2 · El reparto tiene que sumar el total del carrito, y tener EXACTAMENTE una
---     parte QR. Binding de integridad del split completo.
+-- 2 · El reparto tiene que sumar el total. La pata electrónica puede ser TARJETA
+--     (no solo QR): con posnet, la parte tarjeta va a la terminal. Y el monto de la
+--     pata tiene que ser parcial (0 < leg <= total).
 -- ---------------------------------------------------------------------------
 begin;
 select set_config('request.jwt.claim.sub', :'DUENO', true);
 do $$
 declare
-  v_price numeric;
+  v_price  numeric;
+  v_card   numeric;
+  v_intent public.payment_intents;
 begin
   select price into v_price from public.products where id = 'd1000000-0000-0000-0000-000000000001';
+  v_card := round(v_price / 2, 2);
 
   -- Suma de menos → rechazo.
   begin
@@ -73,26 +77,38 @@ begin
       jsonb_build_array(
         jsonb_build_object('method','cash','amount', 100),
         jsonb_build_object('method','qr','amount', 100)),
-      'SPLITQR-0002a');
+      100, 'SPLITQR-0002a');
     raise exception 'FALLA 2: aceptó un reparto que no suma el total';
   exception when others then
     if sqlerrm not like '%split_sum_mismatch%' then raise; end if;
   end;
 
-  -- Sin parte QR → rechazo (este intento es SIEMPRE para la pata QR).
+  -- Pata electrónica = TARJETA (posnet): el intento cobra la parte tarjeta, sin QR.
+  v_intent := public.crear_intento_cobro_split(
+    '11111111-1111-1111-1111-111111111111',
+    '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
+    jsonb_build_array(
+      jsonb_build_object('method','cash','amount', v_price - v_card),
+      jsonb_build_object('method','card','amount', v_card)),
+    v_card, 'SPLITQR-0002b');
+  if v_intent.amount is distinct from v_card then
+    raise exception 'FALLA 2: la pata tarjeta cobra % (esperado %)', v_intent.amount, v_card;
+  end if;
+
+  -- Monto de pata inválido (mayor al total) → rechazo.
   begin
     perform public.crear_intento_cobro_split(
       '11111111-1111-1111-1111-111111111111',
       '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
       jsonb_build_array(
-        jsonb_build_object('method','cash','amount', round(v_price/2,2)),
-        jsonb_build_object('method','card','amount', v_price - round(v_price/2,2))),
-      'SPLITQR-0002b');
-    raise exception 'FALLA 2: aceptó un split sin parte QR en el intento QR';
+        jsonb_build_object('method','cash','amount', v_price - v_card),
+        jsonb_build_object('method','qr','amount', v_card)),
+      v_price + 1000, 'SPLITQR-0002c');
+    raise exception 'FALLA 2: aceptó una pata mayor al total';
   exception when others then
-    if sqlerrm not like '%split_needs_one_qr%' then raise; end if;
+    if sqlerrm not like '%invalid_leg_amount%' then raise; end if;
   end;
-  raise notice 'OK  2. el intento QR exige suma == total y exactamente una parte QR';
+  raise notice 'OK  2. suma == total; la pata electrónica puede ser tarjeta; leg parcial validado';
 end $$;
 rollback;
 
@@ -180,7 +196,7 @@ begin
     jsonb_build_array(
       jsonb_build_object('method','cash','amount', v_cash),
       jsonb_build_object('method','qr','amount', v_qr)),
-    'SPLITQR-0004');
+    v_qr, 'SPLITQR-0004');
   update public.payment_intents set status = 'approved' where id = v_intent.id;
 
   -- El banner de "cobros sin venta" lo tiene que ver, con el reparto y el monto TOTAL.
