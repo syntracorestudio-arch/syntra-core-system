@@ -17,6 +17,7 @@ import {
   X,
   Check,
   Copy,
+  Undo2,
   TriangleAlert,
   LoaderCircle,
   PackagePlus,
@@ -34,6 +35,7 @@ import {
   buscarPorNombre,
 } from "@/app/pos/actions";
 import { vincularVenta } from "@/app/pos/cobro-qr-actions";
+import { anularVenta } from "@/app/admin/caja/actions";
 import { signOut } from "@/app/login/actions";
 import { useWedgeScanner } from "./use-wedge-scanner";
 import { CameraScanner } from "./camera-scanner";
@@ -107,7 +109,18 @@ export function PosScreen({
   const [tendered, setTendered] = useState<number | null>(null);
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [camaraAbierta, setCamaraAbierta] = useState(false);
-  const [aviso, setAviso] = useState<{ tone: "ok" | "warn" | "error"; text: string } | null>(null);
+  const [aviso, setAviso] = useState<{
+    tone: "ok" | "warn" | "error";
+    text: string;
+    /** Si viene, el toast muestra "Deshacer" (anula la venta recién hecha). */
+    undoId?: string;
+  } | null>(null);
+  /** Línea del carrito cuya cantidad se está editando a mano (#6). */
+  const [editandoQty, setEditandoQty] = useState<string | null>(null);
+  /** El carrito quedó sin tocar un rato: ¿es de un cliente anterior? (#8). */
+  const [carritoViejo, setCarritoViejo] = useState(false);
+  /** AudioContext perezoso para el beep de "cobrado" (#7). */
+  const audioCtx = useRef<AudioContext | null>(null);
   /** Card que acaba de tocarse: dispara el pulso de confirmación. */
   const [pulso, setPulso] = useState<string | null>(null);
   const buscadorRef = useRef<HTMLInputElement>(null);
@@ -164,6 +177,7 @@ export function PosScreen({
     // el confirm y vuelve a componer. `setConfirmando(false)` es no-op si ya
     // estábamos en el estado A (React descarta el set al mismo valor).
     setConfirmando(false);
+    setCarritoViejo(false); // tocar el carrito reinicia el reloj de "colgado" (#8)
     // Confirmación visual sin mirar el carrito: la card late al tocarla.
     setPulso(producto.id);
     setTimeout(() => setPulso((p) => (p === producto.id ? null : p)), 350);
@@ -224,6 +238,7 @@ export function PosScreen({
 
   function cambiar(id: string, delta: number) {
     setConfirmando(false); // editar el carrito cancela la confirmación en curso
+    setCarritoViejo(false);
     setCarrito((prev) =>
       prev
         .map((l) => (l.producto.id === id ? { ...l, cantidad: l.cantidad + delta } : l))
@@ -238,6 +253,8 @@ export function PosScreen({
   function vaciar() {
     setConfirmando(false);
     setTendered(null);
+    setCarritoViejo(false);
+    setEditandoQty(null);
     setCarrito([]);
     idempotencyKey.current = crypto.randomUUID();
   }
@@ -251,6 +268,63 @@ export function PosScreen({
     const t = setTimeout(() => setConfirmReady(true), 250);
     return () => clearTimeout(t);
   }, [confirmando]);
+
+  /* Carrito colgado (#8): si pasa el rato sin tocarlo, avisar que puede ser de un
+     cliente anterior. El flag se resetea en cada cambio de carrito (agregar/cambiar/
+     vaciar), no acá, para no meter un setState en el cuerpo del efecto. */
+  useEffect(() => {
+    if (carrito.length === 0) return;
+    const t = setTimeout(() => setCarritoViejo(true), 3 * 60 * 1000);
+    return () => clearTimeout(t);
+  }, [carrito]);
+
+  /* Ventana de "Deshacer" (#3): el toast con undo desaparece a los 20s. */
+  useEffect(() => {
+    if (!aviso?.undoId) return;
+    const t = setTimeout(() => setAviso(null), 20_000);
+    return () => clearTimeout(t);
+  }, [aviso]);
+
+  /** Beep corto de "cobrado" (#7): confirmación sin mirar, mostrador ruidoso. */
+  function beep() {
+    try {
+      audioCtx.current ??= new AudioContext();
+      const ctx = audioCtx.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = 880;
+      gain.gain.value = 0.06;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+      osc.stop(ctx.currentTime + 0.16);
+    } catch {
+      /* audio bloqueado o no disponible: el beep es un extra, no rompe nada */
+    }
+  }
+
+  /** Deshacer la venta recién hecha (#3): revierte stock y deuda con anularVenta. */
+  function deshacer(saleId: string) {
+    setAviso(null);
+    startTransition(async () => {
+      const res = await anularVenta(saleId, "deshacer en caja");
+      setAviso(
+        res.ok
+          ? { tone: "ok", text: "Venta deshecha. La caja quedó como antes." }
+          : { tone: "error", text: res.error },
+      );
+    });
+  }
+
+  /** Fijar la cantidad de una línea a un número exacto (#6), sin re-escanear. */
+  function setCantidadAbs(id: string, n: number) {
+    setCarritoViejo(false);
+    setConfirmando(false);
+    setCarrito((prev) =>
+      prev.map((l) => (l.producto.id === id ? { ...l, cantidad: n } : l)).filter((l) => l.cantidad > 0),
+    );
+  }
 
   function cobrar() {
     if (carrito.length === 0 || pending) return;
@@ -334,6 +408,8 @@ export function PosScreen({
       setCobrandoQr(false);
       setConfirmando(false);
       setTendered(null);
+      setCarritoViejo(false);
+      setEditandoQty(null);
       setCarrito([]);
       setClienteId(null);
       setMedio("cash");
@@ -347,19 +423,30 @@ export function PosScreen({
           tone: "warn",
           text: `Este cobro ya estaba registrado (${money(res.total)}).`,
         });
-      } else if (res.negativeStock.length > 0) {
+        return;
+      }
+
+      // Venta nueva → beep de confirmación (#7). El "Deshacer" (#3) se ofrece solo
+      // cuando NO hubo captura externa: en el QR pagado la plata ya está en MP y
+      // anular la venta descuadraría — para eso está el flujo de anulación en Caja.
+      beep();
+      const undoId = intentId === null ? res.saleId : undefined;
+
+      if (res.negativeStock.length > 0) {
         const nombres = res.negativeStock.map((n) => n.name).join(", ");
         setAviso({
           tone: "warn",
           text: `Cobrado ${money(res.total)}. Ojo: ${nombres} quedó en negativo — revisá el stock.`,
+          undoId,
         });
       } else if (res.overLimit) {
         setAviso({
           tone: "warn",
           text: `Cobrado ${money(res.total)}. Ese cliente pasó su límite de fiado.`,
+          undoId,
         });
       } else {
-        setAviso({ tone: "ok", text: `Cobrado ${money(res.total)}` });
+        setAviso({ tone: "ok", text: `Cobrado ${money(res.total)}`, undoId });
       }
     });
   }
@@ -477,6 +564,17 @@ export function PosScreen({
               <TriangleAlert className="mt-0.5 size-4 shrink-0" />
             )}
             <span className="flex-1">{aviso.text}</span>
+            {aviso.undoId && (
+              <button
+                type="button"
+                onClick={() => deshacer(aviso.undoId!)}
+                disabled={pending}
+                className="flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-current px-2.5 py-1 text-xs font-bold transition-colors hover:bg-current/10 disabled:opacity-50"
+              >
+                <Undo2 className="size-3.5" />
+                Deshacer
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setAviso(null)}
@@ -581,6 +679,20 @@ export function PosScreen({
           )}
         </div>
 
+        {carritoViejo && carrito.length > 0 && (
+          <div className="mx-4 mt-2 flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-1.5 text-xs text-warning-ink ring-1 ring-warning/25">
+            <TriangleAlert className="size-3.5 shrink-0" />
+            <span className="flex-1">Sin tocar hace un rato. ¿Es de un cliente anterior?</span>
+            <button
+              type="button"
+              onClick={vaciar}
+              className="shrink-0 cursor-pointer font-semibold underline underline-offset-2 hover:opacity-80"
+            >
+              Vaciar
+            </button>
+          </div>
+        )}
+
         <div
           className={cn(
             "min-h-0 flex-1 overflow-y-auto max-h-[38dvh] lg:max-h-none",
@@ -615,9 +727,34 @@ export function PosScreen({
                         <Minus className="size-3.5" />
                       )}
                     </IconBtn>
-                    <span className="tabular w-6 text-center text-sm font-semibold">
-                      {l.cantidad}
-                    </span>
+                    {editandoQty === l.producto.id ? (
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        autoFocus
+                        defaultValue={l.cantidad}
+                        aria-label={`Cantidad de ${l.producto.name}`}
+                        onBlur={(e) => {
+                          const n = Math.floor(Number(e.target.value));
+                          if (Number.isFinite(n) && n > 0) setCantidadAbs(l.producto.id, n);
+                          setEditandoQty(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                          if (e.key === "Escape") setEditandoQty(null);
+                        }}
+                        className="tabular h-7 w-12 rounded-md border border-primary bg-background text-center text-sm font-semibold outline-none"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditandoQty(l.producto.id)}
+                        aria-label={`Escribir la cantidad de ${l.producto.name}`}
+                        className="tabular h-7 w-8 cursor-pointer rounded-md text-center text-sm font-semibold transition-colors hover:bg-secondary"
+                      >
+                        {l.cantidad}
+                      </button>
+                    )}
                     <IconBtn
                       label={`Agregar uno de ${l.producto.name}`}
                       onClick={() => cambiar(l.producto.id, 1)}
