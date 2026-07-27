@@ -128,6 +128,8 @@ const splitQrPagoSchema = z.object({
 const crearSplitSchema = z.object({
   items: z.array(itemSchema).min(1),
   pagos: z.array(splitQrPagoSchema).min(2),
+  // Monto de la pata electrónica que se cobra por MP (la parte QR o tarjeta).
+  leg_amount: z.number().positive(),
   idempotency_key: z.string().min(8).max(64),
   descripcion: z.string().max(120).optional(),
   client_id: z.guid().nullable().optional(),
@@ -156,6 +158,7 @@ export async function crearCobroSplit(input: unknown): Promise<CobroQR> {
     p_store_id: session.store.id,
     p_items: parsed.data.items,
     p_pagos: parsed.data.pagos,
+    p_leg_amount: parsed.data.leg_amount,
     p_idempotency_key: parsed.data.idempotency_key,
     p_client_id: parsed.data.client_id ?? null,
   });
@@ -169,7 +172,7 @@ export async function crearCobroSplit(input: unknown): Promise<CobroQR> {
     return { ok: true, intentId: row.id, qrSvg: qrSvg(row.qr_data), amount: Number(row.amount) };
   }
 
-  // El QR cobra SOLO la parte QR (row.amount ya es el parcial, fijado server-side).
+  // El QR cobra SOLO la pata electrónica (row.amount ya es el parcial, server-side).
   const orden = await mpCrearOrdenQR({
     token: auth.token,
     externalPosId: auth.externalPosId,
@@ -190,6 +193,69 @@ export async function crearCobroSplit(input: unknown): Promise<CobroQR> {
     .eq("id", row.id);
 
   return { ok: true, intentId: row.id, qrSvg: qrSvg(qrData), amount: Number(row.amount) };
+}
+
+/**
+ * Pata electrónica de un split empujada a la terminal Point (Paso 3): la parte tarjeta
+ * (con débito/crédito) o la parte QR "en el posnet". Igual que `crearCobroSplit` pero
+ * el push va a la terminal en vez de devolver un QR de pantalla.
+ */
+const crearSplitPointSchema = crearSplitSchema.extend({
+  payment_type: z.enum(["credit_card", "debit_card"]).optional(),
+});
+
+export async function crearCobroSplitPoint(input: unknown): Promise<CobroPoint> {
+  const session = await requireSession();
+
+  const parsed = crearSplitPointSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Datos del cobro inválidos." };
+
+  if (!(await checkRateLimit(`cobro-point:${session.store.id}`, 60, 60))) {
+    return { ok: false, error: "Demasiados cobros seguidos. Esperá unos segundos." };
+  }
+
+  const auth = await getStoreMpAuth(session.store.id);
+  if (!auth) {
+    return { ok: false, sinCuenta: true, error: "Este negocio todavía no conectó su cuenta de MercadoPago." };
+  }
+  if (!auth.mpTerminalId) {
+    return { ok: false, sinTerminal: true, error: "Todavía no configuraste la terminal Point en Ajustes." };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { data: intento, error } = await supabase.rpc("crear_intento_cobro_split", {
+    p_store_id: session.store.id,
+    p_items: parsed.data.items,
+    p_pagos: parsed.data.pagos,
+    p_leg_amount: parsed.data.leg_amount,
+    p_idempotency_key: parsed.data.idempotency_key,
+    p_client_id: parsed.data.client_id ?? null,
+  });
+
+  if (error || !intento) return { ok: false, error: "No pudimos preparar el cobro." };
+
+  const row = intento as { id: string; amount: string; mp_order_id: string | null };
+
+  const orden = await mpCrearOrdenPoint({
+    token: auth.token,
+    terminalId: auth.mpTerminalId,
+    amount: Number(row.amount),
+    externalReference: row.id,
+    descripcion: parsed.data.descripcion ?? `Venta ${session.store.name}`,
+    paymentType: parsed.data.payment_type,
+  });
+
+  if (!orden.ok) {
+    await createAdminClient().from("payment_intents").update({ status: "cancelled" }).eq("id", row.id);
+    return { ok: false, error: mensajeTerminal(orden.error) };
+  }
+
+  await createAdminClient()
+    .from("payment_intents")
+    .update({ mp_order_id: String(orden.orden.id) })
+    .eq("id", row.id);
+
+  return { ok: true, intentId: row.id, amount: Number(row.amount) };
 }
 
 export type CobroPoint =

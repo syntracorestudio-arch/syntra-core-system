@@ -3,9 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { X, LoaderCircle, Check, TriangleAlert, QrCode, Smartphone, CreditCard, Banknote } from "lucide-react";
 import { money } from "@/lib/format";
-import { crearCobroPoint, estadoCobro, cancelarCobro } from "@/app/pos/cobro-qr-actions";
+import { estadoCobro, cancelarCobro, type CobroPoint } from "@/app/pos/cobro-qr-actions";
 
-type Item = { product_id: string | null; qty: number };
 type PaymentType = "credit_card" | "debit_card";
 
 type Fase =
@@ -27,20 +26,18 @@ type Fase =
  * `onFallback` (QR en pantalla, o cobro a mano) y "ya me pagó — cobrar igual".
  */
 export function CobroPointDialog({
-  items,
   amount,
-  idempotencyKey,
-  descripcion,
+  crear,
   paymentType,
   onPagado,
   onFallback,
   fallbackLabel,
   onCerrar,
 }: {
-  items: Item[];
   amount: number;
-  idempotencyKey: string;
-  descripcion: string;
+  /** Crea el intento + empuja el cobro a la terminal. El padre decide qué cobra (venta
+   *  entera o pata de un split). */
+  crear: () => Promise<CobroPoint>;
   /** Sin valor = QR en el posnet. Con valor = tarjeta (débito/crédito). */
   paymentType?: PaymentType;
   /** `intentId` null = el cajero cobró sin confirmación de MercadoPago. */
@@ -67,11 +64,18 @@ export function CobroPointDialog({
   }, [onPagado]);
 
   // Empujar el cobro a la terminal una sola vez (React monta el efecto dos veces en dev).
+  // El ref desacopla `crear` (flecha inline del padre) del efecto de una sola corrida.
+  const crearRef = useRef(crear);
+  useEffect(() => {
+    crearRef.current = crear;
+  }, [crear]);
+
   useEffect(() => {
     if (pedido.current) return;
     pedido.current = true;
 
-    crearCobroPoint({ items, amount, idempotency_key: idempotencyKey, descripcion, payment_type: paymentType })
+    crearRef
+      .current()
       .then((res) => {
         if (!res.ok) {
           setFase({
@@ -87,7 +91,7 @@ export function CobroPointDialog({
       .catch(() =>
         setFase({ f: "error", mensaje: "No pudimos enviar el cobro a la terminal.", sinCuenta: false, sinTerminal: false }),
       );
-  }, [items, amount, idempotencyKey, descripcion, paymentType]);
+  }, []);
 
   // Consultar el estado mientras el cliente paga en la terminal (mismo poll que el QR).
   const intentId = fase.f === "esperando" ? fase.intentId : null;
