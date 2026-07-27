@@ -3,6 +3,7 @@ import { Inter, Sora, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { HashScroll } from "@/components/shared/hash-scroll";
+import { siteConfig } from "@/config/site";
 
 /** Analytics (Plausible) — se monta solo si hay dominio configurado. */
 const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
@@ -34,7 +35,10 @@ const spaceGrotesk = Space_Grotesk({
   preload: false,
 });
 
-const siteUrl = "https://syntracore.dev";
+/** Fuente ÚNICA del dominio: `config/site.ts`. El día del launch se cambia allá
+ *  y todo (canonical, OG, sitemap, robots, JSON-LD) sigue. Antes estaba
+ *  hardcodeado también acá: dos lugares para cambiar = uno para olvidarse. */
+const siteUrl = siteConfig.url;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -55,11 +59,14 @@ export const metadata: Metadata = {
   authors: [{ name: "SYNTRA CORE" }],
   creator: "SYNTRA CORE",
   alternates: {
-    canonical: "/",
+    // "./" = relativo a la ruta actual. Con "/" (hardcodeado) TODA página
+    // heredaba el canonical de la home: /privacidad se declaraba a sí misma
+    // como duplicado de "/" ante Google.
+    canonical: "./",
   },
   openGraph: {
     type: "website",
-    locale: "es_ES",
+    locale: "es_AR",
     url: siteUrl,
     siteName: "SYNTRA CORE",
     title: "SYNTRA CORE — Software Factory AI-Native",
