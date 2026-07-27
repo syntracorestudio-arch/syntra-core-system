@@ -8,6 +8,8 @@ import {
   Percent,
   ShoppingCart,
   TrendingUp,
+  CheckCheck,
+  ArrowRightLeft,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -16,13 +18,24 @@ import { money } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { updateSettings } from "./actions";
 
+export type ConfirmMethods = { cash: boolean; card: boolean; transfer: boolean; account: boolean };
+
 export type Settings = {
   expiryWarningDays: number;
   lowStockThresholdDefault: number;
   repriceRounding: number;
   minMarginPct: number;
   allowNegativeStock: boolean;
+  transferAlias: string | null;
+  confirmMethods: ConfirmMethods;
 };
+
+const CONFIRM_LABELS: { key: keyof ConfirmMethods; label: string }[] = [
+  { key: "cash", label: "Efectivo" },
+  { key: "card", label: "Tarjeta" },
+  { key: "transfer", label: "Transferencia" },
+  { key: "account", label: "Fiado" },
+];
 
 export function ConfiguracionClient({
   settings,
@@ -38,6 +51,8 @@ export function ConfiguracionClient({
   const [redondeo, setRedondeo] = useState(String(settings.repriceRounding));
   const [margenMin, setMargenMin] = useState(String(settings.minMarginPct));
   const [negativo, setNegativo] = useState(settings.allowNegativeStock);
+  const [alias, setAlias] = useState(settings.transferAlias ?? "");
+  const [confirmar, setConfirmar] = useState<ConfirmMethods>(settings.confirmMethods);
   const [aviso, setAviso] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -49,6 +64,8 @@ export function ConfiguracionClient({
         reprice_rounding: Number(redondeo),
         min_margin_pct: Number(margenMin),
         allow_negative_stock: negativo,
+        transfer_alias: alias.trim() || null,
+        confirm_methods: confirmar,
       });
       setAviso(
         res.ok
@@ -185,6 +202,52 @@ export function ConfiguracionClient({
               ? "La caja nunca se frena. Te avisamos si algo queda en negativo."
               : "Si no hay stock, la venta se rechaza. Puede frenar el mostrador."}
           </p>
+        </Setting>
+
+        <Setting
+          icon={CheckCheck}
+          title="Confirmar antes de cobrar"
+          help="Un segundo toque que muestra el total y el método antes de cerrar la venta: evita cobrar el monto o el medio equivocado. El QR ya tiene su propia pantalla. Recomendado dejarlo prendido, sobre todo en tarjeta y transferencia."
+        >
+          <div className="space-y-2">
+            {CONFIRM_LABELS.map((c) => (
+              <div key={c.key} className="flex items-center justify-between gap-3">
+                <span className="text-sm">{c.label}</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={confirmar[c.key]}
+                  aria-label={`Confirmar antes de cobrar en ${c.label}`}
+                  onClick={() => setConfirmar((v) => ({ ...v, [c.key]: !v[c.key] }))}
+                  className={cn(
+                    "flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors",
+                    confirmar[c.key] ? "bg-primary" : "bg-secondary",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "size-6 rounded-full bg-foreground transition-transform",
+                      confirmar[c.key] && "translate-x-5",
+                    )}
+                  />
+                </button>
+              </div>
+            ))}
+          </div>
+        </Setting>
+
+        <Setting
+          icon={ArrowRightLeft}
+          title="Alias para transferencias"
+          help="Tu alias o CVU. Al cobrar por transferencia, la caja lo muestra con un botón para copiarlo — en vez de que el cajero lo dicte de memoria."
+        >
+          <input
+            value={alias}
+            onChange={(e) => setAlias(e.target.value)}
+            placeholder="mi.alias.mp"
+            aria-label="Alias o CVU para transferencias"
+            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+          />
         </Setting>
       </div>
 

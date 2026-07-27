@@ -16,6 +16,7 @@ import {
   UserRound,
   X,
   Check,
+  Copy,
   TriangleAlert,
   LoaderCircle,
   PackagePlus,
@@ -78,6 +79,8 @@ export function PosScreen({
   canSellOnCredit,
   isOwner,
   mpConectado,
+  transferAlias,
+  confirmMethods,
 }: {
   storeName: string;
   products: PosProduct[];
@@ -86,12 +89,22 @@ export function PosScreen({
   isOwner: boolean;
   /** ¿El negocio conectó su cuenta de MercadoPago? Decide si el QR lo genera la app. */
   mpConectado: boolean;
+  /** Alias/CVU del negocio para mostrar al cobrar por transferencia. */
+  transferAlias: string | null;
+  /** Perilla por método: ¿pedir confirmación antes de cobrar? (QR tiene su diálogo). */
+  confirmMethods: { cash: boolean; card: boolean; transfer: boolean; account: boolean };
 }) {
   const [busqueda, setBusqueda] = useState("");
   const [cat, setCat] = useState<string | null>(null);
   const [carrito, setCarrito] = useState<Linea[]>([]);
   const [medio, setMedio] = useState<Medio>("cash");
   const [cobrandoQr, setCobrandoQr] = useState(false);
+  /** Paso de confirmación (armar → confirmar) del pie del carrito. */
+  const [confirmando, setConfirmando] = useState(false);
+  /** Lockout anti-doble-tap: Confirmar no acepta input los primeros 250ms. */
+  const [confirmReady, setConfirmReady] = useState(false);
+  /** Efectivo: con cuánto paga el cliente (para calcular el vuelto y reconciliar). */
+  const [tendered, setTendered] = useState<number | null>(null);
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [camaraAbierta, setCamaraAbierta] = useState(false);
   const [aviso, setAviso] = useState<{ tone: "ok" | "warn" | "error"; text: string } | null>(null);
@@ -147,6 +160,10 @@ export function PosScreen({
   const cliente = clienteId ? (clients.find((c) => c.id === clienteId) ?? null) : null;
 
   const agregar = useCallback((producto: PosProduct) => {
+    // Escanear/agregar durante la confirmación = "me faltó un producto": cancela
+    // el confirm y vuelve a componer. `setConfirmando(false)` es no-op si ya
+    // estábamos en el estado A (React descarta el set al mismo valor).
+    setConfirmando(false);
     // Confirmación visual sin mirar el carrito: la card late al tocarla.
     setPulso(producto.id);
     setTimeout(() => setPulso((p) => (p === producto.id ? null : p)), 350);
@@ -196,6 +213,8 @@ export function PosScreen({
         // Rotar la clave al vaciar (ver `vaciar`); inline para no meter una dep
         // no estable en este efecto de deps vacías.
         idempotencyKey.current = crypto.randomUUID();
+        setConfirmando(false);
+        setTendered(null);
         setCarrito([]);
       }
     }
@@ -204,6 +223,7 @@ export function PosScreen({
   }, []);
 
   function cambiar(id: string, delta: number) {
+    setConfirmando(false); // editar el carrito cancela la confirmación en curso
     setCarrito((prev) =>
       prev
         .map((l) => (l.producto.id === id ? { ...l, cantidad: l.cantidad + delta } : l))
@@ -216,9 +236,21 @@ export function PosScreen({
      segundo carrito distinto se registraba como "repetido" y se perdía la venta
      bajo un toast de éxito (H1). El éxito de cobro también rota (más abajo). */
   function vaciar() {
+    setConfirmando(false);
+    setTendered(null);
     setCarrito([]);
     idempotencyKey.current = crypto.randomUUID();
   }
+
+  /* Lockout anti-doble-tap: al entrar a confirmar, el botón Confirmar ignora el
+     input por 250ms. Un doble-tap reflejo (por costumbre de "Cobrar") cae <300ms
+     y no dispara; un usuario deliberado ni lo percibe. Junto con el cambio de
+     color del botón, evita completar sin mirar. */
+  useEffect(() => {
+    if (!confirmando) return;
+    const t = setTimeout(() => setConfirmReady(true), 250);
+    return () => clearTimeout(t);
+  }, [confirmando]);
 
   function cobrar() {
     if (carrito.length === 0 || pending) return;
@@ -236,7 +268,30 @@ export function PosScreen({
       return;
     }
 
+    // Confirmación (armar → confirmar). El QR con MP ya salió arriba con su diálogo;
+    // el QR SIN MP (marca manual) TAMBIÉN confirma —así no es una venta instantánea
+    // silenciosa que sorprende al cajero— y el resto según la perilla por método.
+    const necesitaConfirmar = medio === "qr" ? true : confirmMethods[medio];
+    if (necesitaConfirmar) {
+      setTendered(null);
+      setConfirmReady(false); // el efecto lo pone en true a los 250ms (lockout)
+      setConfirmando(true);
+      return;
+    }
+
     registrar(null);
+  }
+
+  /** Segundo tap: confirma y registra (respeta el lockout anti-doble-tap). */
+  function confirmar() {
+    if (!confirmReady || pending) return;
+    registrar(null);
+  }
+
+  /** Vuelve a componer sin cobrar. */
+  function volverAComponer() {
+    setConfirmando(false);
+    setTendered(null);
   }
 
   /** Registra la venta. `intentId` viene del cobro con QR cuando lo hubo. */
@@ -253,6 +308,8 @@ export function PosScreen({
         // Con intentId, la plata del QR ya entró → registrar es un hecho: no lo
         // frena un producto archivado ni el stock estricto (M4). Efectivo: sin esto.
         paid: intentId !== null,
+        // Con cuánto pagó en efectivo (para reconciliar caja). Solo si lo ingresó.
+        cash_tendered: medio === "cash" && tendered != null ? tendered : undefined,
       });
 
       if (!res.ok) {
@@ -275,6 +332,8 @@ export function PosScreen({
 
       // Venta cerrada: carrito nuevo y clave nueva.
       setCobrandoQr(false);
+      setConfirmando(false);
+      setTendered(null);
       setCarrito([]);
       setClienteId(null);
       setMedio("cash");
@@ -581,6 +640,8 @@ export function PosScreen({
             </span>
           </div>
 
+          {!confirmando ? (
+          <>
           <div className="mb-3 grid grid-cols-5 gap-1.5">
             {MEDIOS.map((m) => {
               const bloqueado = m.key === "account" && !canSellOnCredit;
@@ -650,6 +711,21 @@ export function PosScreen({
                 ? "Escaneá un producto"
                 : `Cobrar ${money(total)} · ${unidades} u.`}
           </button>
+          </>
+          ) : (
+            <ConfirmarCobro
+              medio={medio}
+              total={total}
+              cliente={cliente}
+              transferAlias={transferAlias}
+              tendered={tendered}
+              setTendered={setTendered}
+              confirmReady={confirmReady}
+              pending={pending}
+              onConfirmar={confirmar}
+              onVolver={volverAComponer}
+            />
+          )}
         </div>
       </aside>
     </div>
@@ -693,6 +769,247 @@ function SaldoCliente({ cliente, aFiar }: { cliente: Client; aFiar: number }) {
           Pasa su límite. Podés fiarle igual, pero mejor que lo sepas.
         </p>
       )}
+    </div>
+  );
+}
+
+/** Billetes AR sugeridos para "paga con": los que alcanzan el total. */
+function billetesSugeridos(total: number): number[] {
+  const utiles = [1000, 2000, 5000, 10000, 20000].filter((b) => b > total).slice(0, 3);
+  if (utiles.length === 0) {
+    const arriba = Math.ceil(total / 1000) * 1000; // total > $20k → redondear al mil
+    return arriba > total ? [arriba] : [];
+  }
+  return utiles;
+}
+
+/**
+ * Estado B — confirmar el cobro. Method-aware, en el MISMO pie del carrito (no es
+ * un modal). El botón Confirmar va en verde (plata) para que el ojo registre que
+ * la superficie cambió: junto con el lockout de 250ms, evita completar por reflejo.
+ */
+function ConfirmarCobro({
+  medio,
+  total,
+  cliente,
+  transferAlias,
+  tendered,
+  setTendered,
+  confirmReady,
+  pending,
+  onConfirmar,
+  onVolver,
+}: {
+  medio: Medio;
+  total: number;
+  cliente: Client | null;
+  transferAlias: string | null;
+  tendered: number | null;
+  setTendered: (v: number | null) => void;
+  confirmReady: boolean;
+  pending: boolean;
+  onConfirmar: () => void;
+  onVolver: () => void;
+}) {
+  const m = MEDIOS.find((x) => x.key === medio);
+  return (
+    <div>
+      {/* Chip del método — tocarlo vuelve a componer (para cambiar el método). */}
+      <button
+        type="button"
+        onClick={onVolver}
+        className="mb-3 flex w-full items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm transition-colors hover:border-primary/40"
+      >
+        <ArrowLeft className="size-4 text-muted-foreground" />
+        {m && <m.icon className="size-4 text-muted-foreground" />}
+        <span className="font-medium text-foreground">{m?.label}</span>
+        <span className="ml-auto text-xs text-muted-foreground">tocá para cambiar</span>
+      </button>
+
+      {medio === "cash" && <PagaCon total={total} tendered={tendered} setTendered={setTendered} />}
+      {medio === "transfer" && <TransferAlias alias={transferAlias} total={total} />}
+      {medio === "card" && (
+        <p className="mb-3 rounded-lg bg-secondary/40 px-3 py-3 text-sm text-muted-foreground">
+          Pasá la tarjeta por{" "}
+          <span className="tabular font-semibold text-foreground">{money(total)}</span> en el posnet.
+        </p>
+      )}
+      {medio === "qr" && (
+        <p className="mb-3 rounded-lg bg-secondary/40 px-3 py-3 text-sm text-muted-foreground">
+          Cobrá con tu QR de MercadoPago por{" "}
+          <span className="tabular font-semibold text-foreground">{money(total)}</span> y confirmá.
+          {/* Este es el modo manual: MP no está conectado. Conectalo en Ajustes y el
+              QR lo genera la app con el monto exacto. */}
+        </p>
+      )}
+      {medio === "account" && cliente && (
+        <div className="mb-3">
+          <SaldoCliente cliente={cliente} aFiar={total} />
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={onConfirmar}
+        disabled={!confirmReady || pending}
+        className={cn(
+          "flex h-13 w-full items-center justify-center gap-2 rounded-xl py-3.5 text-base font-semibold text-white transition-all duration-150",
+          confirmReady && !pending ? "cursor-pointer bg-success hover:opacity-90" : "cursor-not-allowed bg-success/40",
+        )}
+      >
+        {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-5" />}
+        {pending ? "Cobrando…" : `Confirmar · ${money(total)}`}
+      </button>
+    </div>
+  );
+}
+
+/** Efectivo: "paga con" (chips de billetes + monto libre) → vuelto client-side. */
+function PagaCon({
+  total,
+  tendered,
+  setTendered,
+}: {
+  total: number;
+  tendered: number | null;
+  setTendered: (v: number | null) => void;
+}) {
+  const [redondeo, setRedondeo] = useState<0 | 50 | 100>(0);
+  const [libre, setLibre] = useState("");
+  const sugeridos = billetesSugeridos(total);
+
+  const vueltoExacto = tendered != null ? Math.max(0, tendered - total) : null;
+  const vuelto =
+    vueltoExacto == null ? null : redondeo === 0 ? vueltoExacto : Math.round(vueltoExacto / redondeo) * redondeo;
+  const falta = tendered != null && tendered < total;
+
+  function elegir(v: number) {
+    setLibre("");
+    setTendered(v);
+  }
+
+  return (
+    <div className="mb-3 space-y-2.5">
+      <p className="text-xs font-medium text-muted-foreground">Paga con</p>
+      <div className="flex flex-wrap gap-1.5">
+        <ChipMonto activo={tendered === total} onClick={() => elegir(total)}>
+          Justo
+        </ChipMonto>
+        {sugeridos.map((b) => (
+          <ChipMonto key={b} activo={tendered === b} onClick={() => elegir(b)}>
+            {money(b)}
+          </ChipMonto>
+        ))}
+        <input
+          type="number"
+          inputMode="numeric"
+          value={libre}
+          onChange={(e) => {
+            setLibre(e.target.value);
+            const n = Number(e.target.value);
+            setTendered(e.target.value !== "" && Number.isFinite(n) ? n : null);
+          }}
+          placeholder="Otro"
+          className="tabular h-9 w-20 rounded-lg border border-input bg-background px-2 text-sm outline-none focus:border-primary"
+        />
+      </div>
+
+      {tendered != null && (
+        <div className="rounded-lg bg-secondary/50 px-3 py-2">
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-muted-foreground">{falta ? "Falta" : "Vuelto"}</span>
+            <span
+              className={cn(
+                "tabular text-xl font-semibold",
+                falta ? "text-danger-ink" : "text-success-ink",
+              )}
+            >
+              {money(falta ? total - tendered : (vuelto ?? 0))}
+            </span>
+          </div>
+          {!falta && (vuelto ?? 0) > 0 && (
+            <div className="mt-1.5 flex items-center gap-1">
+              <span className="text-xs text-muted-foreground">Redondear:</span>
+              {([0, 50, 100] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRedondeo(r)}
+                  className={cn(
+                    "cursor-pointer rounded-md px-2 py-0.5 text-xs transition-colors",
+                    redondeo === r
+                      ? "bg-primary/20 font-medium text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {r === 0 ? "Exacto" : `$${r}`}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChipMonto({
+  activo,
+  onClick,
+  children,
+}: {
+  activo: boolean;
+  onClick: () => void;
+  children: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "tabular h-9 cursor-pointer rounded-lg border px-3 text-sm transition-colors",
+        activo
+          ? "border-primary bg-primary/15 font-medium text-foreground"
+          : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Transferencia: alias/CVU del negocio + copiar (lo carga el dueño en Ajustes). */
+function TransferAlias({ alias, total }: { alias: string | null; total: number }) {
+  const [copiado, setCopiado] = useState(false);
+  if (!alias) {
+    return (
+      <p className="mb-3 rounded-lg bg-warning/10 px-3 py-3 text-sm text-warning-ink ring-1 ring-warning/25">
+        Cargá tu alias/CVU en Ajustes para mostrarlo acá. Por ahora, dictáselo al cliente ({money(total)}).
+      </p>
+    );
+  }
+  return (
+    <div className="mb-3 space-y-2">
+      <p className="text-sm text-muted-foreground">
+        Que te transfiera <span className="tabular font-semibold text-foreground">{money(total)}</span> a:
+      </p>
+      <button
+        type="button"
+        onClick={() => {
+          navigator.clipboard.writeText(alias);
+          setCopiado(true);
+          setTimeout(() => setCopiado(false), 1500);
+        }}
+        className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5 text-left transition-colors hover:border-primary/50"
+      >
+        <span className="flex-1 truncate text-sm font-semibold text-foreground">{alias}</span>
+        {copiado ? (
+          <Check className="size-4 text-success-ink" />
+        ) : (
+          <Copy className="size-4 text-muted-foreground" />
+        )}
+        <span className="text-xs text-muted-foreground">{copiado ? "Copiado" : "Copiar"}</span>
+      </button>
     </div>
   );
 }
