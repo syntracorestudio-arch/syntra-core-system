@@ -5,39 +5,14 @@ import { FiadoClient, type ClientRow } from "./fiado-client";
 
 export const dynamic = "force-dynamic";
 
-/** El reloj es impuro: fuera del cuerpo del componente (patrón de Reportes). */
-function desdeHace(dias: number): string {
-  return new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
-}
-
-/**
- * Desde cuándo debe y cuándo pagó por última vez.
- *
- * "Debe desde" no es la fecha del último movimiento —esa esconde deudas viejas
- * que siguen creciendo— sino el arranque del tramo en que la cuenta quedó en
- * rojo y nunca más volvió a cero. Es lo que separa al cliente que fía y paga
- * todas las semanas del que se está colgando.
- *
- * Recorre de más viejo a más nuevo llevando el saldo corrido; cada vez que la
- * cuenta vuelve a cero o a favor, el tramo se reinicia.
- */
-function analizarDeuda(
-  mov: { created_at: string; delta: number; reason: string }[],
-): { debeDesde: string | null; ultimoPago: string | null } {
-  let saldo = 0;
-  let desde: string | null = null;
-  let ultimoPago: string | null = null;
-
-  for (const m of mov) {
-    const antes = saldo;
-    saldo += m.delta;
-    if (m.reason === "payment") ultimoPago = m.created_at;
-    if (antes >= 0 && saldo < 0) desde = m.created_at; // entra en rojo
-    if (saldo >= 0) desde = null; // se puso al día: el tramo se cierra
-  }
-
-  return { debeDesde: saldo < 0 ? desde : null, ultimoPago };
-}
+type FiadoRow = {
+  client_id: string;
+  name: string;
+  credit_limit: number | string | null;
+  balance: number | string;
+  debe_desde: string | null;
+  ultimo_pago: string | null;
+};
 
 export default async function FiadoPage() {
   // Fiado = herramienta de dueño: expone la deuda de todos los clientes. El
@@ -45,42 +20,20 @@ export default async function FiadoPage() {
   const session = await requireOwner();
   const supabase = await createSupabaseServer();
 
-  // Saldos derivados del ledger (nunca un contador) + el historial con el que
-  // calculamos desde cuándo debe y cuándo pagó por última vez.
-  const [{ data: balances }, { data: movimientos }] = await Promise.all([
-    supabase
-      .from("client_balances")
-      .select("client_id, name, credit_limit, balance")
-      .order("balance")
-      .limit(300),
-    supabase
-      .from("client_ledger")
-      .select("client_id, created_at, delta, reason")
-      .gte("created_at", desdeHace(365))
-      .order("created_at", { ascending: true })
-      .limit(3000),
-  ]);
+  // Saldos + aging (desde cuándo debe / último pago) en UNA sola RPC acotada y
+  // correcta. La query client-side anterior traía el ledger STORE-WIDE con
+  // gte(365d) + order-asc-limit(3000): en un negocio activo tiraba los movimientos
+  // recientes y la deuda vieja, así que las etiquetas de cobro mentían. T3.
+  const { data } = await supabase.rpc("fiado_resumen", { p_store_id: session.store.id });
 
-  const historial = new Map<string, { created_at: string; delta: number; reason: string }[]>();
-  for (const m of movimientos ?? []) {
-    const list = historial.get(m.client_id) ?? [];
-    list.push({ created_at: m.created_at, delta: Number(m.delta), reason: m.reason });
-    historial.set(m.client_id, list);
-  }
-
-  const rows: ClientRow[] = (balances ?? []).map((c) => {
-    const mov = historial.get(c.client_id) ?? [];
-    const { debeDesde, ultimoPago } = analizarDeuda(mov);
-    return {
-      id: c.client_id,
-      name: c.name,
-      creditLimit: c.credit_limit === null ? null : Number(c.credit_limit),
-      balance: Number(c.balance),
-      lastMovement: mov.length > 0 ? mov[mov.length - 1].created_at : null,
-      debeDesde,
-      ultimoPago,
-    };
-  });
+  const rows: ClientRow[] = ((data ?? []) as FiadoRow[]).map((c) => ({
+    id: c.client_id,
+    name: c.name,
+    creditLimit: c.credit_limit === null ? null : Number(c.credit_limit),
+    balance: Number(c.balance),
+    debeDesde: c.debe_desde,
+    ultimoPago: c.ultimo_pago,
+  }));
 
   return (
     <AppShell

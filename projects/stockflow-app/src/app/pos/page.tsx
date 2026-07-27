@@ -41,7 +41,9 @@ export default async function PosPage() {
         .eq("status", "active")
         .order("name")
         .limit(500),
-      supabase.from("product_barcodes").select("product_id, barcode").limit(2000),
+      // ORDER BY para que, si un catálogo grande supera el tope, el truncado sea
+      // determinista (mismos códigos siempre) y no arbitrario. T3.
+      supabase.from("product_barcodes").select("product_id, barcode").order("product_id").limit(2000),
       /* Los saldos vienen de la vista, no de `clients`: el cajero tiene que ver
          cuánto debe cada uno ANTES de fiarle, que es cuando se decide. */
       supabase
