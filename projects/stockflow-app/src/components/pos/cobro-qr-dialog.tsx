@@ -177,7 +177,10 @@ export function CobroQrDialog({
           {fase.f !== "pagado" && (
             <button
               type="button"
-              onClick={() => onPagado(null)}
+              // Pasa el intentId si ya hay QR pedido: así la venta manual queda
+              // LIGADA al cobro y, si MP termina acreditando, no aparece como falso
+              // huérfano en Caja. Sin QR todavía (pidiendo/error) no hay qué ligar. M5.
+              onClick={() => onPagado(fase.f === "esperando" ? fase.intentId : null)}
               className={cn(
                 "h-11 w-full cursor-pointer rounded-lg text-sm font-semibold transition-colors",
                 fase.f === "error"

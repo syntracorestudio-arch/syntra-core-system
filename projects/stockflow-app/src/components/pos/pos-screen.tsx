@@ -259,7 +259,16 @@ export function PosScreen({
 
       // Cierra el círculo: este cobro con QR terminó en esta venta. Sin esto, el
       // cobro quedaría como "aprobado sin venta" y aparecería en Caja para recuperar.
-      if (intentId) void vincularVenta(intentId, res.saleId);
+      // Se AWAITEA (antes era fire-and-forget): un fallo silencioso dejaba un falso
+      // huérfano en Caja aunque la venta existía. Si igual falla, la venta ya quedó
+      // registrada y el banner de Caja lo recupera (register_sale es idempotente). M5.
+      if (intentId) {
+        try {
+          await vincularVenta(intentId, res.saleId);
+        } catch {
+          /* la venta está; el banner de Caja reconcilia por la misma clave */
+        }
+      }
 
       // Venta cerrada: carrito nuevo y clave nueva.
       setCobrandoQr(false);
