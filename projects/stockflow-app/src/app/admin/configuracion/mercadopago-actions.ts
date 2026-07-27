@@ -5,7 +5,13 @@ import { revalidatePath } from "next/cache";
 import { requireOwner } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptSecret, encryptionReady } from "@/lib/crypto/secret";
-import { mpQuienEs, mpAsegurarCaja, getStoreMpAuth } from "@/lib/mercadopago";
+import {
+  mpQuienEs,
+  mpAsegurarCaja,
+  getStoreMpAuth,
+  mpListarTerminales,
+  mpSetTerminalPDV,
+} from "@/lib/mercadopago";
 import { PROVINCIAS_MP } from "@/lib/provincias";
 
 /**
@@ -23,6 +29,9 @@ export type EstadoMp = {
   tieneFirma: boolean;
   cifradoListo: boolean;
   urlWebhook: string | null;
+  // Cobros Fase 2: terminal Point.
+  hasPosnet: boolean;
+  terminalId: string | null;
 };
 
 export type MpResult = { ok: true; mensaje: string } | { ok: false; error: string };
@@ -38,11 +47,18 @@ export async function estadoMercadoPago(): Promise<EstadoMp> {
   const session = await requireOwner();
   const admin = createAdminClient();
 
-  const { data } = await admin
-    .from("store_payment_providers")
-    .select("status, mp_nickname, external_pos_id, webhook_secret")
-    .eq("store_id", session.store.id)
-    .maybeSingle();
+  const [{ data }, { data: settings }] = await Promise.all([
+    admin
+      .from("store_payment_providers")
+      .select("status, mp_nickname, external_pos_id, webhook_secret, mp_terminal_id")
+      .eq("store_id", session.store.id)
+      .maybeSingle(),
+    admin
+      .from("store_settings")
+      .select("has_posnet")
+      .eq("store_id", session.store.id)
+      .maybeSingle(),
+  ]);
 
   return {
     conectado: data?.status === "connected",
@@ -51,6 +67,71 @@ export async function estadoMercadoPago(): Promise<EstadoMp> {
     tieneFirma: Boolean(data?.webhook_secret),
     cifradoListo: encryptionReady(),
     urlWebhook: urlWebhook(session.store.id),
+    hasPosnet: Boolean(settings?.has_posnet),
+    terminalId: (data?.mp_terminal_id as string | null) ?? null,
+  };
+}
+
+/** Terminales Point de la cuenta del negocio, para el selector de Ajustes. */
+export type TerminalOpcion = { id: string; nombre: string };
+
+export async function listarTerminales(): Promise<
+  { ok: true; terminales: TerminalOpcion[] } | { ok: false; error: string }
+> {
+  const session = await requireOwner();
+  const auth = await getStoreMpAuth(session.store.id);
+  if (!auth) return { ok: false, error: "Conectá tu cuenta de MercadoPago primero." };
+
+  const res = await mpListarTerminales(auth.token);
+  if (!res.ok) return { ok: false, error: res.error };
+
+  const terminales = res.terminales.map((t) => ({
+    id: t.id,
+    nombre: t.pos_id ? `${t.id} · caja ${t.pos_id}` : t.id,
+  }));
+  return { ok: true, terminales };
+}
+
+const posnetSchema = z.object({
+  hasPosnet: z.boolean(),
+  terminalId: z.string().trim().max(64).nullable().optional(),
+});
+
+/**
+ * Configura si el negocio cobra con terminal Point y con cuál. Guarda el flag en
+ * `store_settings` (lo lee la caja) y el id de terminal en `store_payment_providers`
+ * (junto al token). Al elegir terminal la deja en modo PDV (best-effort) para que
+ * acepte el push de monto. Apagar el posnet limpia la terminal → la caja vuelve a
+ * ofrecer solo el QR en pantalla.
+ */
+export async function configurarPosnet(input: unknown): Promise<MpResult> {
+  const session = await requireOwner();
+
+  const parsed = posnetSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Revisá los datos." };
+  const { hasPosnet, terminalId } = parsed.data;
+  if (hasPosnet && !terminalId) return { ok: false, error: "Elegí tu terminal Point." };
+
+  const admin = createAdminClient();
+  const [{ error: e1 }, { error: e2 }] = await Promise.all([
+    admin.from("store_settings").update({ has_posnet: hasPosnet }).eq("store_id", session.store.id),
+    admin
+      .from("store_payment_providers")
+      .update({ mp_terminal_id: hasPosnet ? (terminalId ?? null) : null })
+      .eq("store_id", session.store.id),
+  ]);
+  if (e1 || e2) return { ok: false, error: "No pudimos guardar la configuración." };
+
+  if (hasPosnet && terminalId) {
+    const auth = await getStoreMpAuth(session.store.id);
+    if (auth) await mpSetTerminalPDV(auth.token, terminalId);
+  }
+
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/pos"); // la caja decide si preguntar terminal/pantalla
+  return {
+    ok: true,
+    mensaje: hasPosnet ? "Terminal Point configurada." : "Cobro con terminal desactivado.",
   };
 }
 

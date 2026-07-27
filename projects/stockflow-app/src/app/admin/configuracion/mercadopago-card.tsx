@@ -1,14 +1,25 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, LoaderCircle, TriangleAlert, QrCode, Copy, ExternalLink } from "lucide-react";
+import {
+  Check,
+  LoaderCircle,
+  TriangleAlert,
+  QrCode,
+  Copy,
+  ExternalLink,
+  CreditCard,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   conectarMercadoPago,
   crearCajaMercadoPago,
   guardarFirmaWebhook,
   desconectarMercadoPago,
+  listarTerminales,
+  configurarPosnet,
   type EstadoMp,
+  type TerminalOpcion,
 } from "./mercadopago-actions";
 import { PROVINCIAS_MP } from "@/lib/provincias";
 
@@ -180,6 +191,11 @@ export function MercadoPagoCard({ estado }: { estado: EstadoMp }) {
             </div>
           </details>
 
+          {/* Terminal Point (posnet): opcional. Solo tiene sentido con la caja lista.
+              Si el negocio la configura, la caja pregunta "terminal o QR en pantalla"
+              al cobrar con MercadoPago. */}
+          {estado.cajaLista && <PosnetConfig estado={estado} />}
+
           <button
             type="button"
             disabled={pending}
@@ -258,6 +274,177 @@ export function MercadoPagoCard({ estado }: { estado: EstadoMp }) {
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Configuración de la terminal Point (posnet).
+ *
+ * Prende el cobro con tarjeta en la terminal física: al cobrar con MercadoPago, la
+ * caja pregunta si va a la terminal o al QR en pantalla — y esa misma pregunta sirve
+ * de salida si la terminal se traba (un toque → QR). El id de terminal se busca en la
+ * cuenta del negocio con su propio token; no se tipea de memoria.
+ */
+function PosnetConfig({ estado }: { estado: EstadoMp }) {
+  const [on, setOn] = useState(estado.hasPosnet);
+  const [terminalId, setTerminalId] = useState(estado.terminalId ?? "");
+  const [terminales, setTerminales] = useState<TerminalOpcion[] | null>(null);
+  const [aviso, setAviso] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function buscar() {
+    startTransition(async () => {
+      const r = await listarTerminales();
+      if (r.ok) {
+        setTerminales(r.terminales);
+        if (r.terminales.length === 0) {
+          setAviso({ tone: "error", text: "No encontramos terminales Point en tu cuenta de MercadoPago." });
+        } else {
+          setAviso(null);
+          // Preseleccionar la única, o mantener la ya guardada si sigue en la lista.
+          if (!terminalId && r.terminales.length === 1) setTerminalId(r.terminales[0].id);
+        }
+      } else {
+        setAviso({ tone: "error", text: r.error });
+      }
+    });
+  }
+
+  function guardar() {
+    startTransition(async () => {
+      const r = await configurarPosnet({
+        hasPosnet: on,
+        terminalId: on ? terminalId || null : null,
+      });
+      setAviso(r.ok ? { tone: "ok", text: r.mensaje } : { tone: "error", text: r.error });
+    });
+  }
+
+  return (
+    <details className="rounded-lg border border-border">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm">
+        <CreditCard className="size-4 shrink-0 text-primary-ink" />
+        <span className="font-medium">Cobrar con la terminal (posnet)</span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {estado.hasPosnet && estado.terminalId ? "· activa" : "· opcional"}
+        </span>
+      </summary>
+
+      <div className="space-y-3 border-t border-border p-3">
+        <p className="text-xs text-muted-foreground">
+          Si tenés una terminal Point de MercadoPago, la caja te va a preguntar al cobrar dónde
+          mostrar el QR: en el posnet o en la pantalla de la caja. En el posnet le mandamos el
+          monto exacto — nadie lo tipea. Y si algún día se traba, mostrás el QR en pantalla en el acto.
+        </p>
+
+        {aviso && (
+          <p
+            role="status"
+            className={cn(
+              "flex items-start gap-2 rounded-lg px-3 py-2 text-sm ring-1",
+              aviso.tone === "ok"
+                ? "bg-success/10 text-success-ink ring-success/25"
+                : "bg-danger/10 text-danger-ink ring-danger/25",
+            )}
+          >
+            {aviso.tone === "ok" ? (
+              <Check className="mt-0.5 size-4 shrink-0" />
+            ) : (
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+            )}
+            {aviso.text}
+          </p>
+        )}
+
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-medium">Tengo terminal Point</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={on}
+            aria-label="Cobrar con terminal Point"
+            onClick={() => setOn((v) => !v)}
+            className={cn(
+              "flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors",
+              on ? "bg-primary" : "bg-secondary",
+            )}
+          >
+            <span
+              className={cn(
+                "size-6 rounded-full bg-foreground transition-transform",
+                on && "translate-x-5",
+              )}
+            />
+          </button>
+        </div>
+
+        {on && (
+          <div className="space-y-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={buscar}
+              className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-border text-sm font-medium transition-colors hover:border-primary disabled:opacity-40"
+            >
+              {pending && <LoaderCircle className="size-4 animate-spin" />}
+              Buscar mis terminales
+            </button>
+
+            {terminales && terminales.length > 0 && (
+              <select
+                aria-label="Terminal Point"
+                value={terminalId}
+                onChange={(e) => setTerminalId(e.target.value)}
+                className="h-11 w-full cursor-pointer rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+              >
+                <option value="">Elegí tu terminal</option>
+                {terminales.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* Si ya hay una guardada y todavía no buscó, mostrarla para que sepa cuál es. */}
+            {!terminales && estado.terminalId && (
+              <p className="text-xs text-muted-foreground">
+                Terminal configurada: <span className="font-medium text-foreground">{estado.terminalId}</span>. Tocá
+                “Buscar mis terminales” para cambiarla.
+              </p>
+            )}
+
+            {/* Salida manual: si la lista no la trae (o querés pegarla directo), el id
+                de la terminal se puede escribir. Lo encontrás en tu panel de MercadoPago
+                → Point → tus dispositivos. */}
+            <details className="rounded-lg border border-dashed border-border">
+              <summary className="cursor-pointer list-none px-3 py-2 text-xs text-muted-foreground">
+                ¿No aparece? Pegá el id de tu terminal
+              </summary>
+              <div className="border-t border-border p-3">
+                <input
+                  value={terminalId}
+                  onChange={(e) => setTerminalId(e.target.value.trim())}
+                  placeholder="PAX_A910__SMARTPOS…"
+                  aria-label="Id de la terminal Point"
+                  className="h-10 w-full rounded-lg border border-input bg-background px-3 font-mono text-sm outline-none focus:border-primary"
+                />
+              </div>
+            </details>
+          </div>
+        )}
+
+        <button
+          type="button"
+          disabled={pending || (on && !terminalId)}
+          onClick={guardar}
+          className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+        >
+          {pending && <LoaderCircle className="size-4 animate-spin" />}
+          {on ? "Guardar terminal" : "Desactivar terminal"}
+        </button>
+      </div>
+    </details>
   );
 }
 

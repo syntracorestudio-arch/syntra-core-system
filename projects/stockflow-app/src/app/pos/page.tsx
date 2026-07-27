@@ -29,7 +29,8 @@ export default async function PosPage() {
   const supabase = await createSupabaseServer();
 
   // Solo el hecho de estar conectado; el token nunca sale del servidor.
-  const mpConectado = (await getStoreMpAuth(session.store.id)) !== null;
+  const mpAuth = await getStoreMpAuth(session.store.id);
+  const mpConectado = mpAuth !== null;
 
   const desde = desdeHace(14);
 
@@ -64,10 +65,15 @@ export default async function PosPage() {
         .limit(5000),
       supabase
         .from("store_settings")
-        .select("transfer_alias, confirm_methods")
+        .select("transfer_alias, confirm_methods, has_posnet")
         .eq("store_id", session.store.id)
         .maybeSingle(),
     ]);
+
+  // La terminal Point se ofrece solo si el negocio la prendió Y quedó una terminal
+  // configurada: sin las dos cosas, la caja cobra con QR como siempre (cero fricción
+  // para el que no tiene posnet).
+  const posnetActivo = mpConectado && !!mpAuth?.mpTerminalId && Boolean(settings?.has_posnet);
 
   // Perilla de confirmación por método (default todos ON si falta el dato).
   const cm = (settings?.confirm_methods ?? {}) as Record<string, boolean>;
@@ -120,6 +126,7 @@ export default async function PosPage() {
       canSellOnCredit={session.member.role === "owner" || session.member.can_sell_on_credit}
       isOwner={session.member.role === "owner"}
       mpConectado={mpConectado}
+      posnetActivo={posnetActivo}
       transferAlias={settings?.transfer_alias ?? null}
       confirmMethods={confirmMethods}
     />
