@@ -42,6 +42,7 @@ export function CobroQrDialog({
 }) {
   const [fase, setFase] = useState<Fase>({ f: "pidiendo" });
   const pedido = useRef(false);
+  const procesado = useRef(false);
 
   /* `onPagado` es una flecha inline del POS: cambia de identidad en cada render
      del padre. Si el efecto de abajo dependiera de ella, cada render reiniciaría
@@ -77,9 +78,16 @@ export function CobroQrDialog({
       const r = await estadoCobro(intentId);
       if (!vivo) return;
       if (r.estado === "pagado") {
+        if (procesado.current) return; // una sola vez
+        procesado.current = true;
         setFase({ f: "pagado", intentId });
-        // Un respiro para que el cajero VEA el tilde antes de que se cierre.
-        setTimeout(() => vivo && onPagadoRef.current(intentId), 900);
+        // Un respiro para que el cajero VEA el tilde antes de registrar y cerrar.
+        // OJO: NO se guarda con `vivo`. El propio `setFase("pagado")` cambia `fase`,
+        // lo que recalcula `intentId` a null e invalida ESTE efecto → su cleanup
+        // pone `vivo = false` antes de que dispare el timer. Guardarlo con `vivo`
+        // mataba el registro de la venta (bug del cartel "quedó sin registrar").
+        // El ref `procesado` garantiza que `onPagado` corra exactamente una vez.
+        setTimeout(() => onPagadoRef.current(intentId), 900);
       } else if (r.estado === "vencido") {
         setFase({ f: "error", mensaje: "El código venció. Generá uno nuevo.", sinCuenta: false });
       }
