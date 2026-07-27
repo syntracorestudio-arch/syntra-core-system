@@ -43,6 +43,14 @@ export function CobroQrDialog({
   const [fase, setFase] = useState<Fase>({ f: "pidiendo" });
   const pedido = useRef(false);
   const procesado = useRef(false);
+  const pagoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Al DESMONTAR se cancela el timer del pago (no en el cleanup del efecto de poll,
+  // que debe dejarlo disparar tras el setFase). Si el diálogo se cierra dentro de
+  // los 900ms, evita un onPagado tardío con el carrito ya vaciado (toast espurio). T3.
+  useEffect(() => () => {
+    if (pagoTimer.current) clearTimeout(pagoTimer.current);
+  }, []);
 
   /* `onPagado` es una flecha inline del POS: cambia de identidad en cada render
      del padre. Si el efecto de abajo dependiera de ella, cada render reiniciaría
@@ -87,7 +95,7 @@ export function CobroQrDialog({
         // pone `vivo = false` antes de que dispare el timer. Guardarlo con `vivo`
         // mataba el registro de la venta (bug del cartel "quedó sin registrar").
         // El ref `procesado` garantiza que `onPagado` corra exactamente una vez.
-        setTimeout(() => onPagadoRef.current(intentId), 900);
+        pagoTimer.current = setTimeout(() => onPagadoRef.current(intentId), 900);
       } else if (r.estado === "vencido") {
         setFase({ f: "error", mensaje: "El código venció. Generá uno nuevo.", sinCuenta: false });
       }

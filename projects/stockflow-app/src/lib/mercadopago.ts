@@ -41,7 +41,12 @@ export async function getStoreMpAuth(storeId: string): Promise<MpCredenciales | 
       try {
         webhookSecret = decryptSecret(data.webhook_secret as string);
       } catch {
-        webhookSecret = null; // secreto ilegible → lo tratamos como no configurado
+        // Secreto ilegible (p.ej. MP_ENC_KEY cambió): se trata como no configurado,
+        // pero NO en silencio — sin esto el webhook corre sin verificar firma para
+        // ese negocio y nadie se entera. La verdad del pago igual se re-consulta a
+        // MP, así que es defensa-en-profundidad, no un agujero de pago falso. T3.
+        webhookSecret = null;
+        console.error("[mercadopago] webhook_secret ilegible para store", storeId, "— firma sin verificar");
       }
     }
     return {

@@ -26,7 +26,6 @@ export type ClientRow = {
   name: string;
   creditLimit: number | null;
   balance: number; // negativo = debe
-  lastMovement: string | null;
   /** Arranque del tramo en rojo: desde cuándo debe sin haberse puesto al día. */
   debeDesde: string | null;
   ultimoPago: string | null;
