@@ -107,8 +107,12 @@ export function PosScreen({
   const [cobrandoQr, setCobrandoQr] = useState(false);
   /** Cobro con MP y posnet: pregunta terminal vs QR en pantalla antes de cobrar. */
   const [preguntandoCobro, setPreguntandoCobro] = useState(false);
-  /** Cobro empujado a la terminal Point (Fase 2). */
+  /** Cobro empujado a la terminal Point (Fase 2 QR / Fase 3 tarjeta). */
   const [cobrandoPoint, setCobrandoPoint] = useState(false);
+  /** Tarjeta con posnet: pregunta débito/crédito antes de mandar a la terminal (Fase 3). */
+  const [preguntandoTarjeta, setPreguntandoTarjeta] = useState(false);
+  /** Tipo elegido; null = el cobro en terminal es QR, no tarjeta. */
+  const [tipoTarjeta, setTipoTarjeta] = useState<"credit_card" | "debit_card" | null>(null);
   /** Paso de confirmación (armar → confirmar) del pie del carrito. */
   const [confirmando, setConfirmando] = useState(false);
   /** Lockout anti-doble-tap: Confirmar no acepta input los primeros 250ms. */
@@ -354,6 +358,14 @@ export function PosScreen({
       return;
     }
 
+    // Tarjeta con posnet: preguntamos débito/crédito y lo mandamos a la terminal ya
+    // listo para ese tipo. Sin posnet, la tarjeta sigue siendo el cobro a mano de
+    // siempre (cae en el paso de confirmación de abajo).
+    if (medio === "card" && mpConectado && posnetActivo) {
+      setPreguntandoTarjeta(true);
+      return;
+    }
+
     // Confirmación (armar → confirmar). El QR con MP ya salió arriba con su diálogo;
     // el QR SIN MP (marca manual) TAMBIÉN confirma —así no es una venta instantánea
     // silenciosa que sorprende al cajero— y el resto según la perilla por método.
@@ -424,6 +436,8 @@ export function PosScreen({
       setCobrandoQr(false);
       setCobrandoPoint(false);
       setPreguntandoCobro(false);
+      setPreguntandoTarjeta(false);
+      setTipoTarjeta(null);
       setConfirmando(false);
       setTendered(null);
       setCarritoViejo(false);
@@ -545,22 +559,87 @@ export function PosScreen({
           amount={total}
           idempotencyKey={idempotencyKey.current}
           descripcion={carrito.map((l) => l.producto.name).join(", ")}
-          // El QR se genera en el posnet: sigue siendo un cobro QR, se asienta como tal.
+          // Sin tipo → QR en el posnet (se asienta como QR). Con tipo → tarjeta (medio
+          // ya es "card"). `registrar` toma el medio, así que el registro sale bien solo.
+          paymentType={tipoTarjeta ?? undefined}
           onPagado={(intentId) => registrar(intentId)}
-          // Fallback: clave nueva para que el QR pida una orden fresca (la del Point
-          // ya quedó atada a la clave vieja por idempotencia de MP).
-          onFallbackQr={() => {
+          onFallback={() => {
+            // Clave nueva: la orden del Point quedó atada a la vieja por idempotencia.
             idempotencyKey.current = crypto.randomUUID();
-            setCobrandoPoint(false);
-            setCobrandoQr(true);
+            if (tipoTarjeta) {
+              // Tarjeta: la terminal falló → cobrás a mano en tu posnet y registramos
+              // la venta como tarjeta, sin push.
+              setCobrandoPoint(false);
+              setTipoTarjeta(null);
+              registrar(null);
+            } else {
+              // QR: caemos al QR en pantalla.
+              setCobrandoPoint(false);
+              setCobrandoQr(true);
+            }
           }}
+          fallbackLabel={tipoTarjeta ? "Cobrar a mano" : "Cobrar con QR en pantalla"}
           onCerrar={() => {
-            // Clave nueva al cerrar: el próximo intento con el mismo carrito arranca
-            // limpio y nunca choca con la idempotencia de MercadoPago.
             idempotencyKey.current = crypto.randomUUID();
             setCobrandoPoint(false);
+            setTipoTarjeta(null);
           }}
         />
+      )}
+
+      {/* Tarjeta con posnet: ¿débito o crédito? El tipo viaja a la terminal; las cuotas
+          y el interés los ofrece el posnet según lo configurado en la cuenta de MP. */}
+      {preguntandoTarjeta && (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/75 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-popover p-5">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm text-muted-foreground">¿Débito o crédito?</p>
+                <p className="tabular text-2xl font-semibold">{money(total)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreguntandoTarjeta(false)}
+                aria-label="Cerrar"
+                className="cursor-pointer text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPreguntandoTarjeta(false);
+                  setTipoTarjeta("debit_card");
+                  setCobrandoPoint(true);
+                }}
+                className="flex h-14 w-full cursor-pointer items-center gap-3 rounded-xl bg-primary px-4 text-left text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                <CreditCard className="size-5 shrink-0" />
+                <span>
+                  Débito
+                  <span className="block text-xs font-normal opacity-80">Apoyás o pasás la tarjeta en el posnet</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPreguntandoTarjeta(false);
+                  setTipoTarjeta("credit_card");
+                  setCobrandoPoint(true);
+                }}
+                className="flex h-14 w-full cursor-pointer items-center gap-3 rounded-xl border border-border px-4 text-left text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+              >
+                <CreditCard className="size-5 shrink-0" />
+                <span>
+                  Crédito
+                  <span className="block text-xs font-normal text-muted-foreground">Las cuotas se eligen en el posnet</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {altaRapida && (

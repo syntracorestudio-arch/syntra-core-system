@@ -44,6 +44,8 @@ const crearSchema = z.object({
   idempotency_key: z.string().min(8).max(64),
   descripcion: z.string().max(120).optional(),
   client_id: z.guid().nullable().optional(),
+  // Solo Point Fase 3: tipo de tarjeta. El QR lo ignora.
+  payment_type: z.enum(["credit_card", "debit_card"]).optional(),
 });
 
 export type CobroQR =
@@ -180,6 +182,8 @@ export async function crearCobroPoint(input: unknown): Promise<CobroPoint> {
     amount: Number(row.amount),
     externalReference: row.id,
     descripcion: parsed.data.descripcion ?? `Venta ${session.store.name}`,
+    // Sin tipo → la terminal muestra el QR; con tipo → tarjeta (débito/crédito).
+    paymentType: parsed.data.payment_type,
   });
 
   if (!orden.ok) {

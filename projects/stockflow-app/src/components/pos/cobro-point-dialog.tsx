@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, LoaderCircle, Check, TriangleAlert, QrCode, Smartphone } from "lucide-react";
+import { X, LoaderCircle, Check, TriangleAlert, QrCode, Smartphone, CreditCard, Banknote } from "lucide-react";
 import { money } from "@/lib/format";
 import { crearCobroPoint, estadoCobro, cancelarCobro } from "@/app/pos/cobro-qr-actions";
 
 type Item = { product_id: string | null; qty: number };
+type PaymentType = "credit_card" | "debit_card";
 
 type Fase =
   | { f: "enviando" }
@@ -14,40 +15,47 @@ type Fase =
   | { f: "error"; mensaje: string; sinCuenta: boolean; sinTerminal: boolean };
 
 /**
- * Cobro con la terminal Point (Cobros Fase 2).
+ * Cobro empujado a la terminal Point. Sirve para las DOS variantes (Fase 2 y 3):
+ *
+ *   · Sin `paymentType` → la terminal muestra el QR (el cliente escanea en el posnet).
+ *   · Con `paymentType` → tarjeta: MP manda el cobro a la terminal ya listo para débito
+ *     o crédito; las cuotas y el interés los ofrece la terminal según lo que el dueño
+ *     tenga configurado en su cuenta de MercadoPago (nosotros no los tocamos).
  *
  * Gemelo del `CobroQrDialog`: mismo esqueleto (pedir → esperar → pagado/error) y el
- * MISMO polling a MercadoPago (`estadoCobro`), porque la orden Point se lee igual que
- * la del QR. La diferencia es el empujón: en vez de mostrar un QR, MP manda el monto a
- * la pantalla de la terminal física y el cajero pasa la tarjeta ahí.
- *
- * Siempre hay DOS salidas por si la terminal se traba: "Cobrar con QR en pantalla"
- * (el fallback que pidió el owner: un toque y sigue cobrando) y "ya me pagó — cobrar
- * igual" (registrar la venta a mano si el pago se confirmó por otro lado).
+ * MISMO polling (`estadoCobro`). Siempre hay salida si la terminal se traba: el
+ * `onFallback` (QR en pantalla, o cobro a mano) y "ya me pagó — cobrar igual".
  */
 export function CobroPointDialog({
   items,
   amount,
   idempotencyKey,
   descripcion,
+  paymentType,
   onPagado,
-  onFallbackQr,
+  onFallback,
+  fallbackLabel,
   onCerrar,
 }: {
   items: Item[];
   amount: number;
   idempotencyKey: string;
   descripcion: string;
+  /** Sin valor = QR en el posnet. Con valor = tarjeta (débito/crédito). */
+  paymentType?: PaymentType;
   /** `intentId` null = el cajero cobró sin confirmación de MercadoPago. */
   onPagado: (intentId: string | null) => void;
-  /** Salida a QR en pantalla si la terminal falla (el padre regenera la clave). */
-  onFallbackQr: () => void;
+  /** Salida si la terminal falla (el padre decide: QR en pantalla o cobro a mano). */
+  onFallback: () => void;
+  fallbackLabel: string;
   onCerrar: () => void;
 }) {
   const [fase, setFase] = useState<Fase>({ f: "enviando" });
   const pedido = useRef(false);
   const procesado = useRef(false);
   const pagoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const esTarjeta = paymentType !== undefined;
 
   useEffect(() => () => {
     if (pagoTimer.current) clearTimeout(pagoTimer.current);
@@ -58,12 +66,12 @@ export function CobroPointDialog({
     onPagadoRef.current = onPagado;
   }, [onPagado]);
 
-  // Empujar el monto a la terminal una sola vez (React monta el efecto dos veces en dev).
+  // Empujar el cobro a la terminal una sola vez (React monta el efecto dos veces en dev).
   useEffect(() => {
     if (pedido.current) return;
     pedido.current = true;
 
-    crearCobroPoint({ items, amount, idempotency_key: idempotencyKey, descripcion })
+    crearCobroPoint({ items, amount, idempotency_key: idempotencyKey, descripcion, payment_type: paymentType })
       .then((res) => {
         if (!res.ok) {
           setFase({
@@ -79,7 +87,7 @@ export function CobroPointDialog({
       .catch(() =>
         setFase({ f: "error", mensaje: "No pudimos enviar el cobro a la terminal.", sinCuenta: false, sinTerminal: false }),
       );
-  }, [items, amount, idempotencyKey, descripcion]);
+  }, [items, amount, idempotencyKey, descripcion, paymentType]);
 
   // Consultar el estado mientras el cliente paga en la terminal (mismo poll que el QR).
   const intentId = fase.f === "esperando" ? fase.intentId : null;
@@ -114,18 +122,20 @@ export function CobroPointDialog({
   }
 
   function fallback() {
-    // Liberar la terminal antes de irnos al QR (best-effort: si ya está en el
-    // aparato, MP rechaza el cancel y hay que cortar desde ahí).
+    // Liberar la terminal antes de la salida (best-effort: si ya está en el aparato,
+    // MP rechaza el cancel y hay que cortar desde ahí).
     if (fase.f === "esperando") void cancelarCobro(fase.intentId);
-    onFallbackQr();
+    onFallback();
   }
+
+  const titulo = esTarjeta ? "Cobrar con tarjeta en el posnet" : "Cobrar con QR en el posnet";
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/75 p-4">
       <div className="w-full max-w-sm rounded-2xl border border-border bg-popover p-5">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm text-muted-foreground">Cobrar con QR en el posnet</p>
+            <p className="text-sm text-muted-foreground">{titulo}</p>
             <p className="text-2xl font-semibold tabular">{money(amount)}</p>
           </div>
           <button
@@ -142,7 +152,9 @@ export function CobroPointDialog({
           <div className="grid h-64 place-items-center rounded-xl border border-border">
             <div className="text-center">
               <LoaderCircle className="mx-auto mb-2 size-6 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Generando el QR en el posnet…</p>
+              <p className="text-sm text-muted-foreground">
+                {esTarjeta ? "Enviando el cobro a la terminal…" : "Generando el QR en el posnet…"}
+              </p>
             </div>
           </div>
         )}
@@ -150,12 +162,24 @@ export function CobroPointDialog({
         {fase.f === "esperando" && (
           <div className="grid h-64 place-items-center rounded-xl border border-border bg-background">
             <div className="text-center">
-              <QrCode className="mx-auto mb-3 size-12 text-primary-ink" />
-              <p className="text-base font-medium">El QR está en el posnet</p>
-              <p className="mt-1 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <Smartphone className="size-4" />
-                Que lo escanee con su celular
-              </p>
+              {esTarjeta ? (
+                <>
+                  <CreditCard className="mx-auto mb-3 size-12 text-primary-ink" />
+                  <p className="text-base font-medium">Apoyá o pasá la tarjeta en el posnet</p>
+                  {paymentType === "credit_card" && (
+                    <p className="mt-1 text-sm text-muted-foreground">Las cuotas se eligen en la terminal</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <QrCode className="mx-auto mb-3 size-12 text-primary-ink" />
+                  <p className="text-base font-medium">El QR está en el posnet</p>
+                  <p className="mt-1 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <Smartphone className="size-4" />
+                    Que lo escanee con su celular
+                  </p>
+                </>
+              )}
               <p className="mt-2 flex items-center justify-center gap-2 text-sm">
                 <span className="size-2 animate-pulse rounded-full bg-primary" />
                 Esperando el pago…
@@ -179,8 +203,7 @@ export function CobroPointDialog({
             <p className="break-words text-sm text-danger-ink">{fase.mensaje}</p>
             {fase.sinTerminal && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Configurá tu terminal en Ajustes → Cobrar con la terminal. Mientras tanto, cobrá
-                con el QR en pantalla.
+                Configurá tu terminal en Ajustes → Cobrar con la terminal.
               </p>
             )}
             {fase.sinCuenta && (
@@ -192,15 +215,15 @@ export function CobroPointDialog({
         )}
 
         <div className="mt-4 space-y-2">
-          {/* Fallback estrella: si la terminal se traba, un toque y seguís con el QR. */}
+          {/* Fallback: si la terminal se traba, un toque y seguís cobrando. */}
           {fase.f !== "pagado" && (
             <button
               type="button"
               onClick={fallback}
               className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
-              <QrCode className="size-4" />
-              Cobrar con QR en pantalla
+              {esTarjeta ? <Banknote className="size-4" /> : <QrCode className="size-4" />}
+              {fallbackLabel}
             </button>
           )}
 
