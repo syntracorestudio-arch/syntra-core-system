@@ -25,10 +25,48 @@ const nextConfig: NextConfig = {
    * prácticamente irreversible; se decide al lanzar el dominio, no antes.
    */
   async headers() {
+    /**
+     * CSP en **Report-Only**: NO bloquea nada, solo reporta violaciones a la
+     * consola del browser. Es el paso previo obligatorio antes de aplicarla de
+     * verdad — una CSP mal calibrada rompe producción en silencio.
+     *
+     * Alcance medido (no supuesto): el único recurso externo de cliente es
+     * Plausible; Resend es server-side (no lo toca la CSP), schema.org es un
+     * string del JSON-LD, y todas las imágenes son locales (next.config no
+     * declara remotePatterns).
+     *
+     * `unsafe-inline` está en script/style porque Next inyecta scripts de
+     * hidratación y el sitio usa `style={{}}` extensivamente. Migrar a nonces es
+     * la mejora siguiente; aun así esta política ya restringe DE DÓNDE se
+     * cargan los scripts y mata object-src / base-uri / form-action.
+     *
+     * Para aplicarla: mirar la consola en producción unos días, y si no hay
+     * violaciones legítimas, renombrar la key a "Content-Security-Policy" y
+     * agregar "upgrade-insecure-requests" a la lista (se omite acá porque los
+     * browsers lo ignoran en report-only y solo ensucia la consola con un aviso).
+     *
+     * Estado medido (2026-07-27, build de producción, recorriendo todas las
+     * secciones con un browser real): CERO violaciones. La política ya está
+     * calibrada para pasar a enforcing.
+     */
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://plausible.io",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://plausible.io",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+    ].join("; ");
+
     return [
       {
         source: "/(.*)",
         headers: [
+          { key: "Content-Security-Policy-Report-Only", value: csp },
           // Fuerza HTTPS por 2 años (Vercel ya sirve TLS; esto cierra el downgrade).
           {
             key: "Strict-Transport-Security",
