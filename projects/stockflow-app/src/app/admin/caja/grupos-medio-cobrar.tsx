@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { TriangleAlert, CreditCard, QrCode, X } from "lucide-react";
+import { TriangleAlert, CreditCard, QrCode, X, LoaderCircle } from "lucide-react";
 import { money } from "@/lib/format";
 import { crearCobroSplit, crearCobroSplitPoint } from "@/app/pos/cobro-qr-actions";
 import { registerSplitGroup } from "@/app/pos/actions";
+import { reembolsarGrupo } from "./actions";
 import { CobroQrDialog } from "@/components/pos/cobro-qr-dialog";
 import { CobroPointDialog } from "@/components/pos/cobro-point-dialog";
 
@@ -43,12 +44,16 @@ type Resumen = {
 export function GruposMedioCobrar({
   grupos,
   posnetActivo,
+  reembolsoHabilitado,
 }: {
   grupos: GrupoMedioCobrar[];
   posnetActivo: boolean;
+  reembolsoHabilitado: boolean;
 }) {
   const [resueltos, setResueltos] = useState<Set<string>>(new Set());
   const [resumen, setResumen] = useState<Resumen | null>(null);
+  const [confirmReembolso, setConfirmReembolso] = useState<string | null>(null);
+  const [procesando, setProcesando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -88,6 +93,22 @@ export function GruposMedioCobrar({
         idempotency_key: `${g.group_id}-S`,
       });
       setResumen(null);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setResueltos((s) => new Set(s).add(g.group_id));
+    });
+  }
+
+  /** Reembolsa y anula: devuelve por MP lo cobrado y deja el grupo sin venta. */
+  function reembolsar(g: GrupoMedioCobrar) {
+    setError(null);
+    setProcesando(g.group_id);
+    startTransition(async () => {
+      const res = await reembolsarGrupo(g.group_id);
+      setProcesando(null);
+      setConfirmReembolso(null);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -143,14 +164,51 @@ export function GruposMedioCobrar({
                   · {g.items.reduce((a, i) => a + i.qty, 0)} unidades
                 </p>
               </div>
-              <button
-                type="button"
-                disabled={resumen !== null}
-                onClick={() => empezar(g)}
-                className="flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-              >
-                Cobrar lo que falta
-              </button>
+              {confirmReembolso === g.group_id ? (
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="hidden text-xs text-muted-foreground sm:inline">
+                    ¿Devolver {cobrado} y anular?
+                  </span>
+                  <button
+                    type="button"
+                    disabled={procesando !== null}
+                    onClick={() => reembolsar(g)}
+                    className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-danger px-3 text-sm font-semibold text-danger-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                  >
+                    {procesando === g.group_id && <LoaderCircle className="size-4 animate-spin" />}
+                    Sí, reembolsar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={procesando !== null}
+                    onClick={() => setConfirmReembolso(null)}
+                    className="h-9 cursor-pointer rounded-lg border border-border px-3 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-40"
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={resumen !== null || procesando !== null}
+                    onClick={() => empezar(g)}
+                    className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                  >
+                    Cobrar lo que falta
+                  </button>
+                  {reembolsoHabilitado && (
+                    <button
+                      type="button"
+                      disabled={resumen !== null || procesando !== null}
+                      onClick={() => setConfirmReembolso(g.group_id)}
+                      className="h-9 cursor-pointer rounded-lg border border-border px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-danger/40 hover:text-danger-ink disabled:opacity-40"
+                    >
+                      Reembolsar y anular
+                    </button>
+                  )}
+                </div>
+              )}
             </li>
           );
         })}

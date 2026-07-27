@@ -52,7 +52,13 @@ export default async function CajaPage({
     >
       {(cobros.length > 0 || grupos.length > 0) && (
         <div className="mx-auto max-w-3xl px-4 pt-6 lg:px-8 lg:pt-8">
-          {grupos.length > 0 && <GruposMedioCobrar grupos={grupos} posnetActivo={posnetActivo} />}
+          {grupos.length > 0 && (
+            <GruposMedioCobrar
+              grupos={grupos}
+              posnetActivo={posnetActivo}
+              reembolsoHabilitado={process.env.STOCKFLOW_REEMBOLSO_HABILITADO === "1"}
+            />
+          )}
           {cobros.length > 0 && <CobrosHuerfanos cobros={cobros} />}
         </div>
       )}
