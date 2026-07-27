@@ -23,6 +23,7 @@ import {
   PackagePlus,
   LogOut,
   Sparkles,
+  Split,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { CategoryChips } from "@/components/ui/category-chips";
@@ -30,6 +31,7 @@ import { EmptyArt } from "@/components/ui/empty-art";
 import { money } from "@/lib/format";
 import {
   registerSale,
+  registerSplitSale,
   quickCreateProduct,
   buscarEnCatalogo,
   buscarPorNombre,
@@ -71,6 +73,7 @@ const MEDIOS = [
   { key: "card", label: "Tarjeta", icon: CreditCard },
   { key: "transfer", label: "Transfer.", icon: ArrowRightLeft },
   { key: "account", label: "Fiado", icon: UserRound },
+  { key: "split", label: "Dividido", icon: Split },
 ] as const;
 
 type Medio = (typeof MEDIOS)[number]["key"];
@@ -113,6 +116,12 @@ export function PosScreen({
   const [preguntandoTarjeta, setPreguntandoTarjeta] = useState(false);
   /** Tipo elegido; null = el cobro en terminal es QR, no tarjeta. */
   const [tipoTarjeta, setTipoTarjeta] = useState<"credit_card" | "debit_card" | null>(null);
+  /** Reparto del pago dividido: cuánto va en cada medio (string por input). */
+  const [montos, setMontos] = useState<{ cash: string; card: string; transfer: string }>({
+    cash: "",
+    card: "",
+    transfer: "",
+  });
   /** Paso de confirmación (armar → confirmar) del pie del carrito. */
   const [confirmando, setConfirmando] = useState(false);
   /** Lockout anti-doble-tap: Confirmar no acepta input los primeros 250ms. */
@@ -366,6 +375,13 @@ export function PosScreen({
       return;
     }
 
+    // Pago dividido: abre su propio "estado B" (el editor de reparto).
+    if (medio === "split") {
+      setMontos({ cash: "", card: "", transfer: "" });
+      setConfirmando(true);
+      return;
+    }
+
     // Confirmación (armar → confirmar). El QR con MP ya salió arriba con su diálogo;
     // el QR SIN MP (marca manual) TAMBIÉN confirma —así no es una venta instantánea
     // silenciosa que sorprende al cajero— y el resto según la perilla por método.
@@ -432,54 +448,94 @@ export function PosScreen({
         }
       }
 
-      // Venta cerrada: carrito nuevo y clave nueva.
-      setCobrandoQr(false);
-      setCobrandoPoint(false);
-      setPreguntandoCobro(false);
-      setPreguntandoTarjeta(false);
-      setTipoTarjeta(null);
-      setConfirmando(false);
-      setTendered(null);
-      setCarritoViejo(false);
-      setEditandoQty(null);
-      setCarrito([]);
-      setClienteId(null);
-      setMedio("cash");
-      idempotencyKey.current = crypto.randomUUID();
+      // Deshacer se ofrece si NO hubo captura externa (QR pagado ya tiene la plata
+      // en MP → anular descuadraría; para eso está la anulación en Caja).
+      finalizarVenta(res, intentId === null);
+    });
+  }
 
-      if (res.replayed) {
-        // La venta ya existía para esta clave (reintento del MISMO carrito). NO se
-        // presenta como una venta nueva: se avisa honesto que ya estaba registrada
-        // en vez de un "Cobrado" que sumaría en la cabeza del cajero (H1).
-        setAviso({
-          tone: "warn",
-          text: `Este cobro ya estaba registrado (${money(res.total)}).`,
-        });
+  /**
+   * Cierra una venta OK: limpia todo, beep y toast. Compartido por el cobro normal y
+   * el pago dividido — solo estado de UI, sin lógica de plata (esa vive en las RPCs).
+   */
+  function finalizarVenta(
+    res: { saleId: string; total: number; replayed: boolean; overLimit: boolean; negativeStock: { name: string }[] },
+    ofrecerUndo: boolean,
+  ) {
+    setCobrandoQr(false);
+    setCobrandoPoint(false);
+    setPreguntandoCobro(false);
+    setPreguntandoTarjeta(false);
+    setTipoTarjeta(null);
+    setConfirmando(false);
+    setTendered(null);
+    setMontos({ cash: "", card: "", transfer: "" });
+    setCarritoViejo(false);
+    setEditandoQty(null);
+    setCarrito([]);
+    setClienteId(null);
+    setMedio("cash");
+    idempotencyKey.current = crypto.randomUUID();
+
+    if (res.replayed) {
+      setAviso({ tone: "warn", text: `Este cobro ya estaba registrado (${money(res.total)}).` });
+      return;
+    }
+
+    beep();
+    const undoId = ofrecerUndo ? res.saleId : undefined;
+
+    if (res.negativeStock.length > 0) {
+      const nombres = res.negativeStock.map((n) => n.name).join(", ");
+      setAviso({
+        tone: "warn",
+        text: `Cobrado ${money(res.total)}. Ojo: ${nombres} quedó en negativo — revisá el stock.`,
+        undoId,
+      });
+    } else if (res.overLimit) {
+      setAviso({
+        tone: "warn",
+        text: `Cobrado ${money(res.total)}. Ese cliente pasó su límite de fiado.`,
+        undoId,
+      });
+    } else {
+      setAviso({ tone: "ok", text: `Cobrado ${money(res.total)}`, undoId });
+    }
+  }
+
+  /**
+   * Confirma un pago dividido (Paso 1: efectivo/tarjeta/transferencia). El reparto se
+   * valida acá para el feedback inmediato, pero la verdad la impone la RPC atómica
+   * `register_split_sale` (suma == total server-side; si no, rollback sin huérfana).
+   */
+  function confirmarSplit() {
+    if (pending) return;
+    const pagos = (["cash", "card", "transfer"] as const)
+      .map((m) => ({ method: m, amount: parseMonto(montos[m]) }))
+      .filter((p) => p.amount > 0);
+    const suma = pagos.reduce((a, p) => a + p.amount, 0);
+
+    if (pagos.length < 2) {
+      setAviso({ tone: "error", text: "Dividí en al menos dos medios." });
+      return;
+    }
+    if (Math.abs(suma - total) > 0.01) {
+      setAviso({ tone: "error", text: "Las partes no suman el total." });
+      return;
+    }
+
+    startTransition(async () => {
+      const res = await registerSplitSale({
+        items: carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad })),
+        pagos,
+        idempotency_key: idempotencyKey.current,
+      });
+      if (!res.ok) {
+        setAviso({ tone: "error", text: res.error });
         return;
       }
-
-      // Venta nueva → beep de confirmación (#7). El "Deshacer" (#3) se ofrece solo
-      // cuando NO hubo captura externa: en el QR pagado la plata ya está en MP y
-      // anular la venta descuadraría — para eso está el flujo de anulación en Caja.
-      beep();
-      const undoId = intentId === null ? res.saleId : undefined;
-
-      if (res.negativeStock.length > 0) {
-        const nombres = res.negativeStock.map((n) => n.name).join(", ");
-        setAviso({
-          tone: "warn",
-          text: `Cobrado ${money(res.total)}. Ojo: ${nombres} quedó en negativo — revisá el stock.`,
-          undoId,
-        });
-      } else if (res.overLimit) {
-        setAviso({
-          tone: "warn",
-          text: `Cobrado ${money(res.total)}. Ese cliente pasó su límite de fiado.`,
-          undoId,
-        });
-      } else {
-        setAviso({ tone: "ok", text: `Cobrado ${money(res.total)}`, undoId });
-      }
+      // El split no tiene captura externa (efectivo/tarjeta/transfer) → se puede deshacer.
+      finalizarVenta(res, true);
     });
   }
 
@@ -953,7 +1009,7 @@ export function PosScreen({
 
           {!confirmando ? (
           <>
-          <div className="mb-3 grid grid-cols-5 gap-1.5">
+          <div className="mb-3 grid grid-cols-6 gap-1.5">
             {MEDIOS.map((m) => {
               const bloqueado = m.key === "account" && !canSellOnCredit;
               const elegido = medio === m.key;
@@ -1023,6 +1079,15 @@ export function PosScreen({
                 : `Cobrar ${money(total)} · ${unidades} u.`}
           </button>
           </>
+          ) : medio === "split" ? (
+            <ReparteMontos
+              total={total}
+              montos={montos}
+              setMontos={setMontos}
+              pending={pending}
+              onConfirmar={confirmarSplit}
+              onVolver={volverAComponer}
+            />
           ) : (
             <ConfirmarCobro
               medio={medio}
@@ -1512,5 +1577,132 @@ function IconBtn({
     >
       {children}
     </button>
+  );
+}
+
+/** Parseo tolerante de un monto tipeado: dígitos + un punto decimal. */
+function parseMonto(s: string): number {
+  const n = Number(String(s).replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+const SPLIT_ROWS = [
+  { key: "cash", label: "Efectivo", icon: Banknote },
+  { key: "card", label: "Tarjeta", icon: CreditCard },
+  { key: "transfer", label: "Transferencia", icon: ArrowRightLeft },
+] as const;
+
+/**
+ * Reparto del pago dividido (Paso 1). El cajero pone cuánto va en cada medio; el
+ * botón "Resto" completa lo que falta (maneja los centavos exactos). Confirmar se
+ * habilita solo cuando la suma da el total y hay al menos dos partes — pero la RPC
+ * atómica revalida la suma server-side, así que esto es feedback, no la autoridad.
+ */
+function ReparteMontos({
+  total,
+  montos,
+  setMontos,
+  pending,
+  onConfirmar,
+  onVolver,
+}: {
+  total: number;
+  montos: { cash: string; card: string; transfer: string };
+  setMontos: (m: { cash: string; card: string; transfer: string }) => void;
+  pending: boolean;
+  onConfirmar: () => void;
+  onVolver: () => void;
+}) {
+  const suma = SPLIT_ROWS.reduce((a, r) => a + parseMonto(montos[r.key]), 0);
+  const resto = Math.round((total - suma) * 100) / 100;
+  const partes = SPLIT_ROWS.filter((r) => parseMonto(montos[r.key]) > 0).length;
+  const cuadra = Math.abs(resto) < 0.01;
+  const listo = cuadra && partes >= 2;
+
+  function set(key: "cash" | "card" | "transfer", v: string) {
+    setMontos({ ...montos, [key]: v.replace(/[^\d.]/g, "") });
+  }
+  function llenarResto(key: "cash" | "card" | "transfer") {
+    const otros = SPLIT_ROWS.filter((r) => r.key !== key).reduce(
+      (a, r) => a + parseMonto(montos[r.key]),
+      0,
+    );
+    const falta = Math.round((total - otros) * 100) / 100;
+    setMontos({ ...montos, [key]: falta > 0 ? String(falta) : "" });
+  }
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={onVolver}
+          className="flex cursor-pointer items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" /> Volver
+        </button>
+        <span className="text-xs text-muted-foreground">Repartí el total entre los medios</span>
+      </div>
+
+      <div className="space-y-2">
+        {SPLIT_ROWS.map((r) => (
+          <div key={r.key} className="flex items-center gap-2">
+            <div className="flex w-28 shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
+              <r.icon className="size-4" /> {r.label}
+            </div>
+            <div className="relative flex-1">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                $
+              </span>
+              <input
+                inputMode="decimal"
+                value={montos[r.key]}
+                onChange={(e) => set(r.key, e.target.value)}
+                placeholder="0"
+                aria-label={`Monto en ${r.label}`}
+                className="tabular h-11 w-full rounded-lg border border-input bg-background pl-6 pr-3 text-right text-sm outline-none focus:border-primary"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => llenarResto(r.key)}
+              className="h-11 shrink-0 cursor-pointer rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+            >
+              Resto
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div
+        className={cn(
+          "mt-3 flex items-center justify-between rounded-lg px-3 py-2 text-sm ring-1",
+          listo
+            ? "bg-success/10 text-success-ink ring-success/25"
+            : "bg-secondary/60 text-muted-foreground ring-border",
+        )}
+      >
+        <span>
+          {listo
+            ? "Listo"
+            : !cuadra
+              ? resto > 0
+                ? "Falta"
+                : "Te pasaste"
+              : "Usá al menos dos medios"}
+        </span>
+        {!cuadra && <span className="tabular font-semibold">{money(Math.abs(resto))}</span>}
+      </div>
+
+      <button
+        type="button"
+        onClick={onConfirmar}
+        disabled={!listo || pending}
+        className="mt-3 flex h-13 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-base font-semibold text-primary-foreground transition-opacity duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {pending && <LoaderCircle className="size-4 animate-spin" />}
+        Confirmar {money(total)}
+      </button>
+    </div>
   );
 }

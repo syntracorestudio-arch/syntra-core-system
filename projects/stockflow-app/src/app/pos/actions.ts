@@ -63,6 +63,10 @@ const ERRORS: Record<string, string> = {
   client_required: "Elegí a quién le fiás.",
   client_not_found: "Ese cliente no existe.",
   idempotency_key_reused: "Este cobro se mezcló con otra venta. Vaciá y armá la venta de nuevo.",
+  // Pago dividido (Paso 1)
+  split_needs_two: "Un pago dividido necesita al menos dos partes.",
+  invalid_split_payment: "Revisá los montos del pago dividido.",
+  split_sum_mismatch: "Las partes no suman el total de la venta.",
 };
 
 function translate(message: string): string {
@@ -118,6 +122,65 @@ export async function registerSale(input: unknown): Promise<SaleResult> {
   }
 
   // El catálogo del POS y el panel del dueño muestran stock: quedaron viejos.
+  revalidatePath("/pos");
+  revalidatePath("/admin");
+
+  return {
+    ok: true,
+    saleId: result.sale_id,
+    total: Number(result.total),
+    replayed: result.replayed,
+    overLimit: result.over_limit,
+    negativeStock: result.negative_stock ?? [],
+  };
+}
+
+/**
+ * Pago dividido (Paso 1): una venta cobrada en varias partes (efectivo/tarjeta/
+ * transferencia; QR y fiado quedan afuera en v1). Toda la seguridad vive en
+ * `register_split_sale`: es ATÓMICA (reusa register_sale + inserta el reparto en la
+ * misma transacción y valida que sume el total server-side). Acá solo validamos forma.
+ */
+const splitPaymentSchema = z.object({
+  method: z.enum(["cash", "card", "transfer"]),
+  amount: z.number().positive(),
+});
+
+const splitSaleSchema = z.object({
+  items: z.array(itemSchema).min(1),
+  pagos: z.array(splitPaymentSchema).min(2),
+  idempotency_key: z.string().min(8).max(64),
+});
+
+export async function registerSplitSale(input: unknown): Promise<SaleResult> {
+  const session = await requireSession();
+
+  const parsed = splitSaleSchema.safeParse(input);
+  if (!parsed.success) {
+    console.error("[registerSplitSale] payload inválido:", JSON.stringify(parsed.error.issues));
+    return { ok: false, error: "Datos del pago dividido inválidos." };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { data, error } = await supabase.rpc("register_split_sale", {
+    p_store_id: session.store.id,
+    p_items: parsed.data.items,
+    p_pagos: parsed.data.pagos,
+    p_idempotency_key: parsed.data.idempotency_key,
+  });
+
+  if (error) {
+    return { ok: false, error: translate(error.message) };
+  }
+
+  const result = data as {
+    sale_id: string;
+    total: number;
+    replayed: boolean;
+    over_limit: boolean;
+    negative_stock: { product_id: string; name: string; stock: number }[];
+  };
+
   revalidatePath("/pos");
   revalidatePath("/admin");
 
