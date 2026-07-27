@@ -310,3 +310,24 @@ export function ordenTerminada(orden: MpOrden): boolean {
 export function idDePago(orden: MpOrden): string | null {
   return orden.transactions?.payments?.find((p) => p.id)?.id ?? null;
 }
+
+/**
+ * Monto REALMENTE pagado: suma de los pagos acreditados de la orden. NO es
+ * `total_amount` (ese es el monto que NOSOTROS pedimos, así que compararlo contra
+ * nuestro propio intento siempre da igual — un no-op). Devuelve null si MP no trae
+ * montos legibles: en ese caso el binding se apoya en que el QR es dinámico (el
+ * pagador no puede alterar el monto codificado), no en un número que no leímos.
+ */
+export function montoPagado(orden: MpOrden): number | null {
+  const acreditados = (orden.transactions?.payments ?? []).filter((p) =>
+    ["processed", "approved", "accredited"].includes((p.status ?? "").toLowerCase()),
+  );
+  if (acreditados.length === 0) return null;
+  let total = 0;
+  for (const p of acreditados) {
+    const monto = Number(p.amount);
+    if (!Number.isFinite(monto)) return null; // dato incompleto → no afirmamos un monto
+    total += monto;
+  }
+  return total;
+}

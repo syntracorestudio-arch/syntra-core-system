@@ -56,6 +56,7 @@ const ERRORS: Record<string, string> = {
   insufficient_stock: "No hay stock suficiente y tu negocio no permite vender en negativo.",
   client_required: "Elegí a quién le fiás.",
   client_not_found: "Ese cliente no existe.",
+  idempotency_key_reused: "Este cobro se mezcló con otra venta. Vaciá y armá la venta de nuevo.",
 };
 
 function translate(message: string): string {
