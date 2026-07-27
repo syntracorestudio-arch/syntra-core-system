@@ -95,5 +95,46 @@ begin
 end $$;
 rollback;
 
+-- ---------------------------------------------------------------------------
+-- M4 · Una venta ya PAGADA (cobro QR acreditado) debe poder registrarse aunque
+--   el producto se haya archivado entre armar el carrito y cobrar. La plata ya
+--   entró: la venta es un hecho, no una intención que se pueda rechazar. La venta
+--   NORMAL (sin pagar) sí debe seguir rechazando el producto archivado.
+-- ---------------------------------------------------------------------------
+begin;
+select set_config('request.jwt.claim.sub', :'DUENO', true);
+do $$
+declare
+  v_sale   jsonb;
+  v_raised boolean := false;
+begin
+  -- El producto se archiva justo después de que el cliente lo puso en el carrito.
+  update public.products set status = 'archived'
+   where id = 'd1000000-0000-0000-0000-000000000001';
+
+  -- Venta normal (sin p_paid): debe rechazar el archivado.
+  begin
+    perform public.register_sale('11111111-1111-1111-1111-111111111111',
+      '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
+      'qr', 'M4-normal-0001', null);
+  exception when others then
+    if sqlerrm like '%product_archived%' then v_raised := true; else raise; end if;
+  end;
+  if not v_raised then
+    raise exception 'FALLA M4a: la venta normal de un producto archivado no fue rechazada.';
+  end if;
+
+  -- Cobro PAGADO (p_paid = true): DEBE registrarse igual, no perder la plata.
+  v_sale := public.register_sale('11111111-1111-1111-1111-111111111111',
+    '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
+    'qr', 'M4-paid-0001', null, true);
+  if (v_sale->>'sale_id') is null then
+    raise exception 'FALLA M4b: un cobro PAGADO de un producto archivado no se pudo registrar → plata sin venta.';
+  end if;
+
+  raise notice 'OK  M4. cobro pagado registra aunque el producto esté archivado; la venta normal lo rechaza';
+end $$;
+rollback;
+
 \echo ''
 \echo '=== tests de pérdida de plata: OK ==='

@@ -76,6 +76,9 @@ export async function recuperarVenta(intentId: string): Promise<Result> {
     p_payment_method: "qr",
     p_idempotency_key: intento.idempotency_key,
     p_client_id: intento.client_id,
+    // La plata ya se acreditó (intento 'approved'): la venta es un hecho y debe
+    // registrarse aunque el producto se haya archivado o el stock esté estricto. M4.
+    p_paid: true,
   });
 
   if (error || !data) return { ok: false, error: "No pudimos registrar la venta." };
