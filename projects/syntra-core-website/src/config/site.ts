@@ -132,6 +132,7 @@ export const siteConfig: SiteConfig = {
       ],
       /** Encuadre del mailto: cierra el rail con propósito, no como dato suelto. */
       mailtoLead: "¿Preferís escribir directo?",
+      submitNote: "Te responde quien va a trabajar en tu proyecto, no un intermediario.",
     },
   },
 };
@@ -147,8 +148,14 @@ export const footerBrand =
 /** Copy del estado de éxito del formulario (momento de marca, content-driven). */
 export const contactSuccess = {
   title: "Consulta recibida",
-  body: "Gracias. Vamos a revisar tu mensaje y te responderemos para definir el próximo paso.",
-  microcopy: "Te escribimos con una orientación clara para avanzar sin compromiso.",
+  // Expectativa de respuesta SIN plazo horario (decisión del owner 2026-07-27):
+  // el eje pasa de "cuándo" a "quién" + "qué pasa ahora". "Apenas" señala que no
+  // hay demora entre leer y responder, sin comprometer un horario que después
+  // haya que cumplir. Se apoya en el posicionamiento ya declarado en Nosotros
+  // ("hablás con quien construye"), así que además diferencia.
+  body: "Te escribimos por email apenas la leamos.",
+  microcopy:
+    "Te responde la misma persona que va a trabajar con vos, no un intermediario.",
   secondary: "Mensaje enviado",
 };
 

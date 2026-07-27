@@ -197,6 +197,11 @@ export interface SiteConfig {
       deliverables: ReadonlyArray<{ icon: string; label: string }>;
       /** Línea de encuadre del mailto ("¿Preferís escribir directo?"). */
       mailtoLead: string;
+      /**
+       * Expectativa de respuesta junto al botón de envío. Responde "quién me
+       * contesta", no "en cuántas horas": el owner no compromete plazo horario.
+       */
+      submitNote: string;
     };
   };
 }
