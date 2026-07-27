@@ -193,6 +193,9 @@ export function PosScreen({
         buscadorRef.current?.focus();
         buscadorRef.current?.select();
       } else if (e.key === "Escape") {
+        // Rotar la clave al vaciar (ver `vaciar`); inline para no meter una dep
+        // no estable en este efecto de deps vacías.
+        idempotencyKey.current = crypto.randomUUID();
         setCarrito([]);
       }
     }
@@ -206,6 +209,15 @@ export function PosScreen({
         .map((l) => (l.producto.id === id ? { ...l, cantidad: l.cantidad + delta } : l))
         .filter((l) => l.cantidad > 0),
     );
+  }
+
+  /* Vaciar la venta SIEMPRE rota la clave de idempotencia. Así un carrito nuevo
+     jamás reusa la clave de uno anterior cuya respuesta se perdió: sin esto, un
+     segundo carrito distinto se registraba como "repetido" y se perdía la venta
+     bajo un toast de éxito (H1). El éxito de cobro también rota (más abajo). */
+  function vaciar() {
+    setCarrito([]);
+    idempotencyKey.current = crypto.randomUUID();
   }
 
   function cobrar() {
@@ -256,7 +268,15 @@ export function PosScreen({
       setMedio("cash");
       idempotencyKey.current = crypto.randomUUID();
 
-      if (res.negativeStock.length > 0) {
+      if (res.replayed) {
+        // La venta ya existía para esta clave (reintento del MISMO carrito). NO se
+        // presenta como una venta nueva: se avisa honesto que ya estaba registrada
+        // en vez de un "Cobrado" que sumaría en la cabeza del cajero (H1).
+        setAviso({
+          tone: "warn",
+          text: `Este cobro ya estaba registrado (${money(res.total)}).`,
+        });
+      } else if (res.negativeStock.length > 0) {
         const nombres = res.negativeStock.map((n) => n.name).join(", ");
         setAviso({
           tone: "warn",
@@ -482,7 +502,7 @@ export function PosScreen({
           {carrito.length > 0 && (
             <button
               type="button"
-              onClick={() => setCarrito([])}
+              onClick={vaciar}
               className="flex cursor-pointer items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-danger-ink"
             >
               <X className="size-3.5" /> Vaciar

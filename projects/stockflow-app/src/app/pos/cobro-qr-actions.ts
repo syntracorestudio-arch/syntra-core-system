@@ -13,6 +13,7 @@ import {
   ordenAprobada,
   ordenTerminada,
   idDePago,
+  montoPagado,
 } from "@/lib/mercadopago";
 
 /**
@@ -161,9 +162,10 @@ export async function estadoCobro(intentId: string): Promise<EstadoCobro> {
   if (!res.ok) return { estado: "pendiente" };
 
   if (ordenAprobada(res.orden)) {
-    // Binding de monto también acá: el pago tiene que ser por ESTE carrito.
-    const pagado = Number(res.orden.total_amount ?? NaN);
-    if (Number.isFinite(pagado) && Math.abs(pagado - Number(data.amount)) > 0.01) {
+    // Binding de monto REAL: se compara el monto ACREDITADO en MP (no `total_amount`,
+    // que es el que nosotros pedimos y siempre coincide) contra el del intento.
+    const pagado = montoPagado(res.orden);
+    if (pagado !== null && Math.abs(pagado - Number(data.amount)) > 0.01) {
       return { estado: "error", error: "El monto pagado no coincide con la venta." };
     }
     await createAdminClient()
@@ -182,12 +184,46 @@ export async function estadoCobro(intentId: string): Promise<EstadoCobro> {
   return { estado: "pendiente" };
 }
 
-/** El cliente se arrepintió o paga en efectivo: soltamos el cobro. */
+/**
+ * El cliente se arrepintió o paga en efectivo: soltamos el cobro.
+ *
+ * RECONCILIA con MP antes de dar por muerto el cobro (H2): si el cliente alcanzó a
+ * pagar en la carrera con el tap de "cancelar", NO se cancela — se marca aprobado
+ * para que la plata capturada aparezca en el banner de recuperación de Caja en vez
+ * de desaparecer de todas las vistas. Solo si MP confirma que NO se pagó, se cancela.
+ */
 export async function cancelarCobro(intentId: string): Promise<void> {
   const session = await requireSession();
   if (!z.guid().safeParse(intentId).success) return;
 
   const supabase = await createSupabaseServer();
+
+  const { data: intent } = await supabase
+    .from("payment_intents")
+    .select("id, amount, mp_order_id, status")
+    .eq("id", intentId)
+    .eq("store_id", session.store.id)
+    .maybeSingle();
+
+  if (intent?.status === "pending" && intent.mp_order_id) {
+    const auth = await getStoreMpAuth(session.store.id);
+    if (auth) {
+      const res = await mpLeerOrden(auth.token, String(intent.mp_order_id));
+      if (res.ok && ordenAprobada(res.orden)) {
+        const pagado = montoPagado(res.orden);
+        if (pagado === null || Math.abs(pagado - Number(intent.amount)) <= 0.01) {
+          // Pagó de verdad: reconciliar a aprobado (service_role), NO cancelar.
+          await createAdminClient()
+            .from("payment_intents")
+            .update({ status: "approved", mp_payment_id: idDePago(res.orden) })
+            .eq("id", intentId)
+            .eq("status", "pending");
+          return;
+        }
+      }
+    }
+  }
+
   await supabase.rpc("cancelar_intento", {
     p_store_id: session.store.id,
     p_intent_id: intentId,

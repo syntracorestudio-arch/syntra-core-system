@@ -1,7 +1,14 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getStoreMpAuth, mpLeerOrden, ordenAprobada, ordenTerminada, idDePago } from "@/lib/mercadopago";
+import {
+  getStoreMpAuth,
+  mpLeerOrden,
+  ordenAprobada,
+  ordenTerminada,
+  idDePago,
+  montoPagado,
+} from "@/lib/mercadopago";
 
 export const dynamic = "force-dynamic";
 // Cota explícita del baseline para webhooks: le preguntamos a MP por la orden y
@@ -86,13 +93,15 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
 
-  // Idempotencia a nivel evento. Si MP reintenta, procesamos una sola vez.
-  const { error: dupErr } = await admin.from("mp_webhook_events").insert({
-    event_id: `${storeId}:${recursoId}:${topic ?? "?"}`,
-    store_id: storeId,
-    type: topic,
-  });
-  if (dupErr) return NextResponse.json({ ok: true, duplicate: true });
+  // Log del evento, best-effort y NO bloqueante. La idempotencia REAL es la UPDATE
+  // condicional de más abajo (aplicar "aprobado" dos veces es un no-op). Antes esto
+  // hacía `insert` y devolvía early en el conflicto: una notificación "pending"
+  // quemaba el slot por-recurso y la de "approved" —la que importa— se descartaba,
+  // justo en el caso del navegador cerrado que este webhook existe para cubrir (H3b).
+  await admin.from("mp_webhook_events").upsert(
+    { event_id: `${storeId}:${recursoId}:${topic ?? "?"}`, store_id: storeId, type: topic },
+    { onConflict: "event_id", ignoreDuplicates: true },
+  );
 
   // Buscamos el intento por el id de orden que ya guardamos al crear el QR.
   const { data: intento } = await admin
@@ -103,7 +112,12 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   if (!intento) return NextResponse.json({ ok: true, skipped: "sin-intento" });
-  if (intento.status !== "pending") return NextResponse.json({ ok: true, skipped: "ya-resuelto" });
+  // Converge con el poll y con la cancelación (H2): un pago que aterriza DESPUÉS de
+  // que la caja canceló también debe reconciliarse a aprobado, para que la plata
+  // capturada no quede enterrada. Solo se saltea lo ya resuelto de verdad.
+  if (!["pending", "cancelled"].includes(intento.status)) {
+    return NextResponse.json({ ok: true, skipped: "ya-resuelto" });
+  }
 
   // Fuente de verdad: preguntarle a MP.
   const res = await mpLeerOrden(auth.token, String(recursoId));
@@ -117,18 +131,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, status: orden.status });
   }
 
-  // Binding de monto: MP confirmó un pago; tiene que ser POR ESTE carrito.
-  // Sin esto, un pago de otro monto marcaría la venta como cobrada.
-  const pagado = Number(orden.total_amount ?? NaN);
-  if (Number.isFinite(pagado) && Math.abs(pagado - Number(intento.amount)) > 0.01) {
+  // Binding de monto REAL: se compara lo ACREDITADO en MP (no `total_amount`, que
+  // es el monto que nosotros pedimos y siempre coincide — un no-op) contra el intento.
+  const pagado = montoPagado(orden);
+  if (pagado !== null && Math.abs(pagado - Number(intento.amount)) > 0.01) {
     return NextResponse.json({ ok: true, skipped: "monto-no-coincide" });
   }
 
+  // Idempotente y convergente: aprueba tanto un intento pendiente como uno que la
+  // caja canceló pero MP terminó cobrando. Aplicarlo dos veces no hace nada.
   await admin
     .from("payment_intents")
     .update({ status: "approved", mp_payment_id: idDePago(orden) })
     .eq("id", intento.id)
-    .eq("status", "pending");
+    .in("status", ["pending", "cancelled"]);
 
   return NextResponse.json({ ok: true, applied: true });
 }
