@@ -34,6 +34,8 @@ const saleSchema = z.object({
   // → no lo frena un producto archivado ni el stock estricto (M4). Solo lo manda
   // el camino post-cobro-QR; una venta normal en efectivo va sin esto.
   paid: z.boolean().optional(),
+  // Con cuánto pagó el cliente en efectivo (para reconciliar caja). Solo efectivo.
+  cash_tendered: z.number().nonnegative().optional(),
 });
 
 export type SaleResult =
@@ -100,6 +102,20 @@ export async function registerSale(input: unknown): Promise<SaleResult> {
     over_limit: boolean;
     negative_stock: { product_id: string; name: string; stock: number }[];
   };
+
+  // Con cuánto pagó (efectivo): se persiste aparte, sin tocar register_sale (la RPC
+  // reina queda intacta). Solo en una venta NUEVA de efectivo; el vuelto se deriva.
+  if (
+    parsed.data.payment_method === "cash" &&
+    parsed.data.cash_tendered != null &&
+    !result.replayed
+  ) {
+    await supabase.rpc("guardar_efectivo_entregado", {
+      p_store_id: session.store.id,
+      p_sale_id: result.sale_id,
+      p_tendered: parsed.data.cash_tendered,
+    });
+  }
 
   // El catálogo del POS y el panel del dueño muestran stock: quedaron viejos.
   revalidatePath("/pos");

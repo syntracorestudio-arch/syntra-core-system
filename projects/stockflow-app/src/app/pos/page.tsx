@@ -33,8 +33,13 @@ export default async function PosPage() {
 
   const desde = desdeHace(14);
 
-  const [{ data: products }, { data: barcodes }, { data: clients }, { data: vendidos }] =
-    await Promise.all([
+  const [
+    { data: products },
+    { data: barcodes },
+    { data: clients },
+    { data: vendidos },
+    { data: settings },
+  ] = await Promise.all([
       supabase
         .from("products")
         .select("id, name, emoji, color, price, stock, category_id, categories(name, color)")
@@ -57,7 +62,21 @@ export default async function PosPage() {
         .eq("sales.status", "completed")
         .gte("sales.sold_at", desde)
         .limit(5000),
+      supabase
+        .from("store_settings")
+        .select("transfer_alias, confirm_methods")
+        .eq("store_id", session.store.id)
+        .maybeSingle(),
     ]);
+
+  // Perilla de confirmación por método (default todos ON si falta el dato).
+  const cm = (settings?.confirm_methods ?? {}) as Record<string, boolean>;
+  const confirmMethods = {
+    cash: cm.cash ?? true,
+    card: cm.card ?? true,
+    transfer: cm.transfer ?? true,
+    account: cm.account ?? true,
+  };
 
   const byProduct = new Map<string, string[]>();
   for (const b of barcodes ?? []) {
@@ -101,6 +120,8 @@ export default async function PosPage() {
       canSellOnCredit={session.member.role === "owner" || session.member.can_sell_on_credit}
       isOwner={session.member.role === "owner"}
       mpConectado={mpConectado}
+      transferAlias={settings?.transfer_alias ?? null}
+      confirmMethods={confirmMethods}
     />
   );
 }

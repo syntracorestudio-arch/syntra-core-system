@@ -17,6 +17,17 @@ const settingsSchema = z.object({
   // de tipeo que marcaría medio catálogo como problemático.
   min_margin_pct: z.number().min(0, "No puede ser negativo.").max(80, "Máximo 80%."),
   allow_negative_stock: z.boolean(),
+  // Cobros (Fase 1): alias/CVU para transferencias + perilla de confirmación por
+  // método. Nullable/optional para no romper llamadas viejas.
+  transfer_alias: z.string().trim().max(120).nullable().optional(),
+  confirm_methods: z
+    .object({
+      cash: z.boolean(),
+      card: z.boolean(),
+      transfer: z.boolean(),
+      account: z.boolean(),
+    })
+    .optional(),
 });
 
 export async function updateSettings(input: unknown): Promise<Result> {
@@ -40,6 +51,7 @@ export async function updateSettings(input: unknown): Promise<Result> {
   revalidatePath("/admin/productos");
   revalidatePath("/admin/precios");
   revalidatePath("/admin");
+  revalidatePath("/pos"); // el alias y la perilla de confirmación viven en la caja
   return { ok: true };
 }
 
