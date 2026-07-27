@@ -22,6 +22,8 @@ export type MpCredenciales = {
   webhookSecret: string | null;
   mpUserId: string;
   externalPosId: string | null;
+  // Terminal Point vinculada (Cobros Fase 2). null = el negocio no configuró posnet.
+  mpTerminalId: string | null;
 };
 
 /** Credencial descifrada del negocio, o null si no conectó su cuenta. */
@@ -29,7 +31,7 @@ export async function getStoreMpAuth(storeId: string): Promise<MpCredenciales | 
   const admin = createAdminClient();
   const { data } = await admin
     .from("store_payment_providers")
-    .select("access_token, webhook_secret, status, mp_user_id, external_pos_id")
+    .select("access_token, webhook_secret, status, mp_user_id, external_pos_id, mp_terminal_id")
     .eq("store_id", storeId)
     .maybeSingle();
 
@@ -54,6 +56,7 @@ export async function getStoreMpAuth(storeId: string): Promise<MpCredenciales | 
       webhookSecret,
       mpUserId: String(data.mp_user_id),
       externalPosId: (data.external_pos_id as string | null) ?? null,
+      mpTerminalId: (data.mp_terminal_id as string | null) ?? null,
     };
   } catch {
     return null;
@@ -100,8 +103,14 @@ async function mpFetch<T>(
   }
 
   if (!res.ok) {
-    const m = json as { message?: string; error?: string } | null;
-    return { ok: false, status: res.status, message: m?.message ?? m?.error ?? texto.slice(0, 200) };
+    // MP devuelve el error en cualquiera de tres formas según el endpoint: `message`,
+    // `error`, o un array `errors[]`. Sin contemplar el array, el fallback dumpeaba el
+    // JSON crudo a la pantalla del cajero ("{"errors":[{"code":…").
+    const m = json as
+      | { message?: string; error?: string; errors?: { code?: string; message?: string }[] }
+      | null;
+    const detalle = m?.message ?? m?.error ?? m?.errors?.[0]?.message ?? texto.slice(0, 200);
+    return { ok: false, status: res.status, message: detalle };
   }
   return { ok: true, data: json as T };
 }
@@ -279,6 +288,102 @@ export async function mpCrearOrdenQR(args: {
     return { ok: false, error: "MercadoPago no devolvió el código QR." };
   }
   return { ok: true, orden: res.data };
+}
+
+/**
+ * Cobro con terminal Point (Cobros Fase 2). Es la MISMA Orders API que el QR: solo
+ * cambia `type: "point"` y `config.point.terminal_id` en lugar del bloque `qr`. El
+ * monto viaja igual (decimal string) y el resultado se lee con `mpLeerOrden` /
+ * `montoPagado` / `ordenAprobada` — los mismos helpers que el QR. Al crear la orden,
+ * MercadoPago EMPUJA el monto a la pantalla de la terminal física; el cajero pasa la
+ * tarjeta ahí. El binding H3 de monto real aplica idéntico: el pagador no digita el
+ * importe, lo fija el sistema.
+ *
+ * `expiration_time` corto: si el cliente no termina de pagar en la terminal, la orden
+ * expira y la caja se libera (igual que el QR que nadie escaneó).
+ */
+export async function mpCrearOrdenPoint(args: {
+  token: string;
+  terminalId: string;
+  amount: number;
+  externalReference: string;
+  descripcion: string;
+}): Promise<{ ok: true; orden: MpOrden } | { ok: false; error: string }> {
+  const monto = args.amount.toFixed(2);
+
+  const res = await mpFetch<MpOrden>(args.token, "/v1/orders", {
+    method: "POST",
+    idempotencyKey: args.externalReference,
+    body: {
+      type: "point",
+      total_amount: monto,
+      description: args.descripcion.slice(0, 200),
+      external_reference: args.externalReference,
+      expiration_time: "PT5M",
+      config: { point: { terminal_id: args.terminalId } },
+      transactions: { payments: [{ amount: monto }] },
+    },
+  });
+
+  if (!res.ok) return { ok: false, error: res.message };
+  return { ok: true, orden: res.data };
+}
+
+/**
+ * Cancela una orden (QR o Point). MercadoPago solo la deja cancelar mientras está
+ * `created`; si ya está en la terminal (`at_terminal`) hay que cancelarla desde el
+ * aparato. Por eso el error no es fatal: la UI cae a "cancelá desde la terminal".
+ */
+export async function mpCancelarOrden(
+  token: string,
+  orderId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await mpFetch<MpOrden>(token, `/v1/orders/${orderId}/cancel`, {
+    method: "POST",
+    idempotencyKey: `cancel-${orderId}`,
+  });
+  return res.ok ? { ok: true } : { ok: false, error: res.message };
+}
+
+export type MpTerminal = {
+  id: string;
+  pos_id?: number | string;
+  store_id?: number | string;
+  external_pos_id?: string;
+  operating_mode?: string;
+};
+
+/**
+ * Terminales Point vinculadas a la cuenta MP del negocio. Para el selector de Ajustes:
+ * el dueño elige cuál es su posnet. La respuesta de MP envuelve la lista en
+ * `data.terminals`; se contempla también la forma plana por robustez.
+ */
+export async function mpListarTerminales(
+  token: string,
+): Promise<{ ok: true; terminales: MpTerminal[] } | { ok: false; error: string }> {
+  const res = await mpFetch<{ data?: { terminals?: MpTerminal[] }; terminals?: MpTerminal[] }>(
+    token,
+    "/terminals/v1/list?limit=50&offset=0",
+  );
+  if (!res.ok) return { ok: false, error: res.message };
+  const terminales = res.data.data?.terminals ?? res.data.terminals ?? [];
+  return { ok: true, terminales };
+}
+
+/**
+ * Pone la terminal en modo PDV (integrada al sistema) para que reciba órdenes. Sin
+ * esto la terminal opera standalone y no acepta el push de monto. No es fatal si
+ * falla: se puede dejar en modo PDV desde la app de MercadoPago; solo se registra.
+ */
+export async function mpSetTerminalPDV(
+  token: string,
+  terminalId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await mpFetch(token, "/terminals/v1/setup", {
+    method: "PATCH",
+    body: { terminals: [{ id: terminalId, operating_mode: "PDV" }] },
+  });
+  return res.ok ? { ok: true } : { ok: false, error: res.message };
 }
 
 export async function mpLeerOrden(

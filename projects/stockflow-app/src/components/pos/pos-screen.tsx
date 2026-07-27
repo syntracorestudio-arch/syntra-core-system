@@ -40,6 +40,7 @@ import { signOut } from "@/app/login/actions";
 import { useWedgeScanner } from "./use-wedge-scanner";
 import { CameraScanner } from "./camera-scanner";
 import { CobroQrDialog } from "./cobro-qr-dialog";
+import { CobroPointDialog } from "./cobro-point-dialog";
 
 export type PosProduct = {
   id: string;
@@ -81,6 +82,7 @@ export function PosScreen({
   canSellOnCredit,
   isOwner,
   mpConectado,
+  posnetActivo,
   transferAlias,
   confirmMethods,
 }: {
@@ -91,6 +93,8 @@ export function PosScreen({
   isOwner: boolean;
   /** ¿El negocio conectó su cuenta de MercadoPago? Decide si el QR lo genera la app. */
   mpConectado: boolean;
+  /** ¿Hay terminal Point configurada? Si sí, el cobro con MP pregunta terminal/pantalla. */
+  posnetActivo: boolean;
   /** Alias/CVU del negocio para mostrar al cobrar por transferencia. */
   transferAlias: string | null;
   /** Perilla por método: ¿pedir confirmación antes de cobrar? (QR tiene su diálogo). */
@@ -101,6 +105,10 @@ export function PosScreen({
   const [carrito, setCarrito] = useState<Linea[]>([]);
   const [medio, setMedio] = useState<Medio>("cash");
   const [cobrandoQr, setCobrandoQr] = useState(false);
+  /** Cobro con MP y posnet: pregunta terminal vs QR en pantalla antes de cobrar. */
+  const [preguntandoCobro, setPreguntandoCobro] = useState(false);
+  /** Cobro empujado a la terminal Point (Fase 2). */
+  const [cobrandoPoint, setCobrandoPoint] = useState(false);
   /** Paso de confirmación (armar → confirmar) del pie del carrito. */
   const [confirmando, setConfirmando] = useState(false);
   /** Lockout anti-doble-tap: Confirmar no acepta input los primeros 250ms. */
@@ -338,7 +346,11 @@ export function PosScreen({
        tal vez nunca llega. Sin cuenta conectada, "QR" sigue siendo lo que era: un
        medio de pago que el cajero marca a mano. */
     if (medio === "qr" && mpConectado) {
-      setCobrandoQr(true);
+      // Con terminal Point configurada, preguntamos primero: ¿pasás la tarjeta por la
+      // terminal o mostrás el QR en pantalla? Esa pregunta es también la salida si la
+      // terminal se traba. Sin posnet, va derecho al QR de siempre.
+      if (posnetActivo) setPreguntandoCobro(true);
+      else setCobrandoQr(true);
       return;
     }
 
@@ -368,15 +380,19 @@ export function PosScreen({
     setTendered(null);
   }
 
-  /** Registra la venta. `intentId` viene del cobro con QR cuando lo hubo. */
-  function registrar(intentId: string | null) {
+  /**
+   * Registra la venta. `intentId` viene del cobro con QR/terminal cuando lo hubo.
+   * `metodo` permite forzar el medio: el cobro por terminal Point se asienta como
+   * `card` (es una tarjeta), aunque el cajero lo haya arrancado desde el botón "QR".
+   */
+  function registrar(intentId: string | null, metodo: Medio = medio) {
     startTransition(async () => {
       const res = await registerSale({
         items: carrito.map((l) => ({
           product_id: l.producto.id,
           qty: l.cantidad,
         })),
-        payment_method: medio,
+        payment_method: metodo,
         idempotency_key: idempotencyKey.current,
         client_id: medio === "account" ? clienteId : null,
         // Con intentId, la plata del QR ya entró → registrar es un hecho: no lo
@@ -406,6 +422,8 @@ export function PosScreen({
 
       // Venta cerrada: carrito nuevo y clave nueva.
       setCobrandoQr(false);
+      setCobrandoPoint(false);
+      setPreguntandoCobro(false);
       setConfirmando(false);
       setTendered(null);
       setCarritoViejo(false);
@@ -465,6 +483,83 @@ export function PosScreen({
           descripcion={carrito.map((l) => l.producto.name).join(", ")}
           onPagado={(intentId) => registrar(intentId)}
           onCerrar={() => setCobrandoQr(false)}
+        />
+      )}
+
+      {/* Con posnet configurado: elegí por dónde cobra el cliente. La misma pregunta
+          es la salida si la terminal se traba (un toque → QR en pantalla). */}
+      {preguntandoCobro && (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/75 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-popover p-5">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm text-muted-foreground">¿Cómo cobrás?</p>
+                <p className="tabular text-2xl font-semibold">{money(total)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreguntandoCobro(false)}
+                aria-label="Cerrar"
+                className="cursor-pointer text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPreguntandoCobro(false);
+                  setCobrandoPoint(true);
+                }}
+                className="flex h-14 w-full cursor-pointer items-center gap-3 rounded-xl bg-primary px-4 text-left text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                <QrCode className="size-5 shrink-0" />
+                <span>
+                  En la terminal
+                  <span className="block text-xs font-normal opacity-80">El QR se genera en el posnet</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPreguntandoCobro(false);
+                  setCobrandoQr(true);
+                }}
+                className="flex h-14 w-full cursor-pointer items-center gap-3 rounded-xl border border-border px-4 text-left text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+              >
+                <QrCode className="size-5 shrink-0" />
+                <span>
+                  QR en pantalla
+                  <span className="block text-xs font-normal text-muted-foreground">Lo escanea con el celular</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cobrandoPoint && (
+        <CobroPointDialog
+          items={carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad }))}
+          amount={total}
+          idempotencyKey={idempotencyKey.current}
+          descripcion={carrito.map((l) => l.producto.name).join(", ")}
+          // El QR se genera en el posnet: sigue siendo un cobro QR, se asienta como tal.
+          onPagado={(intentId) => registrar(intentId)}
+          // Fallback: clave nueva para que el QR pida una orden fresca (la del Point
+          // ya quedó atada a la clave vieja por idempotencia de MP).
+          onFallbackQr={() => {
+            idempotencyKey.current = crypto.randomUUID();
+            setCobrandoPoint(false);
+            setCobrandoQr(true);
+          }}
+          onCerrar={() => {
+            // Clave nueva al cerrar: el próximo intento con el mismo carrito arranca
+            // limpio y nunca choca con la idempotencia de MercadoPago.
+            idempotencyKey.current = crypto.randomUUID();
+            setCobrandoPoint(false);
+          }}
         />
       )}
 

@@ -9,6 +9,8 @@ import { qrSvg } from "@/lib/qr";
 import {
   getStoreMpAuth,
   mpCrearOrdenQR,
+  mpCrearOrdenPoint,
+  mpCancelarOrden,
   mpLeerOrden,
   ordenAprobada,
   ordenTerminada,
@@ -109,6 +111,88 @@ export async function crearCobroQR(input: unknown): Promise<CobroQR> {
     .eq("id", row.id);
 
   return { ok: true, intentId: row.id, qrSvg: qrSvg(qrData), amount: Number(row.amount) };
+}
+
+export type CobroPoint =
+  | { ok: true; intentId: string; amount: number }
+  | { ok: false; error: string; sinCuenta?: boolean; sinTerminal?: boolean };
+
+/**
+ * Traduce el error crudo de MercadoPago a algo que el cajero entienda. Sin esto, el
+ * mostrador veía cosas como `{"errors":[{"code":"idempotency_key_already_used"…`.
+ */
+function mensajeTerminal(raw: string): string {
+  const r = raw.toLowerCase();
+  if (r.includes("idempotency")) return "Ese cobro ya se había enviado. Cerrá y probá de nuevo.";
+  if (r.includes("mode") || r.includes("pdv") || r.includes("operating"))
+    return "La terminal no está en modo integrado. Ponela en modo PDV desde tu app de MercadoPago.";
+  if (r.includes("offline") || r.includes("unavailable") || r.includes("not connected") || r.includes("disconnected"))
+    return "La terminal está apagada o sin conexión. Prendela y probá de nuevo.";
+  if (r.includes("terminal") || r.includes("device") || r.includes("not found") || r.includes("does not"))
+    return "No encontramos esa terminal. Revisá el id en Ajustes.";
+  return "No pudimos enviar el cobro a la terminal. Probá de nuevo o cobrá con el QR en pantalla.";
+}
+
+/**
+ * Cobro con terminal Point (Cobros Fase 2). Mismo esqueleto que `crearCobroQR`: el
+ * intento primero (la base fija el monto contra el carrito), y RECIÉN AHÍ se empuja
+ * el monto a la terminal física. La venta se registra después de que la terminal
+ * confirme el pago — la misma disciplina "sin venta fantasma" que el QR.
+ *
+ * El seguimiento (`estadoCobro`) y el cierre (`cancelarCobro`, `vincularVenta`) son
+ * los MISMOS del QR: leen la orden por `mp_order_id` sin importar el método. Acá solo
+ * cambia el empujón (a la terminal en vez de devolver un QR).
+ */
+export async function crearCobroPoint(input: unknown): Promise<CobroPoint> {
+  const session = await requireSession();
+
+  const parsed = crearSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Datos del cobro inválidos." };
+
+  if (!(await checkRateLimit(`cobro-point:${session.store.id}`, 60, 60))) {
+    return { ok: false, error: "Demasiados cobros seguidos. Esperá unos segundos." };
+  }
+
+  const auth = await getStoreMpAuth(session.store.id);
+  if (!auth) {
+    return { ok: false, sinCuenta: true, error: "Este negocio todavía no conectó su cuenta de MercadoPago." };
+  }
+  if (!auth.mpTerminalId) {
+    return { ok: false, sinTerminal: true, error: "Todavía no configuraste la terminal Point en Ajustes." };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { data: intento, error } = await supabase.rpc("crear_intento_cobro", {
+    p_store_id: session.store.id,
+    p_items: parsed.data.items,
+    p_amount: parsed.data.amount,
+    p_idempotency_key: parsed.data.idempotency_key,
+    p_client_id: parsed.data.client_id ?? null,
+  });
+
+  if (error || !intento) return { ok: false, error: "No pudimos preparar el cobro." };
+
+  const row = intento as { id: string; amount: string };
+
+  const orden = await mpCrearOrdenPoint({
+    token: auth.token,
+    terminalId: auth.mpTerminalId,
+    amount: Number(row.amount),
+    externalReference: row.id,
+    descripcion: parsed.data.descripcion ?? `Venta ${session.store.name}`,
+  });
+
+  if (!orden.ok) {
+    await createAdminClient().from("payment_intents").update({ status: "cancelled" }).eq("id", row.id);
+    return { ok: false, error: mensajeTerminal(orden.error) };
+  }
+
+  await createAdminClient()
+    .from("payment_intents")
+    .update({ mp_order_id: String(orden.orden.id) })
+    .eq("id", row.id);
+
+  return { ok: true, intentId: row.id, amount: Number(row.amount) };
 }
 
 export type EstadoCobro =
@@ -221,6 +305,11 @@ export async function cancelarCobro(intentId: string): Promise<void> {
           return;
         }
       }
+      // No pagó: cancelamos la orden en MP (best-effort). En Point esto saca el
+      // monto de la pantalla de la terminal; en QR libera el código. Si ya está en
+      // la terminal, MP rechaza el cancel y hay que cortar desde el aparato — por
+      // eso el error se ignora.
+      await mpCancelarOrden(auth.token, String(intent.mp_order_id));
     }
   }
 
