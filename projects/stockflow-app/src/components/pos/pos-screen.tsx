@@ -250,6 +250,9 @@ export function PosScreen({
         payment_method: medio,
         idempotency_key: idempotencyKey.current,
         client_id: medio === "account" ? clienteId : null,
+        // Con intentId, la plata del QR ya entró → registrar es un hecho: no lo
+        // frena un producto archivado ni el stock estricto (M4). Efectivo: sin esto.
+        paid: intentId !== null,
       });
 
       if (!res.ok) {

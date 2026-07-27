@@ -30,6 +30,10 @@ const saleSchema = z.object({
   payment_method: z.enum(["cash", "qr", "card", "transfer", "account"]),
   idempotency_key: z.string().min(8).max(64),
   client_id: z.guid().nullable().optional(),
+  // El cobro ya se acreditó (QR pagado): registrar es un hecho, no una intención
+  // → no lo frena un producto archivado ni el stock estricto (M4). Solo lo manda
+  // el camino post-cobro-QR; una venta normal en efectivo va sin esto.
+  paid: z.boolean().optional(),
 });
 
 export type SaleResult =
@@ -82,6 +86,7 @@ export async function registerSale(input: unknown): Promise<SaleResult> {
     p_payment_method: parsed.data.payment_method,
     p_idempotency_key: parsed.data.idempotency_key,
     p_client_id: parsed.data.client_id ?? null,
+    p_paid: parsed.data.paid ?? false,
   });
 
   if (error) {
