@@ -332,9 +332,10 @@ function PosnetConfig({ estado }: { estado: EstadoMp }) {
 
       <div className="space-y-3 border-t border-border p-3">
         <p className="text-xs text-muted-foreground">
-          Si tenés una terminal Point de MercadoPago, la caja te va a preguntar al cobrar dónde
-          mostrar el QR: en el posnet o en la pantalla de la caja. En el posnet le mandamos el
-          monto exacto — nadie lo tipea. Y si algún día se traba, mostrás el QR en pantalla en el acto.
+          Si tenés una terminal Point de MercadoPago, la caja la usa para cobrar con QR y con
+          tarjeta: al cobrar con QR te pregunta si va al posnet o a la pantalla, y con tarjeta si es
+          débito o crédito. Le mandamos el monto exacto — nadie lo tipea, y las cuotas las maneja tu
+          cuenta de MP. Si se traba, seguís cobrando en el acto.
         </p>
 
         {aviso && (

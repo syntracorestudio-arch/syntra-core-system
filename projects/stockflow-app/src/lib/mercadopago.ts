@@ -308,8 +308,18 @@ export async function mpCrearOrdenPoint(args: {
   amount: number;
   externalReference: string;
   descripcion: string;
+  /**
+   * Tipo de tarjeta cuando el cobro es con posnet (Fase 3). Sin esto, la terminal
+   * muestra el QR. NO mandamos cuotas ni interés a propósito: los define el dueño en
+   * su cuenta de MercadoPago y la terminal los ofrece sola — así nunca ofrecemos una
+   * cuota que MP no permite ni inventamos una tasa.
+   */
+  paymentType?: "credit_card" | "debit_card";
 }): Promise<{ ok: true; orden: MpOrden } | { ok: false; error: string }> {
   const monto = args.amount.toFixed(2);
+
+  const config: Record<string, unknown> = { point: { terminal_id: args.terminalId } };
+  if (args.paymentType) config.payment_method = { default_type: args.paymentType };
 
   const res = await mpFetch<MpOrden>(args.token, "/v1/orders", {
     method: "POST",
@@ -320,7 +330,7 @@ export async function mpCrearOrdenPoint(args: {
       description: args.descripcion.slice(0, 200),
       external_reference: args.externalReference,
       expiration_time: "PT5M",
-      config: { point: { terminal_id: args.terminalId } },
+      config,
       transactions: { payments: [{ amount: monto }] },
     },
   });
