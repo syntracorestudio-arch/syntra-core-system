@@ -569,7 +569,7 @@ export function PosScreen({
                 type="button"
                 onClick={() => deshacer(aviso.undoId!)}
                 disabled={pending}
-                className="flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-current px-2.5 py-1 text-xs font-bold transition-colors hover:bg-current/10 disabled:opacity-50"
+                className="flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-danger/60 bg-danger/10 px-2.5 py-1 text-xs font-bold text-danger-ink transition-colors hover:bg-danger/20 disabled:opacity-50"
               >
                 <Undo2 className="size-3.5" />
                 Deshacer
