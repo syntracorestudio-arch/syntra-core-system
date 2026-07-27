@@ -167,7 +167,8 @@ end $$;
 rollback;
 
 -- ---------------------------------------------------------------------------
--- 4 · Métodos no permitidos en v1 (qr, account) → rechazo, sin venta.
+-- 4 · Fiado nunca entra en un split (es deuda, descuadraría el cierre) → rechazo,
+--     sin venta. (Desde el Paso 2, 'qr' SÍ se admite en la RPC — ver verify-split-qr.)
 -- ---------------------------------------------------------------------------
 begin;
 select set_config('request.jwt.claim.sub', :'DUENO', true);
@@ -183,9 +184,9 @@ begin
       '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
       jsonb_build_array(
         jsonb_build_object('method','cash','amount', round(v_price/2,2)),
-        jsonb_build_object('method','qr','amount', v_price - round(v_price/2,2))),
+        jsonb_build_object('method','account','amount', v_price - round(v_price/2,2))),
       'SPLIT-KEY-0004');
-    raise exception 'FALLA 4: aceptó qr dentro del split (v1 no lo permite)';
+    raise exception 'FALLA 4: aceptó fiado dentro del split';
   exception when others then
     if sqlerrm not like '%invalid_split_payment%' then raise; end if;
   end;
@@ -194,7 +195,7 @@ begin
   if v_n <> 0 then
     raise exception 'FALLA 4: quedó venta pese al método inválido (%)', v_n;
   end if;
-  raise notice 'OK  4. qr/fiado en el split se rechazan sin dejar venta';
+  raise notice 'OK  4. fiado en el split se rechaza sin dejar venta';
 end $$;
 rollback;
 

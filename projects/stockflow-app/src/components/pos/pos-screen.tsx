@@ -36,7 +36,7 @@ import {
   buscarEnCatalogo,
   buscarPorNombre,
 } from "@/app/pos/actions";
-import { vincularVenta } from "@/app/pos/cobro-qr-actions";
+import { vincularVenta, crearCobroQR, crearCobroSplit } from "@/app/pos/cobro-qr-actions";
 import { anularVenta } from "@/app/admin/caja/actions";
 import { signOut } from "@/app/login/actions";
 import { useWedgeScanner } from "./use-wedge-scanner";
@@ -66,6 +66,7 @@ type Client = {
   creditLimit: number | null;
 };
 type Linea = { producto: PosProduct; cantidad: number };
+type Montos = { cash: string; card: string; transfer: string; qr: string };
 
 const MEDIOS = [
   { key: "cash", label: "Efectivo", icon: Banknote },
@@ -117,11 +118,9 @@ export function PosScreen({
   /** Tipo elegido; null = el cobro en terminal es QR, no tarjeta. */
   const [tipoTarjeta, setTipoTarjeta] = useState<"credit_card" | "debit_card" | null>(null);
   /** Reparto del pago dividido: cuánto va en cada medio (string por input). */
-  const [montos, setMontos] = useState<{ cash: string; card: string; transfer: string }>({
-    cash: "",
-    card: "",
-    transfer: "",
-  });
+  const [montos, setMontos] = useState<Montos>({ cash: "", card: "", transfer: "", qr: "" });
+  /** Split con una parte QR: pagos a registrar cuando el QR se acredite (Paso 2). */
+  const [splitQrPagos, setSplitQrPagos] = useState<{ method: string; amount: number }[] | null>(null);
   /** Paso de confirmación (armar → confirmar) del pie del carrito. */
   const [confirmando, setConfirmando] = useState(false);
   /** Lockout anti-doble-tap: Confirmar no acepta input los primeros 250ms. */
@@ -377,7 +376,7 @@ export function PosScreen({
 
     // Pago dividido: abre su propio "estado B" (el editor de reparto).
     if (medio === "split") {
-      setMontos({ cash: "", card: "", transfer: "" });
+      setMontos({ cash: "", card: "", transfer: "", qr: "" });
       setConfirmando(true);
       return;
     }
@@ -469,7 +468,8 @@ export function PosScreen({
     setTipoTarjeta(null);
     setConfirmando(false);
     setTendered(null);
-    setMontos({ cash: "", card: "", transfer: "" });
+    setMontos({ cash: "", card: "", transfer: "", qr: "" });
+    setSplitQrPagos(null);
     setCarritoViejo(false);
     setEditandoQty(null);
     setCarrito([]);
@@ -504,13 +504,14 @@ export function PosScreen({
   }
 
   /**
-   * Confirma un pago dividido (Paso 1: efectivo/tarjeta/transferencia). El reparto se
-   * valida acá para el feedback inmediato, pero la verdad la impone la RPC atómica
-   * `register_split_sale` (suma == total server-side; si no, rollback sin huérfana).
+   * Confirma un pago dividido. El reparto se valida acá para el feedback inmediato,
+   * pero la verdad la impone la RPC atómica (suma == total server-side; si no, rollback
+   * sin huérfana). Con una parte QR (Paso 2) el cobro se vuelve asíncrono: primero se
+   * cobra ESA parte por MercadoPago y la venta se registra al acreditar.
    */
   function confirmarSplit() {
     if (pending) return;
-    const pagos = (["cash", "card", "transfer"] as const)
+    const pagos = (["cash", "card", "transfer", "qr"] as const)
       .map((m) => ({ method: m, amount: parseMonto(montos[m]) }))
       .filter((p) => p.amount > 0);
     const suma = pagos.reduce((a, p) => a + p.amount, 0);
@@ -524,6 +525,14 @@ export function PosScreen({
       return;
     }
 
+    // Parte QR → flujo asíncrono: el diálogo cobra la parte QR y, al acreditar,
+    // `finalizarSplitQr` registra la venta split.
+    if (pagos.some((p) => p.method === "qr")) {
+      setSplitQrPagos(pagos);
+      return;
+    }
+
+    // Split offline (Paso 1): registra directo.
     startTransition(async () => {
       const res = await registerSplitSale({
         items: carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad })),
@@ -534,8 +543,38 @@ export function PosScreen({
         setAviso({ tone: "error", text: res.error });
         return;
       }
-      // El split no tiene captura externa (efectivo/tarjeta/transfer) → se puede deshacer.
+      // Sin captura externa (efectivo/tarjeta/transfer) → se puede deshacer.
       finalizarVenta(res, true);
+    });
+  }
+
+  /**
+   * La parte QR del split se acreditó: registra la venta split (paid) y la vincula al
+   * intento. Si la caja se cae acá, el intento queda 'aprobado sin venta' con el reparto
+   * guardado → el banner de Caja lo re-arma como split. Sin deshacer: hubo captura QR.
+   */
+  function finalizarSplitQr(intentId: string | null) {
+    const pagos = splitQrPagos;
+    if (!pagos) return;
+    startTransition(async () => {
+      const res = await registerSplitSale({
+        items: carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad })),
+        pagos,
+        idempotency_key: idempotencyKey.current,
+        paid: true,
+      });
+      if (!res.ok) {
+        setAviso({ tone: "error", text: res.error });
+        return;
+      }
+      if (intentId) {
+        try {
+          await vincularVenta(intentId, res.saleId);
+        } catch {
+          /* la venta está; el banner de Caja reconcilia por la misma clave */
+        }
+      }
+      finalizarVenta(res, false);
     });
   }
 
@@ -547,12 +586,38 @@ export function PosScreen({
 
       {cobrandoQr && (
         <CobroQrDialog
-          items={carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad }))}
           amount={total}
-          idempotencyKey={idempotencyKey.current}
-          descripcion={carrito.map((l) => l.producto.name).join(", ")}
+          crear={() =>
+            crearCobroQR({
+              items: carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad })),
+              amount: total,
+              idempotency_key: idempotencyKey.current,
+              descripcion: carrito.map((l) => l.producto.name).join(", "),
+            })
+          }
           onPagado={(intentId) => registrar(intentId)}
           onCerrar={() => setCobrandoQr(false)}
+        />
+      )}
+
+      {/* Split con parte QR (Paso 2): cobra la parte QR; al acreditar registra el split. */}
+      {splitQrPagos && (
+        <CobroQrDialog
+          amount={splitQrPagos.find((p) => p.method === "qr")?.amount ?? 0}
+          crear={() =>
+            crearCobroSplit({
+              items: carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad })),
+              pagos: splitQrPagos,
+              idempotency_key: idempotencyKey.current,
+              descripcion: carrito.map((l) => l.producto.name).join(", "),
+            })
+          }
+          onPagado={(intentId) => finalizarSplitQr(intentId)}
+          onCerrar={() => {
+            // Clave nueva: el intento QR quedó atado a la vieja; reintentar arranca limpio.
+            idempotencyKey.current = crypto.randomUUID();
+            setSplitQrPagos(null);
+          }}
         />
       )}
 
@@ -1084,6 +1149,7 @@ export function PosScreen({
               total={total}
               montos={montos}
               setMontos={setMontos}
+              qrDisponible={mpConectado}
               pending={pending}
               onConfirmar={confirmarSplit}
               onVolver={volverAComponer}
@@ -1592,6 +1658,9 @@ const SPLIT_ROWS = [
   { key: "transfer", label: "Transferencia", icon: ArrowRightLeft },
 ] as const;
 
+// El QR se ofrece solo si el negocio conectó MercadoPago (es una parte asíncrona).
+const QR_ROW = { key: "qr", label: "QR", icon: QrCode } as const;
+
 /**
  * Reparto del pago dividido (Paso 1). El cajero pone cuánto va en cada medio; el
  * botón "Resto" completa lo que falta (maneja los centavos exactos). Confirmar se
@@ -1602,31 +1671,33 @@ function ReparteMontos({
   total,
   montos,
   setMontos,
+  qrDisponible,
   pending,
   onConfirmar,
   onVolver,
 }: {
   total: number;
-  montos: { cash: string; card: string; transfer: string };
-  setMontos: (m: { cash: string; card: string; transfer: string }) => void;
+  montos: Montos;
+  setMontos: (m: Montos) => void;
+  qrDisponible: boolean;
   pending: boolean;
   onConfirmar: () => void;
   onVolver: () => void;
 }) {
-  const suma = SPLIT_ROWS.reduce((a, r) => a + parseMonto(montos[r.key]), 0);
+  const rows = qrDisponible ? [...SPLIT_ROWS, QR_ROW] : SPLIT_ROWS;
+  const suma = rows.reduce((a, r) => a + parseMonto(montos[r.key]), 0);
   const resto = Math.round((total - suma) * 100) / 100;
-  const partes = SPLIT_ROWS.filter((r) => parseMonto(montos[r.key]) > 0).length;
+  const partes = rows.filter((r) => parseMonto(montos[r.key]) > 0).length;
   const cuadra = Math.abs(resto) < 0.01;
   const listo = cuadra && partes >= 2;
 
-  function set(key: "cash" | "card" | "transfer", v: string) {
+  function set(key: keyof Montos, v: string) {
     setMontos({ ...montos, [key]: v.replace(/[^\d.]/g, "") });
   }
-  function llenarResto(key: "cash" | "card" | "transfer") {
-    const otros = SPLIT_ROWS.filter((r) => r.key !== key).reduce(
-      (a, r) => a + parseMonto(montos[r.key]),
-      0,
-    );
+  function llenarResto(key: keyof Montos) {
+    const otros = rows
+      .filter((r) => r.key !== key)
+      .reduce((a, r) => a + parseMonto(montos[r.key]), 0);
     const falta = Math.round((total - otros) * 100) / 100;
     setMontos({ ...montos, [key]: falta > 0 ? String(falta) : "" });
   }
@@ -1645,7 +1716,7 @@ function ReparteMontos({
       </div>
 
       <div className="space-y-2">
-        {SPLIT_ROWS.map((r) => (
+        {rows.map((r) => (
           <div key={r.key} className="flex items-center gap-2">
             <div className="flex w-28 shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
               <r.icon className="size-4" /> {r.label}

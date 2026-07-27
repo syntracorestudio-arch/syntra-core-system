@@ -62,7 +62,7 @@ export async function recuperarVenta(intentId: string): Promise<Result> {
 
   const { data: intento } = await supabase
     .from("payment_intents")
-    .select("id, items, idempotency_key, client_id, status, sale_id")
+    .select("id, items, idempotency_key, client_id, status, sale_id, split_pagos")
     .eq("id", intentId)
     .maybeSingle();
 
@@ -70,16 +70,27 @@ export async function recuperarVenta(intentId: string): Promise<Result> {
   if (intento.status !== "approved") return { ok: false, error: "Ese cobro no está acreditado." };
   if (intento.sale_id) return { ok: true }; // otra pestaña se nos adelantó
 
-  const { data, error } = await supabase.rpc("register_sale", {
-    p_store_id: session.store.id,
-    p_items: intento.items,
-    p_payment_method: "qr",
-    p_idempotency_key: intento.idempotency_key,
-    p_client_id: intento.client_id,
-    // La plata ya se acreditó (intento 'approved'): la venta es un hecho y debe
-    // registrarse aunque el producto se haya archivado o el stock esté estricto. M4.
-    p_paid: true,
-  });
+  // Si el cobro era la parte QR de un pago dividido, se re-arma como SPLIT desde el
+  // reparto guardado (no como una venta QR de carrito entero). La plata ya se acreditó
+  // → p_paid=true. Si no, es un QR normal.
+  const { data, error } = intento.split_pagos
+    ? await supabase.rpc("register_split_sale", {
+        p_store_id: session.store.id,
+        p_items: intento.items,
+        p_pagos: intento.split_pagos,
+        p_idempotency_key: intento.idempotency_key,
+        p_paid: true,
+      })
+    : await supabase.rpc("register_sale", {
+        p_store_id: session.store.id,
+        p_items: intento.items,
+        p_payment_method: "qr",
+        p_idempotency_key: intento.idempotency_key,
+        p_client_id: intento.client_id,
+        // La plata ya se acreditó (intento 'approved'): la venta es un hecho y debe
+        // registrarse aunque el producto se haya archivado o el stock esté estricto. M4.
+        p_paid: true,
+      });
 
   if (error || !data) return { ok: false, error: "No pudimos registrar la venta." };
 
