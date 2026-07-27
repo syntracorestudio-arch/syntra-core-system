@@ -18,6 +18,7 @@ export type GrupoMedioCobrar = {
   total: number;
   client_id: string | null;
   cuando: string;
+  vencido: boolean;
   cobrado: Parte[];
   pendiente: Parte[];
 };
@@ -146,11 +147,19 @@ export function GruposMedioCobrar({
           return (
             <li
               key={g.group_id}
-              className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2"
+              className={
+                "flex items-center gap-3 rounded-lg border bg-card px-3 py-2 " +
+                (g.vencido ? "border-danger/40 ring-1 ring-danger/20" : "border-border")
+              }
             >
               <div className="min-w-0 flex-1">
-                <p className="text-sm">
-                  <span className="font-medium tabular">{money(Number(g.total))}</span>{" "}
+                <p className="flex items-center gap-2 text-sm">
+                  <span className="font-medium tabular">{money(Number(g.total))}</span>
+                  {g.vencido && (
+                    <span className="rounded-full bg-danger/15 px-2 py-0.5 text-xs font-semibold text-danger-ink">
+                      Revisar
+                    </span>
+                  )}
                   <span className="text-muted-foreground">· cobraste {cobrado}, falta {falta}</span>
                 </p>
                 <p className="text-xs text-muted-foreground">

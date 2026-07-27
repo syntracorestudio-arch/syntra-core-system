@@ -227,4 +227,74 @@ begin
 end $$;
 rollback;
 
+-- ---------------------------------------------------------------------------
+-- 5 · Un grupo a medio cobrar hace >6h se marca vencido (para revisión del dueño);
+--     uno reciente no. La red de seguridad para que no se pierda de vista.
+-- ---------------------------------------------------------------------------
+begin;
+select set_config('request.jwt.claim.sub', :'DUENO', true);
+do $$
+declare
+  v_price numeric;
+  v_card  numeric;
+  v_qr    numeric;
+  v_cash  numeric;
+  v_pagos jsonb;
+  v_viejo uuid := gen_random_uuid();
+  v_nuevo uuid := gen_random_uuid();
+  v_lc1 public.payment_intents;
+  v_lc2 public.payment_intents;
+  v_medio jsonb;
+  v_ev jsonb;
+  v_en jsonb;
+begin
+  select price into v_price from public.products where id = 'd1000000-0000-0000-0000-000000000001';
+  v_card := round(v_price / 3, 2);
+  v_qr   := round(v_price / 3, 2) + 5;
+  v_cash := v_price - v_card - v_qr;
+  v_pagos := jsonb_build_array(
+    jsonb_build_object('method','cash','amount', v_cash),
+    jsonb_build_object('method','card','amount', v_card),
+    jsonb_build_object('method','qr','amount', v_qr));
+
+  -- Grupo VIEJO: pata tarjeta acreditada, retrodatada 7 horas.
+  v_lc1 := public.crear_intento_cobro_split(
+    '11111111-1111-1111-1111-111111111111',
+    '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
+    v_pagos, v_card, 'SPLIT2V-C-0001', null, v_viejo, 'card');
+  perform public.crear_intento_cobro_split(
+    '11111111-1111-1111-1111-111111111111',
+    '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
+    v_pagos, v_qr, 'SPLIT2V-Q-0001', null, v_viejo, 'qr');
+  update public.payment_intents set status = 'approved' where id = v_lc1.id;
+  update public.payment_intents set created_at = now() - interval '7 hours' where split_group_id = v_viejo;
+
+  -- Grupo NUEVO: pata tarjeta acreditada, recién.
+  v_lc2 := public.crear_intento_cobro_split(
+    '11111111-1111-1111-1111-111111111111',
+    '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
+    v_pagos, v_card, 'SPLIT2V-C-0002', null, v_nuevo, 'card');
+  perform public.crear_intento_cobro_split(
+    '11111111-1111-1111-1111-111111111111',
+    '[{"product_id":"d1000000-0000-0000-0000-000000000001","qty":1}]'::jsonb,
+    v_pagos, v_qr, 'SPLIT2V-Q-0002', null, v_nuevo, 'qr');
+  update public.payment_intents set status = 'approved' where id = v_lc2.id;
+
+  v_medio := public.grupos_a_medio_cobrar('11111111-1111-1111-1111-111111111111');
+  select e into v_ev from jsonb_array_elements(v_medio) e where (e->>'group_id')::uuid = v_viejo;
+  select e into v_en from jsonb_array_elements(v_medio) e where (e->>'group_id')::uuid = v_nuevo;
+
+  if v_ev is null or v_en is null then
+    raise exception 'FALLA 5: falta alguno de los grupos (viejo/nuevo)';
+  end if;
+  if (v_ev->>'vencido')::boolean is distinct from true then
+    raise exception 'FALLA 5: el grupo de 7h no quedó marcado vencido (%)', v_ev->>'vencido';
+  end if;
+  if (v_en->>'vencido')::boolean is distinct from false then
+    raise exception 'FALLA 5: el grupo reciente quedó marcado vencido (%)', v_en->>'vencido';
+  end if;
+  raise notice 'OK  5. grupo >6h marcado vencido; grupo reciente no';
+end $$;
+rollback;
+
 \echo '=== split-dos-recuperar OK ==='
