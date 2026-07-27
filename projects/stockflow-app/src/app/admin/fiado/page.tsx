@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/shell/app-shell";
-import { requireSession } from "@/lib/session";
+import { requireOwner } from "@/lib/session";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { FiadoClient, type ClientRow } from "./fiado-client";
 
@@ -40,7 +40,9 @@ function analizarDeuda(
 }
 
 export default async function FiadoPage() {
-  const session = await requireSession();
+  // Fiado = herramienta de dueño: expone la deuda de todos los clientes. El
+  // empleado no la ve (antes entraba por URL con requireSession). Auditoría T2 · M3.
+  const session = await requireOwner();
   const supabase = await createSupabaseServer();
 
   // Saldos derivados del ledger (nunca un contador) + el historial con el que

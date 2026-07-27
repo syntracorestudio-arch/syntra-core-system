@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { requireSession } from "@/lib/session";
+import { requireOwner, requireSession } from "@/lib/session";
 
 export type Result = { ok: true } | { ok: false; error: string };
 
@@ -55,7 +55,9 @@ export async function anularVenta(saleId: string, motivo: string): Promise<Resul
  * venta en lugar de crear una segunda. No hay forma de duplicar cobrando dos veces.
  */
 export async function recuperarVenta(intentId: string): Promise<Result> {
-  const session = await requireSession();
+  // Owner-only como la pantalla de Caja de la que sale (la action se despacha por
+  // id, no por URL: se gatea acá también). Auditoría T2 · M3.
+  const session = await requireOwner();
   const supabase = await createSupabaseServer();
 
   const { data: intento } = await supabase
