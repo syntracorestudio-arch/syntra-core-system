@@ -34,7 +34,12 @@ Stack: Next.js 16 (App Router) · Supabase (Postgres + Auth + Storage) · Vercel
    - **DB password / connection string** (para el CLI).
 2. **Auth**: revisar `supabase/config.toml` local como referencia. Confirmar en el panel:
    - Email/password habilitado (el login del sistema).
-   - Deshabilitar signups públicos si el alta de negocios es manual (onboarding controlado).
+   - **Deshabilitar signups públicos** (firme, no condicional): el alta de negocios es
+     SIEMPRE manual — `/super` crea el owner con `admin.auth.admin.createUser`
+     (service_role, `email_confirm: true`, password temporal), y el equipo se alta igual
+     desde `/admin/equipo`. No existe ningún `signUp` público en el código. Por lo mismo,
+     **no hace falta SMTP de Supabase Auth** para el onboarding (los emails de la app van
+     por Resend, no por Auth).
    - `Site URL` y `Redirect URLs` = el dominio de producción.
 3. **Backups**: activar backups automáticos (plan que los incluya). Es data de plata —
    no negociable.
@@ -83,7 +88,7 @@ hace falta.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Prod (+Preview) | pública por diseño |
 | `SUPABASE_SERVICE_ROLE_KEY` | Prod | **SECRETO**, solo server |
 | `MP_ENC_KEY` | Prod | **AES-256-GCM, 32 bytes.** Cifra los tokens de MP de cada negocio. **Se setea UNA vez y NUNCA se cambia**: rotarla vuelve ilegibles los tokens ya guardados (los negocios tendrían que reconectar MP). Generar fuerte y guardar en el gestor de secretos. |
-| `NEXT_PUBLIC_APP_URL` | Prod | URL base de producción (para links de email/push y `external_reference`). |
+| `NEXT_PUBLIC_APP_URL` | Prod | URL base de producción. **Crítica para MP**: la URL del webhook que cada negocio registra se deriva de acá (`${APP_URL}/api/webhooks/mercadopago?store=<id>`). Setearla al dominio final ANTES de que cualquier negocio conecte MP — si cambia después, cada negocio tiene que re-registrar su webhook en su panel de MP. También la usan links de email/push. |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Prod | Web Push (par VAPID). Generar con `web-push generate-vapid-keys`. |
 | `VAPID_PRIVATE_KEY` | Prod | **SECRETO**, par del anterior. |
 | `VAPID_SUBJECT` | Prod | `mailto:` del dominio. |
@@ -96,6 +101,29 @@ hace falta.
 
 Regla: toda `NEXT_PUBLIC_*` es visible en el cliente — nunca poner secretos ahí. El resto
 son server-only.
+
+### 5.1 MercadoPago — SIN credenciales de aplicación propias (verificado en código)
+
+**No existen `MP_CLIENT_ID` / `MP_CLIENT_SECRET` ni flujo OAuth** — es por diseño, no un
+faltante: cada negocio usa su PROPIA aplicación de MercadoPago. La conexión
+(`admin/configuracion/mercadopago-actions.ts`) es:
+
+1. El dueño crea su aplicación en MP y **pega su Access Token de producción** en
+   Configuración → se valida con `mpQuienEs` y se guarda **cifrado con `MP_ENC_KEY`**.
+   La app crea sucursal+caja en SU cuenta con ese token.
+2. **Webhook (registro MANUAL, por negocio)**: la pantalla de Configuración le muestra al
+   dueño SU URL de notificaciones — `${NEXT_PUBLIC_APP_URL}/api/webhooks/mercadopago?store=<id>`
+   — y él la registra en el panel de su aplicación de MP. **No se registra por API**: es un
+   paso del checklist de conexión de cada negocio, contra el dominio de producción.
+3. **Firma del webhook (por negocio, opcional pero recomendada)**: el dueño pega la clave
+   de firma de su panel de MP → se guarda cifrada (`webhook_secret`) y el handler verifica
+   el HMAC (`x-signature`). Sin firma, el webhook igual es seguro-por-diseño: es solo un
+   "avisá que mires" — la verdad del pago SIEMPRE se re-consulta a la API de MP con el
+   token del negocio (defensa en profundidad, no fuente de verdad).
+
+Implicación operativa: el único secreto MP a nivel plataforma es `MP_ENC_KEY`. Todo lo
+demás (token, firma, webhook) es por-negocio y entra por la UI de Configuración durante el
+onboarding.
 
 ## 6. Crons (ya declarados en `vercel.json`)
 
@@ -110,7 +138,12 @@ son server-only.
   devuelven 401 si no coincide. **Sin `CRON_SECRET` seteada, los crons quedan 401** (bien:
   fail-closed).
 - Los horarios son **UTC**. Confirmar que 09:00/08:00 AR es lo deseado; si no, ajustar.
-- Requiere plan de Vercel con Cron Jobs habilitado.
+- **Plan de Vercel: se necesita Pro para crons puntuales.** En Hobby los cron jobs están
+  capados (máx. 2 por cuenta, frecuencia máxima diaria) y el disparo es **best-effort**
+  (puede correr en cualquier momento de la hora programada, o demorarse). Nuestros dos
+  crons entran en el cupo de Hobby, pero las alertas diarias y el reporte mensual son
+  cara-al-cliente: para horario confiable → **Vercel Pro**. Verificar los límites vigentes
+  del plan al momento de ejecutar (cambian).
 
 ## 7. Dominio + entregabilidad de email
 
@@ -139,6 +172,11 @@ Sin esto, los mails (alertas, reportes) caen en spam o no llegan.
 - [ ] Venta con QR (MP sandbox del negocio) → acredita → se registra (sin venta fantasma).
 - [ ] Fiado + pago dividido offline → imputa a cada medio; el cierre cuadra.
 - [ ] Reporte mensual / alertas: disparar el cron manualmente con el Bearer y ver que corre.
+- [ ] Gate de posnet: un negocio con `has_posnet=false` NO ve nada de Point en la caja
+      (ni pregunta terminal/pantalla, ni tarjeta-al-posnet) — cobra QR/efectivo como siempre.
+- [ ] Gate del asistente: el cron `monthly-report` saltea los negocios con
+      `ai_assistant_enabled=false` (solo procesa los que tienen el add-on prendido; el
+      response del cron reporta `skipped`).
 - [ ] Email de prueba llega a inbox.
 - [ ] Web Push: suscripción + notificación de prueba llega.
 - [ ] Sin errores en consola ni en los logs de Vercel/Supabase.
@@ -147,8 +185,10 @@ Sin esto, los mails (alertas, reportes) caen en spam o no llegan.
 
 Con lo anterior hecho, dar de alta un cliente es:
 
-1. Crear su **store** (onboarding) + su usuario dueño.
-2. Que conecte su **cuenta de MercadoPago** (flujo in-app; el token se cifra con `MP_ENC_KEY`).
+1. Crear su **store + usuario dueño desde `/super`** (service_role crea el auth user con
+   password temporal; sin signup público).
+2. Que conecte su **cuenta de MercadoPago** (flujo in-app §5.1: pega su token, registra SU
+   URL de webhook en su panel de MP, y opcionalmente la clave de firma).
 3. Setear sus **flags**: `has_posnet` (solo si tiene terminal Point validada), medios de
    confirmación, alias de transferencia, etc.
 4. Cargar catálogo (o importar) y a vender.
