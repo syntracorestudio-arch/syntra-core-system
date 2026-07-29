@@ -74,7 +74,36 @@ type Client = {
   owed: number;
   creditLimit: number | null;
 };
-type Linea = { producto: PosProduct; cantidad: number };
+/**
+ * Una línea del carrito. Unión discriminada a propósito: TypeScript obliga a
+ * distinguir producto de monto libre en CADA punto donde se arma plata, en vez de
+ * dejar campos opcionales que se pueden olvidar.
+ *
+ * `libre` = cobrar un importe SIN producto (business-rules §3). Es la válvula de
+ * escape del mostrador: si algo no está en el catálogo, el cajero cobra igual en vez
+ * de fabricar un producto basura o duplicado para poder cerrar la venta.
+ */
+type Linea =
+  | { tipo: "producto"; producto: PosProduct; cantidad: number }
+  | { tipo: "libre"; id: string; label: string; amount: number; cantidad: number };
+
+/* Helpers de línea: el ÚNICO lugar que sabe leer/serializar una línea. Antes el
+   payload de `items` se armaba a mano en 8 lugares distintos; con monto libre eso
+   serían 8 oportunidades de mandar mal la plata. */
+const lineaId = (l: Linea): string => (l.tipo === "producto" ? l.producto.id : l.id);
+const lineaNombre = (l: Linea): string => (l.tipo === "producto" ? l.producto.name : l.label);
+const lineaPrecio = (l: Linea): number => (l.tipo === "producto" ? l.producto.price : l.amount);
+const lineaEmoji = (l: Linea): string =>
+  l.tipo === "producto" ? (l.producto.emoji ?? "📦") : "🧾";
+
+/** Carrito → `items` de register_sale. product_id null = monto libre. */
+function itemsDeCarrito(carrito: Linea[]) {
+  return carrito.map((l) =>
+    l.tipo === "producto"
+      ? { product_id: l.producto.id, qty: l.cantidad }
+      : { product_id: null, qty: l.cantidad, free_amount: l.amount, name: l.label },
+  );
+}
 type Montos = { cash: string; card: string; transfer: string; qr: string };
 type Pago = { method: string; amount: number };
 /**
@@ -162,6 +191,8 @@ export function PosScreen({
   const [resultados, setResultados] = useState<PosProduct[] | null>(null);
   const [totalResultados, setTotalResultados] = useState(0);
   const [buscandoProductos, setBuscandoProductos] = useState(false);
+  /** Diálogo de monto libre. `sugerencia` = lo que el cajero venía buscando. */
+  const [montoLibre, setMontoLibre] = useState<{ sugerencia: string } | null>(null);
   /** Clientes de fiado: se cargan bajo demanda, no en cada render. */
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsCargados, setClientsCargados] = useState(false);
@@ -262,7 +293,7 @@ export function PosScreen({
 
   const visibles = buscando ? (resultados ?? []) : products;
 
-  const total = carrito.reduce((a, l) => a + l.producto.price * l.cantidad, 0);
+  const total = carrito.reduce((a, l) => a + lineaPrecio(l) * l.cantidad, 0);
   const unidades = carrito.reduce((a, l) => a + l.cantidad, 0);
   const cliente = clienteId ? (clients.find((c) => c.id === clienteId) ?? null) : null;
 
@@ -295,14 +326,41 @@ export function PosScreen({
     setPulso(producto.id);
     setTimeout(() => setPulso((p) => (p === producto.id ? null : p)), 350);
     setCarrito((prev) => {
-      const existente = prev.find((l) => l.producto.id === producto.id);
+      // Solo se agrupan líneas de PRODUCTO: dos montos libres de $500 son dos
+      // cobros distintos (dos fotocopias, dos servicios) y se listan por separado.
+      const existente = prev.find((l) => l.tipo === "producto" && l.producto.id === producto.id);
       if (existente) {
         return prev.map((l) =>
-          l.producto.id === producto.id ? { ...l, cantidad: l.cantidad + 1 } : l,
+          l.tipo === "producto" && l.producto.id === producto.id
+            ? { ...l, cantidad: l.cantidad + 1 }
+            : l,
         );
       }
-      return [...prev, { producto, cantidad: 1 }];
+      return [...prev, { tipo: "producto", producto, cantidad: 1 }];
     });
+  }, []);
+
+  /**
+   * Agrega una línea de MONTO LIBRE: cobra un importe sin crear producto.
+   *
+   * Es la válvula de escape contra la patología del RIESGO 0: si el cajero no
+   * encuentra algo y solo tiene "darlo de alta", termina fabricando un producto
+   * basura o duplicado para poder cobrar. Con esto cierra la venta y el catálogo
+   * queda limpio. No mueve stock, no crea catálogo, y nunca se le ofrece alta.
+   */
+  const agregarMontoLibre = useCallback((amount: number, label: string) => {
+    setConfirmando(false);
+    setCarritoViejo(false);
+    setCarrito((prev) => [
+      ...prev,
+      {
+        tipo: "libre",
+        id: `libre-${crypto.randomUUID()}`,
+        label: label.trim() || "Monto libre",
+        amount,
+        cantidad: 1,
+      },
+    ]);
   }, []);
 
   /**
@@ -408,7 +466,7 @@ export function PosScreen({
     setCarritoViejo(false);
     setCarrito((prev) =>
       prev
-        .map((l) => (l.producto.id === id ? { ...l, cantidad: l.cantidad + delta } : l))
+        .map((l) => (lineaId(l) === id ? { ...l, cantidad: l.cantidad + delta } : l))
         .filter((l) => l.cantidad > 0),
     );
   }
@@ -489,7 +547,7 @@ export function PosScreen({
     setCarritoViejo(false);
     setConfirmando(false);
     setCarrito((prev) =>
-      prev.map((l) => (l.producto.id === id ? { ...l, cantidad: n } : l)).filter((l) => l.cantidad > 0),
+      prev.map((l) => (lineaId(l) === id ? { ...l, cantidad: n } : l)).filter((l) => l.cantidad > 0),
     );
   }
 
@@ -562,10 +620,7 @@ export function PosScreen({
   function registrar(intentId: string | null, metodo: Medio = medio) {
     startTransition(async () => {
       const res = await registerSale({
-        items: carrito.map((l) => ({
-          product_id: l.producto.id,
-          qty: l.cantidad,
-        })),
+        items: itemsDeCarrito(carrito),
         payment_method: metodo,
         idempotency_key: idempotencyKey.current,
         client_id: medio === "account" ? clienteId : null,
@@ -617,6 +672,7 @@ export function PosScreen({
     setTendered(null);
     setMontos({ cash: "", card: "", transfer: "", qr: "" });
     setSplitLeg(null);
+    setMontoLibre(null);
     setCarritoViejo(false);
     setEditandoQty(null);
     setCarrito([]);
@@ -696,7 +752,7 @@ export function PosScreen({
   function registrarSplitOffline(pagos: Pago[]) {
     startTransition(async () => {
       const res = await registerSplitSale({
-        items: carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad })),
+        items: itemsDeCarrito(carrito),
         pagos,
         idempotency_key: idempotencyKey.current,
       });
@@ -719,7 +775,7 @@ export function PosScreen({
     if (!leg) return;
     startTransition(async () => {
       const res = await registerSplitSale({
-        items: carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad })),
+        items: itemsDeCarrito(carrito),
         pagos: leg.pagos,
         idempotency_key: idempotencyKey.current,
         paid: true,
@@ -750,10 +806,10 @@ export function PosScreen({
           amount={total}
           crear={() =>
             crearCobroQR({
-              items: carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad })),
+              items: itemsDeCarrito(carrito),
               amount: total,
               idempotency_key: idempotencyKey.current,
-              descripcion: carrito.map((l) => l.producto.name).join(", "),
+              descripcion: carrito.map(lineaNombre).join(", "),
             })
           }
           onPagado={(intentId) => registrar(intentId)}
@@ -819,11 +875,11 @@ export function PosScreen({
           amount={splitLeg.legAmount}
           crear={() =>
             crearCobroSplit({
-              items: carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad })),
+              items: itemsDeCarrito(carrito),
               pagos: splitLeg.pagos,
               leg_amount: splitLeg.legAmount,
               idempotency_key: idempotencyKey.current,
-              descripcion: carrito.map((l) => l.producto.name).join(", "),
+              descripcion: carrito.map(lineaNombre).join(", "),
             })
           }
           onPagado={(intentId) => finalizarSplitLeg(intentId)}
@@ -840,11 +896,11 @@ export function PosScreen({
           paymentType={splitLeg.paymentType}
           crear={() =>
             crearCobroSplitPoint({
-              items: carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad })),
+              items: itemsDeCarrito(carrito),
               pagos: splitLeg.pagos,
               leg_amount: splitLeg.legAmount,
               idempotency_key: idempotencyKey.current,
-              descripcion: carrito.map((l) => l.producto.name).join(", "),
+              descripcion: carrito.map(lineaNombre).join(", "),
               payment_type: splitLeg.paymentType,
             })
           }
@@ -927,10 +983,10 @@ export function PosScreen({
           amount={total}
           crear={() =>
             crearCobroPoint({
-              items: carrito.map((l) => ({ product_id: l.producto.id, qty: l.cantidad })),
+              items: itemsDeCarrito(carrito),
               amount: total,
               idempotency_key: idempotencyKey.current,
-              descripcion: carrito.map((l) => l.producto.name).join(", "),
+              descripcion: carrito.map(lineaNombre).join(", "),
               payment_type: tipoTarjeta ?? undefined,
             })
           }
@@ -1017,6 +1073,18 @@ export function PosScreen({
         </div>
       )}
 
+      {montoLibre && (
+        <MontoLibreDialog
+          sugerencia={montoLibre.sugerencia}
+          onCancel={() => setMontoLibre(null)}
+          onAgregar={(amount, label) => {
+            agregarMontoLibre(amount, label);
+            setMontoLibre(null);
+            setBusqueda("");
+          }}
+        />
+      )}
+
       {altaRapida && (
         <AltaRapida
           barcode={altaRapida.barcode}
@@ -1077,6 +1145,17 @@ export function PosScreen({
                 className="h-11 w-full rounded-lg border border-input bg-card pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
               />
             </div>
+            {/* Acceso PERMANENTE al monto libre, no solo cuando una búsqueda falla:
+                el fraccionado, el servicio y el "cobrame esto" no se buscan primero. */}
+            <button
+              type="button"
+              onClick={() => setMontoLibre({ sugerencia: "" })}
+              aria-label="Cobrar un monto suelto, sin producto"
+              title="Cobrar un monto suelto"
+              className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+            >
+              <Banknote className="size-5" />
+            </button>
             <button
               type="button"
               onClick={() => setCamaraAbierta(true)}
@@ -1163,7 +1242,11 @@ export function PosScreen({
         )}
 
         {visibles.length === 0 && !buscandoProductos ? (
-          <div className="grid flex-1 place-items-center px-6 py-12 text-center">
+          /* ANCLADO ARRIBA, no centrado en el alto restante: con la grilla curada
+             (24 tiles) el área libre es enorme y `place-items-center` dejaba el
+             mensaje flotando en el medio del vacío, que se lee como un bug. Se
+             centra en horizontal y arranca donde arrancaría la grilla. */
+          <div className="flex flex-1 justify-center px-6 pt-8 text-center sm:pt-10">
             <div className="w-full max-w-sm">
               {totalProductos === 0 && (
                 <EmptyArt name="productos" alt="Una repisa vacía con un escáner" />
@@ -1180,9 +1263,21 @@ export function PosScreen({
                     No encontré “{busqueda.trim()}”
                   </p>
                   <p className="mb-4 text-sm text-muted-foreground">
-                    Dalo de alta ahora y seguí cobrando.
+                    Cobralo igual y seguí. Si es algo que vas a vender seguido, dalo de alta.
                   </p>
+                  {/* ORDEN DELIBERADO: cobrar el monto suelto es la acción PRIMARIA.
+                      "Darlo de alta" como happy path empuja a un cajero apurado a
+                      fabricar un producto basura o duplicado con tal de poder cobrar
+                      — justo la patología que abrió el RIESGO 0. Primero se cierra la
+                      venta; el catálogo se ordena después, con calma. */}
                   <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMontoLibre({ sugerencia: busqueda.trim() })}
+                      className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                    >
+                      <Banknote className="size-4" /> Cobrar monto suelto
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -1192,14 +1287,14 @@ export function PosScreen({
                           sugerencia: nombre ? { nombre, marca: null } : null,
                         });
                       }}
-                      className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                      className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                     >
                       <PackagePlus className="size-4" /> Darlo de alta
                     </button>
                     <button
                       type="button"
                       onClick={() => setBusqueda("")}
-                      className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                      className="flex h-10 w-full cursor-pointer items-center justify-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                     >
                       Volver a los más vendidos
                     </button>
@@ -1315,20 +1410,26 @@ export function PosScreen({
           ) : (
             <ul className="divide-y divide-border">
               {carrito.map((l) => (
-                <li key={l.producto.id} className="flex items-center gap-2 px-4 py-2.5">
+                <li key={lineaId(l)} className="flex items-center gap-2 px-4 py-2.5">
                   <span className="text-lg" aria-hidden>
-                    {l.producto.emoji ?? "📦"}
+                    {lineaEmoji(l)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{l.producto.name}</p>
+                    <p className="truncate text-sm font-medium">{lineaNombre(l)}</p>
                     <p className="tabular text-xs text-muted-foreground">
-                      {money(l.producto.price)} c/u
+                      {l.tipo === "libre" ? (
+                        /* Marcado explícito: el cajero (y el dueño mirando la venta)
+                           tienen que ver que eso NO salió del catálogo. */
+                        <span className="text-warning-ink">Monto libre · sin producto</span>
+                      ) : (
+                        `${money(l.producto.price)} c/u`
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
                     <IconBtn
-                      label={`Quitar uno de ${l.producto.name}`}
-                      onClick={() => cambiar(l.producto.id, -1)}
+                      label={`Quitar uno de ${lineaNombre(l)}`}
+                      onClick={() => cambiar(lineaId(l), -1)}
                     >
                       {l.cantidad === 1 ? (
                         <Trash2 className="size-3.5" />
@@ -1336,16 +1437,16 @@ export function PosScreen({
                         <Minus className="size-3.5" />
                       )}
                     </IconBtn>
-                    {editandoQty === l.producto.id ? (
+                    {editandoQty === lineaId(l) ? (
                       <input
                         type="number"
                         inputMode="numeric"
                         autoFocus
                         defaultValue={l.cantidad}
-                        aria-label={`Cantidad de ${l.producto.name}`}
+                        aria-label={`Cantidad de ${lineaNombre(l)}`}
                         onBlur={(e) => {
                           const n = Math.floor(Number(e.target.value));
-                          if (Number.isFinite(n) && n > 0) setCantidadAbs(l.producto.id, n);
+                          if (Number.isFinite(n) && n > 0) setCantidadAbs(lineaId(l), n);
                           setEditandoQty(null);
                         }}
                         onKeyDown={(e) => {
@@ -1357,16 +1458,16 @@ export function PosScreen({
                     ) : (
                       <button
                         type="button"
-                        onClick={() => setEditandoQty(l.producto.id)}
-                        aria-label={`Escribir la cantidad de ${l.producto.name}`}
+                        onClick={() => setEditandoQty(lineaId(l))}
+                        aria-label={`Escribir la cantidad de ${lineaNombre(l)}`}
                         className="tabular h-7 w-8 cursor-pointer rounded-md text-center text-sm font-semibold transition-colors hover:bg-secondary"
                       >
                         {l.cantidad}
                       </button>
                     )}
                     <IconBtn
-                      label={`Agregar uno de ${l.producto.name}`}
-                      onClick={() => cambiar(l.producto.id, 1)}
+                      label={`Agregar uno de ${lineaNombre(l)}`}
+                      onClick={() => cambiar(lineaId(l), 1)}
                     >
                       <Plus className="size-3.5" />
                     </IconBtn>
@@ -1767,6 +1868,106 @@ function TransferAlias({ alias, total }: { alias: string | null; total: number }
         )}
         <span className="text-xs text-muted-foreground">{copiado ? "Copiado" : "Copiar"}</span>
       </button>
+    </div>
+  );
+}
+
+/**
+ * Monto libre: cobrar un importe SIN crear un producto.
+ *
+ * Un solo campo obligatorio (el monto) porque esto se usa con gente esperando. La
+ * etiqueta es opcional y sirve para que la venta se entienda después en Caja
+ * ("Fotocopias", "Flete") — si no la ponen, queda "Monto libre".
+ *
+ * NO crea catálogo, NO mueve stock y NUNCA ofrece alta rápida: esa es justamente la
+ * diferencia con darlo de alta, y la razón de que exista.
+ */
+function MontoLibreDialog({
+  sugerencia,
+  onCancel,
+  onAgregar,
+}: {
+  /** Lo que el cajero venía buscando, para arrancar la etiqueta puesta. */
+  sugerencia: string;
+  onCancel: () => void;
+  onAgregar: (amount: number, label: string) => void;
+}) {
+  const [monto, setMonto] = useState("");
+  const [label, setLabel] = useState(sugerencia);
+  const valor = parseMonto(monto);
+  const listo = valor > 0;
+
+  function confirmar() {
+    if (!listo) return;
+    onAgregar(valor, label);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-end bg-black/60 sm:place-items-center">
+      <div className="w-full rounded-t-2xl border border-border bg-popover p-5 sm:max-w-sm sm:rounded-2xl">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-accent">
+            <Banknote className="size-5 text-accent-foreground" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold">Cobrar un monto</h2>
+            <p className="text-xs text-muted-foreground">Sin cargarlo al catálogo</p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Cancelar"
+            className="cursor-pointer text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <label htmlFor="ml-monto" className="text-sm font-medium">
+              ¿Cuánto le cobrás?
+            </label>
+            <input
+              id="ml-monto"
+              autoFocus
+              value={monto}
+              onChange={(e) => setMonto(e.target.value.replace(/[^\d.]/g, ""))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") confirmar();
+              }}
+              inputMode="decimal"
+              placeholder="1500"
+              className="tabular h-12 w-full rounded-lg border border-input bg-background px-3 text-lg font-semibold outline-none focus:border-primary"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="ml-label" className="text-sm font-medium">
+              ¿Qué es? <span className="font-normal text-muted-foreground">(opcional)</span>
+            </label>
+            <input
+              id="ml-label"
+              value={label}
+              onChange={(e) => setLabel(e.target.value.slice(0, 60))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") confirmar();
+              }}
+              placeholder="Monto libre"
+              className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={confirmar}
+            disabled={!listo}
+            className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
+            Agregar {listo ? money(valor) : ""}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
