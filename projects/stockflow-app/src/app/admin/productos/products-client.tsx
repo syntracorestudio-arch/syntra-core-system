@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   Search,
   Plus,
@@ -14,6 +14,9 @@ import {
   Archive,
   CalendarClock,
   Package,
+  ChevronLeft,
+  ChevronRight,
+  FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
@@ -21,7 +24,7 @@ import { money } from "@/lib/format";
 import { EmojiPicker } from "@/components/ui/emoji-picker";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { CategoryChips } from "@/components/ui/category-chips";
+import { CategoryChips, SIN_CATEGORIA } from "@/components/ui/category-chips";
 import {
   createProduct,
   updateProduct,
@@ -51,7 +54,15 @@ export type CategoryRow = {
   color: string | null;
   /** Contador real de productos activos (de categorias_resumen). */
   count?: number;
+  /** Señales de salud por categoría (de categorias_resumen): alimentan el índice. */
+  stockBajo?: number;
+  sinCosto?: number;
 };
+
+/* Con pocos productos el índice de categorías es burocracia: una lista plana se
+   recorre entera de un vistazo. El drill-down recién paga con volumen. Umbral
+   ajustable (audit §C3); 40 ≈ lo que entra en 2-3 pantallas de scroll. */
+const UMBRAL_DRILLDOWN = 40;
 
 type Aviso = { tone: "ok" | "error"; text: string } | null;
 
@@ -115,12 +126,18 @@ function margen(price: number, cost: number | null): number | null {
 
 export function ProductsClient({
   products,
+  totalFiltradoInicial,
+  initialQ,
   categories,
   sinCategoria,
   defaultThreshold,
   totalProductos,
 }: {
   products: ProductRow[];
+  /** Total real del filtro con el que se sirvió la primera página (?cat/?q). */
+  totalFiltradoInicial: number;
+  /** ?q= de la URL: refrescar una búsqueda tiene que devolver ESA búsqueda. */
+  initialQ: string;
   categories: CategoryRow[];
   /** Productos sin categoría (la deuda del catálogo): habilita su filtro. */
   sinCategoria: number;
@@ -128,7 +145,7 @@ export function ProductsClient({
   /** Total REAL de activos: el listado viene acotado a 500 (escala Fase 1). */
   totalProductos: number;
 }) {
-  const [busqueda, setBusqueda] = useState("");
+  const [busqueda, setBusqueda] = useState(initialQ);
   const [editando, setEditando] = useState<ProductRow | null>(null);
   const [creando, setCreando] = useState(false);
   const [remarcando, setRemarcando] = useState(false);
@@ -136,15 +153,20 @@ export function ProductsClient({
 
   /* El filtro de categoría vive en la URL (?cat=): volver atrás o refrescar
      respeta lo que estabas mirando, y un link a "Productos > Bebidas" se puede
-     compartir. replace y no push: cambiar de chip no debe apilar historial. */
-  const router = useRouter();
+     compartir. history API y no router.push: los datos ya los trae el fetch de
+     abajo — repetir el render del server component por cada filtro es pagar la
+     misma consulta dos veces (Next mantiene useSearchParams en sync igual).
+     push SOLO al entrar a una categoría desde el índice: así el botón "atrás"
+     del teléfono vuelve al índice, que es lo que cualquiera espera. */
   const searchParams = useSearchParams();
   const cat = searchParams.get("cat");
-  const setCat = (id: string | null) => {
+  const setCat = (id: string | null, opts?: { push?: boolean }) => {
     const params = new URLSearchParams(searchParams);
     if (id) params.set("cat", id);
     else params.delete("cat");
-    router.replace(`/admin/productos${params.size ? `?${params}` : ""}`, { scroll: false });
+    const url = `/admin/productos${params.size ? `?${params}` : ""}`;
+    if (opts?.push) window.history.pushState(null, "", url);
+    else window.history.replaceState(null, "", url);
   };
 
   /* ESCALA FASE 2 — la lista dejó de filtrarse en memoria sobre un precargado de 500.
@@ -152,7 +174,7 @@ export function ProductsClient({
      re-consulta cuando cambia la búsqueda o la categoría (con debounce). "Cargar más"
      pide la página siguiente. `totalFiltrado` es el conteo REAL del filtro actual. */
   const [filas, setFilas] = useState<ProductRow[]>(products);
-  const [totalFiltrado, setTotalFiltrado] = useState(totalProductos);
+  const [totalFiltrado, setTotalFiltrado] = useState(totalFiltradoInicial);
   const [cargando, setCargando] = useState(false);
   const [cargandoMas, setCargandoMas] = useState(false);
   const primeraCarga = useRef(true);
@@ -181,6 +203,13 @@ export function ProductsClient({
     }
     let vivo = true;
     const t = setTimeout(() => {
+      // La búsqueda también vive en la URL (?q=), con replace: cada tecla no es
+      // una página del historial, pero refrescar/compartir conserva la búsqueda.
+      const params = new URLSearchParams(window.location.search);
+      if (busqueda.trim()) params.set("q", busqueda.trim());
+      else params.delete("q");
+      window.history.replaceState(null, "", `/admin/productos${params.size ? `?${params}` : ""}`);
+
       setCargando(true);
       buscarProductos({ q: busqueda.trim() || null, categoria: cat, limit: 50, offset: 0 })
         .then((r) => {
@@ -211,6 +240,20 @@ export function ProductsClient({
   const visibles = filas;
   const hayMas = filas.length < totalFiltrado;
 
+  /* DRILL-DOWN (audit §C3) — tres niveles con la URL como estado:
+     Nivel 0 = índice de categorías (portada con catálogo grande) · Nivel 1 =
+     lista de la categoría activa (?cat=) · Nivel 2 = la ficha de siempre.
+     Buscar corta camino desde cualquier nivel: resultados planos con su
+     categoría a la vista. Con catálogo chico nada de esto aparece. */
+  const q = busqueda.trim();
+  const drilldown = totalProductos > UMBRAL_DRILLDOWN;
+  const enIndice = drilldown && !cat && !q;
+  const catActiva = cat && cat !== SIN_CATEGORIA ? categories.find((c) => c.id === cat) : null;
+  const catPorId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  // Tag de categoría por fila solo cuando la lista NO está ya acotada a una:
+  // en resultados de búsqueda ubica; dentro de "Bebidas" sería ruido.
+  const mostrarCatEnFila = !cat;
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
       <div className="mb-5">
@@ -240,26 +283,99 @@ export function ProductsClient({
 
       <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
-      <CategoryChips
-        categories={categories}
-        value={cat}
-        onChange={setCat}
-        maxVisible={8}
-        sinCategoria={sinCategoria}
-        className="mb-3"
-      />
+      {/* Catálogo chico: chips + lista plana, todo entra de un vistazo. Catálogo
+          grande: manda el índice del drill-down y los chips sobran. */}
+      {!drilldown && (
+        <CategoryChips
+          categories={categories}
+          value={cat}
+          onChange={setCat}
+          maxVisible={8}
+          sinCategoria={sinCategoria}
+          className="mb-3"
+        />
+      )}
+
+      {drilldown && cat && (
+        <div className="mb-3">
+          <button
+            type="button"
+            onClick={() => setCat(null)}
+            className="mb-2.5 flex cursor-pointer items-center gap-0.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronLeft className="size-4" /> Categorías
+          </button>
+          <div className="flex items-center gap-2.5">
+            {cat === SIN_CATEGORIA ? (
+              <>
+                <span
+                  className="grid size-9 shrink-0 place-items-center rounded-lg bg-warning/15 text-warning-ink"
+                  aria-hidden
+                >
+                  <FolderOpen className="size-4" />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold">Sin categoría</h2>
+                  {/* No hay herramienta de categorizar en masa (todavía): el camino
+                      es el lápiz de cada fila, y lo decimos. */}
+                  <p className="text-xs text-warning-ink">
+                    Asignales categoría con el lápiz de cada fila.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <span
+                  className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-lg"
+                  aria-hidden
+                >
+                  {catActiva?.emoji ?? "📦"}
+                </span>
+                <div className="min-w-0">
+                  <h2 className="truncate text-sm font-semibold">{catActiva?.name ?? "Categoría"}</h2>
+                  <p className="tabular text-xs text-muted-foreground">
+                    {catActiva?.count ?? totalFiltrado} productos
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="relative mb-4">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar producto"
+          placeholder={
+            drilldown && cat
+              ? `Buscar en ${cat === SIN_CATEGORIA ? "sin categoría" : (catActiva?.name ?? "la categoría")}`
+              : "Buscar por nombre o código"
+          }
           aria-label="Buscar producto"
-          className="h-11 w-full rounded-lg border border-input bg-card pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
+          className="h-11 w-full rounded-lg border border-input bg-card pl-9 pr-9 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
         />
+        {busqueda !== "" && (
+          <button
+            type="button"
+            onClick={() => setBusqueda("")}
+            aria-label="Limpiar búsqueda"
+            className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        )}
       </div>
 
+      {enIndice ? (
+        <IndiceCategorias
+          categories={categories}
+          sinCategoria={sinCategoria}
+          onSelect={(id) => setCat(id, { push: true })}
+        />
+      ) : (
+        <>
       <ul className="divide-y divide-border rounded-xl border border-border bg-card">
         {visibles.map((p) => {
           const m = margen(p.price, p.cost);
@@ -275,13 +391,22 @@ export function ProductsClient({
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{p.name}</p>
-                <p className="tabular text-xs text-muted-foreground">
+                <p className="tabular truncate text-xs text-muted-foreground">
                   {money(p.price)}
                   {m !== null ? (
                     <span className="text-success-ink"> · {m.toFixed(0)}% margen</span>
                   ) : (
                     <span className="text-warning-ink"> · sin costo</span>
                   )}
+                  {/* En resultados planos, saber DE DÓNDE es cada producto evita
+                      abrir la ficha solo para ubicarlo. "Sin categoría" en tono de
+                      aviso: la deuda se ve fila por fila, no solo en el índice. */}
+                  {mostrarCatEnFila &&
+                    (p.categoryId && catPorId.has(p.categoryId) ? (
+                      <span> · {catPorId.get(p.categoryId)!.name}</span>
+                    ) : (
+                      <span className="text-warning-ink"> · sin categoría</span>
+                    ))}
                 </p>
               </div>
               {/* El stock en unidades no decide una compra; los días que dura,
@@ -344,11 +469,14 @@ export function ProductsClient({
           Mostrar más ({visibles.length} de {totalFiltrado})
         </button>
       )}
+        </>
+      )}
 
       {remarcando && (
         <RepriceDialog
           categories={categories}
           products={products}
+          totalProductos={totalProductos}
           onClose={() => setRemarcando(false)}
           onDone={(n) => {
             setRemarcando(false);
@@ -379,16 +507,110 @@ export function ProductsClient({
   );
 }
 
+/**
+ * Nivel 0 del drill-down: el catálogo contado por categoría, con las señales que
+ * deciden una recorrida ("¿dónde tengo poco stock?", "¿qué me falta costear?").
+ * "Sin categoría" cierra la lista en tono de aviso: es deuda visible, no un
+ * cajón escondido.
+ */
+function IndiceCategorias({
+  categories,
+  sinCategoria,
+  onSelect,
+}: {
+  categories: CategoryRow[];
+  sinCategoria: number;
+  onSelect: (id: string) => void;
+}) {
+  const conProductos = categories.filter((c) => (c.count ?? 0) > 0);
+  return (
+    <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+      {conProductos.map((c) => {
+        const stockBajo = c.stockBajo ?? 0;
+        const sinCosto = c.sinCosto ?? 0;
+        return (
+          <li key={c.id}>
+            <button
+              type="button"
+              onClick={() => onSelect(c.id)}
+              className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/40"
+            >
+              <span
+                className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-lg"
+                aria-hidden
+              >
+                {c.emoji ?? "📦"}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{c.name}</p>
+                {(stockBajo > 0 || sinCosto > 0) && (
+                  <p className="tabular truncate text-xs">
+                    {stockBajo > 0 && (
+                      <span className="text-warning-ink">{stockBajo} con poco stock</span>
+                    )}
+                    {stockBajo > 0 && sinCosto > 0 && (
+                      <span className="text-muted-foreground"> · </span>
+                    )}
+                    {sinCosto > 0 && (
+                      <span className="text-muted-foreground">{sinCosto} sin costo</span>
+                    )}
+                  </p>
+                )}
+              </div>
+              <span className="tabular shrink-0 text-sm font-semibold text-muted-foreground">
+                {c.count}
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground/70" />
+            </button>
+          </li>
+        );
+      })}
+      {sinCategoria > 0 && (
+        <li>
+          <button
+            type="button"
+            onClick={() => onSelect(SIN_CATEGORIA)}
+            className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-warning/5"
+          >
+            <span
+              className="grid size-9 shrink-0 place-items-center rounded-lg bg-warning/15 text-warning-ink"
+              aria-hidden
+            >
+              <FolderOpen className="size-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Sin categoría</p>
+              <p className="text-xs text-warning-ink">Ordenalos para encontrarlos más fácil</p>
+            </div>
+            <span className="tabular shrink-0 text-sm font-semibold text-warning-ink">
+              {sinCategoria}
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground/70" />
+          </button>
+        </li>
+      )}
+      {conProductos.length === 0 && sinCategoria === 0 && (
+        <li className="px-4 py-10 text-center text-sm text-muted-foreground">
+          Todavía no hay productos activos.
+        </li>
+      )}
+    </ul>
+  );
+}
+
 /** Remarcado masivo con PREVIEW: nadie toca los precios de todo su negocio a ciegas. */
 function RepriceDialog({
   categories,
   products,
+  totalProductos,
   onClose,
   onDone,
   onError,
 }: {
   categories: CategoryRow[];
   products: ProductRow[];
+  /** Total REAL de activos: `products` es apenas la página cargada. */
+  totalProductos: number;
   onClose: () => void;
   onDone: (count: number) => void;
   onError: (msg: string) => void;
@@ -400,6 +622,13 @@ function RepriceDialog({
   const n = Number(pct);
   const valido = pct !== "" && !Number.isNaN(n) && n !== 0;
 
+  /* Cuántos productos toca el remarcado: contadores REALES (categorias_resumen /
+     count del server), no un .length sobre la página que casualmente está en
+     memoria — la RPC remarca el catálogo entero. El preview sigue siendo
+     best-effort sobre lo cargado: son ejemplos, no el alcance. */
+  const alcanceN = categoryId
+    ? (categories.find((c) => c.id === categoryId)?.count ?? 0)
+    : totalProductos;
   const alcance = categoryId ? products.filter((p) => p.categoryId === categoryId) : products;
   const preview = alcance.slice(0, 4).map((p) => ({
     name: p.name,
@@ -433,10 +662,10 @@ function RepriceDialog({
             onChange={(e) => setCategoryId(e.target.value || null)}
             className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
           >
-            <option value="">Todo el catálogo ({products.length})</option>
+            <option value="">Todo el catálogo ({totalProductos})</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.emoji} {c.name} ({products.filter((p) => p.categoryId === c.id).length})
+                {c.emoji} {c.name} ({c.count ?? 0})
               </option>
             ))}
           </select>
@@ -474,9 +703,9 @@ function RepriceDialog({
                 </li>
               ))}
             </ul>
-            {alcance.length > preview.length && (
+            {alcanceN > preview.length && (
               <p className="mt-2 text-xs text-muted-foreground">
-                y {alcance.length - preview.length} más
+                y {alcanceN - preview.length} más
               </p>
             )}
           </div>
@@ -485,11 +714,11 @@ function RepriceDialog({
         <button
           type="button"
           onClick={aplicar}
-          disabled={!valido || pending || alcance.length === 0}
+          disabled={!valido || pending || alcanceN === 0}
           className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {pending && <LoaderCircle className="size-4 animate-spin" />}
-          Remarcar {alcance.length} producto{alcance.length === 1 ? "" : "s"}
+          Remarcar {alcanceN} producto{alcanceN === 1 ? "" : "s"}
         </button>
       </div>
     </Dialog>

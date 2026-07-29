@@ -5,9 +5,20 @@ import { ProductsClient, type ProductRow, type CategoryRow } from "./products-cl
 
 export const dynamic = "force-dynamic";
 
-export default async function ProductosPage() {
+export default async function ProductosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cat?: string; q?: string }>;
+}) {
   const session = await requireOwner();
   const supabase = await createSupabaseServer();
+
+  /* DRILL-DOWN — el filtro vive en la URL (?cat=, ?q=): refrescar o compartir un
+     link a "Productos > Bebidas" tiene que traer ESA vista desde el server, no la
+     portada y un parpadeo. `cat=none` es el filtro "sin categoría". */
+  const sp = await searchParams;
+  const cat = sp.cat?.trim() || null;
+  const q = sp.q?.trim() || null;
 
   /* ESCALA FASE 2 — search-first. Antes viajaban 500 productos + ~8000 sale_items
      (772 KB de documento con 2005 SKUs) y el filtrado era en memoria. Ahora la
@@ -15,13 +26,14 @@ export default async function ProductosPage() {
   const [{ data: pagina }, { data: categories }, { count: totalProductos }] = await Promise.all([
     supabase.rpc("productos_buscar", {
       p_store_id: session.store.id,
-      p_q: null,
-      p_categoria: null,
+      p_q: q,
+      p_categoria: cat && cat !== "none" ? cat : null,
+      p_solo_sin_categoria: cat === "none",
       p_limit: 50,
       p_offset: 0,
     }),
-    // Categorías con CONTADORES REALES (036): chips, sheet de "Más" y los selects
-    // de los diálogos salen todos de la misma fuente de verdad, acotada a 100.
+    // Categorías con CONTADORES REALES (036): chips, índice del drill-down y los
+    // selects de los diálogos salen todos de la misma fuente de verdad, acotada a 100.
     supabase.rpc("categorias_resumen", { p_store_id: session.store.id }),
     supabase
       .from("products")
@@ -44,8 +56,10 @@ export default async function ProductosPage() {
     total: number;
   };
 
-  /* Chips del panel: ordenados por CANTIDAD de productos (el criterio del dueño
-     administrando, no el del mostrador vendiendo). Contadores reales del agregado. */
+  /* Índice y chips del panel: ordenados por CANTIDAD de productos (el criterio del
+     dueño administrando, no el del mostrador vendiendo). Contadores reales del
+     agregado, incluidas las señales de salud (stock bajo / sin costo) que muestra
+     el índice del drill-down. */
   const resumen = (categories ?? { categorias: [], sin_categoria: { productos: 0 } }) as {
     categorias: {
       id: string;
@@ -53,8 +67,10 @@ export default async function ProductosPage() {
       emoji: string | null;
       color: string | null;
       productos: number;
+      stock_bajo: number;
+      sin_costo: number;
     }[];
-    sin_categoria: { productos: number };
+    sin_categoria: { productos: number; stock_bajo: number; sin_costo: number };
   };
   const categoriasOrdenadas: CategoryRow[] = [...(resumen.categorias ?? [])]
     .sort((a, b) => Number(b.productos) - Number(a.productos) || a.name.localeCompare(b.name, "es"))
@@ -64,6 +80,8 @@ export default async function ProductosPage() {
       emoji: c.emoji,
       color: c.color,
       count: Number(c.productos),
+      stockBajo: Number(c.stock_bajo ?? 0),
+      sinCosto: Number(c.sin_costo ?? 0),
     }));
   const sinCategoria = Number(resumen.sin_categoria?.productos ?? 0);
 
@@ -93,6 +111,8 @@ export default async function ProductosPage() {
     >
       <ProductsClient
         products={rows}
+        totalFiltradoInicial={Number(p0.total ?? rows.length)}
+        initialQ={q ?? ""}
         categories={categoriasOrdenadas}
         sinCategoria={sinCategoria}
         defaultThreshold={3}
