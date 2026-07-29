@@ -334,7 +334,8 @@ export type PaginaProductos = {
 
 const buscarSchema = z.object({
   q: z.string().trim().max(80).nullable().optional(),
-  categoria: z.guid().nullable().optional(),
+  // uuid = una categoría · "none" = el bucket "Sin categoría" (la deuda es filtrable).
+  categoria: z.union([z.guid(), z.literal("none")]).nullable().optional(),
   limit: z.number().int().min(1).max(100).optional(),
   offset: z.number().int().min(0).optional(),
 });
@@ -347,12 +348,14 @@ export async function buscarProductos(input: unknown): Promise<PaginaProductos> 
   if (!parsed.success) return vacia;
 
   const supabase = await createSupabaseServer();
+  const soloSinCategoria = parsed.data.categoria === "none";
   const { data, error } = await supabase.rpc("productos_buscar", {
     p_store_id: session.store.id,
     p_q: parsed.data.q?.trim() || null,
-    p_categoria: parsed.data.categoria ?? null,
+    p_categoria: soloSinCategoria ? null : (parsed.data.categoria ?? null),
     p_limit: parsed.data.limit ?? 50,
     p_offset: parsed.data.offset ?? 0,
+    p_solo_sin_categoria: soloSinCategoria,
   });
 
   if (error || !data) return vacia;

@@ -45,15 +45,10 @@ export default async function PosPage() {
         .select("transfer_alias, confirm_methods, has_posnet")
         .eq("store_id", session.store.id)
         .maybeSingle(),
-      // Categorías EXISTENTES para el alta rápida (escala Fase 1): sin esto, todo lo
-      // que se da de alta en la caja caía en "Sin categoría". Acotada — un negocio con
-      // más de 100 categorías tiene otro problema.
-      supabase
-        .from("categories")
-        .select("id, name, emoji")
-        .eq("status", "active")
-        .order("sort")
-        .limit(100),
+      // Categorías con CONTADORES REALES (escala F2 visual, migración 036): alimenta
+      // los chips ("Golosinas 34"), el sheet de "Más" y el select del alta rápida.
+      // Una sola fuente de verdad — nunca contar sobre un subset del cliente.
+      supabase.rpc("categorias_resumen", { p_store_id: session.store.id }),
       // Conteo REAL del catálogo (head: no trae filas), para decir cuántos productos
       // hay de verdad sin traer ninguno.
       supabase
@@ -78,6 +73,30 @@ export default async function PosPage() {
 
   /* Los destacados llegan YA rankeados y con sus códigos: el cliente no calcula
      nada, solo mapea. Es todo el catálogo que viaja en el primer render. */
+  /* Chips del POS: ordenados por ROTACIÓN de 14 días (lo que más se vende, primero) —
+     el orden que le sirve al cajero, no el alfabético ni el `sort` del panel. */
+  const resumen = (categories ?? { categorias: [], sin_categoria: { productos: 0 } }) as {
+    categorias: {
+      id: string;
+      name: string;
+      emoji: string | null;
+      color: string | null;
+      productos: number;
+      vendidas_14d: string | number;
+    }[];
+    sin_categoria: { productos: number };
+  };
+  const categoriasOrdenadas = [...(resumen.categorias ?? [])]
+    .sort((a, b) => Number(b.vendidas_14d) - Number(a.vendidas_14d) || a.name.localeCompare(b.name, "es"))
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      emoji: c.emoji,
+      color: c.color,
+      count: Number(c.productos),
+    }));
+  const sinCategoria = Number(resumen.sin_categoria?.productos ?? 0);
+
   const catalog: PosProduct[] = (
     (destacados ?? []) as {
       id: string;
@@ -114,11 +133,8 @@ export default async function PosPage() {
       posnetActivo={posnetActivo}
       transferAlias={settings?.transfer_alias ?? null}
       confirmMethods={confirmMethods}
-      categories={(categories ?? []).map((c) => ({
-        id: c.id as string,
-        name: c.name as string,
-        emoji: (c.emoji as string | null) ?? null,
-      }))}
+      categories={categoriasOrdenadas}
+      sinCategoria={sinCategoria}
       totalProductos={totalProductos ?? catalog.length}
     />
   );

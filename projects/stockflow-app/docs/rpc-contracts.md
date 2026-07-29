@@ -355,6 +355,38 @@ clientes_buscar(p_store_id uuid, p_q text default null, p_limit int default 20) 
 | `product_barcodes` | ~1750 filas | solo los de los tiles curados |
 | `client_balances` | ~300 filas | **0** — se piden al abrir Fiado |
 
+## categorias_resumen — agregado de categorías (chips + drill-down, migración 036)
+
+> **Contrato CONGELADO antes del SQL** (2026-07-29). Fase 2 visual del audit
+> (`inventario-escala-audit.md` §C1-C3). Es la ÚNICA fuente de verdad de los contadores
+> de categoría: el chip ("Golosinas 34"), el sheet de "Más" y el índice del drill-down
+> (PR2) leen TODOS de acá. **Nunca** se cuenta sobre un subset cargado en el cliente —
+> ese era el bug de diseño que hacía imposible un contador correcto con catálogo grande.
+
+```
+categorias_resumen(p_store_id uuid) returns jsonb
+-- {
+--   categorias: [{ id, name, emoji, color, sort,
+--                  productos, stock_bajo, sin_costo, vendidas_14d }],
+--   sin_categoria: { productos, stock_bajo, sin_costo }   -- la deuda, SIEMPRE visible
+-- }
+```
+
+- **Gate**: `rpc_member` → `not_a_member`. `SECURITY DEFINER`, `stable`, GRANT `authenticated`.
+- **Acotada**: máx **100 categorías** (por `sort`); solo productos `status='active'`;
+  `vendidas_14d` con ventana fija de 14 días (cota de fecha del baseline).
+- `stock_bajo` usa la MISMA definición que la vista `low_stock_products` (umbral propio
+  o default del negocio) — un contador que no coincide con la alerta es un contador roto.
+- Orden de uso: el POS ordena por `vendidas_14d`; Productos por `productos`. El orden lo
+  decide el caller; la RPC devuelve los datos crudos por `sort`.
+
+### productos_buscar — enmienda (misma migración 036)
+
+Se agrega `p_solo_sin_categoria boolean default false`: filtra `category_id is null`
+(el bucket "Sin categoría" del sheet y del índice es seleccionable). Con `true`,
+`p_categoria` se ignora. Drop + create por cambio de firma; los callers de 5 args usan
+argumentos nombrados y no se ven afectados.
+
 ## Cotas del baseline aplicadas a funciones existentes (migración 034)
 
 Se **redefinen** (nunca se editan las migraciones viejas):

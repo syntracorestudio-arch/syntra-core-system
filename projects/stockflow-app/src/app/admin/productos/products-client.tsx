@@ -44,7 +44,14 @@ export type ProductRow = {
   diasCobertura: number | null;
 };
 
-export type CategoryRow = { id: string; name: string; emoji: string | null; color: string | null };
+export type CategoryRow = {
+  id: string;
+  name: string;
+  emoji: string | null;
+  color: string | null;
+  /** Contador real de productos activos (de categorias_resumen). */
+  count?: number;
+};
 
 type Aviso = { tone: "ok" | "error"; text: string } | null;
 
@@ -109,11 +116,14 @@ function margen(price: number, cost: number | null): number | null {
 export function ProductsClient({
   products,
   categories,
+  sinCategoria,
   defaultThreshold,
   totalProductos,
 }: {
   products: ProductRow[];
   categories: CategoryRow[];
+  /** Productos sin categoría (la deuda del catálogo): habilita su filtro. */
+  sinCategoria: number;
   defaultThreshold: number;
   /** Total REAL de activos: el listado viene acotado a 500 (escala Fase 1). */
   totalProductos: number;
@@ -230,7 +240,14 @@ export function ProductsClient({
 
       <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
-      <CategoryChips categories={categories} value={cat} onChange={setCat} className="mb-3" />
+      <CategoryChips
+        categories={categories}
+        value={cat}
+        onChange={setCat}
+        maxVisible={8}
+        sinCategoria={sinCategoria}
+        className="mb-3"
+      />
 
       <div className="relative mb-4">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

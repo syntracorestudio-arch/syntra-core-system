@@ -20,13 +20,9 @@ export default async function ProductosPage() {
       p_limit: 50,
       p_offset: 0,
     }),
-    // Cota del baseline: era la única query de categorías sin techo del repo.
-    supabase
-      .from("categories")
-      .select("id, name, emoji, color")
-      .eq("status", "active")
-      .order("sort")
-      .limit(100),
+    // Categorías con CONTADORES REALES (036): chips, sheet de "Más" y los selects
+    // de los diálogos salen todos de la misma fuente de verdad, acotada a 100.
+    supabase.rpc("categorias_resumen", { p_store_id: session.store.id }),
     supabase
       .from("products")
       .select("id", { count: "exact", head: true })
@@ -47,6 +43,29 @@ export default async function ProductosPage() {
     }[];
     total: number;
   };
+
+  /* Chips del panel: ordenados por CANTIDAD de productos (el criterio del dueño
+     administrando, no el del mostrador vendiendo). Contadores reales del agregado. */
+  const resumen = (categories ?? { categorias: [], sin_categoria: { productos: 0 } }) as {
+    categorias: {
+      id: string;
+      name: string;
+      emoji: string | null;
+      color: string | null;
+      productos: number;
+    }[];
+    sin_categoria: { productos: number };
+  };
+  const categoriasOrdenadas: CategoryRow[] = [...(resumen.categorias ?? [])]
+    .sort((a, b) => Number(b.productos) - Number(a.productos) || a.name.localeCompare(b.name, "es"))
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      emoji: c.emoji,
+      color: c.color,
+      count: Number(c.productos),
+    }));
+  const sinCategoria = Number(resumen.sin_categoria?.productos ?? 0);
 
   const rows: ProductRow[] = (p0.items ?? []).map((p) => {
     const porDia = Number(p.vendidas_30d ?? 0) / 30;
@@ -74,7 +93,8 @@ export default async function ProductosPage() {
     >
       <ProductsClient
         products={rows}
-        categories={(categories ?? []) as CategoryRow[]}
+        categories={categoriasOrdenadas}
+        sinCategoria={sinCategoria}
         defaultThreshold={3}
         totalProductos={totalProductos ?? rows.length}
       />

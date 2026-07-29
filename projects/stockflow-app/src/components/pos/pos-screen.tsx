@@ -139,6 +139,7 @@ export function PosScreen({
   transferAlias,
   confirmMethods,
   categories,
+  sinCategoria,
   totalProductos,
 }: {
   storeName: string;
@@ -154,8 +155,10 @@ export function PosScreen({
   transferAlias: string | null;
   /** Perilla por método: ¿pedir confirmación antes de cobrar? (QR tiene su diálogo). */
   confirmMethods: { cash: boolean; card: boolean; transfer: boolean; account: boolean };
-  /** Categorías existentes, para que el alta rápida no deje el producto sin categoría. */
-  categories: { id: string; name: string; emoji: string | null }[];
+  /** Categorías con contador REAL, ya ordenadas por rotación (chips + alta rápida). */
+  categories: { id: string; name: string; emoji: string | null; color: string | null; count: number }[];
+  /** Productos sin categoría (la deuda del catálogo): habilita su filtro. */
+  sinCategoria: number;
   /** Cuántos productos activos hay REALMENTE (el precargado está acotado a 500). */
   totalProductos: number;
 }) {
@@ -229,14 +232,10 @@ export function PosScreen({
 
   /* Categorías derivadas del catálogo (no viajan aparte): las que tienen al
      menos un producto. El color viene del primer producto que la lleva. */
-  /* ESCALA F2: los chips salen de la lista REAL de categorías del negocio, no de
-     derivarlas del catálogo precargado. Antes, con el precargado acotado, una
-     categoría cuyos productos quedaban fuera del corte simplemente no tenía chip;
-     ahora que los tiles son 24, derivarlas habría dejado 2 o 3 chips. */
-  const categorias = useMemo(
-    () => categories.map((c) => ({ id: c.id, name: c.name, color: null as string | null })),
-    [categories],
-  );
+  /* ESCALA F2 visual: los chips llegan del server con contador REAL
+     (categorias_resumen) y ya ordenados por rotación de 14 días. Derivarlos del
+     catálogo cargado (como antes) garantizaba contadores falsos con catálogo grande. */
+  const categorias = categories;
 
   /* Orden por RITMO de venta, no alfabético: lo que se vende 20 veces por día
      queda en la primera fila y el cajero no lo busca. Empate → alfabético. */
@@ -1172,6 +1171,8 @@ export function PosScreen({
             value={cat}
             onChange={setCat}
             size="lg"
+            maxVisible={6}
+            sinCategoria={sinCategoria}
             className="mt-2.5"
           />
           <p className="mt-1.5 truncate text-xs text-muted-foreground">{storeName}</p>
