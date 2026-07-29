@@ -47,10 +47,14 @@ export async function GET(request: NextRequest) {
 
     const low = (alerts.low_stock ?? []) as { name: string; stock: number }[];
     const exp = (alerts.expiring ?? []) as { name: string; days_left: number }[];
+    /* El array viene acotado (034) para no traer cientos de filas y usar una.
+       El conteo del aviso sale del total REAL: decir "y otros 49" cuando son 300
+       sería cambiar una query pesada por un número falso. */
+    const lowTotal = (alerts.low_stock_total as number | undefined) ?? low.length;
 
     if (low.length > 0) {
       const primero = low[0];
-      const resto = low.length - 1;
+      const resto = lowTotal - 1;
       const stock = Number(primero.stock);
 
       // El stock negativo es válido (se vendió más de lo cargado), pero decir

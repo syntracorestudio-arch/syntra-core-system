@@ -25,7 +25,14 @@ export default async function IngresoPage() {
       .eq("status", "active")
       .order("name")
       .limit(500),
-    supabase.from("product_barcodes").select("product_id, barcode").limit(2000),
+    // ORDER BY explícito: sin él, el truncado a 2000 es NO determinista (Postgres
+    // puede devolver filas distintas en cada request y un código aparecía o no al
+    // azar). Mismo criterio que ya usa el POS. Escala Fase 1.
+    supabase
+      .from("product_barcodes")
+      .select("product_id, barcode")
+      .order("product_id")
+      .limit(2000),
     /* Compras del último año: de acá sale "la última vez pagaste $800, hace 20
        días". Es el radar de inflación en el punto donde entra el dato. */
     supabase

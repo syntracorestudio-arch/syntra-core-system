@@ -40,6 +40,8 @@ export default async function PosPage() {
     { data: clients },
     { data: vendidos },
     { data: settings },
+    { data: categories },
+    { count: totalProductos },
   ] = await Promise.all([
       supabase
         .from("products")
@@ -68,6 +70,21 @@ export default async function PosPage() {
         .select("transfer_alias, confirm_methods, has_posnet")
         .eq("store_id", session.store.id)
         .maybeSingle(),
+      // Categorías EXISTENTES para el alta rápida (escala Fase 1): sin esto, todo lo
+      // que se da de alta en la caja caía en "Sin categoría". Acotada — un negocio con
+      // más de 100 categorías tiene otro problema.
+      supabase
+        .from("categories")
+        .select("id, name, emoji")
+        .eq("status", "active")
+        .order("sort")
+        .limit(100),
+      // Conteo REAL del catálogo (head: no trae filas). Sirve para avisar con
+      // honestidad cuando el precargado se truncó, en vez de mentir en silencio.
+      supabase
+        .from("products")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active"),
     ]);
 
   // La terminal Point se ofrece solo si el negocio la prendió Y quedó una terminal
@@ -129,6 +146,12 @@ export default async function PosPage() {
       posnetActivo={posnetActivo}
       transferAlias={settings?.transfer_alias ?? null}
       confirmMethods={confirmMethods}
+      categories={(categories ?? []).map((c) => ({
+        id: c.id as string,
+        name: c.name as string,
+        emoji: (c.emoji as string | null) ?? null,
+      }))}
+      totalProductos={totalProductos ?? catalog.length}
     />
   );
 }

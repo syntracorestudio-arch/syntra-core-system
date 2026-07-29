@@ -14,14 +14,25 @@ export default async function ProductosPage() {
   const session = await requireOwner();
   const supabase = await createSupabaseServer();
 
-  const [{ data: products }, { data: categories }, { data: vendidos }] = await Promise.all([
+  const [
+    { data: products },
+    { data: categories },
+    { data: vendidos },
+    { count: totalProductos },
+  ] = await Promise.all([
     supabase
       .from("products")
       .select("id, name, emoji, price, cost, stock, low_stock_threshold, category_id, status")
       .eq("status", "active")
       .order("name")
       .limit(500),
-    supabase.from("categories").select("id, name, emoji, color").eq("status", "active").order("sort"),
+    // Cota del baseline: era la única query de categorías sin techo del repo.
+    supabase
+      .from("categories")
+      .select("id, name, emoji, color")
+      .eq("status", "active")
+      .order("sort")
+      .limit(100),
     /* Ritmo de venta de 30 días: convierte "29 u." en una decisión de compra
        ("te dura 6 días"). Acotado por fecha + limit, como manda el baseline. */
     supabase
@@ -30,6 +41,12 @@ export default async function ProductosPage() {
       .eq("sales.status", "completed")
       .gte("sales.sold_at", desdeHace(30))
       .limit(8000),
+    // Conteo REAL: el header mostraba `products.length` y con >500 productos decía
+    // "500 activos" — un número falso, sin aviso de truncado.
+    supabase
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active"),
   ]);
 
   const vendidas30 = new Map<string, number>();
@@ -65,6 +82,7 @@ export default async function ProductosPage() {
         products={rows}
         categories={(categories ?? []) as CategoryRow[]}
         defaultThreshold={3}
+        totalProductos={totalProductos ?? rows.length}
       />
     </AppShell>
   );
