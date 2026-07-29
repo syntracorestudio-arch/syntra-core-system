@@ -118,36 +118,74 @@ set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","r
 
 do $$
 declare
-  v_count int;
+  -- El invariante REAL: cero filas cuyo store_id no sea el del dueño suplantado.
+  -- Antes esto afirmaba conteos EXACTOS ("ve 5 productos"), que mezclaban dos cosas:
+  -- la seguridad (no ver lo ajeno) con el tamaño del fixture. Cualquier dato legítimo
+  -- extra (un seed de escala, una prueba manual) pintaba de rojo el test de SEGURIDAD
+  -- sin que hubiera fuga — y un rojo ambiguo acá es carísimo: o se ignora (y un día
+  -- tapa una fuga real) o dispara una falsa alarma. Ahora un rojo significa FUGA, punto.
+  v_mio   constant uuid := '11111111-1111-1111-1111-111111111111';
+  v_fuga  int;
+  v_mios  int;
 begin
-  select count(*) into v_count from public.products;
-  if v_count <> 5 then
-    raise exception 'FUGA: el dueno de El Trebol ve % productos (deberia ver 5). Producto de otro negocio visible.', v_count;
+  -- products (RLS de tabla)
+  select count(*) filter (where store_id <> v_mio),
+         count(*) filter (where store_id =  v_mio)
+    into v_fuga, v_mios from public.products;
+  if v_fuga <> 0 then
+    raise exception 'FUGA: ve % productos de OTRO negocio', v_fuga;
+  end if;
+  -- Control positivo: si RLS bloqueara TODO, "cero ajenas" pasaría trivialmente.
+  -- El fixture garantiza al menos sus 5 productos propios (>=, no =, para que datos
+  -- legítimos extra no lo rompan).
+  if v_mios < 5 then
+    raise exception 'RLS SOBRE-RESTRICTIVA: el dueno ve % de sus propios productos (fixture: >=5)', v_mios;
   end if;
 
-  select count(*) into v_count from public.stores;
-  if v_count <> 1 then
-    raise exception 'FUGA: ve % negocios (deberia ver 1)', v_count;
+  -- stores
+  select count(*) filter (where id <> v_mio),
+         count(*) filter (where id =  v_mio)
+    into v_fuga, v_mios from public.stores;
+  if v_fuga <> 0 then
+    raise exception 'FUGA: ve % negocios ajenos', v_fuga;
+  end if;
+  if v_mios <> 1 then
+    raise exception 'RLS SOBRE-RESTRICTIVA: no ve su propio negocio';
   end if;
 
-  -- Las dos siguientes prueban security_invoker en las vistas: sin eso
-  -- devuelven filas de los DOS negocios.
-  select count(*) into v_count from public.client_balances;
-  if v_count <> 2 then
-    raise exception 'FUGA EN VISTA client_balances: ve % clientes (deberia ver 2)', v_count;
+  -- Las tres siguientes prueban security_invoker en las vistas: sin eso devuelven
+  -- filas de TODOS los negocios aunque las tablas de base tengan RLS.
+  select count(*) filter (where store_id <> v_mio),
+         count(*) filter (where store_id =  v_mio)
+    into v_fuga, v_mios from public.client_balances;
+  if v_fuga <> 0 then
+    raise exception 'FUGA EN VISTA client_balances: ve % clientes ajenos', v_fuga;
+  end if;
+  if v_mios < 2 then
+    raise exception 'RLS SOBRE-RESTRICTIVA en client_balances: ve % propios (fixture: >=2)', v_mios;
   end if;
 
-  select count(*) into v_count from public.low_stock_products;
-  if v_count <> 1 then
-    raise exception 'FUGA EN VISTA low_stock_products: ve % filas (deberia ver 1)', v_count;
+  select count(*) filter (where store_id <> v_mio),
+         count(*) filter (where store_id =  v_mio)
+    into v_fuga, v_mios from public.low_stock_products;
+  if v_fuga <> 0 then
+    raise exception 'FUGA EN VISTA low_stock_products: ve % filas ajenas', v_fuga;
+  end if;
+  if v_mios < 1 then
+    raise exception 'RLS SOBRE-RESTRICTIVA en low_stock_products: ve % propias (fixture: >=1, Marlboro)', v_mios;
   end if;
 
-  select count(*) into v_count from public.client_ledger;
-  if v_count <> 3 then
-    raise exception 'FUGA EN client_ledger: ve % asientos (deberia ver 3)', v_count;
+  select count(*) filter (where store_id <> v_mio),
+         count(*) filter (where store_id =  v_mio)
+    into v_fuga, v_mios from public.client_ledger;
+  if v_fuga <> 0 then
+    raise exception 'FUGA EN client_ledger: ve % asientos ajenos', v_fuga;
+  end if;
+  if v_mios < 3 then
+    raise exception 'RLS SOBRE-RESTRICTIVA en client_ledger: ve % propios (fixture: >=3)', v_mios;
   end if;
 
-  raise notice 'OK  4. AISLAMIENTO CROSS-TENANT — ni un registro del otro negocio';
+  raise notice 'OK  4. AISLAMIENTO CROSS-TENANT — cero filas ajenas (y RLS no sobre-restrictiva)';
 end $$;
 
 rollback;

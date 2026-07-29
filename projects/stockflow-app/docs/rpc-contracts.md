@@ -275,6 +275,118 @@ Cambios de contrato de la server action (no es RPC de Postgres):
   Fase 2, junto con el índice único de de-duplicación.
 - Resultado: `{ ok: true, id, name, price, existing?: boolean } | { ok: false, error }`.
 
+## productos_buscar / pos_destacados / clientes_buscar — search-first (escala Fase 2, migración 035)
+
+> **Contratos CONGELADOS antes del SQL** (2026-07-29). Fase 2 de
+> `docs/inventario-escala-audit.md`. **El objetivo es el PAYLOAD**: hoy el POS manda
+> 477 KB de documento (500 productos + ~5000 `sale_items` para rankear + ~1750 códigos +
+> ~300 clientes) y Productos manda 772 KB. El ranking, la búsqueda y el filtro pasan al
+> servidor; el cliente deja de recibir el catálogo.
+
+### productos_buscar — búsqueda + paginación server-side
+
+```
+productos_buscar(
+  p_store_id  uuid,
+  p_q         text default null,   -- nombre (contiene, sin acentos) O código (empieza con)
+  p_categoria uuid default null,   -- filtro por categoría; null = todas
+  p_limit     int  default 50,     -- CLAMP duro 1..100
+  p_offset    int  default 0       -- CLAMP >= 0
+) returns jsonb
+```
+
+- **Gate**: `rpc_member` → `not_a_member`. `SECURITY DEFINER`, `stable`, GRANT `authenticated`.
+- **Acotada**: `p_limit` se clampea a 100 pase lo que pase. Devuelve
+  `{ items: [...], total: <int>, limit, offset }` — `total` es el conteo REAL del filtro
+  (para paginar y para no volver a mentir en los contadores).
+- **Semántica de búsqueda** (deliberada, y documentada porque define qué índice sirve):
+  - **nombre**: *contiene*, insensible a mayúsculas **y a acentos**, vía
+    `unaccent_simple(name) like '%q%'`. Mantiene el comportamiento que ya tenía la
+    búsqueda en memoria (`includes`) y **arregla** que era sensible a acentos. Un `like
+    '%…%'` no usa índice: el scan queda acotado al catálogo de UN negocio (~10³ filas),
+    que es barato. Si algún día no alcanza, la salida es `pg_trgm` (Fase 4 del audit).
+  - **código**: *empieza con* (`barcode like 'q%'`), que **sí** usa el índice único
+    `product_barcodes (store_id, barcode)` (001:136). Es lo que hace un cajero: tipea el
+    código desde el principio. El escaneo exacto sigue yendo por `producto_por_codigo`.
+- Solo `status='active'`. Orden: por ritmo de venta 14d desc, y alfabético como desempate.
+- Índice nuevo: **ninguno**. Los dos que hacen falta ya existen
+  (`products_name_idx (store_id, lower(name))` y el UNIQUE de barcodes).
+- **Enmienda al congelar → implementar (2026-07-29):** cada ítem trae también
+  `vendidas_30d`. El listado del dueño muestra cobertura ("te dura 6 días") con ventana
+  de **30 días**, mientras que el orden usa 14d. Se calcula **solo sobre la página ya
+  recortada** (≤100 filas), no sobre todo el filtro — así no se paga un agregado de 30
+  días sobre el catálogo entero para pintar 50 renglones.
+
+### pos_destacados — tiles curados, rankeados en la BASE
+
+```
+pos_destacados(
+  p_store_id uuid,
+  p_limit    int default 24        -- CLAMP duro 1..60
+) returns jsonb
+```
+
+- **Gate** + `SECURITY DEFINER` + `stable` + GRANT `authenticated`.
+- Devuelve el set CHICO que la caja pinta como tiles: los más vendidos de los últimos
+  14 días (**el ranking se calcula en Postgres**, no en el cliente), y si el negocio no
+  tiene ventas todavía cae a los que tienen precio y stock, alfabético — un kiosco nuevo
+  no puede ver una grilla vacía.
+- Cada ítem trae **sus códigos de barras** para que el caché local siga resolviendo el
+  escaneo de un top-seller **sin round-trip** (cobro <15 s intacto). Todo lo demás lo
+  resuelve `producto_por_codigo` (Fase 1) — que **no se toca**.
+- Ventana de 14 días fija: cota de fecha del baseline.
+
+### clientes_buscar — fiado bajo demanda
+
+```
+clientes_buscar(p_store_id uuid, p_q text default null, p_limit int default 20) returns jsonb
+```
+
+- **Gate** + `stable` + GRANT `authenticated`. `p_limit` clamp 1..50.
+- Reemplaza el precargado de ~300 clientes en el POS: la lista se pide **recién cuando el
+  cajero elige "Fiado"**. Devuelve `{id, name, owed, credit_limit}` desde `client_balances`.
+
+### Lo que DEJA de viajar al cliente (la aceptación de Fase 2)
+
+| Precarga | Antes | Después |
+| --- | --- | --- |
+| `products` | 500 filas | los tiles curados (24) |
+| `sale_items` (ranking) | ~5000 filas | **0** — el ranking se calcula en la RPC |
+| `product_barcodes` | ~1750 filas | solo los de los tiles curados |
+| `client_balances` | ~300 filas | **0** — se piden al abrir Fiado |
+
+## categorias_resumen — agregado de categorías (chips + drill-down, migración 036)
+
+> **Contrato CONGELADO antes del SQL** (2026-07-29). Fase 2 visual del audit
+> (`inventario-escala-audit.md` §C1-C3). Es la ÚNICA fuente de verdad de los contadores
+> de categoría: el chip ("Golosinas 34"), el sheet de "Más" y el índice del drill-down
+> (PR2) leen TODOS de acá. **Nunca** se cuenta sobre un subset cargado en el cliente —
+> ese era el bug de diseño que hacía imposible un contador correcto con catálogo grande.
+
+```
+categorias_resumen(p_store_id uuid) returns jsonb
+-- {
+--   categorias: [{ id, name, emoji, color, sort,
+--                  productos, stock_bajo, sin_costo, vendidas_14d }],
+--   sin_categoria: { productos, stock_bajo, sin_costo }   -- la deuda, SIEMPRE visible
+-- }
+```
+
+- **Gate**: `rpc_member` → `not_a_member`. `SECURITY DEFINER`, `stable`, GRANT `authenticated`.
+- **Acotada**: máx **100 categorías** (por `sort`); solo productos `status='active'`;
+  `vendidas_14d` con ventana fija de 14 días (cota de fecha del baseline).
+- `stock_bajo` usa la MISMA definición que la vista `low_stock_products` (umbral propio
+  o default del negocio) — un contador que no coincide con la alerta es un contador roto.
+- Orden de uso: el POS ordena por `vendidas_14d`; Productos por `productos`. El orden lo
+  decide el caller; la RPC devuelve los datos crudos por `sort`.
+
+### productos_buscar — enmienda (misma migración 036)
+
+Se agrega `p_solo_sin_categoria boolean default false`: filtra `category_id is null`
+(el bucket "Sin categoría" del sheet y del índice es seleccionable). Con `true`,
+`p_categoria` se ignora. Drop + create por cambio de firma; los callers de 5 args usan
+argumentos nombrados y no se ven afectados.
+
 ## Cotas del baseline aplicadas a funciones existentes (migración 034)
 
 Se **redefinen** (nunca se editan las migraciones viejas):
