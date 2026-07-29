@@ -5,27 +5,21 @@ import { ProductsClient, type ProductRow, type CategoryRow } from "./products-cl
 
 export const dynamic = "force-dynamic";
 
-/** El reloj es impuro: fuera del cuerpo del componente (patrón de Reportes). */
-function desdeHace(dias: number): string {
-  return new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
-}
-
 export default async function ProductosPage() {
   const session = await requireOwner();
   const supabase = await createSupabaseServer();
 
-  const [
-    { data: products },
-    { data: categories },
-    { data: vendidos },
-    { count: totalProductos },
-  ] = await Promise.all([
-    supabase
-      .from("products")
-      .select("id, name, emoji, price, cost, stock, low_stock_threshold, category_id, status")
-      .eq("status", "active")
-      .order("name")
-      .limit(500),
+  /* ESCALA FASE 2 — search-first. Antes viajaban 500 productos + ~8000 sale_items
+     (772 KB de documento con 2005 SKUs) y el filtrado era en memoria. Ahora la
+     primera página la trae `productos_buscar` y el resto lo pide el cliente. */
+  const [{ data: pagina }, { data: categories }, { count: totalProductos }] = await Promise.all([
+    supabase.rpc("productos_buscar", {
+      p_store_id: session.store.id,
+      p_q: null,
+      p_categoria: null,
+      p_limit: 50,
+      p_offset: 0,
+    }),
     // Cota del baseline: era la única query de categorías sin techo del repo.
     supabase
       .from("categories")
@@ -33,29 +27,29 @@ export default async function ProductosPage() {
       .eq("status", "active")
       .order("sort")
       .limit(100),
-    /* Ritmo de venta de 30 días: convierte "29 u." en una decisión de compra
-       ("te dura 6 días"). Acotado por fecha + limit, como manda el baseline. */
-    supabase
-      .from("sale_items")
-      .select("product_id, qty, sales!inner(sold_at, status)")
-      .eq("sales.status", "completed")
-      .gte("sales.sold_at", desdeHace(30))
-      .limit(8000),
-    // Conteo REAL: el header mostraba `products.length` y con >500 productos decía
-    // "500 activos" — un número falso, sin aviso de truncado.
     supabase
       .from("products")
       .select("id", { count: "exact", head: true })
       .eq("status", "active"),
   ]);
 
-  const vendidas30 = new Map<string, number>();
-  for (const v of vendidos ?? []) {
-    vendidas30.set(v.product_id, (vendidas30.get(v.product_id) ?? 0) + Number(v.qty));
-  }
+  const p0 = (pagina ?? { items: [], total: 0 }) as {
+    items: {
+      id: string;
+      name: string;
+      emoji: string | null;
+      price: string | number;
+      cost: string | number | null;
+      stock: string | number;
+      low_stock_threshold: string | number | null;
+      category_id: string | null;
+      vendidas_30d: string | number;
+    }[];
+    total: number;
+  };
 
-  const rows: ProductRow[] = (products ?? []).map((p) => {
-    const porDia = (vendidas30.get(p.id) ?? 0) / 30;
+  const rows: ProductRow[] = (p0.items ?? []).map((p) => {
+    const porDia = Number(p.vendidas_30d ?? 0) / 30;
     const stock = Number(p.stock);
     return {
       id: p.id,
@@ -64,7 +58,7 @@ export default async function ProductosPage() {
       price: Number(p.price),
       cost: p.cost === null ? null : Number(p.cost),
       stock,
-      lowStockThreshold: p.low_stock_threshold,
+      lowStockThreshold: p.low_stock_threshold === null ? null : Number(p.low_stock_threshold),
       categoryId: p.category_id,
       // Sin ventas en 30 días no hay ritmo que proyectar: preferimos no decir
       // nada antes que inventar una cobertura infinita.

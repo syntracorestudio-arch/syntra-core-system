@@ -302,6 +302,130 @@ export async function buscarProductoPorCodigo(
   };
 }
 
+/**
+ * Búsqueda de productos server-side (escala Fase 2).
+ *
+ * Reemplaza el `.filter()` en memoria sobre el catálogo precargado. Busca por nombre
+ * (contiene, sin acentos) y por código (empieza con), devuelve UNA página acotada y el
+ * total real. Toda la cota y el gate viven en `productos_buscar`.
+ */
+export type ProductoBuscado = {
+  id: string;
+  name: string;
+  emoji: string | null;
+  color: string | null;
+  price: number;
+  cost: number | null;
+  stock: number;
+  lowStockThreshold: number | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  sold14d: number;
+  /** Unidades vendidas en 30 días: alimenta la cobertura ("te dura 6 días"). */
+  sold30d: number;
+};
+
+export type PaginaProductos = {
+  items: ProductoBuscado[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+const buscarSchema = z.object({
+  q: z.string().trim().max(80).nullable().optional(),
+  categoria: z.guid().nullable().optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+  offset: z.number().int().min(0).optional(),
+});
+
+export async function buscarProductos(input: unknown): Promise<PaginaProductos> {
+  const session = await requireSession();
+  const vacia: PaginaProductos = { items: [], total: 0, limit: 50, offset: 0 };
+
+  const parsed = buscarSchema.safeParse(input ?? {});
+  if (!parsed.success) return vacia;
+
+  const supabase = await createSupabaseServer();
+  const { data, error } = await supabase.rpc("productos_buscar", {
+    p_store_id: session.store.id,
+    p_q: parsed.data.q?.trim() || null,
+    p_categoria: parsed.data.categoria ?? null,
+    p_limit: parsed.data.limit ?? 50,
+    p_offset: parsed.data.offset ?? 0,
+  });
+
+  if (error || !data) return vacia;
+
+  const r = data as {
+    items: {
+      id: string;
+      name: string;
+      emoji: string | null;
+      color: string | null;
+      price: string | number;
+      cost: string | number | null;
+      stock: string | number;
+      low_stock_threshold: string | number | null;
+      category_id: string | null;
+      category_name: string | null;
+      vendidas_14d: string | number;
+      vendidas_30d: string | number;
+    }[];
+    total: number;
+    limit: number;
+    offset: number;
+  };
+
+  return {
+    items: (r.items ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      emoji: p.emoji,
+      color: p.color,
+      price: Number(p.price),
+      cost: p.cost === null ? null : Number(p.cost),
+      stock: Number(p.stock),
+      lowStockThreshold: p.low_stock_threshold === null ? null : Number(p.low_stock_threshold),
+      categoryId: p.category_id,
+      categoryName: p.category_name,
+      sold14d: Number(p.vendidas_14d ?? 0),
+      sold30d: Number(p.vendidas_30d ?? 0),
+    })),
+    total: Number(r.total ?? 0),
+    limit: Number(r.limit ?? 50),
+    offset: Number(r.offset ?? 0),
+  };
+}
+
+/**
+ * Clientes con saldo, bajo demanda (escala Fase 2). El POS precargaba ~300 clientes
+ * en cada render para un `<select>` que solo se ve al elegir "Fiado".
+ */
+export type ClienteBuscado = { id: string; name: string; owed: number; creditLimit: number | null };
+
+export async function buscarClientes(q?: string): Promise<ClienteBuscado[]> {
+  const session = await requireSession();
+  const supabase = await createSupabaseServer();
+
+  const { data, error } = await supabase.rpc("clientes_buscar", {
+    p_store_id: session.store.id,
+    p_q: q?.trim() || null,
+    p_limit: 50,
+  });
+
+  if (error || !data) return [];
+
+  return (
+    data as { id: string; name: string; owed: string | number; credit_limit: string | number | null }[]
+  ).map((c) => ({
+    id: c.id,
+    name: c.name,
+    owed: Number(c.owed ?? 0),
+    creditLimit: c.credit_limit === null ? null : Number(c.credit_limit),
+  }));
+}
+
 /** Alta rápida desde la caja: dos campos, menos de 10 segundos (PRD §4). */
 const quickProductSchema = z.object({
   name: z.string().trim().min(1).max(80),

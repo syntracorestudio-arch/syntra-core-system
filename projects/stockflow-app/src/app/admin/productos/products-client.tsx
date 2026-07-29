@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -29,6 +29,7 @@ import {
   bulkReprice,
   adjustStock,
 } from "./actions";
+import { buscarProductos, type ProductoBuscado } from "@/app/pos/actions";
 
 export type ProductRow = {
   id: string;
@@ -136,27 +137,85 @@ export function ProductsClient({
     router.replace(`/admin/productos${params.size ? `?${params}` : ""}`, { scroll: false });
   };
 
-  const visibles = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    let base = products;
-    if (cat) base = base.filter((p) => p.categoryId === cat);
-    if (!q) return base;
-    return base.filter((p) => p.name.toLowerCase().includes(q));
-  }, [busqueda, cat, products]);
+  /* ESCALA FASE 2 — la lista dejó de filtrarse en memoria sobre un precargado de 500.
+     `filas` arranca con la primera página que vino del server component y se
+     re-consulta cuando cambia la búsqueda o la categoría (con debounce). "Cargar más"
+     pide la página siguiente. `totalFiltrado` es el conteo REAL del filtro actual. */
+  const [filas, setFilas] = useState<ProductRow[]>(products);
+  const [totalFiltrado, setTotalFiltrado] = useState(totalProductos);
+  const [cargando, setCargando] = useState(false);
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const primeraCarga = useRef(true);
 
-  const sinCosto = products.filter((p) => p.cost === null).length;
+  const mapear = (items: ProductoBuscado[]): ProductRow[] =>
+    items.map((p) => {
+      const porDia = p.sold30d / 30;
+      return {
+        id: p.id,
+        name: p.name,
+        emoji: p.emoji,
+        price: p.price,
+        cost: p.cost,
+        stock: p.stock,
+        lowStockThreshold: p.lowStockThreshold,
+        categoryId: p.categoryId,
+        diasCobertura: porDia > 0 ? Math.floor(p.stock / porDia) : null,
+      };
+    });
+
+  useEffect(() => {
+    // La primera página ya la trajo el server component: no re-consultar al montar.
+    if (primeraCarga.current) {
+      primeraCarga.current = false;
+      return;
+    }
+    let vivo = true;
+    const t = setTimeout(() => {
+      setCargando(true);
+      buscarProductos({ q: busqueda.trim() || null, categoria: cat, limit: 50, offset: 0 })
+        .then((r) => {
+          if (!vivo) return;
+          setFilas(mapear(r.items));
+          setTotalFiltrado(r.total);
+        })
+        .catch(() => vivo && setFilas([]))
+        .finally(() => vivo && setCargando(false));
+    }, 200);
+    return () => {
+      vivo = false;
+      clearTimeout(t);
+    };
+  }, [busqueda, cat]);
+
+  function cargarMas() {
+    setCargandoMas(true);
+    buscarProductos({ q: busqueda.trim() || null, categoria: cat, limit: 50, offset: filas.length })
+      .then((r) => {
+        setFilas((prev) => [...prev, ...mapear(r.items)]);
+        setTotalFiltrado(r.total);
+      })
+      .catch(() => {})
+      .finally(() => setCargandoMas(false));
+  }
+
+  const visibles = filas;
+  const hayMas = filas.length < totalFiltrado;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
       <div className="mb-5">
         <PageHeader
           title="Productos"
-          /* El total REAL, no `products.length`: el listado viene acotado a 500 y el
-             header decía "500 activos" con 1.200 en el catálogo. Cuando hay truncado
-             se dice explícitamente en vez de mentir en silencio (escala Fase 1). */
-          subtitle={`${totalProductos} activos${
-            totalProductos > products.length ? ` · mostrando ${products.length}` : ""
-          }${sinCosto > 0 ? ` · ${sinCosto} sin costo cargado` : ""}`}
+          /* El total REAL del catálogo, y cuando hay un filtro activo, cuántos
+             coinciden. Ya no se cuenta "sin costo" acá: con paginación server-side
+             ese número solo podría calcularse sobre la página visible, y un conteo
+             parcial presentado como total es exactamente lo que Fase 1 vino a sacar.
+             El dato completo vive en Reportes → salud de datos. */
+          subtitle={
+            busqueda.trim() || cat
+              ? `${totalFiltrado} de ${totalProductos} productos`
+              : `${totalProductos} activos`
+          }
           icon={Package}
           art="productos"
         >
@@ -250,10 +309,24 @@ export function ProductsClient({
         })}
         {visibles.length === 0 && (
           <li className="px-4 py-10 text-center text-sm text-muted-foreground">
-            No hay productos que coincidan.
+            {cargando ? "Buscando…" : "No hay productos que coincidan."}
           </li>
         )}
       </ul>
+
+      {/* Paginación real (escala Fase 2): reemplaza el precargado de 500. Se pide de
+          a 50; "mostrar más" en vez de páginas numeradas, que en mobile es veneno. */}
+      {hayMas && (
+        <button
+          type="button"
+          onClick={cargarMas}
+          disabled={cargandoMas}
+          className="mt-3 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-border text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+        >
+          {cargandoMas && <LoaderCircle className="size-4 animate-spin" />}
+          Mostrar más ({visibles.length} de {totalFiltrado})
+        </button>
+      )}
 
       {remarcando && (
         <RepriceDialog

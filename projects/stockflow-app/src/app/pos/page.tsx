@@ -6,16 +6,6 @@ import { getStoreMpAuth } from "@/lib/mercadopago";
 export const dynamic = "force-dynamic";
 
 /**
- * Ventana de ritmo de venta. 14 días es lo que hace falta para que la grilla
- * se ordene por lo que REALMENTE se vende (la Coca y el Marlboro en la primera
- * fila, sin buscar). Va en una función y no en el cuerpo del componente porque
- * el reloj es impuro — mismo patrón que `rango()` en Reportes.
- */
-function desdeHace(dias: number): string {
-  return new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
-}
-
-/**
  * Caja. Trae el catálogo del negocio (la RLS ya filtra por tenant, pero igual
  * acotamos a activos) y los códigos de barras para resolver el escaneo sin ir a
  * la base en cada beep.
@@ -32,39 +22,24 @@ export default async function PosPage() {
   const mpAuth = await getStoreMpAuth(session.store.id);
   const mpConectado = mpAuth !== null;
 
-  const desde = desdeHace(14);
 
+  /* ESCALA FASE 2 — search-first. La caja YA NO precarga el catálogo.
+     Antes viajaban 500 productos + ~5000 sale_items (solo para rankear en el
+     cliente) + ~1750 códigos + ~300 clientes = 477 KB de documento con 2005 SKUs.
+     Ahora:
+       · los tiles vienen ya rankeados de `pos_destacados` (set chico, con SUS
+         códigos para que escanear un top-seller siga sin round-trip),
+       · buscar va a `productos_buscar` (server-side),
+       · escanear lo que no está en los tiles lo resuelve `producto_por_codigo`
+         (Fase 1, intacto),
+       · los clientes de fiado se piden recién al abrir ese medio de pago. */
   const [
-    { data: products },
-    { data: barcodes },
-    { data: clients },
-    { data: vendidos },
+    { data: destacados },
     { data: settings },
     { data: categories },
     { count: totalProductos },
   ] = await Promise.all([
-      supabase
-        .from("products")
-        .select("id, name, emoji, color, price, stock, category_id, categories(name, color)")
-        .eq("status", "active")
-        .order("name")
-        .limit(500),
-      // ORDER BY para que, si un catálogo grande supera el tope, el truncado sea
-      // determinista (mismos códigos siempre) y no arbitrario. T3.
-      supabase.from("product_barcodes").select("product_id, barcode").order("product_id").limit(2000),
-      /* Los saldos vienen de la vista, no de `clients`: el cajero tiene que ver
-         cuánto debe cada uno ANTES de fiarle, que es cuando se decide. */
-      supabase
-        .from("client_balances")
-        .select("client_id, name, credit_limit, balance")
-        .order("name")
-        .limit(300),
-      supabase
-        .from("sale_items")
-        .select("product_id, qty, sales!inner(sold_at, status)")
-        .eq("sales.status", "completed")
-        .gte("sales.sold_at", desde)
-        .limit(5000),
+      supabase.rpc("pos_destacados", { p_store_id: session.store.id, p_limit: 24 }),
       supabase
         .from("store_settings")
         .select("transfer_alias, confirm_methods, has_posnet")
@@ -79,8 +54,8 @@ export default async function PosPage() {
         .eq("status", "active")
         .order("sort")
         .limit(100),
-      // Conteo REAL del catálogo (head: no trae filas). Sirve para avisar con
-      // honestidad cuando el precargado se truncó, en vez de mentir en silencio.
+      // Conteo REAL del catálogo (head: no trae filas), para decir cuántos productos
+      // hay de verdad sin traer ninguno.
       supabase
         .from("products")
         .select("id", { count: "exact", head: true })
@@ -101,45 +76,38 @@ export default async function PosPage() {
     account: cm.account ?? true,
   };
 
-  const byProduct = new Map<string, string[]>();
-  for (const b of barcodes ?? []) {
-    const list = byProduct.get(b.product_id) ?? [];
-    list.push(b.barcode);
-    byProduct.set(b.product_id, list);
-  }
-
-  const ritmo = new Map<string, number>();
-  for (const v of vendidos ?? []) {
-    ritmo.set(v.product_id, (ritmo.get(v.product_id) ?? 0) + Number(v.qty));
-  }
-
-  const catalog: PosProduct[] = (products ?? []).map((p) => {
-    const category = p.categories as unknown as { name: string; color: string } | null;
-    return {
-      id: p.id,
-      name: p.name,
-      emoji: p.emoji,
-      color: p.color ?? category?.color ?? null,
-      price: Number(p.price),
-      stock: Number(p.stock),
-      categoryId: p.category_id,
-      categoryName: category?.name ?? null,
-      barcodes: byProduct.get(p.id) ?? [],
-      sold14d: ritmo.get(p.id) ?? 0,
-    };
-  });
+  /* Los destacados llegan YA rankeados y con sus códigos: el cliente no calcula
+     nada, solo mapea. Es todo el catálogo que viaja en el primer render. */
+  const catalog: PosProduct[] = (
+    (destacados ?? []) as {
+      id: string;
+      name: string;
+      emoji: string | null;
+      color: string | null;
+      price: string | number;
+      stock: string | number;
+      category_id: string | null;
+      category_name: string | null;
+      vendidas_14d: string | number;
+      barcodes: string[] | null;
+    }[]
+  ).map((p) => ({
+    id: p.id,
+    name: p.name,
+    emoji: p.emoji,
+    color: p.color,
+    price: Number(p.price),
+    stock: Number(p.stock),
+    categoryId: p.category_id,
+    categoryName: p.category_name,
+    barcodes: p.barcodes ?? [],
+    sold14d: Number(p.vendidas_14d ?? 0),
+  }));
 
   return (
     <PosScreen
       storeName={session.store.name}
       products={catalog}
-      clients={(clients ?? []).map((c) => ({
-        id: c.client_id as string,
-        name: c.name as string,
-        // El ledger guarda la deuda en negativo; acá la exponemos en positivo.
-        owed: Math.max(0, -Number(c.balance ?? 0)),
-        creditLimit: c.credit_limit === null ? null : Number(c.credit_limit),
-      }))}
       canSellOnCredit={session.member.role === "owner" || session.member.can_sell_on_credit}
       isOwner={session.member.role === "owner"}
       mpConectado={mpConectado}

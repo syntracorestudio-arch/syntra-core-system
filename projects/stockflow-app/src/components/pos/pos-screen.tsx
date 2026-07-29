@@ -36,6 +36,8 @@ import {
   buscarEnCatalogo,
   buscarPorNombre,
   buscarProductoPorCodigo,
+  buscarProductos,
+  buscarClientes,
 } from "@/app/pos/actions";
 import {
   vincularVenta,
@@ -101,7 +103,6 @@ type Medio = (typeof MEDIOS)[number]["key"];
 export function PosScreen({
   storeName,
   products,
-  clients,
   canSellOnCredit,
   isOwner,
   mpConectado,
@@ -112,8 +113,8 @@ export function PosScreen({
   totalProductos,
 }: {
   storeName: string;
+  /** Tiles curados: los más vendidos, ya rankeados por la base (escala Fase 2). */
   products: PosProduct[];
-  clients: Client[];
   canSellOnCredit: boolean;
   isOwner: boolean;
   /** ¿El negocio conectó su cuenta de MercadoPago? Decide si el QR lo genera la app. */
@@ -156,6 +157,14 @@ export function PosScreen({
   const [camaraAbierta, setCamaraAbierta] = useState(false);
   /** Consultando un código contra la base porque el caché local no lo tenía. */
   const [buscandoCodigo, setBuscandoCodigo] = useState(false);
+  /* ESCALA F2: resultados de la búsqueda server-side. null = no hay búsqueda activa
+     (se muestran los destacados). Array vacío = buscó y no encontró nada. */
+  const [resultados, setResultados] = useState<PosProduct[] | null>(null);
+  const [totalResultados, setTotalResultados] = useState(0);
+  const [buscandoProductos, setBuscandoProductos] = useState(false);
+  /** Clientes de fiado: se cargan bajo demanda, no en cada render. */
+  const [clients, setClients] = useState<Client[]>([]);
+  const [clientsCargados, setClientsCargados] = useState(false);
   const [aviso, setAviso] = useState<{
     tone: "ok" | "warn" | "error";
     text: string;
@@ -189,35 +198,92 @@ export function PosScreen({
 
   /* Categorías derivadas del catálogo (no viajan aparte): las que tienen al
      menos un producto. El color viene del primer producto que la lleva. */
-  const categorias = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; color: string | null }>();
-    for (const p of products) {
-      if (p.categoryId && p.categoryName && !map.has(p.categoryId)) {
-        map.set(p.categoryId, { id: p.categoryId, name: p.categoryName, color: p.color });
-      }
-    }
-    return [...map.values()];
-  }, [products]);
+  /* ESCALA F2: los chips salen de la lista REAL de categorías del negocio, no de
+     derivarlas del catálogo precargado. Antes, con el precargado acotado, una
+     categoría cuyos productos quedaban fuera del corte simplemente no tenía chip;
+     ahora que los tiles son 24, derivarlas habría dejado 2 o 3 chips. */
+  const categorias = useMemo(
+    () => categories.map((c) => ({ id: c.id, name: c.name, color: null as string | null })),
+    [categories],
+  );
 
   /* Orden por RITMO de venta, no alfabético: lo que se vende 20 veces por día
      queda en la primera fila y el cajero no lo busca. Empate → alfabético. */
-  const visibles = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    let base = products;
-    if (cat) base = base.filter((p) => p.categoryId === cat);
-    if (q) {
-      base = base.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.barcodes.some((b) => b.includes(q)),
-      );
-    }
-    return [...base].sort(
-      (a, b) => b.sold14d - a.sold14d || a.name.localeCompare(b.name, "es"),
-    );
-  }, [busqueda, cat, products]);
+  /* ESCALA FASE 2 — la búsqueda dejó de ser un filter() sobre el catálogo entero.
+     Sin texto ni categoría: se muestran los destacados que ya vinieron rankeados de
+     la base. Con texto o categoría: la lista la trae `buscarProductos` (server-side),
+     con debounce para no disparar una query por tecla. */
+  const buscando = busqueda.trim().length > 0 || cat !== null;
+
+  useEffect(() => {
+    const q = busqueda.trim();
+    let vivo = true;
+    // Todo el estado se toca DENTRO del timeout: nada de setState síncrono en el
+    // effect (dispara renders en cascada).
+    const t = setTimeout(() => {
+      if (!vivo) return;
+      if (!buscando) {
+        setResultados(null);
+        setTotalResultados(0);
+        return;
+      }
+      setBuscandoProductos(true);
+      buscarProductos({ q: q || null, categoria: cat, limit: 48, offset: 0 })
+        .then((r) => {
+          if (!vivo) return;
+          setResultados(
+            r.items.map((p) => ({
+              id: p.id,
+              name: p.name,
+              emoji: p.emoji,
+              color: p.color,
+              price: p.price,
+              stock: p.stock,
+              categoryId: p.categoryId,
+              categoryName: p.categoryName,
+              barcodes: [],
+              sold14d: p.sold14d,
+            })),
+          );
+          setTotalResultados(r.total);
+        })
+        .catch(() => {
+          if (vivo) setResultados([]);
+        })
+        .finally(() => {
+          if (vivo) setBuscandoProductos(false);
+        });
+    }, 180);
+    return () => {
+      vivo = false;
+      clearTimeout(t);
+    };
+  }, [busqueda, cat, buscando]);
+
+  const visibles = buscando ? (resultados ?? []) : products;
 
   const total = carrito.reduce((a, l) => a + l.producto.price * l.cantidad, 0);
   const unidades = carrito.reduce((a, l) => a + l.cantidad, 0);
   const cliente = clienteId ? (clients.find((c) => c.id === clienteId) ?? null) : null;
+
+  /* Los clientes de fiado se piden recién cuando el cajero elige ese medio: antes
+     viajaban ~300 en CADA render del POS para un <select> que casi no se abre. */
+  useEffect(() => {
+    if (medio !== "account" || clientsCargados) return;
+    let vivo = true;
+    buscarClientes()
+      .then((cs) => {
+        if (!vivo) return;
+        setClients(cs);
+        setClientsCargados(true);
+      })
+      .catch(() => {
+        if (vivo) setClientsCargados(true);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [medio, clientsCargados]);
 
   const agregar = useCallback((producto: PosProduct) => {
     // Escanear/agregar durante la confirmación = "me faltó un producto": cancela
@@ -1070,19 +1136,25 @@ export function PosScreen({
           </div>
         )}
 
-        {/* Aviso HONESTO de truncado: el precargado está acotado a 500. Antes esto
-            era silencioso y el cajero creía tener todo el catálogo a la vista.
-            Escanear y buscar igual llegan a todo — es la grilla la que está recortada.
-            Provisional: la búsqueda server-side de Fase 2 lo elimina. */}
-        {totalProductos > products.length && (
-          <div className="mx-4 mt-3 rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground ring-1 ring-border">
-            Mostrando {products.length} de {totalProductos} productos. Escaneá o buscá por
-            nombre para llegar al resto.
-          </div>
-        )}
+        {/* Encabezado de la grilla: qué está viendo el cajero. Sin búsqueda son los
+            más vendidos (ya no "los primeros 500 alfabéticos"); con búsqueda, cuántos
+            resultados hay de verdad. La búsqueda server-side reemplazó al aviso de
+            truncado de Fase 1: ya no hay catálogo recortado que confesar. */}
+        <div className="mx-4 mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span>
+            {buscando
+              ? buscandoProductos
+                ? "Buscando…"
+                : `${totalResultados} ${totalResultados === 1 ? "resultado" : "resultados"}${
+                    totalResultados > visibles.length ? ` · mostrando ${visibles.length}` : ""
+                  }`
+              : `Lo que más vendés · ${totalProductos} productos en el catálogo`}
+          </span>
+          {buscandoProductos && <LoaderCircle className="size-3.5 shrink-0 animate-spin" />}
+        </div>
 
-        {/* El código escaneado no estaba en el catálogo precargado: se está
-            resolviendo contra la base antes de decidir si ofrecer el alta. */}
+        {/* El código escaneado no estaba entre los destacados: se está resolviendo
+            contra la base antes de decidir si ofrecer el alta. */}
         {buscandoCodigo && (
           <div className="mx-4 mt-3 flex items-center gap-2 rounded-lg bg-secondary/60 px-3 py-2 text-sm text-muted-foreground ring-1 ring-border">
             <LoaderCircle className="size-4 animate-spin" />
@@ -1090,17 +1162,50 @@ export function PosScreen({
           </div>
         )}
 
-        {visibles.length === 0 ? (
-          <div className="grid flex-1 place-items-center px-8 py-16 text-center">
-            <div>
-              {products.length === 0 && (
+        {visibles.length === 0 && !buscandoProductos ? (
+          <div className="grid flex-1 place-items-center px-6 py-12 text-center">
+            <div className="w-full max-w-sm">
+              {totalProductos === 0 && (
                 <EmptyArt name="productos" alt="Una repisa vacía con un escáner" />
               )}
-              <p className="text-sm text-muted-foreground">
-                {products.length === 0
-                  ? "Todavía no cargaste productos. Escaneá uno y lo damos de alta en 10 segundos."
-                  : "Ningún producto coincide con la búsqueda."}
-              </p>
+              {totalProductos === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Todavía no cargaste productos. Escaneá uno y lo damos de alta en 10 segundos.
+                </p>
+              ) : (
+                /* Sin resultados NO puede ser un cartel muerto: el cajero está con
+                   gente esperando. Las dos salidas reales van acá, a un toque. */
+                <>
+                  <p className="mb-1 text-sm font-medium text-foreground">
+                    No encontré “{busqueda.trim()}”
+                  </p>
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    Dalo de alta ahora y seguí cobrando.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nombre = busqueda.trim();
+                        setAltaRapida({
+                          barcode: null,
+                          sugerencia: nombre ? { nombre, marca: null } : null,
+                        });
+                      }}
+                      className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                    >
+                      <PackagePlus className="size-4" /> Darlo de alta
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBusqueda("")}
+                      className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    >
+                      Volver a los más vendidos
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ) : (
