@@ -345,6 +345,11 @@ la promesa comercial (claim a confirmar, §G).
 
 ## F. Plan por fases
 
+> **Nota (2026-07-30):** para el kiosco CERO DATOS — probablemente la mayoría del
+> mercado — el §H re-scopea esta sección: el pulido de la captura orgánica (F1a)
+> va ANTES que la pantalla "Carga inicial" (que se degrada a F1c) y F2 se
+> pospone detrás de F3. F0 no cambia: sigue siendo el prerequisito de todo.
+
 Reglas transversales: migraciones **aditivas** desde **037** (030-033 siguen
 reservadas por la branch de pagos parkeada), **contrato congelado en
 `rpc-contracts.md` antes de cada fase** (sumando los `catalogo_*` que nunca se
@@ -407,6 +412,220 @@ server-side).
 6. ¿Confirmás el claim comercial **"vendés la misma tarde"**? (sostenible según
    la matemática de §C.4)
 7. Para F2: ¿autorizás una dependencia de parsing **xlsx** o mantenemos solo CSV?
+
+**Agregadas por el análisis cero-datos (§H):**
+
+8. ¿OK **suprimir el push/email diario de stock bajo** para productos sin
+   baseline de stock? (cambia el comportamiento de una alerta que ya corre —
+   hoy a un kiosco orgánico le diría "te quedaste sin Coca-Cola… y otros 399
+   bajo mínimo" TODAS las mañanas)
+9. El techo de **≤10 s por miss en mostrador** es presupuesto de diseño, no dato
+   medido — ¿lo validamos con el primer cliente real?
+10. ¿OK el **protocolo comercial C-lite** (visita de 60-90 min: cigarrillos con
+    conteo + setup; el resto entra vendiendo; caminata completa como opcional
+    de semana 3) y su framing en la venta?
+11. ¿OK el **reorden de fases** F1a→F1b→F1c con F2 (CSV) detrás de F3?
+
+---
+
+## H. El kiosco CERO DATOS — onboardear vendiendo
+
+> **Este es probablemente el segmento MAYORITARIO del mercado target**: papel y
+> lápiz, sin control de stock, nada que importar. No es un edge case del plan —
+> es el caso central, y cambia la recomendación de F1.
+
+### H.1 Por qué la caminata de 3-4 h es la venta equivocada acá
+
+Sin datos previos no hay import: el catálogo solo puede nacer capturando ítems.
+Pero el kiosquero cero-datos es también el más escéptico — no decidió todavía
+que confía en el sistema, y una inversión de 3-4 h ANTES de ver el primer valor
+es exactamente lo que no va a bancar. La tesis del doc ("listo para vender ≠
+inventario completo") deja de ser una concesión y pasa a ser **el modelo de
+onboarding**: cada producto se toca UNA vez — cuando se vende o cuando se
+repone — y el sistema demuestra valor desde la primera venta.
+
+### H.2 Tres modelos, cuantificados
+
+Supuestos declarados: ~1000 SKUs en góndola · ~300 líneas de venta/día · Pareto
+top 200 SKUs ≈ 80% de las líneas (cigarrillos solos 25-35% en kiosco AR) ·
+**SEPA corrido (F0) = ~80% de hit en scan-miss** — sin F0 toda la fricción se
+duplica: F0 es aún MÁS crítico en el camino orgánico que en la caminata.
+
+| | **A — Caminata completa** | **B — Orgánico puro** | **C — Híbrido (top ~180 + orgánico)** |
+|---|---|---|---|
+| Upfront | ~3 h 40 | **~15 min** | **~1 h - 1 h 15** |
+| Fricción mostrador día 1 | ~0 | ~150 misses ≈ 25 min (½ de las líneas) | ~55 misses ≈ 9 min (~18%) |
+| Fricción día 7 / 14 | ~0 | ~7% / ~2% de líneas | ~3% / ~1% |
+| Catálogo ≥90% automático | hora 0 | día 10-14 | **día 4-7** |
+| "Vendido hoy" / medios de pago | día 1 | día 1 | día 1 |
+| Margen confiable | día 1 (~80% facturación) | converge con restocks (~70% día 21) | **día 1 (~80%)** |
+| Low-stock / reponer confiable | solo cigarrillos día 1 (el conteo se difiere igual) | **NUNCA por sí solo** (ver H.5) | cigarrillos día 1; resto = B |
+| Costo psicológico | 3 h 40 ANTES de ver valor | cero upfront; el sistema "molesta" cada 2 ventas el día 1 | 1 h; valor visible esa tarde |
+
+**El hallazgo honesto que decide:** en señales de STOCK, A casi no le gana a C —
+el propio plan difiere el conteo salvo cigarrillos, así que la caminata completa
+tampoco compra alertas de reposición. Sus 2 h 30 extra compran solo margen de la
+cola (~20% de la facturación) y cero fricción la primera semana. **C captura
+~80% del beneficio al ~30% del costo; B-pulido captura el resto vendiendo.**
+
+### H.3 Reuse audit del camino orgánico: mayormente CONSTRUIDO
+
+Lo que ya existe (verificado):
+- **Scan-miss → alta rápida**: nombre SEPA prefilled ("Lo reconocimos…"), precio
+  con autoFocus, typeahead del catálogo, contribute-back silencioso, dedup
+  server-side, y el producto cae al carrito con la venta siguiendo. HIT real ≈
+  **5-8 s**; miss 12-20 s.
+- **Monto libre** como escape del mostrador (primario en el empty-state a
+  propósito): cobra sin bloquear la venta, snapshot `product_name` guardado.
+- Diferencial de mercado real: **Loyverse no tiene alta-en-venta** (hay que ir
+  al back office) y el Auto Create de Square generó quejas por PISAR nombres
+  propios — nuestro diseño (prefill editable + `catalogo_aportar` que nunca
+  pisa) ya es el correcto.
+
+Lo roto o faltante para que "onboardear vendiendo" sea genuinamente bueno:
+
+| # | Gap | Detalle |
+|---|---|---|
+| 1 | **Gate de cajero UI ≠ server** | La UI del POS exige owner (`canCreate={isOwner}`) pero el server acepta `can_receive_stock` (default true). Un cajero con permiso ve "No tenés permiso…" con el scanner muerto en plena venta. **Fix de 1 línea que desbloquea el modelo entero** cuando el dueño no atiende el mostrador. |
+| 2 | Sin captura de costo | Alta rápida no captura costo (correcto en mostrador) y no existe NINGÚN momento posterior que lo pida → backfill post-venta (H.6). |
+| 3 | `price_updated_at` nunca se setea | Todo el catálogo orgánico nace marcado "precio viejo" en `data_health.stale_prices` (falso positivo latente — hoy no se renderiza; arreglar antes de que se muestre). |
+| 4 | Typeahead roto en alta por texto | Ya identificado en §A.3; en orgánico duele más. |
+| 5 | Sin indicador de progreso | Nada trackea completitud ni celebra el llenado (H.6). |
+| 6 | Sin agregación de montos libres | El snapshot existe pero nada lo agrega — la "lista de deuda que se escribe sola" hay que construirla. |
+| 7 | **Las señales de stock mienten** | Ver H.4 — el bloqueante más serio. |
+
+### H.4 Las señales que mienten con catálogo a medias — "modo puesta en marcha"
+
+Un producto nacido por alta rápida arranca `stock 0, cost null, sin categoría` y
+vende hacia stock NEGATIVO (permitido por default). Para el sistema de señales,
+ese estado normal es una emergencia:
+
+| Señal | Qué muestra en falso (kiosco orgánico ~400 SKUs) | Acción |
+|---|---|---|
+| `low_stock_products` (umbral default 3) | **100% del catálogo desde la creación** (`0 ≤ 3` antes de la primera venta) | raíz — filtrar por `stock_confiable` |
+| Push/email diario 09:00 | *"Te quedaste sin Coca-Cola 500ml… Y otros 399 productos bajo mínimo"* — **todas las mañanas** (dedupe por día) | **suprimir** no-confiables (la señal más dañina: día 2 = desinstalación) |
+| Dashboard "Para reponer" | catálogo entero; `dias_restantes` **negativo en rojo** | filtrar por confiables + reframe del vacío |
+| Grilla del POS | **cada producto orgánico pintado "sin stock"** en la pantalla del cajero | badge "sin contar" en vez del tratamiento agotado |
+| `shelf_value` | **$0** con la góndola físicamente llena | suprimir durante el modo |
+| `by_category` | una sola barra "Sin categoría" = 100% (drill-down neutralizado) | se cura solo con el categorizar-en-masa semanal |
+| `dead_stock` | — | **ya está bien guardado** (stock>0 + cost + 30 días): es el modelo a imitar |
+| `top_units`, "Vendido hoy", medios de pago | correctos desde la venta 1 | **intactos — es lo que ve el escéptico el día 1** |
+| `cost_coverage` + banner "Cargar costos (N)" | verdad útil | intacto — motivador de progreso |
+
+**Mecanismo:** flag por producto **`stock_confiable`** = tiene al menos un
+asiento de baseline en el ledger (`initial`, conteo/ajuste, o "total en góndola"
+de H.5). Derivable del ledger — sin migración de schema obligatoria; si se
+materializa, es aditivo (037+). Fin del modo: **automático y por producto** (el
+flag prende con su primer baseline); la card de progreso se retira sola (H.6).
+Sin switch manual. Nota: el único eje de madurez que existe hoy (`days_of_use`
+de Reportes) va por edad de VENTA — el onboarding orgánico es exactamente edad
+alta + catálogo incompleto, el eje nuevo es completitud.
+
+### H.5 La pieza de convergencia: "total en góndola" en Recibir mercadería
+
+"Recibir mercadería" con delta **no alcanza** para el orgánico: el producto nace
+en 0 → vende a −8 → ingreso +30 → el sistema dice 22 pero la góndola tiene
+`inicial_desconocido + 22`. **El corrimiento es permanente: sin baseline, el
+low-stock orgánico no converge NUNCA.** El fix es un campo opcional en el propio
+ingreso (el dueño ya está parado frente al estante reponiendo):
+
+```
+Coca-Cola 500ml · stock según sistema: -8
+Llegaron: [ 30 ]
+¿Cuántos tenés EN TOTAL ahora, contando lo que llegó? [ 41 ]  ← opcional
+```
+
+Un campo: escribe ajuste-a-total (baseline) + costo del ingreso, y ese producto
+prende `stock_confiable` para siempre. Con esto el orgánico converge producto a
+producto en 2-6 semanas. Complemento opcional: micro-conteo "contá un estante"
+= la misma pantalla de sesión de F1c con el conteo prendido, framing *"cada
+estante que contás enciende sus alertas"*.
+
+### H.6 Recomendación día-1 para el kiosco cero-datos
+
+**Protocolo C-lite (60-90 min) + la maquinaria orgánica como LA inversión de
+producto.** La visita: setup (margen default, redondeo, tiles de sueltos) →
+**cigarrillos como bloque CON conteo** (única categoría donde las señales de
+stock pagan día 1: alto valor, precio volátil, sensible a robo) → bebidas si
+sobra tiempo → **todo lo demás entra vendiendo**. Framing comercial: *"Hoy
+cargamos lo que más plata mueve. El resto se carga solo: cada producto lo tocás
+UNA vez."* La caminata completa queda como opcional de semana 3 para un dueño ya
+convencido — casi siempre innecesaria.
+
+Por qué la inversión de código va al orgánico y no a la pantalla dedicada: **el
+mostrador pulido sirve al 100% de los clientes para siempre** (todo producto
+nuevo del universo entra por ahí, también post-onboarding); la pantalla de
+sesión se usa una vez por cliente.
+
+Las piezas de producto (mobile-first):
+- **First-sale sheet** (pulir alta rápida): sheet desde abajo con **numpad
+  grande** (el del monto libre), **precio como ÚNICO campo** — la categoría acá
+  SÍ se difiere (la regla del chip sticky era para la caminata; en mostrador el
+  orden es aleatorio y la absorbe el categorizar-en-masa semanal) — y escape
+  **"Cobrar sin cargar"** (monto libre con la etiqueta SEPA prefilled en el
+  snapshot → alimenta la lista de deuda en vez de perderse). Presupuesto: **≤10 s
+  por miss, techo duro 15 s** (menos que un pago con tarjeta); hit-SEPA ≈ 6-8 s.
+- **Backfill de costo post-venta, en momento muerto**: chip no-bloqueante tras
+  cerrar ticket — *"3 productos nuevos hoy · ¿les ponés costo?"* → filas
+  `[nombre | $costo | skip]`. Nunca interrumpe el próximo scan.
+- **Card "Puesta en marcha"** (dashboard, arriba): la métrica es el **% de
+  líneas de HOY que salieron con scan automático** — nunca una barra contra
+  "1000 productos" (denominador fantasma que deprime); el % sube solo (~50% día
+  1 → ~75% día 3 → ~93% día 7). *"Día 3 · 148 productos cargados · 84% de tus
+  ventas de hoy salieron automáticas"* + accesos a costos/categorizar. Retiro
+  automático: 7 días ≥95% → "Tu catálogo ya trabaja solo". En el POS solo un
+  toast al cierre de caja ("Hoy cargaste 22 productos vendiendo").
+
+### H.7 Impacto en F1 — re-scope
+
+**Respuesta directa: pulir la captura orgánica va ANTES que la pantalla "Carga
+inicial", y la pantalla se degrada a un modo fino que reusa lo mismo.** No se
+elimina (el bloque de cigarrillos del día 1 y los micro-conteos la necesitan),
+pero deja de ser el corazón.
+
+- **F0 — SEPA: intocado y MÁS crítico.** En orgánico cada miss ocurre con un
+  cliente esperando; sin prefill el alta revienta el presupuesto de latencia.
+- **F1a (NUEVO, primero, ~2-3 días): pulido orgánico.** First-sale sheet +
+  escape con etiqueta + backfill de costo + `stock_confiable` + gating de
+  señales (cron, dashboard, POS grid, shelf_value) + card "Puesta en marcha".
+  Los fixes que ya estaban en F1 viajan acá (typeahead, revoke `anon`, +
+  **gate de cajero UI≠server** y **`price_updated_at` en el alta**).
+- **F1b (~1 día): "total en góndola" en Recibir mercadería.** RPC de
+  ajuste-a-total + costo atómico (aditiva, TDD, contrato congelado antes).
+- **F1c (post-go-live): pantalla de sesión** fina reusando los componentes de
+  F1a — unifica caminata inicial, bloque de cigarrillos y micro-conteos. Para
+  el primer cliente alcanza su versión mínima.
+- **F2 (CSV): detrás de F3** — irrelevante para el segmento mayoritario; se
+  activa si un cliente concreto trae archivo.
+- **F3 (Ingreso a escala): sube de prioridad** — Ingreso es el motor de
+  convergencia del orgánico y F1b vive adentro; conviene sanearlo cerca.
+
+### H.8 NO construir (además de lo del §F)
+
+Barra de progreso contra un total fantasma · gamificación (rachas/badges) ·
+prompts de costo bloqueantes en mostrador · wizard "contá todo para activar
+alertas" · switch manual global de "modo puesta en marcha" (todo automático por
+producto) · campo categoría en el alta de mostrador.
+
+### H.9 Benchmark adicional
+
+- **Square "Auto Create"**: crear ítems escaneando GTIN con prefill de
+  nombre/imagen/descripción desde catálogo + IA — pero con quejas reales de
+  usuarios por autofill invasivo que PISA nombres propios.
+  [Square Auto Create](https://squareup.com/help/us/en/article/7992-automate-item-creation-with-square-for-retail) ·
+  [queja "Please Stop Invasively Auto-Creating"](https://community.squareup.com/t5/Orders-Menu-Items-Catalog/Please-Stop-Invasively-Auto-Creating-Item-Name-Based-on-UPC/m-p/720232)
+  → Lección: prefill siempre editable, nunca sobreescribir — el `catalogo_aportar`
+  que "nunca pisa" ya es el diseño correcto.
+- **Loyverse**: no tiene alta-on-the-fly desde la pantalla de venta (ítems se
+  crean en el back office). [Loyverse items](https://help.loyverse.com/help/how-add-items-loyverse-back-office)
+  → La alta rápida en scan-miss es un **diferencial de mercado**, no un parche.
+
+*Fuentes de código adicionales §H: `low_stock_products` (001), cron de alertas
+(`api/cron/alerts`), `dashboard_summary`/`reportes_summary` (034),
+`categorias_resumen` (036), `store_settings` defaults (001/015/019),
+`register_sale` monto libre (003/023/028), gates de alta rápida
+(`pos/actions.ts` + `pos-screen.tsx`), umbrales de Reportes
+(`reportes-client.tsx`).*
 
 ---
 
