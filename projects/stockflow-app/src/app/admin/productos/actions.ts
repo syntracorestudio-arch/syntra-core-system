@@ -202,6 +202,59 @@ export async function bulkReprice(
   return { ok: true, count: Number(data) };
 }
 
+const bulkCategorySchema = z.object({
+  // Techo del baseline: nadie mueve 10.000 filas en un submit; el cliente
+  // trocea de a 500 si la selección crece más que eso.
+  product_ids: z.array(z.guid()).min(1, "Seleccioná al menos un producto.").max(500),
+  category_id: z.guid().nullable(),
+});
+
+/**
+ * Categorizar en masa: mueve la selección a una categoría (o la quita con null).
+ * Nació para saldar la deuda "Sin categoría" del drill-down sin abrir la ficha
+ * producto por producto.
+ */
+export async function bulkAssignCategory(
+  input: unknown,
+): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  const session = await requireOwner();
+  const parsed = bulkCategorySchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Revisá la selección." };
+  }
+
+  const supabase = await createSupabaseServer();
+
+  // La categoría destino tiene que ser visible para ESTE negocio (RLS): el FK de
+  // products no distingue tenants, así que lo validamos acá antes de escribir.
+  if (parsed.data.category_id) {
+    const { data: categoria } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("id", parsed.data.category_id)
+      .eq("status", "active")
+      .maybeSingle();
+    if (!categoria) return { ok: false, error: "Esa categoría ya no existe." };
+  }
+
+  /* UPDATE por PK bajo RLS + filtro explícito de store: un id ajeno colado en el
+     array no toca nada y tampoco infla el contador — devolvemos las filas que
+     REALMENTE cambiaron, no las que pidió el cliente. */
+  const { data, error } = await supabase
+    .from("products")
+    .update({ category_id: parsed.data.category_id })
+    .in("id", parsed.data.product_ids)
+    .eq("store_id", session.store.id)
+    .eq("status", "active")
+    .select("id");
+
+  if (error) return { ok: false, error: "No pudimos mover los productos." };
+
+  revalidatePath("/admin/productos");
+  revalidatePath("/pos");
+  return { ok: true, count: (data ?? []).length };
+}
+
 /** Ingreso de mercadería — sube stock, pisa el costo y registra vencimientos. */
 const purchaseSchema = z.object({
   items: z

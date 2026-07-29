@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   Plus,
@@ -17,6 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderOpen,
+  Check,
+  ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
@@ -30,6 +32,7 @@ import {
   updateProduct,
   archiveProduct,
   bulkReprice,
+  bulkAssignCategory,
   adjustStock,
 } from "./actions";
 import { buscarProductos, type ProductoBuscado } from "@/app/pos/actions";
@@ -254,6 +257,64 @@ export function ProductsClient({
   // en resultados de búsqueda ubica; dentro de "Bebidas" sería ruido.
   const mostrarCatEnFila = !cat;
 
+  /* CATEGORIZAR EN MASA — la deuda "Sin categoría" se salda seleccionando y
+     moviendo de a tandas, no abriendo 200 fichas. `null` = modo normal; un Set
+     vacío = seleccionando. La selección sobrevive al cambio de filtro a
+     propósito: podés juntar productos de varias vistas y moverlos juntos. */
+  const router = useRouter();
+  const [seleccion, setSeleccion] = useState<Set<string> | null>(null);
+  const [moviendo, setMoviendo] = useState(false);
+  const [aplicandoMover, setAplicandoMover] = useState(false);
+
+  const toggleSeleccion = (id: string) =>
+    setSeleccion((prev) => {
+      if (!prev) return prev;
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  function aplicarMover(categoryId: string | null, nombre: string | null) {
+    const ids = [...(seleccion ?? [])];
+    if (ids.length === 0) return;
+    setAplicandoMover(true);
+    (async () => {
+      // La action acota a 500 por llamada: selecciones más grandes van en tandas.
+      let total = 0;
+      for (let i = 0; i < ids.length; i += 500) {
+        const res = await bulkAssignCategory({
+          product_ids: ids.slice(i, i + 500),
+          category_id: categoryId,
+        });
+        if (!res.ok) {
+          setAplicandoMover(false);
+          setAviso({ tone: "error", text: res.error });
+          return;
+        }
+        total += res.count;
+      }
+      setAplicandoMover(false);
+      setMoviendo(false);
+      setSeleccion(null);
+      setAviso({
+        tone: "ok",
+        text: nombre
+          ? `Movimos ${total} producto${total === 1 ? "" : "s"} a ${nombre}.`
+          : `Le quitamos la categoría a ${total} producto${total === 1 ? "" : "s"}.`,
+      });
+      // Doble refresco: el server component (contadores del índice/chips) y la
+      // página visible de la lista (que es estado del cliente).
+      router.refresh();
+      buscarProductos({ q: busqueda.trim() || null, categoria: cat, limit: 50, offset: 0 })
+        .then((r) => {
+          setFilas(mapear(r.items));
+          setTotalFiltrado(r.total);
+        })
+        .catch(() => {});
+    })();
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
       <div className="mb-5">
@@ -368,6 +429,49 @@ export function ProductsClient({
         )}
       </div>
 
+      {/* Entrada al modo selección: discreta en modo normal, contador + "Todos"
+          + "Cancelar" cuando está activo. Solo sobre listas, nunca en el índice. */}
+      {!enIndice && visibles.length > 0 && (
+        <div className="mb-2 flex min-h-8 items-center justify-between gap-2">
+          {seleccion === null ? (
+            <>
+              <span />
+              <button
+                type="button"
+                onClick={() => setSeleccion(new Set())}
+                className="flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+              >
+                <ListChecks className="size-3.5" /> Seleccionar
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="tabular text-xs font-medium text-muted-foreground">
+                {seleccion.size} seleccionado{seleccion.size === 1 ? "" : "s"}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSeleccion((prev) => new Set([...(prev ?? []), ...visibles.map((p) => p.id)]))
+                  }
+                  className="h-8 cursor-pointer rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                >
+                  Todos ({visibles.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSeleccion(null)}
+                  className="h-8 cursor-pointer rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {enIndice ? (
         <IndiceCategorias
           categories={categories}
@@ -381,8 +485,44 @@ export function ProductsClient({
           const m = margen(p.price, p.cost);
           const umbral = p.lowStockThreshold ?? defaultThreshold;
           const bajo = p.stock <= umbral;
+          const marcado = seleccion?.has(p.id) ?? false;
           return (
-            <li key={p.id} className="flex items-center gap-3 px-4 py-3">
+            <li
+              key={p.id}
+              onClick={seleccion !== null ? () => toggleSeleccion(p.id) : undefined}
+              onKeyDown={
+                seleccion !== null
+                  ? (e) => {
+                      if (e.key === " " || e.key === "Enter") {
+                        e.preventDefault();
+                        toggleSeleccion(p.id);
+                      }
+                    }
+                  : undefined
+              }
+              role={seleccion !== null ? "checkbox" : undefined}
+              aria-checked={seleccion !== null ? marcado : undefined}
+              aria-label={seleccion !== null ? `Seleccionar ${p.name}` : undefined}
+              tabIndex={seleccion !== null ? 0 : undefined}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3",
+                seleccion !== null && "cursor-pointer transition-colors hover:bg-secondary/40",
+                marcado && "bg-accent/40",
+              )}
+            >
+              {seleccion !== null && (
+                <span
+                  className={cn(
+                    "grid size-5 shrink-0 place-items-center rounded-md border transition-colors",
+                    marcado
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-input bg-background",
+                  )}
+                  aria-hidden
+                >
+                  {marcado && <Check className="size-3.5" />}
+                </span>
+              )}
               {/* Chip y no emoji suelto: la fila pasa de "texto con dibujito" a
                   fila compuesta (V5). El emoji sigue siendo la identidad que
                   elige el kiosquero. */}
@@ -438,14 +578,16 @@ export function ProductsClient({
                   </p>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => setEditando(p)}
-                aria-label={`Editar ${p.name}`}
-                className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
-              >
-                <Pencil className="size-3.5" />
-              </button>
+              {seleccion === null && (
+                <button
+                  type="button"
+                  onClick={() => setEditando(p)}
+                  aria-label={`Editar ${p.name}`}
+                  className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+              )}
             </li>
           );
         })}
@@ -469,6 +611,21 @@ export function ProductsClient({
           Mostrar más ({visibles.length} de {totalFiltrado})
         </button>
       )}
+
+      {/* Barra de acción: sticky para que "Mover" esté a mano aunque la selección
+          haya arrancado 30 filas más arriba. bottom-20 en mobile por la tab bar. */}
+      {seleccion !== null && seleccion.size > 0 && (
+        <div className="sticky bottom-20 z-30 mt-3 sm:bottom-4">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-popover p-3 shadow-lg">
+            <span className="tabular text-sm font-medium">
+              {seleccion.size} producto{seleccion.size === 1 ? "" : "s"}
+            </span>
+            <Button variant="primary" onClick={() => setMoviendo(true)}>
+              <FolderOpen className="size-4" /> Mover a categoría
+            </Button>
+          </div>
+        </div>
+      )}
         </>
       )}
 
@@ -483,6 +640,16 @@ export function ProductsClient({
             setAviso({ tone: "ok", text: `Remarcaste ${n} producto${n === 1 ? "" : "s"}.` });
           }}
           onError={(e) => setAviso({ tone: "error", text: e })}
+        />
+      )}
+
+      {moviendo && seleccion !== null && (
+        <MoverDialog
+          categories={categories}
+          count={seleccion.size}
+          pending={aplicandoMover}
+          onApply={aplicarMover}
+          onClose={() => setMoviendo(false)}
         />
       )}
 
@@ -595,6 +762,70 @@ function IndiceCategorias({
         </li>
       )}
     </ul>
+  );
+}
+
+/**
+ * Destino del "mover en masa": una categoría por fila con su contador real, y
+ * al pie la opción de quitar la categoría. Tocar una aplica directo — el paso
+ * de confirmación es la propia barra ("N productos") que ya dice el alcance.
+ */
+function MoverDialog({
+  categories,
+  count,
+  pending,
+  onApply,
+  onClose,
+}: {
+  categories: CategoryRow[];
+  count: number;
+  pending: boolean;
+  onApply: (categoryId: string | null, nombre: string | null) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog title={`Mover ${count} producto${count === 1 ? "" : "s"} a…`} onClose={onClose}>
+      <div className="space-y-3">
+        <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-lg border border-border">
+          {categories.map((c) => (
+            <li key={c.id}>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => onApply(c.id, c.name)}
+                className="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-secondary/50 disabled:opacity-50"
+              >
+                <span aria-hidden className="text-base">
+                  {c.emoji ?? "📦"}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">{c.name}</span>
+                <span className="tabular shrink-0 text-xs text-muted-foreground">
+                  {c.count ?? 0}
+                </span>
+              </button>
+            </li>
+          ))}
+          {categories.length === 0 && (
+            <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+              Todavía no tenés categorías. Crealas desde Ajustes.
+            </li>
+          )}
+        </ul>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => onApply(null, null)}
+          className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-warning/40 text-sm font-medium text-warning-ink transition-colors hover:border-warning disabled:opacity-50"
+        >
+          Quitar categoría
+        </button>
+        {pending && (
+          <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <LoaderCircle className="size-3.5 animate-spin" /> Moviendo…
+          </p>
+        )}
+      </div>
+    </Dialog>
   );
 }
 
