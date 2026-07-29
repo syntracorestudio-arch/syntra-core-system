@@ -128,6 +128,7 @@ export default async function PosPage() {
       storeName={session.store.name}
       products={catalog}
       canSellOnCredit={session.member.role === "owner" || session.member.can_sell_on_credit}
+      canQuickAdd={session.member.role === "owner" || session.member.can_receive_stock}
       isOwner={session.member.role === "owner"}
       mpConectado={mpConectado}
       posnetActivo={posnetActivo}

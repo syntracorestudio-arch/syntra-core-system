@@ -133,6 +133,7 @@ export function PosScreen({
   storeName,
   products,
   canSellOnCredit,
+  canQuickAdd,
   isOwner,
   mpConectado,
   posnetActivo,
@@ -146,6 +147,10 @@ export function PosScreen({
   /** Tiles curados: los más vendidos, ya rankeados por la base (escala Fase 2). */
   products: PosProduct[];
   canSellOnCredit: boolean;
+  /** Espeja el gate del server de quickCreateProduct (owner || can_receive_stock):
+      la UI no debe ser MÁS estricta — un cajero con permiso quedaba ante un
+      diálogo muerto en plena venta. */
+  canQuickAdd: boolean;
   isOwner: boolean;
   /** ¿El negocio conectó su cuenta de MercadoPago? Decide si el QR lo genera la app. */
   mpConectado: boolean;
@@ -1089,7 +1094,7 @@ export function PosScreen({
           barcode={altaRapida.barcode}
           sugerencia={altaRapida.sugerencia}
           categories={categories}
-          canCreate={isOwner}
+          canCreate={canQuickAdd}
           onCancel={() => setAltaRapida(null)}
           onCreated={(p) => {
             setAltaRapida(null);
