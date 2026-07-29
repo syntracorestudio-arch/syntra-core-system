@@ -234,6 +234,62 @@ p_window interval) returns bool`, **fail-open**, GRANT a `authenticated` y `anon
 
 ---
 
+## producto_por_codigo — resolver de escaneo (escala Fase 1, migración 034)
+
+> **Contrato CONGELADO antes del SQL** (2026-07-28). Cierra el RIESGO 0 de
+> `docs/inventario-escala-audit.md`: hasta ahora el escaneo resolvía contra el array
+> precargado en el cliente (`limit(500)` alfabético), así que un producto más allá del
+> corte **no se encontraba** y el cajero terminaba dando de alta un DUPLICADO.
+
+```
+producto_por_codigo(
+  p_store_id uuid,
+  p_codigo   text     -- código de barras EXACTO (se compara trim(), sin ilike)
+) returns jsonb
+```
+
+- **Gate de miembro**: primer paso `public.rpc_member(p_store_id)` → `not_a_member`.
+  `SECURITY DEFINER`, `set search_path = public`, `stable`, GRANT a `authenticated`.
+- **Acotada por construcción**: devuelve **una fila o `null`**. El lookup va por
+  `product_barcodes (store_id, barcode)`, que **ya es UNIQUE** (`001:136`) — o sea el
+  índice que la sirve ya existe; no se crea ninguno nuevo.
+- **Devuelve** (o `null` si no hay match): el producto tal como lo consume la caja —
+  `{id, name, emoji, color, price, stock, category_id, category_name, barcodes[]}`.
+  Incluye `archivado` (bool) para que la UI distinga "no existe" de "existe pero está
+  dado de baja" (hoy ese caso también caía en alta rápida).
+- **No filtra por `status`**: un producto archivado SÍ se resuelve, marcado. Decidir
+  qué hacer es de la UI; lo que no puede pasar es que la caja crea que no existe.
+- No muta nada. No toca `sales` / `payment_intents` / RPCs de cobro.
+
+## quickCreateProduct — guarda anti-duplicado + categoría (escala Fase 1)
+
+Cambios de contrato de la server action (no es RPC de Postgres):
+
+- **Guarda server-side (cinturón y tiradores, aun con `producto_por_codigo`)**: si viene
+  `barcode` y ese código YA existe en el store, **NO crea nada** y devuelve el producto
+  existente con `existing: true`. Hoy el insert del código falla contra el UNIQUE y **el
+  error no se chequea** (`pos/actions.ts:282`) → quedaba un producto duplicado, con stock
+  0 y sin código, para siempre.
+- **`category_id` opcional** (`z.guid().nullable().optional()`): el alta rápida ahora
+  puede asignar una categoría **existente**. Sin creación inline de categorías — eso es
+  Fase 2, junto con el índice único de de-duplicación.
+- Resultado: `{ ok: true, id, name, price, existing?: boolean } | { ok: false, error }`.
+
+## Cotas del baseline aplicadas a funciones existentes (migración 034)
+
+Se **redefinen** (nunca se editan las migraciones viejas):
+
+| Función | Origen | Cota agregada |
+| --- | --- | --- |
+| `store_alerts` | 006 | `LIMIT` en `low_stock` y en `expiring` |
+| `dashboard_summary` | 027 | `LIMIT` en `restock` |
+| `reportes_summary` | 009 | `LIMIT` en `by_category` |
+
+Ninguna cambia su **firma** ni la forma del JSON que devuelve: solo dejan de serializar
+listas sin techo. Aditivo y seguro de re-aplicar.
+
+---
+
 ## Matriz de errores
 
 | Código | RPCs | UI |

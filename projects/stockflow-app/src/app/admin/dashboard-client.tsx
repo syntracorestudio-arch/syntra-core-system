@@ -48,6 +48,12 @@ export type DashboardData = {
   };
   low_stock: { product_id: string; name: string; emoji: string | null; stock: number }[];
   expiring: { expiry_id: string; name: string; emoji: string | null; days_left: number }[];
+  /* Totales REALES (migración 034). Los arrays vienen acotados para no serializar
+     cientos de filas y pintar 4; estos conteos son los que la UI debe mostrar.
+     Opcionales: si la migración todavía no se aplicó, se cae a `.length`. */
+  restock_total?: number;
+  low_stock_total?: number;
+  expiring_total?: number;
 };
 
 const MEDIOS: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
@@ -77,6 +83,13 @@ export function DashboardClient({
   }
 
   const { today, by_method, restock, credit, low_stock, expiring } = data;
+
+  /* Conteos REALES para los badges. Los arrays llegan acotados (034) para no
+     serializar cientos de filas y pintar 4; mostrar `.length` diría "50" con 300
+     productos bajo mínimo. El `??` mantiene la pantalla correcta si la migración
+     todavía no se corrió. */
+  const lowTotal = data.low_stock_total ?? low_stock.length;
+  const expiringTotal = data.expiring_total ?? expiring.length;
   const totalMedios = by_method.reduce((a, m) => a + Number(m.total), 0);
   const sinVentas = today.count === 0;
 
@@ -233,7 +246,7 @@ export function DashboardClient({
               <AlertTriangle className="size-4 text-warning-ink" />
               Te estás quedando sin
             </CardLabel>
-            {low_stock.length > 0 && <Badge tone="warning">{low_stock.length}</Badge>}
+            {lowTotal > 0 && <Badge tone="warning">{lowTotal}</Badge>}
           </div>
           {low_stock.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">Todo con stock suficiente.</p>
@@ -263,7 +276,7 @@ export function DashboardClient({
               <Clock className="size-4 text-danger-ink" />
               Vence pronto
             </CardLabel>
-            {expiring.length > 0 && <Badge tone="danger">{expiring.length}</Badge>}
+            {expiringTotal > 0 && <Badge tone="danger">{expiringTotal}</Badge>}
           </div>
           {expiring.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">Nada por vencer.</p>

@@ -239,19 +239,98 @@ export async function buscarPorNombre(
   return (data ?? []) as { ean: string; nombre: string; marca: string | null }[];
 }
 
+/**
+ * Resuelve un código de barras contra la BASE del negocio (escala Fase 1).
+ *
+ * Cierra el RIESGO 0 (`docs/inventario-escala-audit.md`): la caja precarga el catálogo
+ * acotado (`limit(500)` por nombre), así que un producto que EXISTE puede no estar en
+ * memoria. Sin esto, escanearlo abría "alta rápida" y el cajero creaba un DUPLICADO con
+ * stock 0. La RPC devuelve una fila o null, con gate de miembro.
+ */
+export type ProductoPorCodigo = {
+  id: string;
+  name: string;
+  emoji: string | null;
+  color: string | null;
+  price: number;
+  stock: number;
+  categoryId: string | null;
+  categoryName: string | null;
+  archivado: boolean;
+  barcodes: string[];
+};
+
+export async function buscarProductoPorCodigo(
+  codigo: string,
+): Promise<ProductoPorCodigo | null> {
+  const session = await requireSession();
+  const limpio = codigo.trim();
+  if (!limpio || limpio.length > 64) return null;
+
+  const supabase = await createSupabaseServer();
+  const { data, error } = await supabase.rpc("producto_por_codigo", {
+    p_store_id: session.store.id,
+    p_codigo: limpio,
+  });
+
+  if (error || !data) return null;
+
+  const r = data as {
+    id: string;
+    name: string;
+    emoji: string | null;
+    color: string | null;
+    price: string | number;
+    stock: string | number;
+    category_id: string | null;
+    category_name: string | null;
+    archivado: boolean;
+    barcodes: string[] | null;
+  };
+
+  return {
+    id: r.id,
+    name: r.name,
+    emoji: r.emoji,
+    color: r.color,
+    price: Number(r.price),
+    stock: Number(r.stock),
+    categoryId: r.category_id,
+    categoryName: r.category_name,
+    archivado: Boolean(r.archivado),
+    barcodes: r.barcodes ?? [],
+  };
+}
+
 /** Alta rápida desde la caja: dos campos, menos de 10 segundos (PRD §4). */
 const quickProductSchema = z.object({
   name: z.string().trim().min(1).max(80),
   price: z.number().nonnegative(),
   barcode: z.string().trim().max(64).nullable().optional(),
+  // Categoría EXISTENTE (escala Fase 1). Opcional: obligar a elegir haría que el
+  // cajero invente categorías o abandone. Sin esto, todo lo dado de alta en la caja
+  // caía en "Sin categoría" — la deuda que sabotea el agrupar por categoría.
+  // OJO: acá NO se crean categorías nuevas (eso es Fase 2, con el índice único).
+  category_id: z.guid().nullable().optional(),
   // Referencia del catálogo que el usuario eligió por nombre. Si viene, su
   // escaneo aporta el código real de un producto que nadie tenía mapeado.
   catalogoRef: z.string().trim().max(64).nullable().optional(),
 });
 
-export async function quickCreateProduct(
-  input: unknown,
-): Promise<{ ok: true; id: string; name: string; price: number } | { ok: false; error: string }> {
+export type QuickCreateResult =
+  | {
+      ok: true;
+      id: string;
+      name: string;
+      price: number;
+      /** El código ya existía: se devolvió el producto EXISTENTE, no se creó nada. */
+      existing?: boolean;
+      /** Se creó el producto pero su código no se pudo asociar (ya estaba en uso). */
+      avisoCodigo?: string;
+    }
+  | { ok: false; error: string };
+
+export async function quickCreateProduct(input: unknown): Promise<QuickCreateResult> {
   const session = await requireSession();
 
   if (!(session.member.role === "owner" || session.member.can_receive_stock)) {
@@ -264,6 +343,25 @@ export async function quickCreateProduct(
   }
 
   const supabase = await createSupabaseServer();
+
+  /* GUARDA ANTI-DUPLICADO (escala Fase 1, cinturón y tiradores).
+     Aunque el escaneo ya resuelve server-side, esta acción se puede invocar igual
+     (reintento, doble tap, carrera entre pestañas, o llamada directa a la action).
+     Si el código YA existe en el negocio, devolvemos ESE producto en vez de crear
+     otro. Antes, el insert del código chocaba contra `unique (store_id, barcode)` y
+     el error NO se chequeaba: quedaba un producto duplicado, con stock 0 y sin
+     código, para siempre — corrompiendo stock, alertas y reportes. */
+  if (parsed.data.barcode) {
+    const { data: existente } = await supabase.rpc("producto_por_codigo", {
+      p_store_id: session.store.id,
+      p_codigo: parsed.data.barcode,
+    });
+    if (existente) {
+      const p = existente as { id: string; name: string; price: string | number };
+      return { ok: true, id: p.id, name: p.name, price: Number(p.price), existing: true };
+    }
+  }
+
   const { data, error } = await supabase
     .from("products")
     .insert({
@@ -271,6 +369,7 @@ export async function quickCreateProduct(
       name: parsed.data.name,
       price: parsed.data.price,
       emoji: "📦",
+      category_id: parsed.data.category_id ?? null,
     })
     .select("id, name, price")
     .single();
@@ -280,11 +379,24 @@ export async function quickCreateProduct(
   }
 
   if (parsed.data.barcode) {
-    await supabase.from("product_barcodes").insert({
+    // El error SÍ se mira: si el código ya existía (carrera con otra caja), el
+    // producto recién creado quedaría huérfano sin código. Se avisa en vez de
+    // dejar basura silenciosa en el catálogo.
+    const { error: errCodigo } = await supabase.from("product_barcodes").insert({
       store_id: session.store.id,
       product_id: data.id,
       barcode: parsed.data.barcode,
     });
+    if (errCodigo) {
+      revalidatePath("/pos");
+      return {
+        ok: true,
+        id: data.id,
+        name: data.name,
+        price: Number(data.price),
+        avisoCodigo: "El producto se creó, pero ese código ya estaba en uso.",
+      };
+    }
 
     // Aporte al catálogo compartido: si este código no estaba, ahora el próximo
     // kiosquero que lo escanee ya lo va a tener. Va SOLO el nombre — el precio y

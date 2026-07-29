@@ -35,6 +35,7 @@ import {
   quickCreateProduct,
   buscarEnCatalogo,
   buscarPorNombre,
+  buscarProductoPorCodigo,
 } from "@/app/pos/actions";
 import {
   vincularVenta,
@@ -107,6 +108,8 @@ export function PosScreen({
   posnetActivo,
   transferAlias,
   confirmMethods,
+  categories,
+  totalProductos,
 }: {
   storeName: string;
   products: PosProduct[];
@@ -121,6 +124,10 @@ export function PosScreen({
   transferAlias: string | null;
   /** Perilla por método: ¿pedir confirmación antes de cobrar? (QR tiene su diálogo). */
   confirmMethods: { cash: boolean; card: boolean; transfer: boolean; account: boolean };
+  /** Categorías existentes, para que el alta rápida no deje el producto sin categoría. */
+  categories: { id: string; name: string; emoji: string | null }[];
+  /** Cuántos productos activos hay REALMENTE (el precargado está acotado a 500). */
+  totalProductos: number;
 }) {
   const [busqueda, setBusqueda] = useState("");
   const [cat, setCat] = useState<string | null>(null);
@@ -147,6 +154,8 @@ export function PosScreen({
   const [tendered, setTendered] = useState<number | null>(null);
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [camaraAbierta, setCamaraAbierta] = useState(false);
+  /** Consultando un código contra la base porque el caché local no lo tenía. */
+  const [buscandoCodigo, setBuscandoCodigo] = useState(false);
   const [aviso, setAviso] = useState<{
     tone: "ok" | "warn" | "error";
     text: string;
@@ -230,22 +239,76 @@ export function PosScreen({
     });
   }, []);
 
-  /** Un beep del lector o de la cámara entra por acá. */
+  /**
+   * Un beep del lector o de la cámara entra por acá.
+   *
+   * DOS pasos, y el segundo es el que cierra el RIESGO 0 (`docs/inventario-escala-audit.md`):
+   * el catálogo precargado está acotado (`limit(500)` por nombre), así que un producto
+   * que EXISTE puede no estar en memoria. Antes eso caía derecho en "alta rápida" y el
+   * cajero terminaba creando un DUPLICADO con stock 0. Ahora, si el caché no lo tiene,
+   * se le pregunta a la BASE (`producto_por_codigo`) y recién si ahí tampoco está se
+   * ofrece darlo de alta.
+   *
+   * El caché sigue primero a propósito: resuelve el 99% de los escaneos sin round-trip
+   * y mantiene el cobro por debajo de los 15 segundos.
+   */
   const onScan = useCallback(
     (code: string) => {
       setCamaraAbierta(false);
-      const encontrado = porCodigo.get(code.trim());
+      const codigo = code.trim();
+      if (!codigo) return;
+
+      const encontrado = porCodigo.get(codigo);
       if (encontrado) {
         agregar(encontrado);
         setAviso({ tone: "ok", text: `${encontrado.name} agregado` });
         return;
       }
-      // Código desconocido → se consulta el catálogo compartido y recién ahí se
-      // abre el alta, ya con el nombre puesto si lo reconocimos.
-      const codigo = code.trim();
-      buscarEnCatalogo(codigo)
-        .then((sug) => setAltaRapida({ barcode: codigo, sugerencia: sug }))
-        .catch(() => setAltaRapida({ barcode: codigo, sugerencia: null }));
+
+      // No está en el precargado: puede ser que NO exista, o que exista y haya
+      // quedado fuera del corte. Lo resuelve la base, no la memoria.
+      setBuscandoCodigo(true);
+      buscarProductoPorCodigo(codigo)
+        .then(async (p) => {
+          if (p) {
+            if (p.archivado) {
+              // Existe pero está dado de baja: avisamos en vez de ofrecer un alta
+              // que lo duplicaría.
+              setAviso({
+                tone: "warn",
+                text: `${p.name} está dado de baja. Activalo desde Productos para venderlo.`,
+              });
+              return;
+            }
+            agregar({
+              id: p.id,
+              name: p.name,
+              emoji: p.emoji,
+              color: p.color,
+              price: p.price,
+              stock: p.stock,
+              categoryId: p.categoryId,
+              categoryName: p.categoryName,
+              barcodes: p.barcodes,
+              sold14d: 0,
+            });
+            setAviso({ tone: "ok", text: `${p.name} agregado` });
+            return;
+          }
+          // Ahora sí: no existe en el negocio. Se consulta el catálogo compartido
+          // y se abre el alta, ya con el nombre puesto si lo reconocimos.
+          const sug = await buscarEnCatalogo(codigo).catch(() => null);
+          setAltaRapida({ barcode: codigo, sugerencia: sug });
+        })
+        .catch(() => {
+          // Si la consulta falla (red), NO ofrecemos alta: crear un duplicado por un
+          // problema de conexión es peor que pedirle al cajero que reintente.
+          setAviso({
+            tone: "error",
+            text: "No pudimos verificar ese código. Probá de nuevo.",
+          });
+        })
+        .finally(() => setBuscandoCodigo(false));
     },
     [porCodigo, agregar],
   );
@@ -892,6 +955,7 @@ export function PosScreen({
         <AltaRapida
           barcode={altaRapida.barcode}
           sugerencia={altaRapida.sugerencia}
+          categories={categories}
           canCreate={isOwner}
           onCancel={() => setAltaRapida(null)}
           onCreated={(p) => {
@@ -1003,6 +1067,26 @@ export function PosScreen({
             >
               <X className="size-4" />
             </button>
+          </div>
+        )}
+
+        {/* Aviso HONESTO de truncado: el precargado está acotado a 500. Antes esto
+            era silencioso y el cajero creía tener todo el catálogo a la vista.
+            Escanear y buscar igual llegan a todo — es la grilla la que está recortada.
+            Provisional: la búsqueda server-side de Fase 2 lo elimina. */}
+        {totalProductos > products.length && (
+          <div className="mx-4 mt-3 rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground ring-1 ring-border">
+            Mostrando {products.length} de {totalProductos} productos. Escaneá o buscá por
+            nombre para llegar al resto.
+          </div>
+        )}
+
+        {/* El código escaneado no estaba en el catálogo precargado: se está
+            resolviendo contra la base antes de decidir si ofrecer el alta. */}
+        {buscandoCodigo && (
+          <div className="mx-4 mt-3 flex items-center gap-2 rounded-lg bg-secondary/60 px-3 py-2 text-sm text-muted-foreground ring-1 ring-border">
+            <LoaderCircle className="size-4 animate-spin" />
+            Buscando el código…
           </div>
         )}
 
@@ -1586,12 +1670,15 @@ function TransferAlias({ alias, total }: { alias: string | null; total: number }
 function AltaRapida({
   barcode,
   sugerencia,
+  categories,
   canCreate,
   onCancel,
   onCreated,
 }: {
   barcode: string | null;
   sugerencia: { nombre: string; marca: string | null } | null;
+  /** Categorías EXISTENTES. Acá no se crean nuevas (eso es Fase 2, con el índice único). */
+  categories: { id: string; name: string; emoji: string | null }[];
   canCreate: boolean;
   onCancel: () => void;
   onCreated: (p: { id: string; name: string; price: number }) => void;
@@ -1607,6 +1694,10 @@ function AltaRapida({
     { ean: string; nombre: string; marca: string | null }[]
   >([]);
   const [catalogoRef, setCatalogoRef] = useState<string | null>(null);
+  /* Categoría del producto nuevo. Opcional a propósito: obligar a elegir hace que el
+     cajero invente una o abandone el alta con gente esperando. Pero ofrecerla acá
+     corta la fábrica de "Sin categoría" que hoy sabotea el agrupado. */
+  const [categoryId, setCategoryId] = useState<string>("");
   const [pending, startTransition] = useTransition();
 
   /* Si el código no se reconoció, buscar por nombre mientras escribe. Es el
@@ -1633,11 +1724,15 @@ function AltaRapida({
         price: Number(price),
         barcode,
         catalogoRef,
+        category_id: categoryId || null,
       });
       if (!res.ok) {
         setError(res.error);
         return;
       }
+      /* `existing`: el código ya estaba en el negocio y el server devolvió ESE
+         producto en vez de crear un duplicado. Para el cajero es lo mismo —se suma
+         al carrito y sigue vendiendo—; la diferencia es que el catálogo no se ensució. */
       onCreated({ id: res.id, name: res.name, price: res.price });
     });
   }
@@ -1734,6 +1829,26 @@ function AltaRapida({
                   className="tabular h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
                 />
               </div>
+              {categories.length > 0 && (
+                <div className="space-y-1.5">
+                  <label htmlFor="qp-cat" className="text-sm font-medium">
+                    Categoría <span className="font-normal text-muted-foreground">(opcional)</span>
+                  </label>
+                  <select
+                    id="qp-cat"
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="">Sin categoría</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.emoji ? `${c.emoji} ${c.name}` : c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={guardar}

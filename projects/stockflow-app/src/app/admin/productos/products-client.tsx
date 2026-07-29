@@ -109,10 +109,13 @@ export function ProductsClient({
   products,
   categories,
   defaultThreshold,
+  totalProductos,
 }: {
   products: ProductRow[];
   categories: CategoryRow[];
   defaultThreshold: number;
+  /** Total REAL de activos: el listado viene acotado a 500 (escala Fase 1). */
+  totalProductos: number;
 }) {
   const [busqueda, setBusqueda] = useState("");
   const [editando, setEditando] = useState<ProductRow | null>(null);
@@ -148,7 +151,12 @@ export function ProductsClient({
       <div className="mb-5">
         <PageHeader
           title="Productos"
-          subtitle={`${products.length} activos${sinCosto > 0 ? ` · ${sinCosto} sin costo cargado` : ""}`}
+          /* El total REAL, no `products.length`: el listado viene acotado a 500 y el
+             header decía "500 activos" con 1.200 en el catálogo. Cuando hay truncado
+             se dice explícitamente en vez de mentir en silencio (escala Fase 1). */
+          subtitle={`${totalProductos} activos${
+            totalProductos > products.length ? ` · mostrando ${products.length}` : ""
+          }${sinCosto > 0 ? ` · ${sinCosto} sin costo cargado` : ""}`}
           icon={Package}
           art="productos"
         >
