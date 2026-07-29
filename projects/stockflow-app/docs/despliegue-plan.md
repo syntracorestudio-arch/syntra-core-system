@@ -47,8 +47,11 @@ Stack: Next.js 16 (App Router) · Supabase (Postgres + Auth + Storage) · Vercel
 
 ## 2. Migraciones (001 → latest, en orden, SIN seed)
 
-La DB de producción se arma SOLO con las migraciones. **Nunca correr `seed.sql` /
-`seed_demo.sql`** (son data de demo/test).
+La DB de producción se arma SOLO con las migraciones. **Nunca correr NINGÚN
+`supabase/seed*.sql`** — hoy son tres y todos son data de dev: `seed.sql` (fixture de
+tests), `seed_demo.sql` (demo comercial) y `seed_escala.sql` (kiosco sintético de ~2000
+productos para probar escala). Si mañana aparece otro `seed_*.sql`, también queda
+prohibido: la regla es por patrón, no por lista.
 
 ```bash
 # desde projects/stockflow-app
