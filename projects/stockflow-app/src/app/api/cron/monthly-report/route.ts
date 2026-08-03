@@ -9,6 +9,7 @@ import {
 } from "@/lib/asistente/composer";
 import { asuntoReporte, renderReporteHTML } from "@/lib/asistente/email";
 import { destinatario, enviarReporte } from "@/lib/asistente/mailer";
+import { narrarMes } from "@/lib/asistente/narrativa";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -90,6 +91,19 @@ export async function GET(request: NextRequest) {
       if (errLedger) console.error("[monthly-report] no se pudo registrar la entrega:", errLedger.message);
     }
 
+    /* La auditoría de la narrativa (qué se dijo, con qué modelo, cuántos tokens)
+       va en un UPDATE aparte y NO fatal: es el libro de costos del add-on, no la
+       entrega. Si 042 todavía no corrió en el entorno, esto falla solo y el
+       reporte igual sale. */
+    async function registrarNarrativa(fields: Record<string, unknown>) {
+      const { error: errNarr } = await admin
+        .from("report_deliveries")
+        .update(fields)
+        .eq("store_id", store.id)
+        .eq("period", period);
+      if (errNarr) console.error("[monthly-report] no se pudo registrar la narrativa:", errNarr.message);
+    }
+
     try {
       const [{ data: datos }, { data: alerts }, { data: margenes }] = await Promise.all([
         admin.rpc("asistente_datos_mensuales", { p_store_id: store.id, p_from: from, p_to: to }),
@@ -116,16 +130,31 @@ export async function GET(request: NextRequest) {
         },
       );
 
+      // Fase 2: el párrafo que lee el mes. Nunca bloquea el envío — si no hay
+      // API key, si la API falla o si inventó una cifra, `texto` viene null y el
+      // email sale con la plantilla determinista.
+      const narrativa = await narrarMes(reporte);
+
       const accent = (store.branding as { accent?: string } | null)?.accent ?? "#2E6BFF";
       const res = await enviarReporte({
         to: para,
         subject: asuntoReporte(reporte),
-        html: renderReporteHTML(reporte, accent, process.env.NEXT_PUBLIC_APP_URL),
+        html: renderReporteHTML(reporte, accent, process.env.NEXT_PUBLIC_APP_URL, narrativa.texto),
       });
 
       if (res.ok) {
         enviados++;
         await registrar({ status: "sent", last_error: null, sent_at: new Date().toISOString() });
+        if (narrativa.estado !== "desactivada") {
+          await registrarNarrativa({
+            narrativa: narrativa.texto,
+            narrativa_estado: narrativa.estado,
+            narrativa_motivo: narrativa.motivo,
+            narrativa_modelo: narrativa.modelo,
+            narrativa_tokens_in: narrativa.tokensIn,
+            narrativa_tokens_out: narrativa.tokensOut,
+          });
+        }
       } else {
         fallados++;
         await registrar({ status: "failed", last_error: res.error ?? "envio_fallido", sent_at: null });
