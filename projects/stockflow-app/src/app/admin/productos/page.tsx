@@ -27,7 +27,8 @@ export default async function ProductosPage({
   /* ESCALA FASE 2 — search-first. Antes viajaban 500 productos + ~8000 sale_items
      (772 KB de documento con 2005 SKUs) y el filtrado era en memoria. Ahora la
      primera página la trae `productos_buscar` y el resto lo pide el cliente. */
-  const [{ data: pagina }, { data: categories }, { count: totalProductos }] = await Promise.all([
+  const [{ data: pagina }, { data: categories }, { count: totalProductos }, { data: settings }] =
+    await Promise.all([
     supabase.rpc("productos_buscar", {
       p_store_id: session.store.id,
       p_q: q,
@@ -44,7 +45,14 @@ export default async function ProductosPage({
       .from("products")
       .select("id", { count: "exact", head: true })
       .eq("status", "active"),
-  ]);
+    // Margen y redondeo: con eso el import propone precio cuando la planilla
+    // solo trae el costo (una lista de proveedor se vuelve catálogo vendible).
+    supabase
+      .from("store_settings")
+      .select("margen_default_pct, reprice_rounding")
+      .eq("store_id", session.store.id)
+      .maybeSingle(),
+    ]);
 
   const p0 = (pagina ?? { items: [], total: 0 }) as {
     items: {
@@ -128,6 +136,8 @@ export default async function ProductosPage({
         soloSinControl={soloSinControl}
         defaultThreshold={3}
         totalProductos={totalProductos ?? rows.length}
+        margenDefault={Number(settings?.margen_default_pct ?? 35)}
+        redondeo={Number(settings?.reprice_rounding ?? 50)}
       />
     </AppShell>
   );
