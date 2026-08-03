@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function ProductosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cat?: string; q?: string }>;
+  searchParams: Promise<{ cat?: string; q?: string; control?: string }>;
 }) {
   const session = await requireOwner();
   const supabase = await createSupabaseServer();
@@ -19,6 +19,10 @@ export default async function ProductosPage({
   const sp = await searchParams;
   const cat = sp.cat?.trim() || null;
   const q = sp.q?.trim() || null;
+  /* `?control=sin` = los productos que se venden pero nadie contó todavía
+     (puesta en marcha, 038). Es el destino del aviso del dashboard: apagar sus
+     alertas obliga a que exista este lugar donde verlos. */
+  const soloSinControl = sp.control === "sin";
 
   /* ESCALA FASE 2 — search-first. Antes viajaban 500 productos + ~8000 sale_items
      (772 KB de documento con 2005 SKUs) y el filtrado era en memoria. Ahora la
@@ -29,6 +33,7 @@ export default async function ProductosPage({
       p_q: q,
       p_categoria: cat && cat !== "none" ? cat : null,
       p_solo_sin_categoria: cat === "none",
+      p_solo_sin_control: soloSinControl,
       p_limit: 50,
       p_offset: 0,
     }),
@@ -51,6 +56,7 @@ export default async function ProductosPage({
       stock: string | number;
       low_stock_threshold: string | number | null;
       category_id: string | null;
+      stock_confiable?: boolean;
       vendidas_30d: string | number;
     }[];
     total: number;
@@ -71,6 +77,7 @@ export default async function ProductosPage({
       sin_costo: number;
     }[];
     sin_categoria: { productos: number; stock_bajo: number; sin_costo: number };
+    sin_control_stock?: { productos: number };
   };
   const categoriasOrdenadas: CategoryRow[] = [...(resumen.categorias ?? [])]
     .sort((a, b) => Number(b.productos) - Number(a.productos) || a.name.localeCompare(b.name, "es"))
@@ -84,6 +91,7 @@ export default async function ProductosPage({
       sinCosto: Number(c.sin_costo ?? 0),
     }));
   const sinCategoria = Number(resumen.sin_categoria?.productos ?? 0);
+  const sinControlStock = Number(resumen.sin_control_stock?.productos ?? 0);
 
   const rows: ProductRow[] = (p0.items ?? []).map((p) => {
     const porDia = Number(p.vendidas_30d ?? 0) / 30;
@@ -97,6 +105,7 @@ export default async function ProductosPage({
       stock,
       lowStockThreshold: p.low_stock_threshold === null ? null : Number(p.low_stock_threshold),
       categoryId: p.category_id,
+      stockConfiable: p.stock_confiable ?? true,
       // Sin ventas en 30 días no hay ritmo que proyectar: preferimos no decir
       // nada antes que inventar una cobertura infinita.
       diasCobertura: porDia > 0 ? Math.floor(stock / porDia) : null,
@@ -115,6 +124,8 @@ export default async function ProductosPage({
         initialQ={q ?? ""}
         categories={categoriasOrdenadas}
         sinCategoria={sinCategoria}
+        sinControlStock={sinControlStock}
+        soloSinControl={soloSinControl}
         defaultThreshold={3}
         totalProductos={totalProductos ?? rows.length}
       />

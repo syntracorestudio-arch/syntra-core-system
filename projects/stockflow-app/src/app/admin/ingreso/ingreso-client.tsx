@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, useCallback } from "react";
+import { useState, useTransition, useCallback, useEffect } from "react";
 import {
   Search,
   Trash2,
@@ -11,33 +11,31 @@ import {
   CalendarClock,
   TrendingUp,
   TrendingDown,
+  PackageSearch,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyArt } from "@/components/ui/empty-art";
 import { money } from "@/lib/format";
-import { registerPurchase } from "@/app/admin/productos/actions";
+import {
+  registerPurchase,
+  buscarParaIngreso,
+  type IngresoBuscado,
+} from "@/app/admin/productos/actions";
 import { useWedgeScanner } from "@/components/pos/use-wedge-scanner";
 import { CameraScanner } from "@/components/pos/camera-scanner";
 
-export type IngresoProduct = {
-  id: string;
-  name: string;
-  emoji: string | null;
-  price: number;
-  cost: number | null;
-  stock: number;
-  barcodes: string[];
-  /** Lo que pagaste la vez pasada por esta misma cosa. */
-  ultimaCompra: { costo: number; fecha: string } | null;
-};
+/** Lo que la línea necesita, tal como lo resuelve `ingreso_buscar` (040). */
+export type IngresoProduct = IngresoBuscado;
 
 type Linea = {
   producto: IngresoProduct;
   qty: string;
   costo: string;
   vence: string;
+  /** Cuántos quedan EN TOTAL contando lo que llegó. Vacío = no se contó. */
+  total: string;
 };
 
 /**
@@ -112,46 +110,95 @@ function enDias(dias: number): string {
  * Por eso el costo viene precargado con el último y el vencimiento es opcional
  * — si el kiosquero no lo carga, no pasa nada; si lo carga, gana las alertas.
  */
-export function IngresoClient({ products }: { products: IngresoProduct[] }) {
+export function IngresoClient({ totalProductos }: { totalProductos: number }) {
   const [busqueda, setBusqueda] = useState("");
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [camara, setCamara] = useState(false);
   const [aviso, setAviso] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const porCodigo = useMemo(() => {
-    const map = new Map<string, IngresoProduct>();
-    for (const p of products) for (const b of p.barcodes) map.set(b, p);
-    return map;
-  }, [products]);
+  /* ESCALA F3 — el catálogo ya no viaja: los resultados los trae el server con
+     cada tecla (debounce), acotados a 8. Antes se filtraba en memoria sobre un
+     precargado de 500 productos alfabéticos, así que con 2000 SKUs la mitad del
+     catálogo era invisible para esta pantalla. */
+  const [visibles, setVisibles] = useState<IngresoProduct[]>([]);
+  const [buscando, setBuscando] = useState(false);
 
-  const visibles = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    if (!q) return [];
-    return products
-      .filter((p) => p.name.toLowerCase().includes(q) || p.barcodes.some((b) => b.includes(q)))
-      .slice(0, 8);
-  }, [busqueda, products]);
+  useEffect(() => {
+    const q = busqueda.trim();
+    let vivo = true;
+    // Todo el setState va DENTRO del timeout: hacerlo sincrónico en el efecto
+    // encadena renders (react-hooks/set-state-in-effect).
+    const t = setTimeout(
+      () => {
+        if (!vivo) return;
+        if (q === "") {
+          setVisibles([]);
+          return;
+        }
+        setBuscando(true);
+        buscarParaIngreso(q)
+          .then((r) => vivo && setVisibles(r))
+          .catch(() => vivo && setVisibles([]))
+          .finally(() => vivo && setBuscando(false));
+      },
+      q === "" ? 0 : 180,
+    );
+    return () => {
+      vivo = false;
+      clearTimeout(t);
+    };
+  }, [busqueda]);
 
   const agregar = useCallback((p: IngresoProduct) => {
     setLineas((prev) => {
       if (prev.some((l) => l.producto.id === p.id)) return prev;
       return [
         ...prev,
-        { producto: p, qty: "", costo: p.cost != null ? String(p.cost) : "", vence: "" },
+        { producto: p, qty: "", costo: p.cost != null ? String(p.cost) : "", vence: "", total: "" },
       ];
     });
     setBusqueda("");
+    setVisibles([]);
   }, []);
 
+  /* El escaneo se resuelve EN LA BASE y por código exacto (040). Antes miraba un
+     mapa armado con los 2000 códigos que hubieran entrado en el precargado: un
+     código que existía podía "no existir", y ahí el kiosquero cargaba el
+     producto equivocado o lo daba por perdido. */
   const onScan = useCallback(
     (code: string) => {
       setCamara(false);
-      const p = porCodigo.get(code.trim());
-      if (p) agregar(p);
-      else setAviso({ tone: "error", text: `El código ${code} no está en tu catálogo.` });
+      const codigo = code.trim();
+      if (!codigo) return;
+      setBuscando(true);
+      buscarParaIngreso(codigo, true)
+        .then((r) => {
+          const p = r[0];
+          if (!p) {
+            setAviso({
+              tone: "error",
+              text: `El código ${codigo} no está en tu catálogo. Cargalo desde Productos y volvé.`,
+            });
+            return;
+          }
+          if (p.archivado) {
+            setAviso({
+              tone: "error",
+              text: `${p.name} está archivado. Activalo desde Productos antes de recibirlo.`,
+            });
+            return;
+          }
+          agregar(p);
+        })
+        .catch(() =>
+          // Sin red no se inventa un resultado: cargar la mercadería al producto
+          // equivocado es peor que pedir que se reintente.
+          setAviso({ tone: "error", text: "No pudimos verificar ese código. Probá de nuevo." }),
+        )
+        .finally(() => setBuscando(false));
     },
-    [porCodigo, agregar],
+    [agregar],
   );
 
   useWedgeScanner(onScan, !camara);
@@ -171,6 +218,8 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
           qty: Number(l.qty),
           unit_cost: l.costo === "" ? null : Number(l.costo),
           expiry_date: l.vence || null,
+          // Solo viaja si lo contaron: sin esto, el ingreso es un delta más.
+          total_gondola: l.total === "" ? null : Number(l.total),
         })),
       });
       if (!res.ok) {
@@ -192,7 +241,13 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
       <div className="mb-5">
         <PageHeader
           title="Recibí mercadería"
-          subtitle="Escaneá o buscá, poné cuánto entró y confirmá."
+          /* El total REAL del catálogo: esta pantalla ya no precarga productos,
+             así que el número sale de un count del server (escala F3). */
+          subtitle={
+            totalProductos > 0
+              ? `Escaneá o buscá entre tus ${totalProductos} productos.`
+              : "Escaneá o buscá, poné cuánto entró y confirmá."
+          }
           icon={PackagePlus}
           art="recibir"
         />
@@ -210,6 +265,14 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
             aria-label="Buscar producto"
             className="h-11 w-full rounded-lg border border-input bg-card pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
           />
+          {buscando && (
+            <LoaderCircle className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          )}
+          {busqueda.trim() !== "" && !buscando && visibles.length === 0 && (
+            <div className="absolute inset-x-0 top-full z-10 mt-1 rounded-lg border border-border bg-popover px-3 py-2.5 text-sm text-muted-foreground shadow-xl">
+              No encontramos nada con eso.
+            </div>
+          )}
           {visibles.length > 0 && (
             <ul className="absolute inset-x-0 top-full z-10 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-xl">
               {visibles.map((p) => (
@@ -221,8 +284,9 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
                   >
                     <span aria-hidden>{p.emoji ?? "📦"}</span>
                     <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                    {/* Sin conteo, el número de stock no lo respalda nadie. */}
                     <span className="tabular shrink-0 text-xs text-muted-foreground">
-                      {p.stock} u.
+                      {p.stockConfiable === false ? "sin contar" : `${p.stock} u.`}
                     </span>
                   </button>
                 </li>
@@ -264,7 +328,14 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{l.producto.name}</p>
                     <p className="tabular text-xs text-muted-foreground">
-                      tenías {l.producto.stock} u. · se vende a {money(l.producto.price)}
+                      {/* "tenías 22 u." sobre un producto que nadie contó es
+                          precisamente el número que no vale (docs §H.5). */}
+                      {l.producto.stockConfiable === false ? (
+                        <span className="text-warning-ink">sin contar</span>
+                      ) : (
+                        <>tenías {l.producto.stock} u.</>
+                      )}{" "}
+                      · se vende a {money(l.producto.price)}
                     </p>
                   </div>
                   <button
@@ -304,6 +375,40 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
                     al lado del campo, contra lo que pagaste la vez pasada. */}
                 {l.producto.ultimaCompra && (
                   <UltimoCosto anterior={l.producto.ultimaCompra} ahora={nuevoCosto} />
+                )}
+
+                {/* CONTEO AL RECIBIR (039) — solo para lo que nadie contó. Es el
+                    único momento del día en que el dueño ya está parado frente al
+                    estante: preguntarle acá cuesta un campo y le devuelve las
+                    alertas del producto. Sumar 30 a un número que no vale deja el
+                    corrimiento intacto (docs §H.5). */}
+                {l.producto.stockConfiable === false && (
+                  <div className="mt-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
+                    <label
+                      htmlFor={`t-${l.producto.id}`}
+                      className="flex items-center gap-1.5 text-xs font-medium text-warning-ink"
+                    >
+                      <PackageSearch className="size-3.5" />
+                      Ya que estás: ¿cuántos quedan en total?
+                    </label>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        id={`t-${l.producto.id}`}
+                        value={l.total}
+                        onChange={(e) =>
+                          set(l.producto.id, "total", e.target.value.replace(/[^\d]/g, ""))
+                        }
+                        inputMode="numeric"
+                        placeholder="contando lo que llegó"
+                        className="tabular h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none placeholder:text-xs focus:border-primary"
+                      />
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {l.total === ""
+                        ? "Es opcional. Si lo contás, desde ahí te avisamos cuando quede poco."
+                        : "Listo: este producto queda con control de stock."}
+                    </p>
+                  </div>
                 )}
 
                 {/* El vencimiento tiene su propia fila. En un kiosco la mayoría de los

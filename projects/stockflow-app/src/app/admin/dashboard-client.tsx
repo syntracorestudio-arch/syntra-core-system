@@ -14,6 +14,7 @@ import {
   ChevronRight,
   ShoppingBasket,
   Receipt,
+  PackageSearch,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { money, signedPct } from "@/lib/format";
@@ -68,11 +69,14 @@ export function DashboardClient({
   data,
   timezone,
   sinGastosEsteMes = false,
+  sinControlStock = 0,
 }: {
   data: DashboardData | null;
   timezone: string;
   /** No hay ningún gasto cargado en el mes actual → nudge discreta (sin números). */
   sinGastosEsteMes?: boolean;
+  /** Productos que se venden pero todavía nadie contó: sus avisos están apagados. */
+  sinControlStock?: number;
 }) {
   if (!data) {
     return (
@@ -126,6 +130,31 @@ export function DashboardClient({
           <Receipt className="size-4 shrink-0 text-muted-foreground" />
           <span className="flex-1">Cargá los gastos de este mes para ver tu ganancia real.</span>
           <ChevronRight className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      )}
+
+      {/* PUESTA EN MARCHA (038). Apagar avisos sin decirlo sería peor que el ruido
+          que vinimos a sacar: cambiar una alerta molesta por un silencio
+          peligroso. Mientras haya productos sin contar, se dice cuántos son, qué
+          está apagado y dónde se arregla. Desaparece solo cuando no queda ninguno. */}
+      {sinControlStock > 0 && (
+        <Link
+          href="/admin/productos?control=sin"
+          className="group mb-4 flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 px-3.5 py-3 transition-colors hover:border-warning/50"
+        >
+          <PackageSearch className="mt-0.5 size-4 shrink-0 text-warning-ink" />
+          <div className="flex-1 text-sm">
+            <p className="font-medium text-warning-ink">
+              Puesta en marcha ·{" "}
+              <span className="tabular">{sinControlStock}</span>{" "}
+              {sinControlStock === 1 ? "producto sin contar" : "productos sin contar"}
+            </p>
+            <p className="mt-0.5 text-muted-foreground">
+              Se venden normal, pero sus avisos de faltante están apagados hasta que
+              cuentes cuántos tenés.
+            </p>
+          </div>
+          <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
         </Link>
       )}
 
@@ -249,7 +278,13 @@ export function DashboardClient({
             {lowTotal > 0 && <Badge tone="warning">{lowTotal}</Badge>}
           </div>
           {low_stock.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">Todo con stock suficiente.</p>
+            /* "Todo con stock suficiente" sería mentira si hay productos que
+               nadie contó: de esos no sabemos nada. Se dice lo que sí sabemos. */
+            <p className="mt-3 text-sm text-muted-foreground">
+              {sinControlStock > 0
+                ? "Sin faltantes entre los productos que ya contaste."
+                : "Todo con stock suficiente."}
+            </p>
           ) : (
             <ul className="mt-3 divide-y divide-border">
               {low_stock.slice(0, 4).map((p) => (
@@ -361,7 +396,9 @@ export function DashboardClient({
           </CardLabel>
           {restock.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
-              No hay nada urgente para reponer.
+              {sinControlStock > 0
+                ? "Nada urgente entre los productos que ya contaste."
+                : "No hay nada urgente para reponer."}
             </p>
           ) : (
             <ul className="mt-3 divide-y divide-border">

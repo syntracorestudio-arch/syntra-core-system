@@ -107,6 +107,7 @@ export default async function PosPage() {
       stock: string | number;
       category_id: string | null;
       category_name: string | null;
+      stock_confiable?: boolean;
       vendidas_14d: string | number;
       barcodes: string[] | null;
     }[]
@@ -120,6 +121,8 @@ export default async function PosPage() {
     categoryId: p.category_id,
     categoryName: p.category_name,
     barcodes: p.barcodes ?? [],
+    // Ausente = confiable: ninguna pantalla debe inventar una advertencia.
+    stockConfiable: p.stock_confiable ?? true,
     sold14d: Number(p.vendidas_14d ?? 0),
   }));
 

@@ -63,6 +63,8 @@ export type PosProduct = {
   categoryId: string | null;
   categoryName: string | null;
   barcodes: string[];
+  /** ¿Alguien contó la góndola? false = se vende, pero el número no vale. */
+  stockConfiable?: boolean;
   /** Unidades vendidas en los últimos 14 días — ordena la grilla por ritmo. */
   sold14d: number;
 };
@@ -289,6 +291,7 @@ export function PosScreen({
               categoryId: p.categoryId,
               categoryName: p.categoryName,
               barcodes: [],
+              stockConfiable: p.stockConfiable,
               sold14d: p.sold14d,
             })),
           );
@@ -430,6 +433,7 @@ export function PosScreen({
               categoryId: p.categoryId,
               categoryName: p.categoryName,
               barcodes: p.barcodes,
+              stockConfiable: p.stockConfiable,
               sold14d: 0,
             });
             setAviso({ tone: "ok", text: `${p.name} agregado` });
@@ -1126,6 +1130,8 @@ export function PosScreen({
               categoryId: null,
               categoryName: null,
               barcodes: [],
+              // Recién creado sin contar: el tile dice "sin contar", no "sin stock".
+              stockConfiable: p.stockConfiable ?? false,
               sold14d: 0,
             });
             setAviso({ tone: "ok", text: `${p.name} creado y agregado` });
@@ -1339,8 +1345,12 @@ export function PosScreen({
              cuadra para cobrar un alfajor. */
           <div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2.5 p-4 sm:grid-cols-[repeat(auto-fill,minmax(132px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
             {visibles.map((p) => {
-              const sinStock = p.stock <= 0;
-              const poco = p.stock > 0 && p.stock <= 3;
+              /* "Sin stock" en rojo sobre un producto que nadie contó le dice al
+                 cajero que no existe algo que acaba de vender. Sin conteo no se
+                 afirma nada del stock (puesta en marcha, 038). */
+              const sinControl = p.stockConfiable === false;
+              const sinStock = !sinControl && p.stock <= 0;
+              const poco = !sinControl && p.stock > 0 && p.stock <= 3;
               const color = p.color ?? "var(--muted-foreground)";
               return (
                 <button
@@ -2040,7 +2050,13 @@ function AltaRapida({
   margenMinimo: number;
   redondeo: number;
   onCancel: () => void;
-  onCreated: (p: { id: string; name: string; price: number }) => void;
+  onCreated: (p: {
+    id: string;
+    name: string;
+    price: number;
+    /** ¿Se contó la góndola al darlo de alta? Sin conteo, el tile no afirma stock. */
+    stockConfiable?: boolean;
+  }) => void;
   /** Escape del mostrador: cobrar sin cargar, con la etiqueta ya puesta. */
   onCobrarSuelto: (etiqueta: string) => void;
 }) {
@@ -2127,7 +2143,12 @@ function AltaRapida({
       /* `existing`: el código ya estaba en el negocio y el server devolvió ESE
          producto en vez de crear un duplicado. Para el cajero es lo mismo —se suma
          al carrito y sigue vendiendo—; la diferencia es que el catálogo no se ensució. */
-      onCreated({ id: res.id, name: res.name, price: res.price });
+      onCreated({
+        id: res.id,
+        name: res.name,
+        price: res.price,
+        stockConfiable: res.stockConfiable,
+      });
     });
   }
 
