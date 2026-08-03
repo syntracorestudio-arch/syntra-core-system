@@ -14,7 +14,7 @@ export default async function ConfiguracionPage() {
   const { data } = await supabase
     .from("store_settings")
     .select(
-      "expiry_warning_days, low_stock_threshold_default, reprice_rounding, allow_negative_stock, min_margin_pct, transfer_alias, confirm_methods",
+      "expiry_warning_days, low_stock_threshold_default, reprice_rounding, allow_negative_stock, min_margin_pct, margen_default_pct, transfer_alias, confirm_methods",
     )
     .eq("store_id", session.store.id)
     .maybeSingle();
@@ -26,6 +26,7 @@ export default async function ConfiguracionPage() {
     repriceRounding: Number(data?.reprice_rounding ?? 50),
     allowNegativeStock: data?.allow_negative_stock ?? true,
     minMarginPct: Number(data?.min_margin_pct ?? 25),
+    margenDefaultPct: Number(data?.margen_default_pct ?? 35),
     transferAlias: data?.transfer_alias ?? null,
     confirmMethods: {
       cash: cm.cash ?? true,

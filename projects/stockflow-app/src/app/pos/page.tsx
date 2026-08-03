@@ -42,7 +42,7 @@ export default async function PosPage() {
       supabase.rpc("pos_destacados", { p_store_id: session.store.id, p_limit: 24 }),
       supabase
         .from("store_settings")
-        .select("transfer_alias, confirm_methods, has_posnet")
+        .select("transfer_alias, confirm_methods, has_posnet, margen_default_pct, min_margin_pct, reprice_rounding")
         .eq("store_id", session.store.id)
         .maybeSingle(),
       // Categorías con CONTADORES REALES (escala F2 visual, migración 036): alimenta
@@ -129,6 +129,9 @@ export default async function PosPage() {
       products={catalog}
       canSellOnCredit={session.member.role === "owner" || session.member.can_sell_on_credit}
       canQuickAdd={session.member.role === "owner" || session.member.can_receive_stock}
+      margenDefault={Number(settings?.margen_default_pct ?? 35)}
+      margenMinimo={Number(settings?.min_margin_pct ?? 25)}
+      redondeo={Number(settings?.reprice_rounding ?? 50)}
       isOwner={session.member.role === "owner"}
       mpConectado={mpConectado}
       posnetActivo={posnetActivo}

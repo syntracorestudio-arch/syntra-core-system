@@ -25,6 +25,7 @@ export type Settings = {
   lowStockThresholdDefault: number;
   repriceRounding: number;
   minMarginPct: number;
+  margenDefaultPct: number;
   allowNegativeStock: boolean;
   transferAlias: string | null;
   confirmMethods: ConfirmMethods;
@@ -50,6 +51,7 @@ export function ConfiguracionClient({
   const [umbral, setUmbral] = useState(String(settings.lowStockThresholdDefault));
   const [redondeo, setRedondeo] = useState(String(settings.repriceRounding));
   const [margenMin, setMargenMin] = useState(String(settings.minMarginPct));
+  const [margenDefault, setMargenDefault] = useState(String(settings.margenDefaultPct));
   const [negativo, setNegativo] = useState(settings.allowNegativeStock);
   const [alias, setAlias] = useState(settings.transferAlias ?? "");
   const [confirmar, setConfirmar] = useState<ConfirmMethods>(settings.confirmMethods);
@@ -63,6 +65,7 @@ export function ConfiguracionClient({
         low_stock_threshold_default: Number(umbral),
         reprice_rounding: Number(redondeo),
         min_margin_pct: Number(margenMin),
+        margen_default_pct: Number(margenDefault) || undefined,
         allow_negative_stock: negativo,
         transfer_alias: alias.trim() || null,
         confirm_methods: confirmar,
@@ -148,10 +151,51 @@ export function ConfiguracionClient({
           )}
         </Setting>
 
+        {/* Va ARRIBA del aviso de margen corto y se leen como par: con cuánto
+            armás precios / cuándo te avisamos que se cayó. Son dos ajustes
+            distintos y se confunden fácil. */}
+        <Setting
+          icon={Percent}
+          title="Ganancia con la que armás los precios"
+          help="Cuando das de alta un producto desde la caja, ponés lo que te cuesta y calculamos el precio con esta ganancia. Siempre lo podés cambiar en el momento."
+        >
+          <div className="flex items-center gap-2">
+            <input
+              value={margenDefault}
+              onChange={(e) => setMargenDefault(e.target.value.replace(/[^\d]/g, "").slice(0, 2))}
+              inputMode="numeric"
+              aria-label="Ganancia por defecto"
+              className="tabular h-11 w-20 rounded-lg border border-input bg-background px-3 text-center text-sm outline-none focus:border-primary"
+            />
+            <span className="text-sm text-muted-foreground">% de ganancia</span>
+          </div>
+          {Number(margenDefault) > 0 && Number(margenDefault) < 100 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Con {margenDefault}%: algo que te sale {money(1000)} lo vendés a{" "}
+              <span className="tabular font-semibold text-foreground">
+                {money(
+                  Math.ceil(
+                    1000 / (1 - Number(margenDefault) / 100) / (Number(redondeo) || 1),
+                  ) * (Number(redondeo) || 1),
+                )}
+              </span>
+              .
+            </p>
+          )}
+          {/* Si la ganancia con la que armás precios es menor al umbral de aviso,
+              todo lo que cargues nace marcado "precio corto". Se avisa, no se bloquea. */}
+          {Number(margenDefault) > 0 && Number(margenDefault) <= Number(margenMin) && (
+            <p className="mt-1.5 text-xs text-warning-ink">
+              Con esta ganancia, todo lo que cargues va a aparecer como precio corto. Subila,
+              o bajá el aviso de acá abajo.
+            </p>
+          )}
+        </Setting>
+
         <Setting
           icon={TrendingUp}
           title="Avisarme si un precio se queda corto"
-          help="Debajo de este margen consideramos que un producto ya no te deja plata. Te avisamos una vez por semana y aparece en Precios."
+          help="Debajo de este margen consideramos que un producto ya no te deja plata. Te avisamos una vez por semana y aparece en Precios. Esto es el aviso, no el precio: la ganancia con la que armás precios se configura arriba."
         >
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">menos de</span>
