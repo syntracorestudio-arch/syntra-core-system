@@ -366,7 +366,8 @@ export function DashboardClient({
                     <li key={c.client_id}>
                       <Link
                         href={`/admin/fiado/${c.client_id}`}
-                        className="flex items-center justify-between py-2.5 transition-colors hover:text-primary-ink"
+                        /* `gap-3`: la elipsis del nombre recortado tocaba el monto. */
+                        className="flex items-center justify-between gap-3 py-2.5 transition-colors hover:text-primary-ink"
                       >
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">
                           {c.name}
