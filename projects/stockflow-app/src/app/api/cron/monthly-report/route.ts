@@ -15,6 +15,13 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
+ * Tope de intentos con narrativa por (negocio, mes). Es una cota de COSTO, no de
+ * entrega: pasado esto el reporte se sigue mandando, pero con la plantilla
+ * determinista. Si algo del envío está roto, el modelo deja de cobrarse.
+ */
+const MAX_INTENTOS_NARRATIVA = 3;
+
+/**
  * Cron mensual del Asistente IA (Vercel Cron, 1° de cada mes ~08:00 ART).
  *
  * Manda por email el reporte del MES CERRADO anterior a cada negocio con
@@ -130,22 +137,45 @@ export async function GET(request: NextRequest) {
         },
       );
 
-      // Fase 2: el párrafo que lee el mes. Nunca bloquea el envío — si no hay
-      // API key, si la API falla o si inventó una cifra, `texto` viene null y el
-      // email sale con la plantilla determinista.
-      const narrativa = await narrarMes(reporte);
+      /* Fase 2: el párrafo que lee el mes. Nunca bloquea el envío — si no hay API
+         key, si la API falla o si inventó una cifra, el email sale con la plantilla
+         determinista.
+
+         COTA DE COSTO (el add-on se paga por token): como máximo UNA llamada al
+         modelo por negocio y por mes, pase lo que pase.
+           · Si ya hay narrativa guardada de este período, se reusa: un reintento
+             por email fallido no vuelve a pagar el párrafo (y encima manda el
+             mismo texto, no uno nuevo).
+           · Después de MAX_INTENTOS entregas fallidas se deja de generar: si algo
+             está roto en el envío, que no siga costando plata.
+         El select va aparte y NO es fatal: la columna es de 042 y si no se corrió,
+         el reporte tiene que salir igual. */
+      const { data: guardada } = await admin
+        .from("report_deliveries")
+        .select("narrativa")
+        .eq("store_id", store.id)
+        .eq("period", period)
+        .maybeSingle();
+
+      let texto = (guardada as { narrativa?: string | null } | null)?.narrativa ?? null;
+      let narrativa: Awaited<ReturnType<typeof narrarMes>> | null = null;
+      if (!texto && intentos <= MAX_INTENTOS_NARRATIVA) {
+        narrativa = await narrarMes(reporte);
+        texto = narrativa.texto;
+      }
 
       const accent = (store.branding as { accent?: string } | null)?.accent ?? "#2E6BFF";
       const res = await enviarReporte({
         to: para,
         subject: asuntoReporte(reporte),
-        html: renderReporteHTML(reporte, accent, process.env.NEXT_PUBLIC_APP_URL, narrativa.texto),
+        html: renderReporteHTML(reporte, accent, process.env.NEXT_PUBLIC_APP_URL, texto),
       });
 
       if (res.ok) {
         enviados++;
         await registrar({ status: "sent", last_error: null, sent_at: new Date().toISOString() });
-        if (narrativa.estado !== "desactivada") {
+        // Solo se registra lo que se GENERÓ en este run (si se reusó, ya está en la fila).
+        if (narrativa && narrativa.estado !== "desactivada") {
           await registrarNarrativa({
             narrativa: narrativa.texto,
             narrativa_estado: narrativa.estado,
