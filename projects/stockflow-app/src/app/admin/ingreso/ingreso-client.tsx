@@ -738,8 +738,11 @@ export function IngresoClient({
         </ul>
       )}
 
+      {/* `bottom-20` y no `bottom-0`: con `bottom-0` el botón principal de toda
+          la pantalla quedaba DETRÁS de la barra de pestañas. Mismo criterio que
+          ya usaba la barra de selección de Productos. */}
       {lineas.length > 0 && (
-        <div className="sticky bottom-0 mt-4 border-t border-border bg-background py-4">
+        <div className="sticky bottom-20 z-30 mt-4 border-t border-border bg-background py-4 sm:bottom-0">
           <button
             type="button"
             onClick={confirmar}
