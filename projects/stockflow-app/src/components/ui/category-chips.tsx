@@ -131,9 +131,9 @@ export function CategoryChips({
                   className="size-2 shrink-0 rounded-full"
                   style={{ backgroundColor: color }}
                 />
-                {c.name}
+                <span className="truncate">{c.name}</span>
                 {typeof c.count === "number" && (
-                  <span className="tabular text-xs text-muted-foreground">{c.count}</span>
+                  <span className="tabular shrink-0 text-xs text-muted-foreground">{c.count}</span>
                 )}
               </Chip>
             );
@@ -248,7 +248,9 @@ function SheetCategorias({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-1.5">
+        {/* Una columna en mobile: a dos columnas quedaban ~13 caracteres por
+            categoría, justo en la pantalla que existe para poder LEERLAS todas. */}
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
           {filtradas.map((c) => {
             const activa = value === c.id;
             const color = c.color ?? "var(--primary)";
@@ -357,7 +359,12 @@ function Chip({
       onClick={onClick}
       style={style}
       className={cn(
-        "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors duration-150",
+        /* `max-w-[11rem]` es la cota que faltaba: el chip es `shrink-0` (para que
+           la fila scrollee en vez de apretujarse), así que sin techo una
+           categoría de nombre largo —"GOLOSINAS Y CHOCOLATES IMPORTADOS"— se come
+           la fila entera y deja al resto fuera de vista. Es exactamente el
+           problema que este componente vino a resolver. */
+        "flex max-w-[11rem] shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors duration-150",
         alto,
         activa
           ? "text-foreground" // el fondo/ring activos vienen por style (color de la categoría)

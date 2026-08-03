@@ -282,8 +282,8 @@ function NuevoGastoDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end overflow-y-auto bg-black/60 sm:place-items-center sm:p-4">
-      <div className="w-full rounded-t-2xl border border-border bg-popover p-5 sm:max-w-md sm:rounded-2xl">
+    <div className="fixed inset-0 z-50 grid place-items-end bg-black/60 sm:place-items-center sm:p-4">
+      <div className="max-h-[85dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-popover p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:max-w-md sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Nuevo gasto</h2>
           <button type="button" onClick={onClose} aria-label="Cerrar" className="cursor-pointer text-muted-foreground hover:text-foreground">
@@ -421,8 +421,8 @@ function AnularGastoDialog({
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end overflow-y-auto bg-black/60 sm:place-items-center sm:p-4">
-      <div className="w-full rounded-t-2xl border border-border bg-popover p-5 sm:max-w-sm sm:rounded-2xl">
+    <div className="fixed inset-0 z-50 grid place-items-end bg-black/60 sm:place-items-center sm:p-4">
+      <div className="max-h-[85dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-popover p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:max-w-sm sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Anular este gasto</h2>
           <button type="button" onClick={onClose} aria-label="Cerrar" className="cursor-pointer text-muted-foreground hover:text-foreground">

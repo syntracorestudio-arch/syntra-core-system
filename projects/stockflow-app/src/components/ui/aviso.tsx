@@ -35,12 +35,17 @@ export function AvisoBanner({
       ) : (
         <TriangleAlert className="mt-0.5 size-4 shrink-0" />
       )}
-      <span className="flex-1">{aviso.text}</span>
+      {/* `min-w-0` + `break-words`: este es el ÚNICO lugar de la app donde un
+          nombre de producto se muestra entero, y los mensajes lo interpolan
+          ("Le pegamos el código a {nombre}"). Sin esto, un nombre largo sin
+          espacios estira el aviso más ancho que la pantalla — y el aviso vive en
+          10 pantallas. `shrink-0` en la X para que no se la coma el texto. */}
+      <span className="min-w-0 flex-1 break-words">{aviso.text}</span>
       <button
         type="button"
         onClick={onClose}
         aria-label="Cerrar aviso"
-        className="cursor-pointer opacity-60 hover:opacity-100"
+        className="shrink-0 cursor-pointer opacity-60 hover:opacity-100"
       >
         <X className="size-4" />
       </button>

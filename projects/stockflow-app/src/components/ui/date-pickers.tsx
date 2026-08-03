@@ -77,11 +77,11 @@ function Sheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-end overflow-y-auto bg-black/60 sm:place-items-center sm:p-4"
+      className="fixed inset-0 z-50 grid place-items-end bg-black/60 sm:place-items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="w-full rounded-t-2xl border border-border bg-popover p-5 sm:max-w-xs sm:rounded-2xl"
+        className="max-h-[85dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-popover p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:max-w-xs sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
