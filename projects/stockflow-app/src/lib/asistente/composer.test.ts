@@ -105,6 +105,16 @@ test("un solo deudor se nombra sin contarlo", () => {
   assert.equal(r.oportunidades[0].cta, "Ver el cliente");
 });
 
+// ── Cobertura de costo ─────────────────────────────────────────────────────────
+
+test("la cobertura de costo viaja como PORCENTAJE, igual que en Reportes", () => {
+  // La RPC devuelve 91 (no 0,91). Tratarla como fracción dejó muda la nota de
+  // "margen calculado sobre el X% de tus ventas" en todos los reportes enviados.
+  const d = datos();
+  d.resumen.money = { ...d.resumen.money, cost_coverage: 91 };
+  assert.equal(construirReporte(d, SIN_ALERTAS, SIN_MARGENES, META).resumen.coberturaCostoPct, 91);
+});
+
 // ── Comparación contra el mes anterior ─────────────────────────────────────────
 
 function conPrevio(prevSold: number, vsPct: number | null): DatosMensuales {
