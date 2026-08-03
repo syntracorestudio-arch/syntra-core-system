@@ -47,3 +47,5 @@ supabase/snippets/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+certificates

@@ -168,7 +168,8 @@ export function IngresoClient({ totalProductos }: { totalProductos: number }) {
      producto equivocado o lo daba por perdido. */
   const onScan = useCallback(
     (code: string) => {
-      setCamara(false);
+      // La cámara NO se cierra: acá se recibe mercadería de a muchos productos
+      // seguidos y reabrirla por cada uno es el grueso del tiempo perdido.
       const codigo = code.trim();
       if (!codigo) return;
       setBuscando(true);
@@ -236,7 +237,18 @@ export function IngresoClient({ totalProductos }: { totalProductos: number }) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
-      {camara && <CameraScanner onScan={onScan} onClose={() => setCamara(false)} />}
+      {camara && (
+        <CameraScanner
+          onScan={onScan}
+          onClose={() => setCamara(false)}
+          modoInicial="continuo"
+          titulo={
+            lineas.length === 0
+              ? "Escaneá lo que entró"
+              : `${lineas.length} producto${lineas.length === 1 ? "" : "s"} en la lista`
+          }
+        />
+      )}
 
       <div className="mb-5">
         <PageHeader

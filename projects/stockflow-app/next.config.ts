@@ -20,6 +20,14 @@ const nextConfig: NextConfig = {
     "192.168.0.14",
     "192.168.0.15",
     "localhost",
+    /* Rangos privados enteros, no IPs sueltas: la del teléfono cambia cada vez
+       que se prueba en otra red (y con el hotspot del celular cambia siempre).
+       Si el origen no está acá, Next bloquea `/_next/*` y la página carga SIN
+       JavaScript: se ve bien, navega bien, y NINGÚN botón funciona — un rato
+       largo de creer que está roto el escáner. */
+    "192.168.*.*",
+    "10.*.*.*",
+    "172.16.*.*",
     // Túnel HTTPS para probar en un teléfono real: Web Push exige contexto
     // seguro, y el túnel además evita pelearle al firewall de Windows.
     "stockflow-demo-sc.loca.lt",

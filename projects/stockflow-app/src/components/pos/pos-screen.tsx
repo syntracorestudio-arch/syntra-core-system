@@ -397,7 +397,10 @@ export function PosScreen({
    */
   const onScan = useCallback(
     (code: string) => {
-      setCamaraAbierta(false);
+      /* El escáner se cierra solo cuando está en modo simple. Acá NO se cierra
+         a ciegas: en continuo la venta se arma detrás de la cámara. Lo que sí
+         cierra siempre es un código desconocido — el alta necesita la pantalla
+         entera (más abajo). */
       const codigo = code.trim();
       if (!codigo) return;
 
@@ -407,6 +410,9 @@ export function PosScreen({
         setAviso({ tone: "ok", text: `${encontrado.name} agregado` });
         return;
       }
+
+      // De acá para abajo puede terminar en el alta rápida: la cámara estorba.
+      setCamaraAbierta(false);
 
       // No está en el precargado: puede ser que NO exista, o que exista y haya
       // quedado fuera del corte. Lo resuelve la base, no la memoria.
@@ -818,7 +824,17 @@ export function PosScreen({
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
       {camaraAbierta && (
-        <CameraScanner onScan={onScan} onClose={() => setCamaraAbierta(false)} />
+        <CameraScanner
+          onScan={onScan}
+          onClose={() => setCamaraAbierta(false)}
+          modoInicial="simple"
+          permitirContinuo
+          titulo={
+            carrito.length === 0
+              ? "Escaneá lo que lleva"
+              : `${carrito.length} en el ticket · ${money(total)}`
+          }
+        />
       )}
 
       {cobrandoQr && (

@@ -11,6 +11,10 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // Los tests corren con el runner nativo de Node (sin dependencias), y ese
+    // sí necesita la extensión en el import. Solo afecta al chequeo de tipos:
+    // `noEmit` ya está en true y Next compila por su cuenta.
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,
     "plugins": [
