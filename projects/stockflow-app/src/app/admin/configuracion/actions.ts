@@ -16,6 +16,14 @@ const settingsSchema = z.object({
   // Cota alta a propósito: un margen mínimo de 90% no es un umbral, es un error
   // de tipeo que marcaría medio catálogo como problemático.
   min_margin_pct: z.number().min(0, "No puede ser negativo.").max(80, "Máximo 80%."),
+  // Ganancia con la que la caja PROPONE el precio al dar de alta (distinta de
+  // min_margin_pct, que es el aviso por erosión). Sobre el precio, igual que el
+  // margen que muestra cada ficha: precio = costo / (1 - m/100).
+  margen_default_pct: z
+    .number()
+    .min(1, "Poné al menos 1%.")
+    .max(90, "Máximo 90%.")
+    .optional(),
   allow_negative_stock: z.boolean(),
   // Cobros (Fase 1): alias/CVU para transferencias + perilla de confirmación por
   // método. Nullable/optional para no romper llamadas viejas.

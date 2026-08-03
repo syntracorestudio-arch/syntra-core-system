@@ -134,6 +134,9 @@ export function PosScreen({
   products,
   canSellOnCredit,
   canQuickAdd,
+  margenDefault,
+  margenMinimo,
+  redondeo: redondeoPrecio,
   isOwner,
   mpConectado,
   posnetActivo,
@@ -151,6 +154,12 @@ export function PosScreen({
       la UI no debe ser MÁS estricta — un cajero con permiso quedaba ante un
       diálogo muerto en plena venta. */
   canQuickAdd: boolean;
+  /** Ganancia con la que la caja propone el precio al dar de alta (ajustes). */
+  margenDefault: number;
+  /** Umbral de aviso por margen corto (ajustes): advierte, no bloquea. */
+  margenMinimo: number;
+  /** Redondeo de precios del negocio (el mismo del remarcado masivo). */
+  redondeo: number;
   isOwner: boolean;
   /** ¿El negocio conectó su cuenta de MercadoPago? Decide si el QR lo genera la app. */
   mpConectado: boolean;
@@ -221,7 +230,10 @@ export function PosScreen({
   const buscadorRef = useRef<HTMLInputElement>(null);
   const [altaRapida, setAltaRapida] = useState<{
     barcode: string | null;
+    /** Lo que dijo el CATÁLOGO (solo en el camino del escaneo). */
     sugerencia: { nombre: string; marca: string | null } | null;
+    /** Lo que tipeó el cajero (camino de búsqueda sin resultados). */
+    nombreInicial?: string;
   } | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -1093,9 +1105,17 @@ export function PosScreen({
         <AltaRapida
           barcode={altaRapida.barcode}
           sugerencia={altaRapida.sugerencia}
+          nombreInicial={altaRapida.nombreInicial}
           categories={categories}
           canCreate={canQuickAdd}
+          margenDefault={margenDefault}
+          margenMinimo={margenMinimo}
+          redondeo={redondeoPrecio}
           onCancel={() => setAltaRapida(null)}
+          onCobrarSuelto={(etiqueta) => {
+            setAltaRapida(null);
+            setMontoLibre({ sugerencia: etiqueta });
+          }}
           onCreated={(p) => {
             setAltaRapida(null);
             agregar({
@@ -1287,10 +1307,14 @@ export function PosScreen({
                     <button
                       type="button"
                       onClick={() => {
-                        const nombre = busqueda.trim();
+                        /* El catálogo NO reconoció nada: el nombre es el que
+                           tipeó el cajero. Va como `nombreInicial` para no
+                           anunciar un reconocimiento que no existió (y para que
+                           el buscador por nombre siga funcionando acá). */
                         setAltaRapida({
                           barcode: null,
-                          sugerencia: nombre ? { nombre, marca: null } : null,
+                          sugerencia: null,
+                          nombreInicial: busqueda.trim(),
                         });
                       }}
                       className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border text-sm font-medium text-foreground transition-colors hover:bg-secondary"
@@ -1978,28 +2002,61 @@ function MontoLibreDialog({
   );
 }
 
-/** Alta rápida: nombre + precio, nada más. El catálogo se arma vendiendo. */
+/**
+ * Alta rápida: el catálogo se arma VENDIENDO (onboarding orgánico, docs §H).
+ *
+ * Regla de oro del mostrador: **confirmar, no tipear**. El cajero pone lo que le
+ * cuesta —dato que el kiosquero sabe de memoria— y el precio sale calculado con
+ * la ganancia del negocio. Un precio mal tipeado con gente esperando se cobra
+ * mal en cada venta futura; un costo mal tipeado solo ensucia un margen.
+ *
+ * Un solo campo numérico con selector Costo/Precio: dos inputs numéricos en la
+ * caja se confunden entre sí y duplican el barrido visual.
+ */
 function AltaRapida({
   barcode,
   sugerencia,
+  nombreInicial,
   categories,
   canCreate,
+  margenDefault,
+  margenMinimo,
+  redondeo,
   onCancel,
   onCreated,
+  onCobrarSuelto,
 }: {
   barcode: string | null;
+  /** Identidad que aportó el CATÁLOGO público. null = el catálogo no lo conoce. */
   sugerencia: { nombre: string; marca: string | null } | null;
+  /** Lo que tipeó el cajero al buscar. No es un reconocimiento: no lo anunciamos como tal. */
+  nombreInicial?: string;
   /** Categorías EXISTENTES. Acá no se crean nuevas (eso es Fase 2, con el índice único). */
   categories: { id: string; name: string; emoji: string | null }[];
   canCreate: boolean;
+  /** Ganancia con la que se PROPONE el precio (sobre el precio, como el resto de la app). */
+  margenDefault: number;
+  /** Umbral de aviso por margen corto: solo para advertir, nunca para bloquear. */
+  margenMinimo: number;
+  redondeo: number;
   onCancel: () => void;
   onCreated: (p: { id: string; name: string; price: number }) => void;
+  /** Escape del mostrador: cobrar sin cargar, con la etiqueta ya puesta. */
+  onCobrarSuelto: (etiqueta: string) => void;
 }) {
   /* La sugerencia llega YA resuelta desde el padre: la búsqueda en el catálogo
      ocurre antes de abrir este diálogo. Así no hay estado de carga acá adentro
      ni un efecto que sincronice props con estado. */
-  const [name, setName] = useState(sugerencia?.nombre ?? "");
+  const [name, setName] = useState(sugerencia?.nombre ?? nombreInicial ?? "");
+  /* `modo` decide qué significa el número que se tipea. Arranca en costo: es el
+     dato que el kiosquero tiene en la cabeza y el que deja el margen sano. */
+  const [modo, setModo] = useState<"costo" | "precio">("costo");
+  const [costo, setCosto] = useState("");
   const [price, setPrice] = useState("");
+  const [editandoNombre, setEditandoNombre] = useState(false);
+  const [mostrarCantidad, setMostrarCantidad] = useState(false);
+  const [cantidad, setCantidad] = useState("");
+  const [mostrarCategoria, setMostrarCategoria] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [delCatalogo, setDelCatalogo] = useState(!!sugerencia);
   const [opciones, setOpciones] = useState<
@@ -2020,7 +2077,7 @@ function AltaRapida({
     setName(v);
     setDelCatalogo(false);
     setCatalogoRef(null);
-    if (sugerencia || v.trim().length < 2) {
+    if (v.trim().length < 2) {
       setOpciones([]);
       return;
     }
@@ -2029,11 +2086,36 @@ function AltaRapida({
       .catch(() => setOpciones([]));
   }
 
+  /* Precio propuesto = costo con la ganancia del negocio, redondeado hacia
+     arriba con el mismo redondeo que usa el remarcado masivo. Sobre el PRECIO,
+     igual que el margen que muestra cada ficha: precio = costo / (1 - m/100). */
+  const costoNum = Number(costo);
+  const paso = redondeo > 0 ? redondeo : 1;
+  const precioSugerido =
+    costoNum > 0 && margenDefault > 0 && margenDefault < 100
+      ? Math.ceil(costoNum / (1 - margenDefault / 100) / paso) * paso
+      : 0;
+  const precioFinal = modo === "costo" ? precioSugerido : Number(price);
+  const margenReal =
+    costoNum > 0 && precioFinal > 0 ? ((precioFinal - costoNum) / precioFinal) * 100 : null;
+  const listo = !!name.trim() && precioFinal > 0;
+
+  /** Pasar a tipear el precio: arranca con el sugerido, nunca en blanco —
+      confirmar-con-retoque tiene que seguir siendo más barato que tipear. */
+  function pasarAPrecio() {
+    if (modo === "precio") return;
+    setPrice(precioSugerido > 0 ? String(precioSugerido) : "");
+    setModo("precio");
+  }
+
   function guardar() {
     startTransition(async () => {
       const res = await quickCreateProduct({
         name,
-        price: Number(price),
+        price: precioFinal,
+        cost: costoNum > 0 ? costoNum : null,
+        // "" = no contó; "0" tipeado SÍ es un conteo legítimo ("se vendió el último").
+        cantidad: mostrarCantidad && cantidad !== "" ? Number(cantidad) : null,
         barcode,
         catalogoRef,
         category_id: categoryId || null,
@@ -2087,10 +2169,25 @@ function AltaRapida({
               {delCatalogo && (
                 <p className="flex items-start gap-2 rounded-lg bg-success/10 px-3 py-2 text-sm text-success-ink ring-1 ring-success/25">
                   <Sparkles className="mt-0.5 size-4 shrink-0" />
-                  Lo reconocimos. Revisá el nombre y poné tu precio.
+                  Lo reconocimos. Poné cuánto te cuesta y calculamos el precio.
                 </p>
               )}
 
+              {/* Con hit del catálogo el nombre NO es un input: es una línea que
+                  se confirma. Gana altura con el teclado abierto y saca un campo
+                  del barrido visual. Si hace falta, "Cambiar" lo vuelve editable. */}
+              {delCatalogo && !editandoNombre ? (
+                <div className="flex items-center gap-2">
+                  <p className="min-w-0 flex-1 truncate text-sm font-medium">{name}</p>
+                  <button
+                    type="button"
+                    onClick={() => setEditandoNombre(true)}
+                    className="shrink-0 cursor-pointer text-xs font-medium text-primary hover:underline"
+                  >
+                    Cambiar
+                  </button>
+                </div>
+              ) : (
               <div className="space-y-1.5">
                 <label htmlFor="qp-name" className="text-sm font-medium">
                   ¿Qué es?
@@ -2099,7 +2196,7 @@ function AltaRapida({
                   id="qp-name"
                   value={name}
                   onChange={(e) => alEscribirNombre(e.target.value)}
-                  autoFocus={!barcode && !sugerencia}
+                  autoFocus={!barcode || editandoNombre}
                   placeholder="Coca-Cola 500ml"
                   className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
                 />
@@ -2127,21 +2224,145 @@ function AltaRapida({
                   </ul>
                 )}
               </div>
-              <div className="space-y-1.5">
-                <label htmlFor="qp-price" className="text-sm font-medium">
-                  ¿A cuánto lo vendés?
-                </label>
-                <input
-                  id="qp-price"
-                  autoFocus={!!sugerencia}
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ""))}
-                  inputMode="numeric"
-                  placeholder="1800"
-                  className="tabular h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
-                />
+              )}
+
+              {/* UN solo campo numérico. El selector dice qué estás poniendo:
+                  el costo (y el precio sale solo) o el precio directo, para
+                  cuando no sabés lo que te cuesta. */}
+              <div className="space-y-2">
+                <div className="flex gap-1 rounded-lg bg-secondary p-1">
+                  {(["costo", "precio"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => (m === "precio" ? pasarAPrecio() : setModo("costo"))}
+                      aria-pressed={modo === m}
+                      className={cn(
+                        "h-8 flex-1 cursor-pointer rounded-md text-xs font-semibold transition-colors",
+                        modo === m
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {m === "costo" ? "Costo" : "Precio"}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="qp-num" className="text-sm font-medium">
+                    {modo === "costo" ? "¿Cuánto te cuesta?" : "¿A cuánto lo vendés?"}
+                  </label>
+                  <input
+                    id="qp-num"
+                    autoFocus={!!barcode && !editandoNombre}
+                    value={modo === "costo" ? costo : price}
+                    /* Cota de 7 dígitos: si el cajero escanea el próximo producto
+                       sin cerrar el diálogo, el lector vuelca el EAN acá adentro.
+                       Con el cap, un código no se convierte en un precio de
+                       7 millones. */
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/[^\d]/g, "").slice(0, 7);
+                      if (modo === "costo") setCosto(v);
+                      else setPrice(v);
+                    }}
+                    inputMode="numeric"
+                    placeholder={modo === "costo" ? "900" : "1800"}
+                    className="tabular h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+
+                {/* El número grande es la confirmación: lo que se va a cobrar. */}
+                <div className="rounded-lg border border-border bg-background px-3 py-2.5">
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">Se vende a</p>
+                      <p className="tabular text-2xl font-bold leading-tight">
+                        {precioFinal > 0 ? money(precioFinal) : "$ —"}
+                      </p>
+                    </div>
+                    {modo === "costo" && precioSugerido > 0 && (
+                      <button
+                        type="button"
+                        onClick={pasarAPrecio}
+                        className="shrink-0 cursor-pointer rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                      >
+                        Otro precio
+                      </button>
+                    )}
+                  </div>
+                  <p
+                    className={cn(
+                      "mt-1 text-xs",
+                      margenReal !== null && margenReal < margenMinimo
+                        ? "text-warning-ink"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {precioFinal <= 0
+                      ? modo === "costo"
+                        ? "Poné cuánto te cuesta y calculamos el precio."
+                        : "Poné el precio de venta."
+                      : margenReal === null
+                        ? "Sin costo cargado. Lo ponés después, cuando tengas la factura."
+                        : margenReal < 0
+                          ? "Así lo estarías vendiendo a pérdida."
+                          : margenReal < margenMinimo
+                            ? `Ojo: te queda ${margenReal.toFixed(0)}% de ganancia, menos de tu mínimo (${margenMinimo}%).`
+                            : modo === "costo"
+                              ? `${margenDefault}% de ganancia · redondeado a ${money(paso)}`
+                              : `Te queda ${margenReal.toFixed(0)}% de ganancia`}
+                  </p>
+                </div>
               </div>
-              {categories.length > 0 && (
+
+              {/* Opcionales como chips: no cuestan nada al camino rápido y
+                  siguen estando a un toque. El default es NO contar — un campo
+                  vacío a la vista invita a inventar un número, y una base falsa
+                  es peor que ninguna. */}
+              <div className="flex flex-wrap gap-2">
+                {!mostrarCantidad && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarCantidad(true)}
+                    className="h-8 cursor-pointer rounded-lg border border-dashed border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                  >
+                    + ¿Cuántos tenés?
+                  </button>
+                )}
+                {!mostrarCategoria && categories.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarCategoria(true)}
+                    className="h-8 cursor-pointer rounded-lg border border-dashed border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                  >
+                    + Categoría
+                  </button>
+                )}
+              </div>
+
+              {mostrarCantidad && (
+                <div className="space-y-1.5">
+                  <label htmlFor="qp-cant" className="text-sm font-medium">
+                    ¿Cuántos tenés ahora?{" "}
+                    <span className="font-normal text-muted-foreground">(opcional)</span>
+                  </label>
+                  <input
+                    id="qp-cant"
+                    value={cantidad}
+                    onChange={(e) => setCantidad(e.target.value.replace(/[^\d]/g, "").slice(0, 5))}
+                    inputMode="numeric"
+                    autoFocus
+                    placeholder="12"
+                    className="tabular h-11 w-24 rounded-lg border border-input bg-background px-3 text-center text-sm outline-none focus:border-primary"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Si lo contás, desde ahora te avisamos cuando se esté por acabar.
+                  </p>
+                </div>
+              )}
+
+              {mostrarCategoria && categories.length > 0 && (
                 <div className="space-y-1.5">
                   <label htmlFor="qp-cat" className="text-sm font-medium">
                     Categoría <span className="font-normal text-muted-foreground">(opcional)</span>
@@ -2161,14 +2382,26 @@ function AltaRapida({
                   </select>
                 </div>
               )}
+
               <button
                 type="button"
                 onClick={guardar}
-                disabled={pending || !name.trim() || !price}
+                disabled={pending || !listo}
                 className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
               >
                 {pending && <LoaderCircle className="size-4 animate-spin" />}
-                Guardar y agregar
+                Guardar y agregar{precioFinal > 0 ? ` ${money(precioFinal)}` : ""}
+              </button>
+
+              {/* La salida cuando hay cola: cobra igual y el nombre queda como
+                  etiqueta, alimentando la lista de lo que falta cargar. Antes la
+                  única salida de este diálogo era la X, sin cobrar nada. */}
+              <button
+                type="button"
+                onClick={() => onCobrarSuelto(name.trim() || sugerencia?.nombre || "")}
+                className="w-full cursor-pointer py-1 text-center text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Cobrar sin cargarlo
               </button>
             </div>
           </>

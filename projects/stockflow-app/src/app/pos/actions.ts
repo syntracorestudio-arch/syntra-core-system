@@ -433,6 +433,14 @@ export async function buscarClientes(q?: string): Promise<ClienteBuscado[]> {
 const quickProductSchema = z.object({
   name: z.string().trim().min(1).max(80),
   price: z.number().nonnegative(),
+  /* Costo dictado en el mostrador ("eso lo pago 900"): el kiosquero lo sabe de
+     memoria y es lo que permite PROPONER el precio con el margen del negocio.
+     Opcional: sin costo el producto se vende igual y queda en "sin costo". */
+  cost: z.number().nonnegative().nullable().optional(),
+  /* Conteo de góndola, OPCIONAL y casi siempre vacío: en la caja hay un cliente
+     esperando. Si viene, deja el baseline de stock y el producto arranca con sus
+     alertas encendidas (stock_confiable). */
+  cantidad: z.number().nonnegative().nullable().optional(),
   barcode: z.string().trim().max(64).nullable().optional(),
   // Categoría EXISTENTE (escala Fase 1). Opcional: obligar a elegir haría que el
   // cajero invente categorías o abandone. Sin esto, todo lo dado de alta en la caja
@@ -454,6 +462,8 @@ export type QuickCreateResult =
       existing?: boolean;
       /** Se creó el producto pero su código no se pudo asociar (ya estaba en uso). */
       avisoCodigo?: string;
+      /** ¿Quedó con baseline de góndola? false = se vende, pero sin alertas de stock. */
+      stockConfiable?: boolean;
     }
   | { ok: false; error: string };
 
@@ -471,60 +481,43 @@ export async function quickCreateProduct(input: unknown): Promise<QuickCreateRes
 
   const supabase = await createSupabaseServer();
 
-  /* GUARDA ANTI-DUPLICADO (escala Fase 1, cinturón y tiradores).
-     Aunque el escaneo ya resuelve server-side, esta acción se puede invocar igual
-     (reintento, doble tap, carrera entre pestañas, o llamada directa a la action).
-     Si el código YA existe en el negocio, devolvemos ESE producto en vez de crear
-     otro. Antes, el insert del código chocaba contra `unique (store_id, barcode)` y
-     el error NO se chequeaba: quedaba un producto duplicado, con stock 0 y sin
-     código, para siempre — corrompiendo stock, alertas y reportes. */
-  if (parsed.data.barcode) {
-    const { data: existente } = await supabase.rpc("producto_por_codigo", {
-      p_store_id: session.store.id,
-      p_codigo: parsed.data.barcode,
-    });
-    if (existente) {
-      const p = existente as { id: string; name: string; price: string | number };
-      return { ok: true, id: p.id, name: p.name, price: Number(p.price), existing: true };
+  /* Alta ATÓMICA (037): producto + código + asiento inicial opcional en una sola
+     transacción. Antes eran 4 llamadas sueltas y cualquier corte dejaba basura:
+     producto sin código, o con código de otro.
+
+     El dedup vive adentro de la RPC: si el código YA es de un producto del
+     negocio devuelve ESE (antes el insert chocaba contra `unique (store_id,
+     barcode)` y el error no se miraba → duplicado con stock 0 para siempre). */
+  const { data: creado, error } = await supabase.rpc("crear_producto_rapido", {
+    p_store_id: session.store.id,
+    p_nombre: parsed.data.name,
+    p_precio: parsed.data.price,
+    p_costo: parsed.data.cost ?? null,
+    p_barcode: parsed.data.barcode ?? null,
+    p_category_id: parsed.data.category_id ?? null,
+    p_cantidad: parsed.data.cantidad ?? null,
+  });
+
+  if (error || !creado) {
+    if (error?.message.includes("not_allowed")) {
+      return { ok: false, error: "No tenés permiso para dar de alta productos." };
     }
-  }
-
-  const { data, error } = await supabase
-    .from("products")
-    .insert({
-      store_id: session.store.id,
-      name: parsed.data.name,
-      price: parsed.data.price,
-      emoji: "📦",
-      category_id: parsed.data.category_id ?? null,
-    })
-    .select("id, name, price")
-    .single();
-
-  if (error || !data) {
     return { ok: false, error: "No pudimos guardar el producto." };
   }
 
-  if (parsed.data.barcode) {
-    // El error SÍ se mira: si el código ya existía (carrera con otra caja), el
-    // producto recién creado quedaría huérfano sin código. Se avisa en vez de
-    // dejar basura silenciosa en el catálogo.
-    const { error: errCodigo } = await supabase.from("product_barcodes").insert({
-      store_id: session.store.id,
-      product_id: data.id,
-      barcode: parsed.data.barcode,
-    });
-    if (errCodigo) {
-      revalidatePath("/pos");
-      return {
-        ok: true,
-        id: data.id,
-        name: data.name,
-        price: Number(data.price),
-        avisoCodigo: "El producto se creó, pero ese código ya estaba en uso.",
-      };
-    }
+  const data = creado as {
+    id: string;
+    name: string;
+    price: string | number;
+    existing?: boolean;
+    stock_confiable?: boolean;
+  };
 
+  if (data.existing) {
+    return { ok: true, id: data.id, name: data.name, price: Number(data.price), existing: true };
+  }
+
+  if (parsed.data.barcode) {
     // Aporte al catálogo compartido: si este código no estaba, ahora el próximo
     // kiosquero que lo escanee ya lo va a tener. Va SOLO el nombre — el precio y
     // las ventas nunca salen del negocio.
@@ -544,5 +537,11 @@ export async function quickCreateProduct(input: unknown): Promise<QuickCreateRes
   }
 
   revalidatePath("/pos");
-  return { ok: true, id: data.id, name: data.name, price: Number(data.price) };
+  return {
+    ok: true,
+    id: data.id,
+    name: data.name,
+    price: Number(data.price),
+    stockConfiable: data.stock_confiable ?? false,
+  };
 }
