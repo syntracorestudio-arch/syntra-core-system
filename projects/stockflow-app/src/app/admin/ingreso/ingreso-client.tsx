@@ -11,6 +11,7 @@ import {
   CalendarClock,
   TrendingUp,
   TrendingDown,
+  PackageSearch,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
@@ -29,6 +30,8 @@ export type IngresoProduct = {
   cost: number | null;
   stock: number;
   barcodes: string[];
+  /** ¿Alguien contó la góndola? false = su stock es un número sin respaldo. */
+  stockConfiable?: boolean;
   /** Lo que pagaste la vez pasada por esta misma cosa. */
   ultimaCompra: { costo: number; fecha: string } | null;
 };
@@ -38,6 +41,8 @@ type Linea = {
   qty: string;
   costo: string;
   vence: string;
+  /** Cuántos quedan EN TOTAL contando lo que llegó. Vacío = no se contó. */
+  total: string;
 };
 
 /**
@@ -138,7 +143,7 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
       if (prev.some((l) => l.producto.id === p.id)) return prev;
       return [
         ...prev,
-        { producto: p, qty: "", costo: p.cost != null ? String(p.cost) : "", vence: "" },
+        { producto: p, qty: "", costo: p.cost != null ? String(p.cost) : "", vence: "", total: "" },
       ];
     });
     setBusqueda("");
@@ -171,6 +176,8 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
           qty: Number(l.qty),
           unit_cost: l.costo === "" ? null : Number(l.costo),
           expiry_date: l.vence || null,
+          // Solo viaja si lo contaron: sin esto, el ingreso es un delta más.
+          total_gondola: l.total === "" ? null : Number(l.total),
         })),
       });
       if (!res.ok) {
@@ -264,7 +271,14 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{l.producto.name}</p>
                     <p className="tabular text-xs text-muted-foreground">
-                      tenías {l.producto.stock} u. · se vende a {money(l.producto.price)}
+                      {/* "tenías 22 u." sobre un producto que nadie contó es
+                          precisamente el número que no vale (docs §H.5). */}
+                      {l.producto.stockConfiable === false ? (
+                        <span className="text-warning-ink">sin contar</span>
+                      ) : (
+                        <>tenías {l.producto.stock} u.</>
+                      )}{" "}
+                      · se vende a {money(l.producto.price)}
                     </p>
                   </div>
                   <button
@@ -304,6 +318,40 @@ export function IngresoClient({ products }: { products: IngresoProduct[] }) {
                     al lado del campo, contra lo que pagaste la vez pasada. */}
                 {l.producto.ultimaCompra && (
                   <UltimoCosto anterior={l.producto.ultimaCompra} ahora={nuevoCosto} />
+                )}
+
+                {/* CONTEO AL RECIBIR (039) — solo para lo que nadie contó. Es el
+                    único momento del día en que el dueño ya está parado frente al
+                    estante: preguntarle acá cuesta un campo y le devuelve las
+                    alertas del producto. Sumar 30 a un número que no vale deja el
+                    corrimiento intacto (docs §H.5). */}
+                {l.producto.stockConfiable === false && (
+                  <div className="mt-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
+                    <label
+                      htmlFor={`t-${l.producto.id}`}
+                      className="flex items-center gap-1.5 text-xs font-medium text-warning-ink"
+                    >
+                      <PackageSearch className="size-3.5" />
+                      Ya que estás: ¿cuántos quedan en total?
+                    </label>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        id={`t-${l.producto.id}`}
+                        value={l.total}
+                        onChange={(e) =>
+                          set(l.producto.id, "total", e.target.value.replace(/[^\d]/g, ""))
+                        }
+                        inputMode="numeric"
+                        placeholder="contando lo que llegó"
+                        className="tabular h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none placeholder:text-xs focus:border-primary"
+                      />
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {l.total === ""
+                        ? "Es opcional. Si lo contás, desde ahí te avisamos cuando quede poco."
+                        : "Listo: este producto queda con control de stock."}
+                    </p>
+                  </div>
                 )}
 
                 {/* El vencimiento tiene su propia fila. En un kiosco la mayoría de los

@@ -294,6 +294,10 @@ const purchaseSchema = z.object({
         qty: z.number().positive(),
         unit_cost: z.number().nonnegative().nullable(),
         expiry_date: z.string().nullable(),
+        /* Conteo al recibir (039): cuántos quedan EN TOTAL contando lo que
+           llegó. Opcional — es lo único que convierte el stock de un producto
+           que entró vendiendo en un número con respaldo. */
+        total_gondola: z.number().nonnegative().nullable().optional(),
       }),
     )
     .min(1, "Cargá al menos un producto."),

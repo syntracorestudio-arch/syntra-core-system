@@ -21,7 +21,7 @@ export default async function IngresoPage() {
   const [{ data: products }, { data: barcodes }, { data: compras }] = await Promise.all([
     supabase
       .from("products")
-      .select("id, name, emoji, price, cost, stock")
+      .select("id, name, emoji, price, cost, stock, stock_confiable")
       .eq("status", "active")
       .order("name")
       .limit(500),
@@ -67,6 +67,8 @@ export default async function IngresoPage() {
     price: Number(p.price),
     cost: p.cost === null ? null : Number(p.cost),
     stock: Number(p.stock),
+    // Ausente = confiable: ninguna pantalla debe inventar una advertencia.
+    stockConfiable: p.stock_confiable ?? true,
     barcodes: byProduct.get(p.id) ?? [],
     ultimaCompra: ultimaCompra.get(p.id) ?? null,
   }));
