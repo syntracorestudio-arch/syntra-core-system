@@ -275,8 +275,12 @@ export function ImportDialog({
                         {p.precio !== null ? (
                           <span className="tabular shrink-0 font-semibold">{money(p.precio)}</span>
                         ) : p.costo !== null ? (
-                          <span className="tabular shrink-0 text-xs text-muted-foreground">
-                            costo {money(p.costo)} · precio con {margenDefault}%
+                          /* Sin `shrink-0`: este texto mide ~190px y, al negarse
+                             a achicarse, dejaba ~98px (unos 12 caracteres) para
+                             el nombre del producto y desbordaba la fila. Que se
+                             recorte él antes que el nombre. */
+                          <span className="tabular min-w-0 shrink truncate text-xs text-muted-foreground">
+                            costo {money(p.costo)} · {margenDefault}%
                           </span>
                         ) : (
                           <span className="shrink-0 text-xs text-warning-ink">sin precio</span>

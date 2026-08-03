@@ -81,9 +81,16 @@ export function PageHeader({
                 proporción contra la banda quede pareja: las bandas cuyo
                 subtítulo pasa a dos líneas son más altas y con la talla chica
                 el objeto quedaba perdido (54% del alto). */}
+            {/* Un escalón más chico a 360px: el arte reservaba 112-128px fijos y
+                al título le quedaban ~144px, así que los subtítulos dinámicos
+                ("12 pendientes · 3 requieren atención · te avisamos 7 días
+                antes") se iban a cuatro líneas. Desde 400px vuelve al tamaño de
+                siempre. */}
             <div
               className={
-                grande ? "size-32 shrink-0 sm:size-40" : "size-28 shrink-0 sm:size-32"
+                grande
+                  ? "size-24 shrink-0 min-[400px]:size-32 sm:size-40"
+                  : "size-20 shrink-0 min-[400px]:size-28 sm:size-32"
               }
             >
               {/* next/image y no <img>: la fuente es de 512² y el navegador la

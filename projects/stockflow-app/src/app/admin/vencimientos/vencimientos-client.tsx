@@ -241,9 +241,13 @@ function AddExpiryDialog({
               className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
             >
               <option value="">Elegí un producto</option>
+              {/* Android corta el texto del select cerrado SIN puntos
+                  suspensivos, así que un nombre de 62 caracteres se ve cortado a
+                  la mitad y sin señal de que falta. Se recorta a 42 con "…": es
+                  el mismo criterio defensivo que ya usa el import. */}
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.emoji} {p.name}
+                  {p.emoji} {p.name.length > 42 ? `${p.name.slice(0, 42)}…` : p.name}
                 </option>
               ))}
             </select>

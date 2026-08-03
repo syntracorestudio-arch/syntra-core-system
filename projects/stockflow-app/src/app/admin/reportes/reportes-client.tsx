@@ -515,7 +515,9 @@ export function ReportesClient({
                     <li key={c.client_id}>
                       <Link
                         href={`/admin/fiado/${c.client_id}`}
-                        className="flex items-center justify-between py-2 text-sm transition-colors hover:text-primary-ink"
+                        /* `gap-2`: sin él, los puntos suspensivos de un nombre
+                           recortado quedaban pegados al "hace 128 días". */
+                        className="flex items-center justify-between gap-2 py-2 text-sm transition-colors hover:text-primary-ink"
                       >
                         <span className="min-w-0 flex-1 truncate">{c.name}</span>
                         <span className="tabular shrink-0 text-xs text-muted-foreground">
@@ -627,7 +629,10 @@ function SlotDonut({ slots }: { slots: { orden: number; name: string; total: num
     .map((s, i) => ({ name: s.name, value: Number(s.total), fill: SLOT_COLORS[i % SLOT_COLORS.length] }));
   const fuerte = datos.reduce((a, b) => (b.value > a.value ? b : a), datos[0]);
   return (
-    <div className="flex h-full min-h-44 items-center gap-5">
+    /* Apila en mobile: en fila, la torta se lleva 176px fijos de los 296
+       disponibles a 360px y la leyenda quedaba en 100px — "Mediodía 43%" se leía
+       "Med… 43%". Es la única fila de la app que no podía volverse vertical. */
+    <div className="flex h-full min-h-44 flex-col items-center gap-4 sm:flex-row sm:gap-5">
       <div className="relative h-44 w-44 shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
