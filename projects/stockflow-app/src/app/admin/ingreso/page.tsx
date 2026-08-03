@@ -22,11 +22,19 @@ export default async function IngresoPage() {
      Lo único que sigue viniendo del server es el total de activos, para poder
      decir la verdad en el encabezado. */
   const supabase = await createSupabaseServer();
-  const { count: totalProductos } = await supabase
-    .from("products")
-    .select("id", { count: "exact", head: true })
-    .eq("store_id", session.store.id)
-    .eq("status", "active");
+  const [{ count: totalProductos }, { data: settings }] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("store_id", session.store.id)
+      .eq("status", "active"),
+    // Margen y redondeo: con eso se propone el precio de lo que se da de alta acá.
+    supabase
+      .from("store_settings")
+      .select("margen_default_pct, reprice_rounding")
+      .eq("store_id", session.store.id)
+      .maybeSingle(),
+  ]);
 
   return (
     <AppShell
@@ -36,7 +44,11 @@ export default async function IngresoPage() {
         session.member.role === "owner" ? "Dueño" : "Empleado"
       }`}
     >
-      <IngresoClient totalProductos={totalProductos ?? 0} />
+      <IngresoClient
+        totalProductos={totalProductos ?? 0}
+        margenDefault={Number(settings?.margen_default_pct ?? 35)}
+        redondeo={Number(settings?.reprice_rounding ?? 50)}
+      />
     </AppShell>
   );
 }

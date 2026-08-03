@@ -20,6 +20,7 @@ import {
   Check,
   ListChecks,
   PackageSearch,
+  FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
@@ -38,6 +39,7 @@ import {
   marcarStockContado,
 } from "./actions";
 import { buscarProductos, type ProductoBuscado } from "@/app/pos/actions";
+import { ImportDialog } from "./import-dialog";
 
 export type ProductRow = {
   id: string;
@@ -141,6 +143,8 @@ export function ProductsClient({
   soloSinControl = false,
   defaultThreshold,
   totalProductos,
+  margenDefault,
+  redondeo,
 }: {
   products: ProductRow[];
   /** Total real del filtro con el que se sirvió la primera página (?cat/?q). */
@@ -157,11 +161,15 @@ export function ProductsClient({
   defaultThreshold: number;
   /** Total REAL de activos: el listado viene acotado a 500 (escala Fase 1). */
   totalProductos: number;
+  /** Margen del negocio: propone el precio cuando la planilla solo trae costo. */
+  margenDefault: number;
+  redondeo: number;
 }) {
   const [busqueda, setBusqueda] = useState(initialQ);
   const [editando, setEditando] = useState<ProductRow | null>(null);
   const [creando, setCreando] = useState(false);
   const [remarcando, setRemarcando] = useState(false);
+  const [importando, setImportando] = useState(false);
   const [aviso, setAviso] = useState<Aviso>(null);
 
   /* El filtro de categoría vive en la URL (?cat=): volver atrás o refrescar
@@ -346,6 +354,9 @@ export function ProductsClient({
           icon={Package}
           art="productos"
         >
+          <Button variant="secondary" className="bg-background/60" onClick={() => setImportando(true)}>
+            <FileSpreadsheet className="size-4" /> Importar
+          </Button>
           <Button variant="secondary" className="bg-background/60" onClick={() => setRemarcando(true)}>
             <Percent className="size-4" /> Remarcar
           </Button>
@@ -680,6 +691,20 @@ export function ProductsClient({
         </div>
       )}
         </>
+      )}
+
+      {importando && (
+        <ImportDialog
+          margenDefault={margenDefault}
+          redondeo={redondeo}
+          onClose={() => setImportando(false)}
+          onDone={(msg) => {
+            setImportando(false);
+            setAviso({ tone: "ok", text: msg });
+            // El catálogo cambió entero: que la página lo vuelva a leer.
+            router.refresh();
+          }}
+        />
       )}
 
       {remarcando && (

@@ -271,6 +271,203 @@ export async function buscarParaIngreso(
   }));
 }
 
+/** Lo que hay que resolver cuando el escaneo trae un código que el negocio no tiene. */
+export type CodigoDesconocido = {
+  /** Nombre que propone el catálogo público (SEPA). null = tampoco lo conoce. */
+  nombreCatalogo: string | null;
+  /** Productos YA cargados, sin código, que podrían ser este mismo. */
+  candidatos: { id: string; name: string; emoji: string | null; price: number; stock: number }[];
+};
+
+/**
+ * Resuelve un código desconocido para poder darlo de alta AL RECIBIR.
+ *
+ * Dos consultas que van juntas siempre: el nombre del catálogo público, y —con
+ * ese nombre— los productos que el negocio ya tiene SIN código y que podrían ser
+ * el mismo. Sin ese segundo paso, un catálogo cargado a mano o importado de una
+ * planilla se llena de gemelos: uno por cada producto que alguien escanee.
+ */
+export async function resolverCodigoDesconocido(barcode: string): Promise<CodigoDesconocido> {
+  const session = await requireSession();
+  const vacio: CodigoDesconocido = { nombreCatalogo: null, candidatos: [] };
+  if (!(session.member.role === "owner" || session.member.can_receive_stock)) return vacio;
+
+  const codigo = barcode.trim();
+  if (!/^\d{8,14}$/.test(codigo)) return vacio;
+
+  const supabase = await createSupabaseServer();
+  const { data: enCatalogo } = await supabase.rpc("catalogo_buscar", { p_ean: codigo });
+  const nombre = (enCatalogo as { nombre?: string } | null)?.nombre ?? null;
+
+  if (!nombre) return vacio;
+
+  const { data: parecidos } = await supabase.rpc("productos_sin_codigo_parecidos", {
+    p_store_id: session.store.id,
+    p_nombre: nombre,
+    p_limit: 3,
+  });
+
+  const r = (parecidos ?? { items: [] }) as {
+    items: { id: string; name: string; emoji: string | null; price: string | number; stock: string | number }[];
+  };
+
+  return {
+    nombreCatalogo: nombre,
+    candidatos: (r.items ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      emoji: p.emoji,
+      price: Number(p.price),
+      stock: Number(p.stock),
+    })),
+  };
+}
+
+/** Pegarle un código a un producto que ya existe (en vez de crear un gemelo). */
+export async function vincularCodigo(productId: string, barcode: string): Promise<ActionResult> {
+  const session = await requireSession();
+  if (!(session.member.role === "owner" || session.member.can_receive_stock)) {
+    return { ok: false, error: "No tenés permiso para tocar el catálogo." };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { error } = await supabase.rpc("vincular_codigo", {
+    p_store_id: session.store.id,
+    p_product_id: productId,
+    p_barcode: barcode.trim(),
+  });
+
+  if (error) {
+    if (error.message.includes("codigo_en_uso")) {
+      return { ok: false, error: "Ese código ya es de otro producto." };
+    }
+    return { ok: false, error: "No pudimos asociar el código." };
+  }
+
+  revalidatePath("/admin/ingreso");
+  revalidatePath("/admin/productos");
+  revalidatePath("/pos");
+  return { ok: true };
+}
+
+/* ---------------------------------------------------------------------------
+ * Import de catálogo desde planilla
+ * ------------------------------------------------------------------------- */
+
+const importSchema = z.object({
+  productos: z
+    .array(
+      z.object({
+        nombre: z.string().trim().min(2).max(80),
+        precio: z.number().nonnegative().nullable(),
+        costo: z.number().nonnegative().nullable(),
+        codigo: z.string().trim().max(14).nullable(),
+        stock: z.number().nonnegative().nullable(),
+      }),
+    )
+    // Tanda acotada: el archivo entero se trocea en el cliente. Mismo criterio
+    // que el categorizar en masa — un request no puede depender del tamaño de
+    // la planilla del cliente.
+    .min(1)
+    .max(500),
+  /** Margen para proponer precio cuando la planilla solo trae el costo. */
+  margenPct: z.number().min(0).max(95),
+  redondeo: z.number().min(0).max(10000),
+});
+
+export type ImportResultado = {
+  creados: number;
+  /** Ya existía ese código en el negocio: no se toca (el import no pisa precios). */
+  yaExistian: number;
+  /** No se pudo crear (nombre vacío, error de base). */
+  fallados: number;
+};
+
+/**
+ * Crea una tanda de productos importados.
+ *
+ * Decisiones que sostienen el resultado:
+ *  · Si la planilla trae costo pero no precio, el precio se PROPONE con el
+ *    margen del negocio. Una lista de proveedor se vuelve catálogo vendible sin
+ *    que nadie haga 800 cuentas.
+ *  · Un código que ya existe en el negocio NO se pisa: el alta es idempotente
+ *    por código y devuelve el existente. Reimportar el mismo archivo no duplica
+ *    ni cambia precios que el dueño ya ajustó a mano.
+ *  · Si la planilla trae stock, ENTRA — con su asiento inicial, igual que un
+ *    conteo de góndola. No es un número inventado por el sistema: es una
+ *    declaración del dueño, del mismo peso que contar al recibir, y queda
+ *    asentada y editable. Los productos que traen cantidad nacen con sus
+ *    alertas de faltante encendidas; los que no, entran "sin contar" y se
+ *    cuentan al recibir mercadería. Quien no quiera cargar el stock de la
+ *    planilla, marca esa columna como "Ignorar" en el mapeo.
+ */
+export async function importarProductos(input: unknown): Promise<
+  { ok: true; resultado: ImportResultado } | { ok: false; error: string }
+> {
+  const session = await requireOwner();
+  const parsed = importSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Revisá los datos de la planilla." };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { margenPct, redondeo } = parsed.data;
+  const res: ImportResultado = { creados: 0, yaExistian: 0, fallados: 0 };
+
+  for (const p of parsed.data.productos) {
+    /* Sin código no hay identidad fuerte, así que el alta no puede deduplicar
+       sola: reimportar el mismo archivo —cosa que PASA, porque uno mapea mal,
+       corrige y vuelve a cargar— duplicaría cada fila sin código. Se compara
+       por nombre EXACTO, no parecido: unir "Coca 500" con "Coca 600" sería
+       mucho peor que dejar un duplicado. */
+    if (!p.codigo) {
+      const { data: mismo } = await supabase
+        .from("products")
+        .select("id")
+        .eq("store_id", session.store.id)
+        .eq("status", "active")
+        .ilike("name", p.nombre)
+        .limit(1)
+        .maybeSingle();
+      if (mismo) {
+        res.yaExistian += 1;
+        continue;
+      }
+    }
+
+    let precio = p.precio;
+    if ((precio === null || precio === 0) && p.costo !== null && p.costo > 0 && margenPct > 0) {
+      const bruto = p.costo / (1 - margenPct / 100);
+      precio = redondeo > 0 ? Math.ceil(bruto / redondeo) * redondeo : Math.round(bruto);
+    }
+
+    const { data, error } = await supabase.rpc("crear_producto_rapido", {
+      p_store_id: session.store.id,
+      p_nombre: p.nombre,
+      p_precio: precio ?? 0,
+      p_costo: p.costo,
+      p_barcode: p.codigo,
+      p_category_id: null,
+      /* La cantidad de la planilla entra como asiento `initial` (con su costo,
+         si vino): queda en el ledger, se puede corregir a mano, y el producto
+         nace con control de stock real en vez de arrancar en cero y vender
+         hacia negativo. */
+      p_cantidad: p.stock !== null && p.stock > 0 ? p.stock : null,
+    });
+
+    if (error || !data) {
+      res.fallados += 1;
+      continue;
+    }
+    if ((data as { existing?: boolean }).existing) res.yaExistian += 1;
+    else res.creados += 1;
+  }
+
+  revalidatePath("/admin/productos");
+  revalidatePath("/pos");
+  return { ok: true, resultado: res };
+}
+
 const repriceSchema = z.object({
   pct: z.number().refine((n) => n !== 0, "Poné un porcentaje distinto de cero."),
   category_id: z.guid().nullable(),
