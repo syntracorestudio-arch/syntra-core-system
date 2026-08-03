@@ -4,7 +4,7 @@ status: approved
 approved_by: owner (Matias / SYNTRA CORE)
 date: 2026-07-17 (objeto) · 2026-07-22 (fondo "La Tinta")
 decision: código nativo contra una referencia externa aprobada (workflow variantes vivas)
-supersedes: "v1 'Estratos Luminosos' (asset estático image-first, 2026-06-19) — el asset sobrevive en /e/[slug] y OG; el hero ya no lo usa"
+supersedes: "v1 'Estratos Luminosos' (asset estático image-first, 2026-06-19) — el asset se ELIMINÓ el 2026-07-29: la ruta /e/[slug] que lo usaba ya no existe y el OG se genera dinámicamente (ImageResponse). Recuperable del historial de git si hiciera falta"
 ---
 
 # Reference Lock — Hero v2 · "El Vórtice"
