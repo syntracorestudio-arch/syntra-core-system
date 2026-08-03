@@ -199,6 +199,78 @@ export async function marcarStockContado(
   return { ok: true };
 }
 
+export type IngresoBuscado = {
+  id: string;
+  name: string;
+  emoji: string | null;
+  price: number;
+  cost: number | null;
+  stock: number;
+  stockConfiable: boolean;
+  archivado: boolean;
+  barcodes: string[];
+  ultimaCompra: { costo: number; fecha: string } | null;
+};
+
+/**
+ * Buscar productos para recibir mercadería (escala F3).
+ *
+ * Reemplaza el precargado de 500 productos + 2000 códigos + 3000 asientos que
+ * viajaba en cada request. `exacto` = escaneo: resuelve SOLO por código
+ * completo, porque un parecido le suma la mercadería al producto equivocado.
+ */
+export async function buscarParaIngreso(
+  q: string,
+  exacto = false,
+): Promise<IngresoBuscado[]> {
+  const session = await requireSession();
+  if (!(session.member.role === "owner" || session.member.can_receive_stock)) return [];
+
+  const texto = q.trim();
+  if (texto === "" || texto.length > 80) return [];
+
+  const supabase = await createSupabaseServer();
+  const { data, error } = await supabase.rpc("ingreso_buscar", {
+    p_store_id: session.store.id,
+    p_q: texto,
+    p_limit: 8,
+    p_exacto: exacto,
+  });
+
+  if (error || !data) return [];
+
+  const r = data as {
+    items: {
+      id: string;
+      name: string;
+      emoji: string | null;
+      price: string | number;
+      cost: string | number | null;
+      stock: string | number;
+      stock_confiable?: boolean;
+      archivado?: boolean;
+      barcodes: string[] | null;
+      ultima_compra: { costo: string | number; fecha: string } | null;
+    }[];
+  };
+
+  return (r.items ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    emoji: p.emoji,
+    price: Number(p.price),
+    cost: p.cost === null || p.cost === undefined ? null : Number(p.cost),
+    stock: Number(p.stock),
+    // Ausente = confiable: ninguna pantalla debe inventar una advertencia.
+    stockConfiable: p.stock_confiable ?? true,
+    archivado: Boolean(p.archivado),
+    barcodes: p.barcodes ?? [],
+    ultimaCompra: p.ultima_compra
+      ? { costo: Number(p.ultima_compra.costo), fecha: p.ultima_compra.fecha }
+      : null,
+  }));
+}
+
 const repriceSchema = z.object({
   pct: z.number().refine((n) => n !== 0, "Poné un porcentaje distinto de cero."),
   category_id: z.guid().nullable(),

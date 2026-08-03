@@ -1,15 +1,10 @@
 import { AppShell } from "@/components/shell/app-shell";
 import { requireSession } from "@/lib/session";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { IngresoClient, type IngresoProduct } from "./ingreso-client";
+import { IngresoClient } from "./ingreso-client";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-
-/** El reloj es impuro: fuera del cuerpo del componente (patrón de Reportes). */
-function desdeHace(dias: number): string {
-  return new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
-}
 
 export default async function IngresoPage() {
   const session = await requireSession();
@@ -17,61 +12,21 @@ export default async function IngresoPage() {
     redirect("/pos");
   }
 
+  /* ESCALA F3 — search-first. Antes esta pantalla precargaba 500 productos +
+     2000 códigos + 3000 asientos de ledger EN CADA REQUEST, y resolvía el
+     escaneo contra ese mapa truncado: con 2000 SKUs, ~75% del catálogo no se
+     podía recibir y un código que existía podía "no existir" según qué filas
+     hubiera devuelto Postgres. Ahora no viaja catálogo: cada línea se resuelve
+     contra `ingreso_buscar` (migración 040), acotada y con el gate de miembro.
+
+     Lo único que sigue viniendo del server es el total de activos, para poder
+     decir la verdad en el encabezado. */
   const supabase = await createSupabaseServer();
-  const [{ data: products }, { data: barcodes }, { data: compras }] = await Promise.all([
-    supabase
-      .from("products")
-      .select("id, name, emoji, price, cost, stock, stock_confiable")
-      .eq("status", "active")
-      .order("name")
-      .limit(500),
-    // ORDER BY explícito: sin él, el truncado a 2000 es NO determinista (Postgres
-    // puede devolver filas distintas en cada request y un código aparecía o no al
-    // azar). Mismo criterio que ya usa el POS. Escala Fase 1.
-    supabase
-      .from("product_barcodes")
-      .select("product_id, barcode")
-      .order("product_id")
-      .limit(2000),
-    /* Compras del último año: de acá sale "la última vez pagaste $800, hace 20
-       días". Es el radar de inflación en el punto donde entra el dato. */
-    supabase
-      .from("stock_ledger")
-      .select("product_id, unit_cost, created_at")
-      .eq("reason", "purchase")
-      .not("unit_cost", "is", null)
-      .gte("created_at", desdeHace(365))
-      .order("created_at", { ascending: false })
-      .limit(3000),
-  ]);
-
-  const byProduct = new Map<string, string[]>();
-  for (const b of barcodes ?? []) {
-    const list = byProduct.get(b.product_id) ?? [];
-    list.push(b.barcode);
-    byProduct.set(b.product_id, list);
-  }
-
-  // La primera aparición es la más reciente: la consulta ya viene ordenada.
-  const ultimaCompra = new Map<string, { costo: number; fecha: string }>();
-  for (const c of compras ?? []) {
-    if (!ultimaCompra.has(c.product_id)) {
-      ultimaCompra.set(c.product_id, { costo: Number(c.unit_cost), fecha: c.created_at });
-    }
-  }
-
-  const rows: IngresoProduct[] = (products ?? []).map((p) => ({
-    id: p.id,
-    name: p.name,
-    emoji: p.emoji,
-    price: Number(p.price),
-    cost: p.cost === null ? null : Number(p.cost),
-    stock: Number(p.stock),
-    // Ausente = confiable: ninguna pantalla debe inventar una advertencia.
-    stockConfiable: p.stock_confiable ?? true,
-    barcodes: byProduct.get(p.id) ?? [],
-    ultimaCompra: ultimaCompra.get(p.id) ?? null,
-  }));
+  const { count: totalProductos } = await supabase
+    .from("products")
+    .select("id", { count: "exact", head: true })
+    .eq("store_id", session.store.id)
+    .eq("status", "active");
 
   return (
     <AppShell
@@ -81,7 +36,7 @@ export default async function IngresoPage() {
         session.member.role === "owner" ? "Dueño" : "Empleado"
       }`}
     >
-      <IngresoClient products={rows} />
+      <IngresoClient totalProductos={totalProductos ?? 0} />
     </AppShell>
   );
 }
