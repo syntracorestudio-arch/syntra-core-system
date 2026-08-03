@@ -271,6 +271,85 @@ export async function buscarParaIngreso(
   }));
 }
 
+/** Lo que hay que resolver cuando el escaneo trae un código que el negocio no tiene. */
+export type CodigoDesconocido = {
+  /** Nombre que propone el catálogo público (SEPA). null = tampoco lo conoce. */
+  nombreCatalogo: string | null;
+  /** Productos YA cargados, sin código, que podrían ser este mismo. */
+  candidatos: { id: string; name: string; emoji: string | null; price: number; stock: number }[];
+};
+
+/**
+ * Resuelve un código desconocido para poder darlo de alta AL RECIBIR.
+ *
+ * Dos consultas que van juntas siempre: el nombre del catálogo público, y —con
+ * ese nombre— los productos que el negocio ya tiene SIN código y que podrían ser
+ * el mismo. Sin ese segundo paso, un catálogo cargado a mano o importado de una
+ * planilla se llena de gemelos: uno por cada producto que alguien escanee.
+ */
+export async function resolverCodigoDesconocido(barcode: string): Promise<CodigoDesconocido> {
+  const session = await requireSession();
+  const vacio: CodigoDesconocido = { nombreCatalogo: null, candidatos: [] };
+  if (!(session.member.role === "owner" || session.member.can_receive_stock)) return vacio;
+
+  const codigo = barcode.trim();
+  if (!/^\d{8,14}$/.test(codigo)) return vacio;
+
+  const supabase = await createSupabaseServer();
+  const { data: enCatalogo } = await supabase.rpc("catalogo_buscar", { p_ean: codigo });
+  const nombre = (enCatalogo as { nombre?: string } | null)?.nombre ?? null;
+
+  if (!nombre) return vacio;
+
+  const { data: parecidos } = await supabase.rpc("productos_sin_codigo_parecidos", {
+    p_store_id: session.store.id,
+    p_nombre: nombre,
+    p_limit: 3,
+  });
+
+  const r = (parecidos ?? { items: [] }) as {
+    items: { id: string; name: string; emoji: string | null; price: string | number; stock: string | number }[];
+  };
+
+  return {
+    nombreCatalogo: nombre,
+    candidatos: (r.items ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      emoji: p.emoji,
+      price: Number(p.price),
+      stock: Number(p.stock),
+    })),
+  };
+}
+
+/** Pegarle un código a un producto que ya existe (en vez de crear un gemelo). */
+export async function vincularCodigo(productId: string, barcode: string): Promise<ActionResult> {
+  const session = await requireSession();
+  if (!(session.member.role === "owner" || session.member.can_receive_stock)) {
+    return { ok: false, error: "No tenés permiso para tocar el catálogo." };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { error } = await supabase.rpc("vincular_codigo", {
+    p_store_id: session.store.id,
+    p_product_id: productId,
+    p_barcode: barcode.trim(),
+  });
+
+  if (error) {
+    if (error.message.includes("codigo_en_uso")) {
+      return { ok: false, error: "Ese código ya es de otro producto." };
+    }
+    return { ok: false, error: "No pudimos asociar el código." };
+  }
+
+  revalidatePath("/admin/ingreso");
+  revalidatePath("/admin/productos");
+  revalidatePath("/pos");
+  return { ok: true };
+}
+
 const repriceSchema = z.object({
   pct: z.number().refine((n) => n !== 0, "Poné un porcentaje distinto de cero."),
   category_id: z.guid().nullable(),

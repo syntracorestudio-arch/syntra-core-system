@@ -21,8 +21,11 @@ import { money } from "@/lib/format";
 import {
   registerPurchase,
   buscarParaIngreso,
+  resolverCodigoDesconocido,
+  vincularCodigo,
   type IngresoBuscado,
 } from "@/app/admin/productos/actions";
+import { quickCreateProduct } from "@/app/pos/actions";
 import { useWedgeScanner } from "@/components/pos/use-wedge-scanner";
 import { CameraScanner } from "@/components/pos/camera-scanner";
 
@@ -36,7 +39,30 @@ type Linea = {
   vence: string;
   /** Cuántos quedan EN TOTAL contando lo que llegó. Vacío = no se contó. */
   total: string;
+  /* ALTA AL RECIBIR: el producto todavía NO existe. La línea ES el formulario de
+     alta — abrir un diálogo cortaría el escaneo continuo, que es lo que hace
+     rápida la carga. Se escanea la góndola entera de corrido y los costos se
+     completan después, sentado. Se crean todos al confirmar. */
+  nuevo?: {
+    /** Código escaneado que le va a quedar. */
+    barcode: string;
+    /** Nombre propuesto por el catálogo público; editable. */
+    nombre: string;
+    /** Precio de venta. Se propone con el margen del negocio sobre el costo. */
+    precio: string;
+    /** ¿El precio lo tocó la persona? Si no, sigue al margen cuando cambia el costo. */
+    precioTocado?: boolean;
+    /** Productos ya cargados sin código que podrían ser este mismo. */
+    candidatos: { id: string; name: string; emoji: string | null; price: number; stock: number }[];
+  };
 };
+
+/** Precio de venta que deja el margen del negocio, redondeado como sus Ajustes. */
+function precioConMargen(costo: number, margenPct: number, redondeo: number): number {
+  if (costo <= 0 || margenPct <= 0 || margenPct >= 100) return 0;
+  const bruto = costo / (1 - margenPct / 100);
+  return redondeo > 0 ? Math.ceil(bruto / redondeo) * redondeo : Math.round(bruto);
+}
 
 /**
  * Cuánto pagaste la vez pasada y cuánto te aumentaron.
@@ -110,7 +136,17 @@ function enDias(dias: number): string {
  * Por eso el costo viene precargado con el último y el vencimiento es opcional
  * — si el kiosquero no lo carga, no pasa nada; si lo carga, gana las alertas.
  */
-export function IngresoClient({ totalProductos }: { totalProductos: number }) {
+export function IngresoClient({
+  totalProductos,
+  margenDefault,
+  redondeo,
+}: {
+  totalProductos: number;
+  /** Margen del negocio: propone el precio de venta de lo que se da de alta acá. */
+  margenDefault: number;
+  /** Redondeo de precios de sus Ajustes (mismo criterio que el remarcado). */
+  redondeo: number;
+}) {
   const [busqueda, setBusqueda] = useState("");
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [camara, setCamara] = useState(false);
@@ -174,13 +210,45 @@ export function IngresoClient({ totalProductos }: { totalProductos: number }) {
       if (!codigo) return;
       setBuscando(true);
       buscarParaIngreso(codigo, true)
-        .then((r) => {
+        .then(async (r) => {
           const p = r[0];
           if (!p) {
-            setAviso({
-              tone: "error",
-              text: `El código ${codigo} no está en tu catálogo. Cargalo desde Productos y volvé.`,
-            });
+            /* Antes esto era un callejón sin salida ("cargalo desde Productos y
+               volvé"), justo en la pantalla donde un kiosco que arranca escanea
+               casi todo lo que todavía no tiene. Ahora el código se resuelve
+               contra el catálogo público y la línea se agrega igual. */
+            if (lineas.some((l) => l.nuevo?.barcode === codigo)) {
+              setAviso({ tone: "error", text: "Ese código ya está en la lista." });
+              return;
+            }
+            const info = await resolverCodigoDesconocido(codigo);
+            setLineas((prev) => [
+              ...prev,
+              {
+                producto: {
+                  id: `nuevo:${codigo}`,
+                  name: info.nombreCatalogo ?? "",
+                  emoji: null,
+                  price: 0,
+                  cost: null,
+                  stock: 0,
+                  stockConfiable: false,
+                  archivado: false,
+                  barcodes: [codigo],
+                  ultimaCompra: null,
+                },
+                qty: "",
+                costo: "",
+                vence: "",
+                total: "",
+                nuevo: {
+                  barcode: codigo,
+                  nombre: info.nombreCatalogo ?? "",
+                  precio: "",
+                  candidatos: info.candidatos,
+                },
+              },
+            ]);
             return;
           }
           if (p.archivado) {
@@ -199,13 +267,78 @@ export function IngresoClient({ totalProductos }: { totalProductos: number }) {
         )
         .finally(() => setBuscando(false));
     },
-    [agregar],
+    [agregar, lineas],
   );
 
   useWedgeScanner(onScan, !camara);
 
-  function set(id: string, campo: keyof Omit<Linea, "producto">, valor: string) {
-    setLineas((prev) => prev.map((l) => (l.producto.id === id ? { ...l, [campo]: valor } : l)));
+  function set(id: string, campo: "qty" | "costo" | "vence" | "total", valor: string) {
+    setLineas((prev) =>
+      prev.map((l) => {
+        if (l.producto.id !== id) return l;
+        const siguiente = { ...l, [campo]: valor };
+        /* El precio propuesto sigue al costo mientras nadie lo haya tocado: se
+           tipea el costo de la factura y el precio de venta aparece solo. */
+        if (campo === "costo" && siguiente.nuevo && !siguiente.nuevo.precioTocado) {
+          const sugerido = precioConMargen(Number(valor) || 0, margenDefault, redondeo);
+          siguiente.nuevo = { ...siguiente.nuevo, precio: sugerido > 0 ? String(sugerido) : "" };
+        }
+        return siguiente;
+      }),
+    );
+  }
+
+  function setNuevo(id: string, parche: Partial<NonNullable<Linea["nuevo"]>>) {
+    setLineas((prev) =>
+      prev.map((l) =>
+        l.producto.id === id && l.nuevo ? { ...l, nuevo: { ...l.nuevo, ...parche } } : l,
+      ),
+    );
+  }
+
+  /**
+   * "Es este": en vez de crear un gemelo, se le pega el código al producto que
+   * ya estaba cargado sin código. La línea deja de ser un alta y pasa a ser un
+   * ingreso común sobre el producto existente.
+   */
+  function usarExistente(
+    lineaId: string,
+    candidato: { id: string; name: string; emoji: string | null; price: number; stock: number },
+  ) {
+    const linea = lineas.find((l) => l.producto.id === lineaId);
+    const codigo = linea?.nuevo?.barcode;
+    if (!codigo) return;
+
+    startTransition(async () => {
+      const res = await vincularCodigo(candidato.id, codigo);
+      if (!res.ok) {
+        setAviso({ tone: "error", text: res.error });
+        return;
+      }
+      setLineas((prev) =>
+        prev.map((l) =>
+          l.producto.id === lineaId
+            ? {
+                ...l,
+                nuevo: undefined,
+                producto: {
+                  id: candidato.id,
+                  name: candidato.name,
+                  emoji: candidato.emoji,
+                  price: candidato.price,
+                  cost: null,
+                  stock: candidato.stock,
+                  stockConfiable: false,
+                  archivado: false,
+                  barcodes: [codigo],
+                  ultimaCompra: null,
+                },
+              }
+            : l,
+        ),
+      );
+      setAviso({ tone: "ok", text: `Le pegamos el código a ${candidato.name}.` });
+    });
   }
 
   const listas = lineas.filter((l) => Number(l.qty) > 0);
@@ -213,9 +346,29 @@ export function IngresoClient({ totalProductos }: { totalProductos: number }) {
   function confirmar() {
     if (listas.length === 0) return;
     startTransition(async () => {
+      /* Los productos nuevos se crean recién ACÁ, no al escanearlos: si se
+         crearan al vuelo, abandonar el ingreso dejaría el catálogo lleno de
+         productos sin precio. El alta es idempotente por código, así que
+         reintentar después de un corte no duplica nada. */
+      const ids = new Map<string, string>();
+      for (const l of listas) {
+        if (!l.nuevo) continue;
+        const alta = await quickCreateProduct({
+          name: l.nuevo.nombre.trim(),
+          price: Number(l.nuevo.precio) || 0,
+          cost: l.costo === "" ? null : Number(l.costo),
+          barcode: l.nuevo.barcode,
+        });
+        if (!alta.ok) {
+          setAviso({ tone: "error", text: `No pudimos crear "${l.nuevo.nombre}": ${alta.error}` });
+          return;
+        }
+        ids.set(l.producto.id, alta.id);
+      }
+
       const res = await registerPurchase({
         items: listas.map((l) => ({
-          product_id: l.producto.id,
+          product_id: ids.get(l.producto.id) ?? l.producto.id,
           qty: Number(l.qty),
           unit_cost: l.costo === "" ? null : Number(l.costo),
           expiry_date: l.vence || null,
@@ -338,7 +491,25 @@ export function IngresoClient({ totalProductos }: { totalProductos: number }) {
                     {l.producto.emoji ?? "📦"}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{l.producto.name}</p>
+                    {l.nuevo ? (
+                      <>
+                        <input
+                          value={l.nuevo.nombre}
+                          onChange={(e) => setNuevo(l.producto.id, { nombre: e.target.value })}
+                          placeholder="¿Qué es? (nombre del producto)"
+                          aria-label="Nombre del producto nuevo"
+                          className="h-9 w-full rounded-lg border border-input bg-background px-2.5 text-sm font-medium outline-none focus:border-primary"
+                        />
+                        <p className="tabular mt-1 text-xs">
+                          <span className="rounded bg-primary/15 px-1.5 py-0.5 font-medium text-primary">
+                            producto nuevo
+                          </span>{" "}
+                          <span className="text-muted-foreground">{l.nuevo.barcode}</span>
+                        </p>
+                      </>
+                    ) : (
+                      <p className="truncate text-sm font-medium">{l.producto.name}</p>
+                    )}
                     <p className="tabular text-xs text-muted-foreground">
                       {/* "tenías 22 u." sobre un producto que nadie contó es
                           precisamente el número que no vale (docs §H.5). */}
@@ -382,6 +553,75 @@ export function IngresoClient({ totalProductos }: { totalProductos: number }) {
                     />
                   </Field>
                 </div>
+
+                {/* Producto nuevo: falta el precio de venta, y es el único dato
+                    que el catálogo no puede darnos. Se PROPONE con el margen del
+                    negocio sobre el costo que se acaba de tipear —nadie tiene que
+                    hacer la cuenta— y queda editable. */}
+                {l.nuevo && (
+                  <div className="mt-3 rounded-lg border border-border bg-background p-3">
+                    <label
+                      htmlFor={`p-${l.producto.id}`}
+                      className="text-xs font-medium text-muted-foreground"
+                    >
+                      ¿A cuánto lo vendés?
+                    </label>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <input
+                        id={`p-${l.producto.id}`}
+                        value={l.nuevo.precio}
+                        onChange={(e) =>
+                          setNuevo(l.producto.id, {
+                            precio: e.target.value.replace(/[^\d]/g, ""),
+                            precioTocado: true,
+                          })
+                        }
+                        inputMode="numeric"
+                        placeholder={nuevoCosto ? "poné el costo primero" : "0"}
+                        className="tabular h-11 w-32 rounded-lg border border-input bg-card px-3 text-sm outline-none focus:border-primary"
+                      />
+                      {!l.nuevo.precioTocado && Number(l.nuevo.precio) > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          margen {margenDefault}% · tocalo si querés otro
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ¿ES ESTE? — el producto puede estar YA cargado sin código
+                    (a mano o importado de una planilla). Crear otro partiría su
+                    stock en dos fichas y ninguna reflejaría la góndola. */}
+                {l.nuevo && l.nuevo.candidatos.length > 0 && (
+                  <div className="mt-3 rounded-lg bg-warning/10 px-3 py-2.5 ring-1 ring-warning/25">
+                    <p className="text-sm font-medium text-warning-ink">
+                      {l.nuevo.candidatos.length === 1
+                        ? "¿No será este que ya tenés?"
+                        : "¿No será alguno de estos que ya tenés?"}
+                    </p>
+                    <ul className="mt-2 space-y-1.5">
+                      {l.nuevo.candidatos.map((c) => (
+                        <li key={c.id} className="flex items-center gap-2">
+                          <span aria-hidden>{c.emoji ?? "📦"}</span>
+                          <span className="min-w-0 flex-1 truncate text-sm">{c.name}</span>
+                          <span className="tabular shrink-0 text-xs text-muted-foreground">
+                            {money(c.price)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => usarExistente(l.producto.id, c)}
+                            className="h-8 shrink-0 cursor-pointer rounded-lg bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                          >
+                            Es este
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Si es el mismo, le pegamos el código y no se duplica.
+                    </p>
+                  </div>
+                )}
 
                 {/* El aumento del proveedor se ve acá o no se ve en ningún lado:
                     al lado del campo, contra lo que pagaste la vez pasada. */}
