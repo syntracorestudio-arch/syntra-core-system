@@ -7,7 +7,8 @@
  * clientes (Gmail/Outlook invierten mal). El reporte se lee mejor en claro.
  */
 
-import type { ReporteMensual } from "./composer";
+import type { ReporteMensual } from "./composer.ts";
+import { absolutizar } from "./enlaces.ts";
 
 const TINTA = "#0f172a";
 const SUAVE = "#64748b";
@@ -41,9 +42,14 @@ export function asuntoReporte(r: ReporteMensual): string {
   return `Tu resumen de ${r.negocio.periodoLabel} — ${r.negocio.nombre}`;
 }
 
-export function renderReporteHTML(r: ReporteMensual, accent: string): string {
+/**
+ * @param baseUrl URL pública de la app (NEXT_PUBLIC_APP_URL). Si falta, el
+ * reporte se manda igual pero sin botones: mejor sin acción que con un link roto.
+ */
+export function renderReporteHTML(r: ReporteMensual, accent: string, baseUrl?: string | null): string {
   const acento = /^#[0-9a-fA-F]{6}$/.test(accent) ? accent : "#2E6BFF";
   const { resumen } = r;
+  const inicio = absolutizar(baseUrl, "/admin");
 
   // Ganancia: neta si cargó gastos; si no, bruta + nudge honesto.
   const gananciaLabel = resumen.tieneGastos ? "Ganancia neta" : "Ganancia bruta";
@@ -71,12 +77,24 @@ export function renderReporteHTML(r: ReporteMensual, accent: string): string {
           resumen.coberturaCosto * 100,
         )}% de tus ventas con costo cargado.</p>`;
 
+  /* Botón email-safe: el fondo va en el <td> (Outlook ignora background sobre <a>)
+     y el padding en el <a> (así toda el área es clickeable, no solo el texto). */
+  const boton = (url: string, texto: string): string => `
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:10px">
+      <tr><td style="background:${acento};border-radius:8px">
+        <a href="${esc(url)}" style="display:inline-block;padding:10px 16px;font-size:13px;font-weight:600;color:#ffffff;text-decoration:none">${esc(
+          texto,
+        )} &rarr;</a>
+      </td></tr>
+    </table>`;
+
   const oportunidades =
     r.oportunidades.length === 0
       ? `<p style="margin:0;font-size:14px;color:${SUAVE}">Sin oportunidades urgentes este mes. Buen trabajo. 👌</p>`
       : r.oportunidades
-          .map(
-            (o) => `
+          .map((o) => {
+            const url = absolutizar(baseUrl, o.ruta);
+            return `
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px">
           <tr>
             <td style="padding:14px 16px;background:#ffffff;border:1px solid ${LINEA};border-radius:12px">
@@ -91,11 +109,12 @@ export function renderReporteHTML(r: ReporteMensual, accent: string): string {
                     o.monto,
                   )}</td>
                 </tr>
+                ${url ? `<tr><td></td><td colspan="2">${boton(url, o.cta)}</td></tr>` : ""}
               </table>
             </td>
           </tr>
-        </table>`,
-          )
+        </table>`;
+          })
           .join("");
 
   const filas = (items: { izq: string; der: string }[]): string =>
@@ -227,7 +246,11 @@ export function renderReporteHTML(r: ReporteMensual, accent: string): string {
 
             <tr><td style="height:26px"></td></tr>
             <tr><td style="border-top:1px solid ${LINEA};padding-top:16px;font-size:12px;color:${SUAVE};text-align:center">
-              Reporte automático de StockFlow · Se genera el 1° de cada mes.
+              ${
+                inicio
+                  ? `<a href="${esc(inicio)}" style="color:${acento};text-decoration:none;font-weight:600">Abrir StockFlow</a><br><br>`
+                  : ""
+              }Reporte automático de StockFlow · Se genera el 1° de cada mes.
             </td></tr>
           </table>
         </td></tr>

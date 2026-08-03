@@ -446,8 +446,11 @@ export function ReportesClient({
             </Panel>
           )}
 
-          {/* ---------------- D. Dónde se te escapa la plata ---------------- */}
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          {/* ---------------- D. Dónde se te escapa la plata ----------------
+              El id es el destino del botón "Ver los N productos parados" del
+              reporte mensual por mail: el link trae el mes del reporte (?d=) y
+              aterriza acá, no arriba de todo. */}
+          <div id="stock-muerto" className="mt-4 grid scroll-mt-20 gap-4 lg:grid-cols-2">
             <Panel
               title="Plata parada en la góndola"
               subtitle={dias >= UMBRALES.stockMuerto ? "Sin vender hace más de 30 días" : undefined}

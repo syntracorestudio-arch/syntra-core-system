@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       const res = await enviarReporte({
         to: para,
         subject: asuntoReporte(reporte),
-        html: renderReporteHTML(reporte, accent),
+        html: renderReporteHTML(reporte, accent, process.env.NEXT_PUBLIC_APP_URL),
       });
 
       if (res.ok) {
