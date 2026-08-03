@@ -124,7 +124,8 @@ const MEDIOS = [
   { key: "cash", label: "Efectivo", icon: Banknote },
   { key: "qr", label: "QR", icon: QrCode },
   { key: "card", label: "Tarjeta", icon: CreditCard },
-  { key: "transfer", label: "Transfer.", icon: ArrowRightLeft },
+  // "Transfer." era la única etiqueta que no entraba en su columna a 360px.
+  { key: "transfer", label: "Transf.", icon: ArrowRightLeft },
   { key: "account", label: "Fiado", icon: UserRound },
   { key: "split", label: "Dividido", icon: Split },
 ] as const;
@@ -1358,8 +1359,23 @@ export function PosScreen({
         ) : (
           /* Grilla densa: 3 columnas ya en 390px y ~6 en escritorio. Antes eran
              2 y 4 con cards de 250px — con 200 SKUs el cajero scrolleaba una
-             cuadra para cobrar un alfajor. */
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2.5 p-4 sm:grid-cols-[repeat(auto-fill,minmax(132px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
+             cuadra para cobrar un alfajor.
+
+             El piso de 160px en mobile es DELIBERADO y se paga densidad por él:
+             a 104px entraban 3 columnas y el nombre se cortaba en ~27 de 62
+             caracteres, así que dos productos que difieren solo en el final
+             ("…Coca Cola x 500ML" vs "…x 2.25L") se veían IDÉNTICOS. Eso no es
+             cosmético: es cobrar el equivocado y dejar mal el stock de los dos.
+             Con 160px son 2 columnas y ~50 caracteres visibles — el percentil 95
+             del catálogo real. Se ven 6 tiles en vez de 9, y se banca porque la
+             grilla ya viene rankeada por rotación y el escaneo es el camino
+             principal. Ver docs/responsive-audit.md §C6.
+
+             152 y no 160: a 360px de ancho quedan 328px de contenido y dos
+             columnas de 160 + 10 de gap piden 330. Por esos 2px la grilla se
+             caía a UNA sola columna, que es peor que el problema original. Con
+             152 entran 2 columnas desde 360px hasta que `sm:` toma el relevo. */
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(152px,1fr))] gap-2.5 p-4 sm:grid-cols-[repeat(auto-fill,minmax(132px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
             {visibles.map((p) => {
               /* "Sin stock" en rojo sobre un producto que nadie contó le dice al
                  cajero que no existe algo que acaba de vender. Sin conteo no se
@@ -1558,7 +1574,12 @@ export function PosScreen({
                   aria-pressed={elegido}
                   title={bloqueado ? "No tenés permiso para fiar" : undefined}
                   className={cn(
-                    "flex h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border px-1 text-[11px] transition-all duration-150",
+                    /* `min-w-0` es estructural, no cosmético: sin él la columna
+                       del grid no puede achicarse por debajo del ancho de su
+                       texto, y "Transfer." forzaba 390px en un contenedor de
+                       328px → el POS scrolleaba de costado a 360px. Con esto la
+                       etiqueta se recorta y el layout nunca desborda. */
+                    "flex h-14 min-w-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border px-1 text-[11px] transition-all duration-150",
                     elegido
                       ? "border-primary text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                       : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
@@ -1573,8 +1594,8 @@ export function PosScreen({
                       : undefined
                   }
                 >
-                  <m.icon className={cn("size-5", elegido && "text-primary-ink")} />
-                  {m.label}
+                  <m.icon className={cn("size-5 shrink-0", elegido && "text-primary-ink")} />
+                  <span className="w-full truncate text-center">{m.label}</span>
                 </button>
               );
             })}
@@ -1960,7 +1981,10 @@ function MontoLibreDialog({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-end bg-black/60 sm:place-items-center">
-      <div className="w-full rounded-t-2xl border border-border bg-popover p-5 sm:max-w-sm sm:rounded-2xl">
+      {/* El panel es el que scrollea, NO el fondo. Con el scroll en el fondo y
+          la hoja pegada abajo, lo que sobra se va por arriba del viewport y no
+          hay gesto que lo alcance (docs/responsive-audit.md §C1). */}
+      <div className="max-h-[85dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-popover p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:max-w-sm sm:rounded-2xl">
         <div className="mb-4 flex items-start gap-3">
           <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-accent">
             <Banknote className="size-5 text-accent-foreground" />
@@ -2170,7 +2194,12 @@ function AltaRapida({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-end bg-black/60 sm:place-items-center">
-      <div className="w-full rounded-t-2xl border border-border bg-popover p-5 sm:max-w-sm sm:rounded-2xl">
+      {/* Acotada y con scroll PROPIO. Sin esto, al tipear el nombre se abre la
+          lista de sugerencias (+176px) y con el teclado abierto "Guardar y
+          agregar" quedaba FUERA de la pantalla, sin forma de llegar: el cajero
+          no podía terminar de cargar lo que acababa de escanear
+          (docs/responsive-audit.md §1.2). */}
+      <div className="max-h-[85dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-popover p-5 pb-0 sm:max-w-sm sm:rounded-2xl">
         <div className="mb-4 flex items-start gap-3">
           <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-accent">
             <PackagePlus className="size-5 text-accent-foreground" />
@@ -2420,26 +2449,35 @@ function AltaRapida({
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={guardar}
-                disabled={pending || !listo}
-                className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-              >
-                {pending && <LoaderCircle className="size-4 animate-spin" />}
-                Guardar y agregar{precioFinal > 0 ? ` ${money(precioFinal)}` : ""}
-              </button>
+              {/* Pegado al pie del panel: con la lista de sugerencias abierta y
+                  el teclado arriba, tener que scrollear hasta el fondo por cada
+                  producto se come el presupuesto de 10 segundos del mostrador.
+                  El panel va con `pb-0` y el padding de abajo lo pone ESTA barra:
+                  con `-mb-5` quedaba un hueco de 20px por donde se veía pasar el
+                  contenido scrolleando. Los `-mx-5` sí quedan, para que la barra
+                  ocupe todo el ancho del panel. */}
+              <div className="sticky bottom-0 -mx-5 space-y-1 border-t border-border bg-popover px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3">
+                <button
+                  type="button"
+                  onClick={guardar}
+                  disabled={pending || !listo}
+                  className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  {pending && <LoaderCircle className="size-4 animate-spin" />}
+                  Guardar y agregar{precioFinal > 0 ? ` ${money(precioFinal)}` : ""}
+                </button>
 
-              {/* La salida cuando hay cola: cobra igual y el nombre queda como
-                  etiqueta, alimentando la lista de lo que falta cargar. Antes la
-                  única salida de este diálogo era la X, sin cobrar nada. */}
-              <button
-                type="button"
-                onClick={() => onCobrarSuelto(name.trim() || sugerencia?.nombre || "")}
-                className="w-full cursor-pointer py-1 text-center text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Cobrar sin cargarlo
-              </button>
+                {/* La salida cuando hay cola: cobra igual y el nombre queda como
+                    etiqueta, alimentando la lista de lo que falta cargar. Antes la
+                    única salida de este diálogo era la X, sin cobrar nada. */}
+                <button
+                  type="button"
+                  onClick={() => onCobrarSuelto(name.trim() || sugerencia?.nombre || "")}
+                  className="w-full cursor-pointer py-1 text-center text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Cobrar sin cargarlo
+                </button>
+              </div>
             </div>
           </>
         )}

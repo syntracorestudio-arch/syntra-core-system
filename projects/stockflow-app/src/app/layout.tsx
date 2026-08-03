@@ -19,6 +19,15 @@ export const viewport: Viewport = {
   initialScale: 1,
   /* El POS se opera con una mano en el mostrador: nada de zoom accidental al tipear. */
   maximumScale: 5,
+  /* La app llega hasta el borde físico de la pantalla. Es el prerrequisito de
+     `env(safe-area-inset-*)`: sin esto, esas variables valen 0 y el padding que
+     reserva la barra gestual de Android no haría nada. */
+  viewportFit: "cover",
+  /* El teclado achica el viewport de LAYOUT, no solo el visual. Sin esto, en
+     Chrome Android las hojas ancladas abajo se quedan pegadas al fondo anterior
+     y el teclado tapa su botón principal: el cajero no podía guardar el producto
+     que acababa de escanear (docs/responsive-audit.md §C2). */
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({

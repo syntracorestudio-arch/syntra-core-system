@@ -63,10 +63,15 @@ export function AppShell({
 
       {/* Contenido */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <main className="flex-1 pb-20 lg:pb-0">{children}</main>
+        {/* El colchón de abajo reserva la barra de pestañas MÁS la barra gestual
+            de Android: sin el `env()`, los últimos ~20px del contenido quedaban
+            debajo del pill del sistema. */}
+        <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
+          {children}
+        </main>
 
         {/* Barra inferior — mobile */}
-        <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-card/95 backdrop-blur lg:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
           {mobileNav.map((item) => {
             const active = item.href === current;
             return (
