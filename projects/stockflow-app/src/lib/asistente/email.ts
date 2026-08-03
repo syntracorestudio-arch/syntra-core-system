@@ -93,11 +93,14 @@ export function renderReporteHTML(
       )}</td></tr><tr><td style="height:20px"></td></tr>`
     : "";
 
+  /* La RPC manda la cobertura en 0..100, no en 0..1: compararla contra 0,8 dejaba
+     esta nota muda SIEMPRE (91 >= 0,8), y si alguna vez hubiera entrado habría
+     dicho "9100%". El umbral es el mismo que usa la página de Reportes. */
   const notaCobertura =
-    resumen.coberturaCostoPct >= 0.8 || resumen.facturado === 0
+    resumen.coberturaCostoPct >= 90 || resumen.facturado === 0
       ? ""
       : `<p style="margin:6px 0 0;font-size:12px;color:${SUAVE}">Margen calculado sobre el ${Math.round(
-          resumen.coberturaCostoPct * 100,
+          resumen.coberturaCostoPct,
         )}% de tus ventas con costo cargado.</p>`;
 
   /* Botón email-safe: el fondo va en el <td> (Outlook ignora background sobre <a>)
