@@ -53,6 +53,13 @@ export type Oportunidad = {
   monto: number;
   /** Cuántos casos hay detrás. Va en el texto del botón: el número es el gancho. */
   cantidad: number;
+  /**
+   * El nombre propio que encabeza el caso (producto, o cliente en fiado), aparte
+   * del `detalle` ya redactado. Existe para que la capa del asistente pueda
+   * decidir QUÉ nombres salen del negocio sin recortar strings: el de un cliente
+   * no viaja nunca (`hechos.ts`), el de un producto sí.
+   */
+  sujeto: string | null;
   /** Pantalla donde se resuelve (relativa; el email la vuelve absoluta). */
   ruta: string;
   cta: string;
@@ -67,7 +74,8 @@ export type ReporteMensual = {
     gastos: number;
     gananciaNeta: number | null; // null → no cargó gastos: mostrar bruto + nudge
     tieneGastos: boolean;
-    coberturaCosto: number; // 0..1 — si es baja, el margen es parcial
+    /** 0..100, tal como lo devuelve la RPC (NO una fracción). Si es baja, el margen es parcial. */
+    coberturaCostoPct: number;
     tickets: number;
     vsMesAnteriorPct: number | null;
     facturadoPrev: number;
@@ -155,6 +163,7 @@ export function construirReporte(
           : `${top.name} quedó por debajo de tu margen.`,
       monto: remarcarMonto,
       cantidad: cant,
+      sujeto: top.name,
       ruta: rutaOportunidad("remarcar", { desde: meta.from }),
       cta: ctaOportunidad("remarcar", cant, vc.productos),
     });
@@ -178,6 +187,7 @@ export function construirReporte(
       detalle: `${cant} ${cant === 1 ? vc.productos.replace(/s$/, "") : vc.productos} sin vender hace +30 días. El más caro: ${top.name}.`,
       monto: muertoTotal,
       cantidad: cant,
+      sujeto: top.name,
       ruta: rutaOportunidad("stock_muerto", { desde: meta.from }),
       cta: ctaOportunidad("stock_muerto", cant, vc.productos),
     });
@@ -199,6 +209,7 @@ export function construirReporte(
           : `${top.name} debe hace ${n(top.dias)} días.`,
       monto: fiadoAtrasado,
       cantidad: cant,
+      sujeto: top.name,
       ruta: rutaOportunidad("fiado", { desde: meta.from }),
       cta: ctaOportunidad("fiado", cant, vc.productos),
     });
@@ -219,7 +230,7 @@ export function construirReporte(
       gastos,
       gananciaNeta,
       tieneGastos,
-      coberturaCosto: n(money.cost_coverage),
+      coberturaCostoPct: n(money.cost_coverage),
       tickets: n(money.tickets),
       vsMesAnteriorPct: money.vs_prev_pct == null ? null : n(money.vs_prev_pct),
       facturadoPrev: n(money.prev_sold),
