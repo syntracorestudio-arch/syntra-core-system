@@ -19,6 +19,7 @@ import {
   FolderOpen,
   Check,
   ListChecks,
+  PackageSearch,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
@@ -34,6 +35,7 @@ import {
   bulkReprice,
   bulkAssignCategory,
   adjustStock,
+  marcarStockContado,
 } from "./actions";
 import { buscarProductos, type ProductoBuscado } from "@/app/pos/actions";
 
@@ -46,6 +48,8 @@ export type ProductRow = {
   stock: number;
   lowStockThreshold: number | null;
   categoryId: string | null;
+  /** ¿Alguien contó la góndola? false = se vende, pero sin avisos de faltante. */
+  stockConfiable?: boolean;
   /** Días que dura el stock al ritmo de los últimos 30 días. `null` = sin ventas. */
   diasCobertura: number | null;
 };
@@ -133,6 +137,8 @@ export function ProductsClient({
   initialQ,
   categories,
   sinCategoria,
+  sinControlStock = 0,
+  soloSinControl = false,
   defaultThreshold,
   totalProductos,
 }: {
@@ -144,6 +150,10 @@ export function ProductsClient({
   categories: CategoryRow[];
   /** Productos sin categoría (la deuda del catálogo): habilita su filtro. */
   sinCategoria: number;
+  /** Productos que se venden pero nadie contó todavía (puesta en marcha, 038). */
+  sinControlStock?: number;
+  /** ¿Estamos viendo justamente esa lista? (`?control=sin`) */
+  soloSinControl?: boolean;
   defaultThreshold: number;
   /** Total REAL de activos: el listado viene acotado a 500 (escala Fase 1). */
   totalProductos: number;
@@ -194,6 +204,7 @@ export function ProductsClient({
         stock: p.stock,
         lowStockThreshold: p.lowStockThreshold,
         categoryId: p.categoryId,
+        stockConfiable: p.stockConfiable,
         diasCobertura: porDia > 0 ? Math.floor(p.stock / porDia) : null,
       };
     });
@@ -214,7 +225,7 @@ export function ProductsClient({
       window.history.replaceState(null, "", `/admin/productos${params.size ? `?${params}` : ""}`);
 
       setCargando(true);
-      buscarProductos({ q: busqueda.trim() || null, categoria: cat, limit: 50, offset: 0 })
+      buscarProductos({ q: busqueda.trim() || null, categoria: cat, soloSinControl, limit: 50, offset: 0 })
         .then((r) => {
           if (!vivo) return;
           setFilas(mapear(r.items));
@@ -227,11 +238,11 @@ export function ProductsClient({
       vivo = false;
       clearTimeout(t);
     };
-  }, [busqueda, cat]);
+  }, [busqueda, cat, soloSinControl]);
 
   function cargarMas() {
     setCargandoMas(true);
-    buscarProductos({ q: busqueda.trim() || null, categoria: cat, limit: 50, offset: filas.length })
+    buscarProductos({ q: busqueda.trim() || null, categoria: cat, soloSinControl, limit: 50, offset: filas.length })
       .then((r) => {
         setFilas((prev) => [...prev, ...mapear(r.items)]);
         setTotalFiltrado(r.total);
@@ -250,7 +261,9 @@ export function ProductsClient({
      categoría a la vista. Con catálogo chico nada de esto aparece. */
   const q = busqueda.trim();
   const drilldown = totalProductos > UMBRAL_DRILLDOWN;
-  const enIndice = drilldown && !cat && !q;
+  // Con `?control=sin` el usuario ya eligió QUÉ mirar: mostrar el índice sería
+  // hacerle elegir de nuevo.
+  const enIndice = drilldown && !cat && !q && !soloSinControl;
   const catActiva = cat && cat !== SIN_CATEGORIA ? categories.find((c) => c.id === cat) : null;
   const catPorId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   // Tag de categoría por fila solo cuando la lista NO está ya acotada a una:
@@ -306,7 +319,7 @@ export function ProductsClient({
       // Doble refresco: el server component (contadores del índice/chips) y la
       // página visible de la lista (que es estado del cliente).
       router.refresh();
-      buscarProductos({ q: busqueda.trim() || null, categoria: cat, limit: 50, offset: 0 })
+      buscarProductos({ q: busqueda.trim() || null, categoria: cat, soloSinControl, limit: 50, offset: 0 })
         .then((r) => {
           setFilas(mapear(r.items));
           setTotalFiltrado(r.total);
@@ -355,6 +368,33 @@ export function ProductsClient({
           sinCategoria={sinCategoria}
           className="mb-3"
         />
+      )}
+
+      {/* Vista "sin control de stock": el destino del aviso del dashboard. Dice
+          en una línea qué está apagado y cómo se enciende — apagar alertas sin
+          explicar dónde se arregla sería cambiar ruido por silencio. */}
+      {soloSinControl && (
+        <div className="mb-3 rounded-lg border border-warning/30 bg-warning/5 px-3.5 py-3">
+          <div className="flex items-start gap-3">
+            <PackageSearch className="mt-0.5 size-4 shrink-0 text-warning-ink" />
+            <div className="min-w-0 flex-1 text-sm">
+              <p className="font-medium text-warning-ink">
+                <span className="tabular">{sinControlStock}</span>{" "}
+                {sinControlStock === 1 ? "producto sin contar" : "productos sin contar"}
+              </p>
+              <p className="mt-0.5 text-muted-foreground">
+                Se venden normal. Poné cuántos tenés con el lápiz de cada fila y se
+                encienden sus avisos de faltante.
+              </p>
+            </div>
+            <Link
+              href="/admin/productos"
+              className="shrink-0 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Ver todos
+            </Link>
+          </div>
+        </div>
       )}
 
       {drilldown && cat && (
@@ -476,6 +516,7 @@ export function ProductsClient({
         <IndiceCategorias
           categories={categories}
           sinCategoria={sinCategoria}
+          sinControlStock={sinControlStock}
           onSelect={(id) => setCat(id, { push: true })}
         />
       ) : (
@@ -484,7 +525,10 @@ export function ProductsClient({
         {visibles.map((p) => {
           const m = margen(p.price, p.cost);
           const umbral = p.lowStockThreshold ?? defaultThreshold;
-          const bajo = p.stock <= umbral;
+          /* Sin conteo, el número de stock no lo respalda nadie: pintarlo en
+             ámbar diría "te estás quedando sin" sobre un dato inventado. */
+          const sinControl = p.stockConfiable === false;
+          const bajo = !sinControl && p.stock <= umbral;
           const marcado = seleccion?.has(p.id) ?? false;
           return (
             <li
@@ -553,17 +597,26 @@ export function ProductsClient({
                   sí. "29 u." es un dato; "te dura 6 días" es qué pedir esta
                   semana. */}
               <div className="shrink-0 text-right">
-                <span
-                  className={cn(
-                    "tabular inline-block rounded-full px-2 py-0.5 text-xs font-semibold",
-                    bajo
-                      ? "bg-warning/15 text-warning-ink ring-1 ring-warning/30"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {p.stock} u.
-                </span>
-                {p.diasCobertura !== null && p.stock > 0 && (
+                {sinControl ? (
+                  <span
+                    className="inline-block rounded-full px-2 py-0.5 text-xs font-medium text-muted-foreground ring-1 ring-border"
+                    title="Nadie contó este producto todavía: sus avisos de faltante están apagados."
+                  >
+                    sin contar
+                  </span>
+                ) : (
+                  <span
+                    className={cn(
+                      "tabular inline-block rounded-full px-2 py-0.5 text-xs font-semibold",
+                      bajo
+                        ? "bg-warning/15 text-warning-ink ring-1 ring-warning/30"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {p.stock} u.
+                  </span>
+                )}
+                {!sinControl && p.diasCobertura !== null && p.stock > 0 && (
                   <p
                     className={cn(
                       "tabular mt-0.5 text-[11px]",
@@ -683,10 +736,13 @@ export function ProductsClient({
 function IndiceCategorias({
   categories,
   sinCategoria,
+  sinControlStock,
   onSelect,
 }: {
   categories: CategoryRow[];
   sinCategoria: number;
+  /** Puesta en marcha: la otra deuda visible del catálogo, al pie del índice. */
+  sinControlStock: number;
   onSelect: (id: string) => void;
 }) {
   const conProductos = categories.filter((c) => (c.count ?? 0) > 0);
@@ -754,6 +810,33 @@ function IndiceCategorias({
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground/70" />
           </button>
+        </li>
+      )}
+      {/* La segunda deuda visible, con el mismo trato que "Sin categoría": es un
+          link y no un filtro de chip porque la vista trae su propia explicación. */}
+      {sinControlStock > 0 && (
+        <li>
+          <Link
+            href="/admin/productos?control=sin"
+            className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-warning/5"
+          >
+            <span
+              className="grid size-9 shrink-0 place-items-center rounded-lg bg-warning/15 text-warning-ink"
+              aria-hidden
+            >
+              <PackageSearch className="size-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Sin contar</p>
+              <p className="text-xs text-warning-ink">
+                Se venden, pero sin avisos de faltante
+              </p>
+            </div>
+            <span className="tabular shrink-0 text-sm font-semibold text-warning-ink">
+              {sinControlStock}
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground/70" />
+          </Link>
         </li>
       )}
       {conProductos.length === 0 && sinCategoria === 0 && (
@@ -1021,17 +1104,30 @@ function ProductDialog({
     });
   }
 
+  /* Un producto SIN CONTAR no tiene contra qué sumar: pedirle "+10 o -3" sobre
+     un número que nadie respalda no arregla nada. Se le pide el TOTAL en góndola
+     y nosotros calculamos el delta — ese asiento es el baseline que enciende sus
+     avisos (graduación, 037/038). Para el resto sigue siendo el ajuste de siempre. */
+  const sinControl = product?.stockConfiable === false;
+
   function aplicarAjuste() {
     if (!product) return;
-    const delta = Number(ajuste);
-    if (!delta) return;
+    const n = Number(ajuste);
+    if (Number.isNaN(n) || ajuste.trim() === "") return;
+
     startTransition(async () => {
-      const res = await adjustStock(product.id, delta, delta < 0 ? "waste" : "adjust", "ajuste manual");
+      // Contar (total) y ajustar (delta) son gestos distintos y van por caminos
+      // distintos: contar puede dar el mismo número y aun así tiene que graduar.
+      const res = sinControl
+        ? await marcarStockContado(product.id, n)
+        : n === 0
+          ? { ok: true as const }
+          : await adjustStock(product.id, n, n < 0 ? "waste" : "adjust", "ajuste manual");
       if (!res.ok) {
         onError(res.error);
         return;
       }
-      onDone("Stock ajustado.");
+      onDone(sinControl ? "Contado. Ya te avisamos cuando quede poco." : "Stock ajustado.");
     });
   }
 
@@ -1282,29 +1378,45 @@ function ProductDialog({
 
         {product && (
           <div className="space-y-2 border-t border-border pt-3">
-            <p className="text-xs font-medium text-muted-foreground">
-              Stock actual: <span className="tabular font-semibold text-foreground">{product.stock} u.</span>
-            </p>
+            {sinControl ? (
+              <p className="text-xs font-medium text-warning-ink">
+                Todavía nadie contó este producto: sus avisos de faltante están apagados.
+              </p>
+            ) : (
+              <p className="text-xs font-medium text-muted-foreground">
+                Stock actual:{" "}
+                <span className="tabular font-semibold text-foreground">{product.stock} u.</span>
+              </p>
+            )}
             <div className="flex gap-2">
               <input
                 value={ajuste}
-                onChange={(e) => setAjuste(e.target.value.replace(/[^\d-]/g, ""))}
+                onChange={(e) =>
+                  setAjuste(e.target.value.replace(sinControl ? /[^\d]/g : /[^\d-]/g, ""))
+                }
                 inputMode="numeric"
-                placeholder="+10 o -3"
-                aria-label="Ajuste de stock"
+                placeholder={sinControl ? "¿Cuántos tenés?" : "+10 o -3"}
+                aria-label={sinControl ? "Cantidad contada en la góndola" : "Ajuste de stock"}
                 className="tabular h-10 flex-1 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
               />
               <button
                 type="button"
                 onClick={aplicarAjuste}
-                disabled={pending || !ajuste}
-                className="h-10 cursor-pointer rounded-lg border border-border px-3 text-sm font-medium transition-colors hover:border-primary disabled:opacity-40"
+                disabled={pending || ajuste.trim() === ""}
+                className={cn(
+                  "h-10 shrink-0 cursor-pointer whitespace-nowrap rounded-lg px-3 text-sm font-medium transition-colors disabled:opacity-40",
+                  sinControl
+                    ? "bg-primary text-primary-foreground hover:opacity-90"
+                    : "border border-border hover:border-primary",
+                )}
               >
-                Ajustar
+                {sinControl ? "Guardar" : "Ajustar"}
               </button>
             </div>
             <p className="text-xs text-muted-foreground">
-              El ajuste queda asentado. Un número negativo se registra como merma.
+              {sinControl
+                ? "Contá lo que hay en la góndola. Desde ahí te avisamos cuando quede poco."
+                : "El ajuste queda asentado. Un número negativo se registra como merma."}
             </p>
 
             <button

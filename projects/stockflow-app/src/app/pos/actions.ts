@@ -257,6 +257,8 @@ export type ProductoPorCodigo = {
   categoryId: string | null;
   categoryName: string | null;
   archivado: boolean;
+  /** ¿Alguien contó la góndola? false = se vende, pero el número no vale. */
+  stockConfiable: boolean;
   barcodes: string[];
 };
 
@@ -285,6 +287,7 @@ export async function buscarProductoPorCodigo(
     category_id: string | null;
     category_name: string | null;
     archivado: boolean;
+    stock_confiable?: boolean;
     barcodes: string[] | null;
   };
 
@@ -298,6 +301,8 @@ export async function buscarProductoPorCodigo(
     categoryId: r.category_id,
     categoryName: r.category_name,
     archivado: Boolean(r.archivado),
+    // Ausente = confiable: ninguna pantalla debe inventar una advertencia.
+    stockConfiable: r.stock_confiable ?? true,
     barcodes: r.barcodes ?? [],
   };
 }
@@ -320,6 +325,8 @@ export type ProductoBuscado = {
   lowStockThreshold: number | null;
   categoryId: string | null;
   categoryName: string | null;
+  /** ¿Alguien contó la góndola? false = se vende, pero sin avisos de faltante. */
+  stockConfiable: boolean;
   sold14d: number;
   /** Unidades vendidas en 30 días: alimenta la cobertura ("te dura 6 días"). */
   sold30d: number;
@@ -338,6 +345,8 @@ const buscarSchema = z.object({
   categoria: z.union([z.guid(), z.literal("none")]).nullable().optional(),
   limit: z.number().int().min(1).max(100).optional(),
   offset: z.number().int().min(0).optional(),
+  /** Puesta en marcha (038): solo los que todavía nadie contó. */
+  soloSinControl: z.boolean().optional(),
 });
 
 export async function buscarProductos(input: unknown): Promise<PaginaProductos> {
@@ -356,6 +365,7 @@ export async function buscarProductos(input: unknown): Promise<PaginaProductos> 
     p_limit: parsed.data.limit ?? 50,
     p_offset: parsed.data.offset ?? 0,
     p_solo_sin_categoria: soloSinCategoria,
+    p_solo_sin_control: parsed.data.soloSinControl ?? false,
   });
 
   if (error || !data) return vacia;
@@ -372,6 +382,7 @@ export async function buscarProductos(input: unknown): Promise<PaginaProductos> 
       low_stock_threshold: string | number | null;
       category_id: string | null;
       category_name: string | null;
+      stock_confiable?: boolean;
       vendidas_14d: string | number;
       vendidas_30d: string | number;
     }[];
@@ -392,6 +403,8 @@ export async function buscarProductos(input: unknown): Promise<PaginaProductos> 
       lowStockThreshold: p.low_stock_threshold === null ? null : Number(p.low_stock_threshold),
       categoryId: p.category_id,
       categoryName: p.category_name,
+      // Ausente = confiable: ninguna pantalla debe inventar una advertencia.
+      stockConfiable: p.stock_confiable ?? true,
       sold14d: Number(p.vendidas_14d ?? 0),
       sold30d: Number(p.vendidas_30d ?? 0),
     })),

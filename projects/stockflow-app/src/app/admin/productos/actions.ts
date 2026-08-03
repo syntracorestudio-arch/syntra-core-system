@@ -169,6 +169,36 @@ export async function adjustStock(
   return { ok: true };
 }
 
+/**
+ * Contar la góndola de un producto que nadie contó (puesta en marcha, 038).
+ *
+ * Se declara el TOTAL, no un delta: sobre un stock sin respaldo, "+10" no
+ * significa nada. La RPC saca la diferencia, la asienta y el producto queda con
+ * sus avisos de faltante encendidos. Si el conteo coincide, gradúa igual —
+ * sin inventar un movimiento.
+ */
+export async function marcarStockContado(
+  productId: string,
+  total: number,
+): Promise<ActionResult> {
+  const session = await requireOwner();
+  if (Number.isNaN(total) || total < 0) return { ok: false, error: "Poné cuántos tenés." };
+
+  const supabase = await createSupabaseServer();
+  const { error } = await supabase.rpc("marcar_stock_contado", {
+    p_store_id: session.store.id,
+    p_product_id: productId,
+    p_total: total,
+  });
+
+  if (error) return { ok: false, error: "No pudimos guardar el conteo." };
+
+  revalidatePath("/admin/productos");
+  revalidatePath("/admin");
+  revalidatePath("/pos");
+  return { ok: true };
+}
+
 const repriceSchema = z.object({
   pct: z.number().refine((n) => n !== 0, "Poné un porcentaje distinto de cero."),
   category_id: z.guid().nullable(),

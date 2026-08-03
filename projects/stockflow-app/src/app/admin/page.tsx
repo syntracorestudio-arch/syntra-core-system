@@ -23,16 +23,27 @@ export default async function AdminDashboard() {
     .toISOString()
     .slice(0, 10);
 
-  const [{ data }, { count: gastosEsteMes, error: errGastos }] = await Promise.all([
-    supabase.rpc("dashboard_summary", { p_store_id: session.store.id }),
-    supabase
-      .from("expenses")
-      .select("id", { count: "exact", head: true })
-      .eq("store_id", session.store.id)
-      .eq("status", "active")
-      .gte("incurred_on", inicioMes)
-      .limit(1),
-  ]);
+  const [{ data }, { count: gastosEsteMes, error: errGastos }, { count: sinControl }] =
+    await Promise.all([
+      supabase.rpc("dashboard_summary", { p_store_id: session.store.id }),
+      supabase
+        .from("expenses")
+        .select("id", { count: "exact", head: true })
+        .eq("store_id", session.store.id)
+        .eq("status", "active")
+        .gte("incurred_on", inicioMes)
+        .limit(1),
+      /* Puesta en marcha (038): cuántos productos se venden pero todavía no
+         tienen control de stock. Sus alertas están apagadas —a propósito— y el
+         dueño tiene que poder VERLO. Es un count(*) head sobre el índice parcial
+         `products_no_confiables_idx`: no trae filas. */
+      supabase
+        .from("products")
+        .select("id", { count: "exact", head: true })
+        .eq("store_id", session.store.id)
+        .eq("status", "active")
+        .eq("stock_confiable", false),
+    ]);
 
   // Fail-safe: si no pudimos saberlo (tabla/RLS), NO molestamos con el nudge.
   const sinGastosEsteMes = !errGastos && (gastosEsteMes ?? 0) === 0;
@@ -47,6 +58,7 @@ export default async function AdminDashboard() {
         data={data as DashboardData}
         timezone={session.store.timezone}
         sinGastosEsteMes={sinGastosEsteMes}
+        sinControlStock={sinControl ?? 0}
       />
     </AppShell>
   );
