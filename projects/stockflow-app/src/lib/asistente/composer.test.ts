@@ -66,6 +66,74 @@ test("la cota es solo para stock muerto: remarcar no depende de la antigüedad",
   assert.deepEqual(tipos(datos({ diasDeUso: 5 }), margenes), ["remarcar"]);
 });
 
+// ── Fiado ──────────────────────────────────────────────────────────────────────
+
+/** La RPC ordena la deuda por ANTIGÜEDAD (dias desc), no por monto. */
+function conFiado(over: { name: string; owed: number; dias: number }[]): DatosMensuales {
+  const d = datos();
+  d.resumen.credit = { given: 0, collected: 0, overdue: over };
+  d.resumen.dead_stock = { total: 0, items: [] };
+  return d;
+}
+
+test("el texto no puede llamar 'el mayor' al primero: viene ordenado por días, no por plata", () => {
+  const r = construirReporte(
+    conFiado([
+      { name: "Roberto Díaz", owed: 900, dias: 61 }, // el más VIEJO, pero el que menos debe
+      { name: "Kiosco de la esquina", owed: 42800, dias: 33 },
+    ]),
+    SIN_ALERTAS,
+    SIN_MARGENES,
+    META,
+  );
+  const o = r.oportunidades[0];
+  assert.ok(!o.detalle.includes("El mayor"), `no debe decir "El mayor": ${o.detalle}`);
+  assert.ok(o.detalle.includes("Roberto Díaz"), o.detalle);
+  assert.equal(o.monto, 43700); // la plata es la suma de TODA la deuda vieja
+  assert.equal(o.cta, "Ver los 2 clientes");
+  assert.equal(o.ruta, "/admin/fiado");
+});
+
+test("un solo deudor se nombra sin contarlo", () => {
+  const r = construirReporte(
+    conFiado([{ name: "Marta González", owed: 18400, dias: 47 }]),
+    SIN_ALERTAS,
+    SIN_MARGENES,
+    META,
+  );
+  assert.equal(r.oportunidades[0].detalle, "Marta González debe hace 47 días.");
+  assert.equal(r.oportunidades[0].cta, "Ver el cliente");
+});
+
+// ── Comparación contra el mes anterior ─────────────────────────────────────────
+
+function conPrevio(prevSold: number, vsPct: number | null): DatosMensuales {
+  const d = datos();
+  d.resumen.money = { ...d.resumen.money, prev_sold: prevSold, vs_prev_pct: vsPct };
+  d.resumen.dead_stock = { total: 0, items: [] };
+  return d;
+}
+
+const resumenDe = (d: DatosMensuales, from = "2026-07-01") =>
+  construirReporte(d, SIN_ALERTAS, SIN_MARGENES, { ...META, from }).resumen;
+
+test("el mes de comparación se nombra: 'junio' dice más que 'mes anterior'", () => {
+  const r = resumenDe(conPrevio(13400000, -12));
+  assert.equal(r.mesAnteriorLabel, "junio");
+  assert.equal(r.vsMesAnteriorPct, -12);
+  assert.equal(r.facturadoPrev, 13400000);
+});
+
+test("enero compara contra diciembre del año pasado", () => {
+  assert.equal(resumenDe(conPrevio(500, 10), "2026-01-01").mesAnteriorLabel, "diciembre");
+});
+
+test("el primer mes del negocio no inventa una comparación", () => {
+  const r = resumenDe(conPrevio(0, null));
+  assert.equal(r.vsMesAnteriorPct, null);
+  assert.equal(r.mesAnteriorLabel, null);
+});
+
 // ── Que el botón exista y apunte bien ──────────────────────────────────────────
 
 test("cada oportunidad viaja con su pantalla y su botón", () => {

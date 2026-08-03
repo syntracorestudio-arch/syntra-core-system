@@ -57,12 +57,17 @@ export function renderReporteHTML(r: ReporteMensual, accent: string, baseUrl?: s
   // Una pérdida NO se muestra en el color de acento (lee como algo bueno): va en rojo.
   const gananciaColor = gananciaValor < 0 ? "#dc2626" : acento;
 
+  // "vs. junio ($13.400.000)" en vez de "vs. mes anterior": el mes con nombre y
+  // el número al lado es lo que hace que la variación signifique algo.
+  const contra = resumen.mesAnteriorLabel
+    ? `vs. ${esc(resumen.mesAnteriorLabel)} (${pesos(resumen.facturadoPrev)})`
+    : "vs. mes anterior";
   const vs =
     resumen.vsMesAnteriorPct == null
       ? ""
       : resumen.vsMesAnteriorPct >= 0
-        ? `<span style="color:#16a34a">▲ ${resumen.vsMesAnteriorPct}%</span> vs. mes anterior`
-        : `<span style="color:#dc2626">▼ ${Math.abs(resumen.vsMesAnteriorPct)}%</span> vs. mes anterior`;
+        ? `<span style="color:#16a34a">▲ ${resumen.vsMesAnteriorPct}%</span> ${contra}`
+        : `<span style="color:#dc2626">▼ ${Math.abs(resumen.vsMesAnteriorPct)}%</span> ${contra}`;
 
   const nudgeGastos = resumen.tieneGastos
     ? ""

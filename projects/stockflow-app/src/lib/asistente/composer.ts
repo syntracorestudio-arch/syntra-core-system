@@ -71,6 +71,8 @@ export type ReporteMensual = {
     tickets: number;
     vsMesAnteriorPct: number | null;
     facturadoPrev: number;
+    /** "junio" — null cuando no hay contra qué comparar (primer mes). */
+    mesAnteriorLabel: string | null;
   };
   oportunidades: Oportunidad[];
   detalle: {
@@ -96,6 +98,17 @@ function periodoLabel(from: string): string {
   const d = new Date(`${from}T12:00:00Z`);
   const s = d.toLocaleDateString("es-AR", { month: "long", year: "numeric", timeZone: "UTC" });
   return s.charAt(0).toUpperCase() + s.slice(1); // "julio de 2026" → "Julio de 2026"
+}
+
+/**
+ * Nombre del mes anterior al período ("junio" para un reporte de julio).
+ * Se arma con UTC a mediodía para que ningún huso lo corra un día y termine
+ * nombrando el mes equivocado.
+ */
+function mesAnteriorLabel(from: string): string {
+  const d = new Date(`${from}T12:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() - 1);
+  return d.toLocaleDateString("es-AR", { month: "long", timeZone: "UTC" });
 }
 
 const NOMBRE_METODO: Record<string, string> = {
@@ -177,9 +190,12 @@ export function construirReporte(
     oportunidades.push({
       tipo: "fiado",
       titulo: "Fiado atrasado para salir a cobrar",
+      /* La RPC ordena por ANTIGÜEDAD (dias desc), no por monto: `top` es el que
+         hace más tiempo que no paga, que puede ser el que menos debe. Decir
+         "el mayor" era mentira cada vez que esos dos no coincidían. */
       detalle:
         cant > 1
-          ? `${cant} clientes con deuda vieja. El mayor: ${top.name}, hace ${n(top.dias)} días.`
+          ? `${cant} clientes con deuda vieja. El más atrasado: ${top.name}, hace ${n(top.dias)} días.`
           : `${top.name} debe hace ${n(top.dias)} días.`,
       monto: fiadoAtrasado,
       cantidad: cant,
@@ -207,6 +223,7 @@ export function construirReporte(
       tickets: n(money.tickets),
       vsMesAnteriorPct: money.vs_prev_pct == null ? null : n(money.vs_prev_pct),
       facturadoPrev: n(money.prev_sold),
+      mesAnteriorLabel: money.vs_prev_pct == null ? null : mesAnteriorLabel(meta.from),
     },
     oportunidades: oportunidades.slice(0, 3),
     detalle: {
