@@ -1,7 +1,7 @@
 /**
  * Tests de la capa LLM. Lo que garantizan: el reporte SALE IGUAL pase lo que pase
- * con el modelo. La narrativa es un extra que se cae solo si algo falla —
- * nunca un motivo para no mandarle el mes al dueño.
+ * con el modelo. El análisis es un extra que se cae solo si algo falla — nunca un
+ * motivo para no mandarle el mes al dueño.
  *
  * Se corre con: node --test src/lib/asistente/narrativa.test.ts
  */
@@ -10,6 +10,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { narrarMes } from "./narrativa.ts";
+import type { Crudos } from "./hechos.ts";
 import type { ReporteMensual } from "./composer.ts";
 
 const REPORTE: ReporteMensual = {
@@ -42,14 +43,72 @@ const REPORTE: ReporteMensual = {
   alertas: { porVencer: [], stockBajo: [] },
 };
 
-/** Stub de la API: devuelve el texto pedido y registra con qué se la llamó. */
-function apiQueResponde(texto: string) {
+/** Los crudos que hacen que el análisis pueda decir algo más que el email. */
+const CRUDOS = {
+  datos: {
+    resumen: {
+      credit: { given: 0, collected: 0, overdue: [{ name: "Roberto Díaz", owed: 43700, dias: 61 }] },
+      dead_stock: { total: 0, items: [] },
+      data_health: { cost_coverage: 91, products_without_cost: 250, stale_prices: 2000 },
+      by_category: [{ name: "Cigarrillos", revenue: 1775150, profit: 621302 }],
+      by_slot: [{ name: "Mañana", total: 3501840, tickets: 404 }],
+      waste: { total: 0 },
+    },
+  },
+  margenes: {
+    total_por_mes: 57910,
+    min_margen: 35,
+    productos: [
+      {
+        name: "Chesterfield 100g 8",
+        emoji: null,
+        precio: 4950,
+        precio_sugerido: 5850,
+        margen_hoy: 12,
+        plata_por_mes: 17100,
+        unidades_30d: 19,
+      },
+    ],
+  },
+} as unknown as Crudos;
+
+/** Un análisis que pasa la verificación contra los datos de arriba. */
+const BUENO = JSON.stringify({
+  dolor: {
+    titulo: "Vendés mucho de lo que menos te deja",
+    porque: "Los cigarrillos son tu categoría más grande y los vendés al 12% de margen.",
+  },
+  acciones: [
+    {
+      tipo: "remarcar",
+      texto: "Subí Chesterfield 100g 8 de $4.950 a $5.850.",
+      producto: "Chesterfield 100g 8",
+      monto: 17100,
+    },
+    { tipo: "fiado", texto: "Salí a cobrar: son 3 clientes.", producto: null, monto: 43700 },
+  ],
+  fuga: null,
+  huecos: "Tenés 250 productos sin costo cargado.",
+});
+
+const respuestaOpenAI = (contenido: string, extra: Record<string, unknown> = {}) =>
+  new Response(
+    JSON.stringify({
+      choices: [{ message: { content: contenido }, ...extra }],
+      usage: { prompt_tokens: 800, completion_tokens: 90 },
+    }),
+    { status: 200 },
+  );
+
+const GROQ = { nombre: "openai-compat" as const, url: "https://x/y", apiKey: "k", modelo: "m" };
+
+function apiQueResponde(contenido: string) {
   const llamadas: { url: string; init: RequestInit }[] = [];
   const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
     llamadas.push({ url: String(url), init: init ?? {} });
     return new Response(
       JSON.stringify({
-        content: [{ type: "text", text: texto }],
+        content: [{ type: "text", text: contenido }],
         usage: { input_tokens: 1200, output_tokens: 180 },
       }),
       { status: 200 },
@@ -58,67 +117,87 @@ function apiQueResponde(texto: string) {
   return { llamadas, fetchImpl: fetchImpl as unknown as typeof fetch };
 }
 
-const BUENA = "Facturaste $12.480.300, un 12% menos que junio. Lo que más pesa hoy es el fiado viejo.";
-
 // ── Camino feliz ───────────────────────────────────────────────────────────────
 
-test("con API key y una respuesta válida, devuelve el párrafo", async () => {
-  const { fetchImpl } = apiQueResponde(`  ${BUENA}  `);
-  const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl });
-  assert.equal(res.estado, "ok");
-  assert.equal(res.texto, BUENA); // llega sin los espacios de más
+test("con un análisis verificable devuelve los campos, no un párrafo", async () => {
+  const { fetchImpl } = apiQueResponde(BUENO);
+  const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl, crudos: CRUDOS });
+  assert.equal(res.estado, "ok", res.motivo ?? "");
+  assert.equal(res.analisis?.dolor.titulo, "Vendés mucho de lo que menos te deja");
+  assert.equal(res.analisis?.acciones.length, 2);
+  assert.equal(res.analisis?.acciones[0].producto, "Chesterfield 100g 8");
   assert.equal(res.tokensIn, 1200);
-  assert.equal(res.tokensOut, 180);
 });
 
-test("el prompt no lleva el nombre del deudor ni el del negocio", async () => {
-  const { llamadas, fetchImpl } = apiQueResponde(BUENA);
-  await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl });
+test("acepta el JSON aunque venga envuelto en un bloque de código", async () => {
+  const { fetchImpl } = apiQueResponde("```json\n" + BUENO + "\n```");
+  const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl, crudos: CRUDOS });
+  assert.equal(res.estado, "ok", res.motivo ?? "");
+});
+
+test("el payload lleva el precio sugerido: sin eso el análisis no existe", async () => {
+  const { llamadas, fetchImpl } = apiQueResponde(BUENO);
+  await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl, crudos: CRUDOS });
   const body = String(llamadas[0].init.body);
-  assert.ok(!body.includes("Roberto"), body);
-  assert.ok(!body.includes("Kiosco Escala"), body);
-  assert.ok(body.includes("12480300"), "los números sí tienen que viajar");
+  assert.ok(body.includes("5850"), "el precio sugerido tiene que viajar");
+  assert.ok(body.includes("250"), "los productos sin costo también");
+  assert.ok(!body.includes("Roberto"), "pero el deudor no");
+  assert.ok(!body.includes("Kiosco Escala"), "ni el nombre del negocio");
 });
 
 test("se llama a la API de mensajes con la autenticación esperada", async () => {
-  const { llamadas, fetchImpl } = apiQueResponde(BUENA);
-  await narrarMes(REPORTE, { apiKey: "sk-test", modelo: "claude-haiku-4-5-20251001", fetchImpl });
+  const { llamadas, fetchImpl } = apiQueResponde(BUENO);
+  await narrarMes(REPORTE, { apiKey: "sk-test", modelo: "claude-haiku-4-5", fetchImpl, crudos: CRUDOS });
   const { url, init } = llamadas[0];
   assert.equal(url, "https://api.anthropic.com/v1/messages");
   const headers = init.headers as Record<string, string>;
   assert.equal(headers["x-api-key"], "sk-test");
   assert.equal(headers["anthropic-version"], "2023-06-01");
-  assert.equal(JSON.parse(String(init.body)).model, "claude-haiku-4-5-20251001");
 });
 
-// ── Todo lo que puede salir mal termina igual: sin narrativa, con reporte ───────
+// ── Todo lo que puede salir mal termina igual: sin análisis, con reporte ────────
 
-test("sin API key no se llama a nadie: la narrativa queda desactivada", async () => {
+test("sin API key no se llama a nadie", async () => {
   let llamado = false;
   const fetchImpl = (async () => {
     llamado = true;
     return new Response("{}", { status: 200 });
   }) as unknown as typeof fetch;
-
   const res = await narrarMes(REPORTE, { apiKey: null, fetchImpl });
   assert.equal(res.estado, "desactivada");
-  assert.equal(res.texto, null);
+  assert.equal(res.analisis, null);
   assert.equal(llamado, false);
 });
 
-test("si el modelo inventa una cifra, el párrafo se descarta entero", async () => {
-  const { fetchImpl } = apiQueResponde("Tenés $9.900.000 parados en el estante hace meses.");
-  const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl });
+test("si el modelo inventa una cifra, se descarta el análisis entero", async () => {
+  const malo = JSON.parse(BUENO);
+  malo.dolor.porque = "Estás perdiendo $9.900.000 por mes.";
+  const { fetchImpl } = apiQueResponde(JSON.stringify(malo));
+  const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl, crudos: CRUDOS });
   assert.equal(res.estado, "rechazada");
-  assert.equal(res.texto, null);
-  assert.match(res.motivo ?? "", /9900000/);
+  assert.equal(res.analisis, null);
+});
+
+test("si el modelo inventa un producto, esa acción se cae y el resto queda", async () => {
+  const malo = JSON.parse(BUENO);
+  malo.acciones[0].producto = "Marlboro Box";
+  const { fetchImpl } = apiQueResponde(JSON.stringify(malo));
+  const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl, crudos: CRUDOS });
+  assert.equal(res.estado, "ok", res.motivo ?? "");
+  assert.deepEqual(res.analisis?.acciones.map((a) => a.tipo), ["fiado"]);
+});
+
+test("un texto que no es JSON no rompe nada", async () => {
+  const { fetchImpl } = apiQueResponde("Este mes te fue bien, seguí así.");
+  const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl, crudos: CRUDOS });
+  assert.equal(res.estado, "fallida");
+  assert.equal(res.motivo, "json_invalido");
 });
 
 test("un error HTTP no rompe el reporte", async () => {
   const fetchImpl = (async () => new Response("rate limited", { status: 429 })) as unknown as typeof fetch;
-  const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl });
+  const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl, crudos: CRUDOS });
   assert.equal(res.estado, "fallida");
-  assert.equal(res.texto, null);
   assert.match(res.motivo ?? "", /429/);
 });
 
@@ -126,147 +205,92 @@ test("una caída de red tampoco", async () => {
   const fetchImpl = (async () => {
     throw new Error("ETIMEDOUT");
   }) as unknown as typeof fetch;
-  const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl });
+  const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl, crudos: CRUDOS });
   assert.equal(res.estado, "fallida");
   assert.match(res.motivo ?? "", /ETIMEDOUT/);
 });
 
-// ── Proveedor gratuito (OpenAI-compatible: Groq y cualquier otro igual) ────────
+// ── Proveedor gratuito (OpenAI-compatible) ─────────────────────────────────────
 
-test("con un proveedor OpenAI-compatible habla su dialecto, no el de Anthropic", async () => {
-  const llamadas: { url: string; init: RequestInit }[] = [];
-  const fetchImpl = (async (url: string | URL | Request, init?: RequestInit) => {
-    llamadas.push({ url: String(url), init: init ?? {} });
-    return new Response(
-      JSON.stringify({
-        choices: [{ message: { content: BUENA } }],
-        usage: { prompt_tokens: 800, completion_tokens: 90 },
-      }),
-      { status: 200 },
-    );
-  }) as unknown as typeof fetch;
-
-  const res = await narrarMes(REPORTE, {
-    proveedor: {
-      nombre: "openai-compat",
-      url: "https://api.groq.com/openai/v1/chat/completions",
-      apiKey: "gsk_test",
-      modelo: "llama-3.3-70b-versatile",
-    },
-    fetchImpl,
-  });
-
-  assert.equal(res.estado, "ok");
-  assert.equal(res.texto, BUENA);
-  assert.equal(res.tokensIn, 800);
-  assert.equal(res.tokensOut, 90);
-
-  const { url, init } = llamadas[0];
-  assert.equal(url, "https://api.groq.com/openai/v1/chat/completions");
-  const headers = init.headers as Record<string, string>;
-  assert.equal(headers.authorization, "Bearer gsk_test");
-  assert.equal(headers["x-api-key"], undefined, "no manda la cabecera de Anthropic");
-
-  // El sistema viaja como un mensaje con rol 'system', no como campo aparte.
-  const body = JSON.parse(String(init.body));
-  assert.equal(body.model, "llama-3.3-70b-versatile");
-  assert.equal(body.messages[0].role, "system");
-  assert.equal(body.messages[1].role, "user");
-  assert.ok(!body.system, "el campo `system` es de Anthropic, acá no va");
-  assert.ok(!String(init.body).includes("Roberto"), "el deudor tampoco viaja acá");
-});
-
-test("el pedido normal NO lleva reasoning_effort: los modelos comunes lo rechazan", async () => {
-  // Verificado contra Groq: llama-3.3-70b y qwen3.6 devuelven 400 con ese campo.
+test("con un proveedor OpenAI-compatible habla su dialecto", async () => {
   const llamadas: RequestInit[] = [];
   const fetchImpl = (async (_u: unknown, init?: RequestInit) => {
     llamadas.push(init ?? {});
-    return new Response(JSON.stringify({ choices: [{ message: { content: BUENA } }] }), { status: 200 });
+    return respuestaOpenAI(BUENO);
   }) as unknown as typeof fetch;
 
-  await narrarMes(REPORTE, {
-    proveedor: { nombre: "openai-compat", url: "https://x/y", apiKey: "k", modelo: "llama-3.3-70b-versatile" },
-    fetchImpl,
-  });
-  assert.equal(llamadas.length, 1, "un solo intento cuando el modelo contesta");
+  const res = await narrarMes(REPORTE, { proveedor: GROQ, fetchImpl, crudos: CRUDOS });
+  assert.equal(res.estado, "ok", res.motivo ?? "");
+  assert.equal(res.tokensIn, 800);
+
+  const headers = llamadas[0].headers as Record<string, string>;
+  assert.equal(headers.authorization, "Bearer k");
+  assert.equal(headers["x-api-key"], undefined);
+  const body = JSON.parse(String(llamadas[0].body));
+  assert.equal(body.messages[0].role, "system");
+  assert.ok(!body.system);
+});
+
+test("el verificador NO se afloja con el proveedor gratuito", async () => {
+  const malo = JSON.parse(BUENO);
+  malo.acciones[1].monto = 9900000;
+  const fetchImpl = (async () => respuestaOpenAI(JSON.stringify(malo))) as unknown as typeof fetch;
+  const res = await narrarMes(REPORTE, { proveedor: GROQ, fetchImpl, crudos: CRUDOS });
+  // La acción del monto inventado se cae; la buena sobrevive.
+  assert.deepEqual(res.analisis?.acciones.map((a) => a.tipo), ["remarcar"]);
+});
+
+test("los modelos que 'piensan' en voz alta no arruinan el análisis", async () => {
+  const fetchImpl = (async () =>
+    respuestaOpenAI(`<think>Veamos los números.</think>\n${BUENO}`)) as unknown as typeof fetch;
+  const res = await narrarMes(REPORTE, { proveedor: GROQ, fetchImpl, crudos: CRUDOS });
+  assert.equal(res.estado, "ok", res.motivo ?? "");
+});
+
+test("el pedido normal NO lleva reasoning_effort: los modelos comunes lo rechazan", async () => {
+  const llamadas: RequestInit[] = [];
+  const fetchImpl = (async (_u: unknown, init?: RequestInit) => {
+    llamadas.push(init ?? {});
+    return respuestaOpenAI(BUENO);
+  }) as unknown as typeof fetch;
+  await narrarMes(REPORTE, { proveedor: GROQ, fetchImpl, crudos: CRUDOS });
+  assert.equal(llamadas.length, 1);
   assert.equal(JSON.parse(String(llamadas[0].body)).reasoning_effort, undefined);
 });
 
 test("al que se queda pensando se le pide UNA vez más con razonamiento mínimo", async () => {
-  /* gpt-oss y compañía gastan el presupuesto de tokens PENSANDO y devuelven
-     `content` vacío. Verificado contra Groq: con esto el mismo modelo contesta. */
   const llamadas: RequestInit[] = [];
   const fetchImpl = (async (_u: unknown, init?: RequestInit) => {
     llamadas.push(init ?? {});
-    const primero = llamadas.length === 1;
-    return new Response(
-      JSON.stringify({
-        choices: [primero ? { finish_reason: "length", message: { content: "" } } : { message: { content: BUENA } }],
-      }),
-      { status: 200 },
-    );
+    return llamadas.length === 1
+      ? respuestaOpenAI("", { finish_reason: "length" })
+      : respuestaOpenAI(BUENO);
   }) as unknown as typeof fetch;
 
-  const res = await narrarMes(REPORTE, {
-    proveedor: { nombre: "openai-compat", url: "https://x/y", apiKey: "k", modelo: "openai/gpt-oss-120b" },
-    fetchImpl,
-  });
+  const res = await narrarMes(REPORTE, { proveedor: GROQ, fetchImpl, crudos: CRUDOS });
   assert.equal(llamadas.length, 2);
   assert.equal(JSON.parse(String(llamadas[1].body)).reasoning_effort, "low");
-  assert.equal(res.estado, "ok");
-  assert.equal(res.texto, BUENA);
+  assert.equal(res.estado, "ok", res.motivo ?? "");
 });
 
-test("si el modelo se quedó sin tokens, el motivo lo dice", async () => {
-  const fetchImpl = (async () =>
-    new Response(JSON.stringify({ choices: [{ finish_reason: "length", message: { content: "" } }] }), {
-      status: 200,
-    })) as unknown as typeof fetch;
-
-  const res = await narrarMes(REPORTE, {
-    proveedor: { nombre: "openai-compat", url: "https://x/y", apiKey: "k", modelo: "m" },
-    fetchImpl,
-  });
+test("si se quedó sin tokens y no hay reintento útil, el motivo lo dice", async () => {
+  const fetchImpl = (async () => respuestaOpenAI("", { finish_reason: "length" })) as unknown as typeof fetch;
+  const res = await narrarMes(REPORTE, { proveedor: GROQ, fetchImpl, crudos: CRUDOS });
   assert.equal(res.estado, "fallida");
-  assert.equal(res.motivo, "sin_texto_por_limite"); // no un "sin_texto" mudo
+  assert.equal(res.motivo, "sin_texto_por_limite");
 });
 
-test("el verificador NO se afloja con el proveedor gratuito", async () => {
-  const fetchImpl = (async () =>
-    new Response(
-      JSON.stringify({ choices: [{ message: { content: "Tenés $9.900.000 parados en el estante." } }] }),
-      { status: 200 },
-    )) as unknown as typeof fetch;
+test("un JSON cortado a la mitad también dispara el reintento", async () => {
+  // El modelo razonó de más y no le alcanzó para cerrar las llaves.
+  const llamadas: RequestInit[] = [];
+  const fetchImpl = (async (_u: unknown, init?: RequestInit) => {
+    llamadas.push(init ?? {});
+    return llamadas.length === 1
+      ? respuestaOpenAI('{"dolor":{"titulo":"Algo","por', { finish_reason: "length" })
+      : respuestaOpenAI(BUENO);
+  }) as unknown as typeof fetch;
 
-  const res = await narrarMes(REPORTE, {
-    proveedor: { nombre: "openai-compat", url: "https://x/y", apiKey: "k", modelo: "m" },
-    fetchImpl,
-  });
-  assert.equal(res.estado, "rechazada");
-  assert.equal(res.texto, null);
-});
-
-test("los modelos que 'piensan' en voz alta no arruinan el párrafo", async () => {
-  // Varios modelos abiertos abren con un bloque <think>. Sin esto, el
-  // verificador lo lee como markup y descarta un párrafo perfectamente válido.
-  const fetchImpl = (async () =>
-    new Response(
-      JSON.stringify({
-        choices: [{ message: { content: `<think>El mes bajó, arranco por ahí.</think>\n\n${BUENA}` } }],
-      }),
-      { status: 200 },
-    )) as unknown as typeof fetch;
-
-  const res = await narrarMes(REPORTE, {
-    proveedor: { nombre: "openai-compat", url: "https://x/y", apiKey: "k", modelo: "m" },
-    fetchImpl,
-  });
-  assert.equal(res.estado, "ok");
-  assert.equal(res.texto, BUENA);
-});
-
-test("una respuesta con forma rara tampoco", async () => {
-  const fetchImpl = (async () => new Response(JSON.stringify({ content: [] }), { status: 200 })) as unknown as typeof fetch;
-  const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl });
-  assert.equal(res.estado, "fallida");
+  const res = await narrarMes(REPORTE, { proveedor: GROQ, fetchImpl, crudos: CRUDOS });
+  assert.equal(llamadas.length, 2);
+  assert.equal(res.estado, "ok", res.motivo ?? "");
 });

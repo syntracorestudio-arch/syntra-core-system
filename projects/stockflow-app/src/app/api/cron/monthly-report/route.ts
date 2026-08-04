@@ -10,6 +10,7 @@ import {
 import { asuntoReporte, renderReporteHTML } from "@/lib/asistente/email";
 import { destinatario, enviarReporte } from "@/lib/asistente/mailer";
 import { narrarMes } from "@/lib/asistente/narrativa";
+import type { Analisis } from "@/lib/asistente/analisis";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -157,18 +158,19 @@ export async function GET(request: NextRequest) {
         .eq("period", period)
         .maybeSingle();
 
-      let texto = (guardada as { narrativa?: string | null } | null)?.narrativa ?? null;
+      const guardadoPrevio = (guardada as { narrativa?: string | null } | null)?.narrativa ?? null;
+      let analisis: Analisis | null = guardadoPrevio ? (JSON.parse(guardadoPrevio) as Analisis) : null;
       let narrativa: Awaited<ReturnType<typeof narrarMes>> | null = null;
-      if (!texto && intentos <= MAX_INTENTOS_NARRATIVA) {
+      if (!analisis && intentos <= MAX_INTENTOS_NARRATIVA) {
         narrativa = await narrarMes(reporte);
-        texto = narrativa.texto;
+        analisis = narrativa.analisis;
       }
 
       const accent = (store.branding as { accent?: string } | null)?.accent ?? "#2E6BFF";
       const res = await enviarReporte({
         to: para,
         subject: asuntoReporte(reporte),
-        html: renderReporteHTML(reporte, accent, process.env.NEXT_PUBLIC_APP_URL, texto),
+        html: renderReporteHTML(reporte, accent, process.env.NEXT_PUBLIC_APP_URL, analisis),
       });
 
       if (res.ok) {
@@ -177,7 +179,7 @@ export async function GET(request: NextRequest) {
         // Solo se registra lo que se GENERÓ en este run (si se reusó, ya está en la fila).
         if (narrativa && narrativa.estado !== "desactivada") {
           await registrarNarrativa({
-            narrativa: narrativa.texto,
+            narrativa: narrativa.analisis ? JSON.stringify(narrativa.analisis) : null,
             narrativa_estado: narrativa.estado,
             narrativa_motivo: narrativa.motivo,
             narrativa_modelo: narrativa.modelo,

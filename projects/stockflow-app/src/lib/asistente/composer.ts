@@ -25,6 +25,12 @@ export type DatosMensuales = {
     /** Días desde la primera venta. Gobierna qué métricas ya significan algo. */
     period?: { days_of_use?: Num };
     credit: { given: Num; collected: Num; overdue: { name: string; owed: Num; dias: Num }[] };
+    /* Bloques que el email no renderiza pero el análisis necesita: sin esto el
+       modelo solo puede repetir lo que ya está impreso en las tarjetas. */
+    data_health?: { cost_coverage?: Num; products_without_cost?: Num; stale_prices?: Num };
+    by_category?: { name: string; revenue: Num; profit: Num }[];
+    by_slot?: { name: string; total: Num; tickets: Num }[];
+    waste?: { total: Num };
   };
   medios: { by_method: { method: string; total: Num; count: Num }[]; on_credit: Num };
   gastos: {
@@ -40,8 +46,20 @@ export type Alertas = {
 };
 
 export type Margenes = {
-  productos: { name: string; emoji: string | null; plata_por_mes: Num }[];
+  productos: {
+    name: string;
+    emoji: string | null;
+    plata_por_mes: Num;
+    /* El precio a cobrar y el margen de hoy: lo más accionable que calcula todo
+       el sistema. Sin esto el asistente solo puede decir "conviene remarcar". */
+    precio?: Num;
+    precio_sugerido?: Num;
+    margen_hoy?: Num;
+    unidades_30d?: Num;
+  }[];
   total_por_mes: Num;
+  /** Margen objetivo del negocio (store_settings). Es el piso contra el que se compara. */
+  min_margen?: Num;
 };
 
 // ── Forma de salida (lo que renderiza el email) ────────────────────────────────

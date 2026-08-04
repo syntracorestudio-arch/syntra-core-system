@@ -9,6 +9,7 @@
 
 import type { ReporteMensual } from "./composer.ts";
 import { absolutizar } from "./enlaces.ts";
+import type { Analisis } from "./analisis.ts";
 
 const TINTA = "#0f172a";
 const SUAVE = "#64748b";
@@ -45,7 +46,7 @@ export function asuntoReporte(r: ReporteMensual): string {
 /**
  * @param baseUrl URL pública de la app (NEXT_PUBLIC_APP_URL). Si falta, el
  * reporte se manda igual pero sin botones: mejor sin acción que con un link roto.
- * @param narrativa Párrafo del asistente (Fase 2). Opcional por diseño: si el
+ * @param analisis Diagnóstico del asistente (Fase 2). Opcional por diseño: si el
  * modelo no está disponible o dijo algo que no pasó la verificación, el reporte
  * sale exactamente como antes.
  */
@@ -53,7 +54,7 @@ export function renderReporteHTML(
   r: ReporteMensual,
   accent: string,
   baseUrl?: string | null,
-  narrativa?: string | null,
+  analisis?: Analisis | null,
 ): string {
   const acento = /^#[0-9a-fA-F]{6}$/.test(accent) ? accent : "#2E6BFF";
   const { resumen } = r;
@@ -83,15 +84,42 @@ export function renderReporteHTML(
          💡 Estás viendo la <strong>ganancia bruta</strong>. Cargá tus gastos del mes (alquiler, luz, sueldos) para ver tu <strong>ganancia real</strong>.
        </td></tr><tr><td style="height:14px"></td></tr>`;
 
-  /* La lectura del mes va DESPUÉS de los números y ANTES de las oportunidades:
+  /* El diagnóstico va DESPUÉS de los números y ANTES de las oportunidades:
      primero el dueño ve cuánto hizo, después por qué, y recién ahí qué hacer.
-     Se escapa igual que todo lo demás — el texto viene de un modelo, no del
-     código, y no tiene por qué poder inyectar HTML en su propio email. */
-  const lectura = narrativa?.trim()
-    ? `<tr><td style="padding:14px 16px;background:#f8fafc;border-left:3px solid ${acento};border-radius:0 10px 10px 0;font-size:14px;line-height:1.65;color:${TINTA}">${esc(
-        narrativa.trim(),
-      )}</td></tr><tr><td style="height:20px"></td></tr>`
-    : "";
+     Todo se escapa — el texto viene de un modelo, no del código, y no tiene por
+     qué poder inyectar HTML en el email de nadie. */
+  const lectura = !analisis
+    ? ""
+    : `<tr><td style="padding:16px 18px;background:#f8fafc;border-left:3px solid ${acento};border-radius:0 12px 12px 0">
+         <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${SUAVE}">Tu análisis del mes</div>
+         <div style="font-size:16px;font-weight:700;color:${TINTA};margin-top:8px;line-height:1.35">${esc(analisis.dolor.titulo)}</div>
+         <div style="font-size:14px;color:${TINTA};margin-top:6px;line-height:1.6">${esc(analisis.dolor.porque)}</div>
+         <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${SUAVE};margin-top:16px">Qué hacer esta semana</div>
+         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px">
+           ${analisis.acciones
+             .map(
+               (a) => `<tr>
+             <td style="width:16px;vertical-align:top;font-size:14px;line-height:1.6;color:${acento}">&bull;</td>
+             <td style="font-size:14px;line-height:1.6;color:${TINTA};padding-bottom:4px">${esc(a.texto)}</td>
+           </tr>`,
+             )
+             .join("")}
+         </table>
+         ${
+           analisis.fuga
+             ? `<div style="font-size:13px;color:${SUAVE};margin-top:14px;padding-top:12px;border-top:1px solid ${LINEA};line-height:1.6">${esc(
+                 analisis.fuga,
+               )}</div>`
+             : ""
+         }
+         ${
+           analisis.huecos
+             ? `<div style="font-size:13px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-top:12px;line-height:1.55">${esc(
+                 analisis.huecos,
+               )}</div>`
+             : ""
+         }
+       </td></tr><tr><td style="height:20px"></td></tr>`;
 
   /* La RPC manda la cobertura en 0..100, no en 0..1: compararla contra 0,8 dejaba
      esta nota muda SIEMPRE (91 >= 0,8), y si alguna vez hubiera entrado habría
