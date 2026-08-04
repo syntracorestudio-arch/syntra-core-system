@@ -36,6 +36,8 @@ export type ResultadoNarrativa = {
 const SISTEMA = `Sos el analista de datos de un negocio chico en Argentina (kiosco, dietética, pet shop). Te paso los números YA CALCULADOS del mes que cerró y escribís UN SOLO PÁRRAFO, de 2 a 4 oraciones, que le explique al dueño cómo le fue.
 
 REGLAS DURAS
+- LARGO MÁXIMO: 600 caracteres. Un párrafo más largo que eso se descarta entero y el dueño no recibe nada. Contá antes de responder.
+- Oraciones cortas. Una idea por oración, punto y seguido. Nada de encadenar cláusulas con "lo que", "y que además", "pero también".
 - Los números que te doy son la única verdad. No calcules, no estimes, no sumes, no saques porcentajes ni proporciones nuevas. Si una cifra no está en los datos, no existe.
 - Podés redondear al hablar ("casi 12,5 millones"), nunca cambiar el valor.
 - No nombres clientes ni personas: no te los paso, y si te falta un nombre es a propósito.
@@ -52,8 +54,9 @@ CÓMO ESCRIBIR
 type RespuestaAPI = {
   /** Anthropic. */
   content?: { type?: string; text?: string }[];
+  stop_reason?: string;
   /** OpenAI-compatible. */
-  choices?: { message?: { content?: string } }[];
+  choices?: { message?: { content?: string }; finish_reason?: string }[];
   usage?: {
     input_tokens?: number;
     output_tokens?: number;
@@ -71,8 +74,15 @@ const fallo = (motivo: string, modelo: string): ResultadoNarrativa => ({
   tokensOut: null,
 });
 
-/** Cabeceras y cuerpo en el dialecto del proveedor. Es la ÚNICA diferencia. */
-function pedido(p: Proveedor, hechos: Hechos): { headers: Record<string, string>; body: string } {
+/**
+ * Cabeceras y cuerpo en el dialecto del proveedor. Es la ÚNICA diferencia.
+ * @param razonamientoCorto segundo intento para modelos que piensan en voz alta.
+ */
+function pedido(
+  p: Proveedor,
+  hechos: Hechos,
+  razonamientoCorto = false,
+): { headers: Record<string, string>; body: string } {
   const datos = JSON.stringify(hechos);
   /* Sin `temperature` en ninguno de los dos: los modelos nuevos de Anthropic la
      rechazan con un 400 y el modelo es configurable por env. El estilo lo fija
@@ -93,6 +103,11 @@ function pedido(p: Proveedor, hechos: Hechos): { headers: Record<string, string>
     body: JSON.stringify({
       model: p.modelo,
       max_tokens: MAX_TOKENS,
+      /* `reasoning_effort` NO va por defecto: los modelos que no razonan lo
+         rechazan con un 400 (verificado contra Groq con llama-3.3-70b y qwen3.6).
+         Solo se manda en el reintento, cuando el modelo ya demostró que gasta el
+         presupuesto pensando. */
+      ...(razonamientoCorto ? { reasoning_effort: "low" } : {}),
       messages: [
         { role: "system", content: SISTEMA },
         { role: "user", content: datos },
@@ -101,19 +116,24 @@ function pedido(p: Proveedor, hechos: Hechos): { headers: Record<string, string>
   };
 }
 
-/** Texto y tokens, según de qué forma venga la respuesta. */
-function leer(p: Proveedor, datos: RespuestaAPI): { texto: string | null; tokensIn: number | null; tokensOut: number | null } {
+/** Texto, tokens y por qué se cortó, según de qué forma venga la respuesta. */
+function leer(
+  p: Proveedor,
+  datos: RespuestaAPI,
+): { texto: string | null; tokensIn: number | null; tokensOut: number | null; corte: string | null } {
   if (p.nombre === "anthropic") {
     return {
       texto: datos.content?.find((c) => c.type === "text")?.text ?? null,
       tokensIn: datos.usage?.input_tokens ?? null,
       tokensOut: datos.usage?.output_tokens ?? null,
+      corte: datos.stop_reason ?? null,
     };
   }
   return {
     texto: datos.choices?.[0]?.message?.content ?? null,
     tokensIn: datos.usage?.prompt_tokens ?? null,
     tokensOut: datos.usage?.completion_tokens ?? null,
+    corte: datos.choices?.[0]?.finish_reason ?? null,
   };
 }
 
@@ -165,23 +185,40 @@ export async function narrarMes(
   let tokensIn: number | null = null;
   let tokensOut: number | null = null;
   let texto: string | undefined;
+  let corte: string | null = null;
   try {
-    const { headers, body } = pedido(proveedor, hechos);
-    const res = await doFetch(proveedor.url, { method: "POST", headers, body, signal: ctrl.signal });
+    const pedirYLeer = async (razonamientoCorto: boolean) => {
+      const { headers, body } = pedido(proveedor, hechos, razonamientoCorto);
+      const res = await doFetch(proveedor.url, { method: "POST", headers, body, signal: ctrl.signal });
+      if (!res.ok) return { http: res.status } as const;
+      datos = (await res.json()) as RespuestaAPI;
+      return { leido: leer(proveedor, datos) } as const;
+    };
 
-    if (!res.ok) return fallo(`http_${res.status}`, modelo);
-    datos = (await res.json()) as RespuestaAPI;
-    const leido = leer(proveedor, datos);
-    tokensIn = leido.tokensIn;
-    tokensOut = leido.tokensOut;
-    texto = leido.texto ? sinRazonamiento(leido.texto) : undefined;
+    let r = await pedirYLeer(false);
+    /* Un modelo que razona en voz alta gasta TODO el presupuesto pensando y
+       devuelve `content` vacío (verificado contra gpt-oss-120b con el payload
+       real). Se le pide una sola vez más con el razonamiento en mínimo — solo a
+       los que ya fallaron así, porque los demás rechazan ese campo con un 400. */
+    if (proveedor.nombre === "openai-compat" && r.leido && !r.leido.texto && r.leido.corte === "length") {
+      r = await pedirYLeer(true);
+    }
+
+    if ("http" in r) return fallo(`http_${r.http}`, modelo);
+    tokensIn = r.leido.tokensIn;
+    tokensOut = r.leido.tokensOut;
+    corte = r.leido.corte;
+    texto = r.leido.texto ? sinRazonamiento(r.leido.texto) : undefined;
   } catch (e) {
     return fallo((e as Error).message || "error_desconocido", modelo);
   } finally {
     clearTimeout(reloj);
   }
 
-  if (!texto) return fallo("sin_texto", modelo);
+  /* Distinguir "no contestó" de "se quedó sin tokens" importa: lo segundo se
+     arregla subiendo MAX_TOKENS o bajando el razonamiento, y un motivo mudo
+     manda a buscar el problema al lado equivocado. */
+  if (!texto) return fallo(corte === "length" || corte === "max_tokens" ? "sin_texto_por_limite" : "sin_texto", modelo);
 
   const veredicto = verificarNarrativa(texto, valoresPermitidos(reporte), nombresPermitidos(reporte));
   if (!veredicto.ok) {

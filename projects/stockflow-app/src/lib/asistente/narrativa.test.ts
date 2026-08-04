@@ -176,6 +176,61 @@ test("con un proveedor OpenAI-compatible habla su dialecto, no el de Anthropic",
   assert.ok(!String(init.body).includes("Roberto"), "el deudor tampoco viaja acá");
 });
 
+test("el pedido normal NO lleva reasoning_effort: los modelos comunes lo rechazan", async () => {
+  // Verificado contra Groq: llama-3.3-70b y qwen3.6 devuelven 400 con ese campo.
+  const llamadas: RequestInit[] = [];
+  const fetchImpl = (async (_u: unknown, init?: RequestInit) => {
+    llamadas.push(init ?? {});
+    return new Response(JSON.stringify({ choices: [{ message: { content: BUENA } }] }), { status: 200 });
+  }) as unknown as typeof fetch;
+
+  await narrarMes(REPORTE, {
+    proveedor: { nombre: "openai-compat", url: "https://x/y", apiKey: "k", modelo: "llama-3.3-70b-versatile" },
+    fetchImpl,
+  });
+  assert.equal(llamadas.length, 1, "un solo intento cuando el modelo contesta");
+  assert.equal(JSON.parse(String(llamadas[0].body)).reasoning_effort, undefined);
+});
+
+test("al que se queda pensando se le pide UNA vez más con razonamiento mínimo", async () => {
+  /* gpt-oss y compañía gastan el presupuesto de tokens PENSANDO y devuelven
+     `content` vacío. Verificado contra Groq: con esto el mismo modelo contesta. */
+  const llamadas: RequestInit[] = [];
+  const fetchImpl = (async (_u: unknown, init?: RequestInit) => {
+    llamadas.push(init ?? {});
+    const primero = llamadas.length === 1;
+    return new Response(
+      JSON.stringify({
+        choices: [primero ? { finish_reason: "length", message: { content: "" } } : { message: { content: BUENA } }],
+      }),
+      { status: 200 },
+    );
+  }) as unknown as typeof fetch;
+
+  const res = await narrarMes(REPORTE, {
+    proveedor: { nombre: "openai-compat", url: "https://x/y", apiKey: "k", modelo: "openai/gpt-oss-120b" },
+    fetchImpl,
+  });
+  assert.equal(llamadas.length, 2);
+  assert.equal(JSON.parse(String(llamadas[1].body)).reasoning_effort, "low");
+  assert.equal(res.estado, "ok");
+  assert.equal(res.texto, BUENA);
+});
+
+test("si el modelo se quedó sin tokens, el motivo lo dice", async () => {
+  const fetchImpl = (async () =>
+    new Response(JSON.stringify({ choices: [{ finish_reason: "length", message: { content: "" } }] }), {
+      status: 200,
+    })) as unknown as typeof fetch;
+
+  const res = await narrarMes(REPORTE, {
+    proveedor: { nombre: "openai-compat", url: "https://x/y", apiKey: "k", modelo: "m" },
+    fetchImpl,
+  });
+  assert.equal(res.estado, "fallida");
+  assert.equal(res.motivo, "sin_texto_por_limite"); // no un "sin_texto" mudo
+});
+
 test("el verificador NO se afloja con el proveedor gratuito", async () => {
   const fetchImpl = (async () =>
     new Response(
