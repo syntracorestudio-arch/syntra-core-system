@@ -9,9 +9,17 @@ import {
 } from "@/lib/asistente/composer";
 import { asuntoReporte, renderReporteHTML } from "@/lib/asistente/email";
 import { destinatario, enviarReporte } from "@/lib/asistente/mailer";
+import { narrarMes } from "@/lib/asistente/narrativa";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+/**
+ * Tope de intentos con narrativa por (negocio, mes). Es una cota de COSTO, no de
+ * entrega: pasado esto el reporte se sigue mandando, pero con la plantilla
+ * determinista. Si algo del envío está roto, el modelo deja de cobrarse.
+ */
+const MAX_INTENTOS_NARRATIVA = 3;
 
 /**
  * Cron mensual del Asistente IA (Vercel Cron, 1° de cada mes ~08:00 ART).
@@ -90,6 +98,19 @@ export async function GET(request: NextRequest) {
       if (errLedger) console.error("[monthly-report] no se pudo registrar la entrega:", errLedger.message);
     }
 
+    /* La auditoría de la narrativa (qué se dijo, con qué modelo, cuántos tokens)
+       va en un UPDATE aparte y NO fatal: es el libro de costos del add-on, no la
+       entrega. Si 042 todavía no corrió en el entorno, esto falla solo y el
+       reporte igual sale. */
+    async function registrarNarrativa(fields: Record<string, unknown>) {
+      const { error: errNarr } = await admin
+        .from("report_deliveries")
+        .update(fields)
+        .eq("store_id", store.id)
+        .eq("period", period);
+      if (errNarr) console.error("[monthly-report] no se pudo registrar la narrativa:", errNarr.message);
+    }
+
     try {
       const [{ data: datos }, { data: alerts }, { data: margenes }] = await Promise.all([
         admin.rpc("asistente_datos_mensuales", { p_store_id: store.id, p_from: from, p_to: to }),
@@ -116,16 +137,54 @@ export async function GET(request: NextRequest) {
         },
       );
 
+      /* Fase 2: el párrafo que lee el mes. Nunca bloquea el envío — si no hay API
+         key, si la API falla o si inventó una cifra, el email sale con la plantilla
+         determinista.
+
+         COTA DE COSTO (el add-on se paga por token): como máximo UNA llamada al
+         modelo por negocio y por mes, pase lo que pase.
+           · Si ya hay narrativa guardada de este período, se reusa: un reintento
+             por email fallido no vuelve a pagar el párrafo (y encima manda el
+             mismo texto, no uno nuevo).
+           · Después de MAX_INTENTOS entregas fallidas se deja de generar: si algo
+             está roto en el envío, que no siga costando plata.
+         El select va aparte y NO es fatal: la columna es de 042 y si no se corrió,
+         el reporte tiene que salir igual. */
+      const { data: guardada } = await admin
+        .from("report_deliveries")
+        .select("narrativa")
+        .eq("store_id", store.id)
+        .eq("period", period)
+        .maybeSingle();
+
+      let texto = (guardada as { narrativa?: string | null } | null)?.narrativa ?? null;
+      let narrativa: Awaited<ReturnType<typeof narrarMes>> | null = null;
+      if (!texto && intentos <= MAX_INTENTOS_NARRATIVA) {
+        narrativa = await narrarMes(reporte);
+        texto = narrativa.texto;
+      }
+
       const accent = (store.branding as { accent?: string } | null)?.accent ?? "#2E6BFF";
       const res = await enviarReporte({
         to: para,
         subject: asuntoReporte(reporte),
-        html: renderReporteHTML(reporte, accent, process.env.NEXT_PUBLIC_APP_URL),
+        html: renderReporteHTML(reporte, accent, process.env.NEXT_PUBLIC_APP_URL, texto),
       });
 
       if (res.ok) {
         enviados++;
         await registrar({ status: "sent", last_error: null, sent_at: new Date().toISOString() });
+        // Solo se registra lo que se GENERÓ en este run (si se reusó, ya está en la fila).
+        if (narrativa && narrativa.estado !== "desactivada") {
+          await registrarNarrativa({
+            narrativa: narrativa.texto,
+            narrativa_estado: narrativa.estado,
+            narrativa_motivo: narrativa.motivo,
+            narrativa_modelo: narrativa.modelo,
+            narrativa_tokens_in: narrativa.tokensIn,
+            narrativa_tokens_out: narrativa.tokensOut,
+          });
+        }
       } else {
         fallados++;
         await registrar({ status: "failed", last_error: res.error ?? "envio_fallido", sent_at: null });

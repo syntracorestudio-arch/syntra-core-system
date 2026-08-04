@@ -255,11 +255,27 @@ StockFlow en el sweet spot $15–35k/mes (research previo), recomendación de pa
     dominio (SPF/DKIM), definir hora ART del cron, `RESEND_API_KEY` en env.
   - Gate scale-security: lecturas ya acotadas (RPCs con piso 730d); cron con `maxDuration`
     explícito y loop paralelo acotado; email idempotente.
-- **Fase 2 — Narrativa LLM (híbrido)**
-  - Scope: capa que pasa los hechos ya calculados a Claude para redactar el informe +
-    priorización + anonimización de nombres de fiado + logging de payload/tokens.
-  - Esfuerzo: 1 PR. Dependencias: decisión de privacidad (§6/§9), API key, opt-out de
-    entrenamiento documentado.
+- **Fase 2 — Narrativa LLM (híbrido)** — ✅ **IMPLEMENTADA (2026-08-03)**
+  - Scope original: capa que pasa los hechos ya calculados a Claude para redactar el
+    informe + anonimización de nombres de fiado + logging de payload/tokens.
+  - **Cómo quedó** (`src/lib/asistente/hechos.ts` + `narrativa.ts`, migración **042**):
+    - `hechosDelReporte` arma el payload: agregados de UN negocio, **sin nombres de
+      clientes** (el deudor viaja como cantidad, nunca como nombre) y sin el nombre del
+      propio negocio. Los nombres de producto sí — sin ellos no hay insight que escribir.
+    - **Verificador de cifras** (`valoresPermitidos` + `verificarNarrativa`): toda cifra
+      del texto tiene que ser un valor ya computado o un redondeo honesto suyo
+      (12.480.300 → "12,5 millones" sí; "12.400.000" no). Si aparece una que nadie
+      calculó, se descarta el párrafo **entero**. También rechaza HTML, links, vacío y
+      textos larguísimos.
+    - **El reporte sale igual pase lo que pase**: sin API key, con la API caída, con
+      timeout o con una cifra inventada, el email se manda con la plantilla determinista.
+    - **Sin dependencia nueva**: una llamada HTTP con `fetch`, no el SDK.
+    - Auditoría en `report_deliveries` (042): texto enviado, estado, modelo y tokens.
+      El UPDATE es no-fatal — si 042 no corrió, el reporte igual sale.
+  - Env: `ANTHROPIC_API_KEY` (opcional) y `ANTHROPIC_MODEL` (default Haiku 4.5).
+  - Falta para cerrarla: correr 042, cargar la key y **leer un email real** con narrativa
+    — lo verificado hasta acá es con la API stubbeada sobre los datos reales del negocio
+    de escala.
 - **Fase 3 — Asistente in-app + proactivo**
   - Scope: página del asistente (insights on-demand, no solo email), alertas semanales de
     oportunidad, detección de anomalías ("dejó de venderse"), las queries nuevas de §1

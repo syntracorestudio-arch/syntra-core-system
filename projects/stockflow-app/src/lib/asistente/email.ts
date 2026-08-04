@@ -45,8 +45,16 @@ export function asuntoReporte(r: ReporteMensual): string {
 /**
  * @param baseUrl URL pública de la app (NEXT_PUBLIC_APP_URL). Si falta, el
  * reporte se manda igual pero sin botones: mejor sin acción que con un link roto.
+ * @param narrativa Párrafo del asistente (Fase 2). Opcional por diseño: si el
+ * modelo no está disponible o dijo algo que no pasó la verificación, el reporte
+ * sale exactamente como antes.
  */
-export function renderReporteHTML(r: ReporteMensual, accent: string, baseUrl?: string | null): string {
+export function renderReporteHTML(
+  r: ReporteMensual,
+  accent: string,
+  baseUrl?: string | null,
+  narrativa?: string | null,
+): string {
   const acento = /^#[0-9a-fA-F]{6}$/.test(accent) ? accent : "#2E6BFF";
   const { resumen } = r;
   const inicio = absolutizar(baseUrl, "/admin");
@@ -75,11 +83,24 @@ export function renderReporteHTML(r: ReporteMensual, accent: string, baseUrl?: s
          💡 Estás viendo la <strong>ganancia bruta</strong>. Cargá tus gastos del mes (alquiler, luz, sueldos) para ver tu <strong>ganancia real</strong>.
        </td></tr><tr><td style="height:14px"></td></tr>`;
 
+  /* La lectura del mes va DESPUÉS de los números y ANTES de las oportunidades:
+     primero el dueño ve cuánto hizo, después por qué, y recién ahí qué hacer.
+     Se escapa igual que todo lo demás — el texto viene de un modelo, no del
+     código, y no tiene por qué poder inyectar HTML en su propio email. */
+  const lectura = narrativa?.trim()
+    ? `<tr><td style="padding:14px 16px;background:#f8fafc;border-left:3px solid ${acento};border-radius:0 10px 10px 0;font-size:14px;line-height:1.65;color:${TINTA}">${esc(
+        narrativa.trim(),
+      )}</td></tr><tr><td style="height:20px"></td></tr>`
+    : "";
+
+  /* La RPC manda la cobertura en 0..100, no en 0..1: compararla contra 0,8 dejaba
+     esta nota muda SIEMPRE (91 >= 0,8), y si alguna vez hubiera entrado habría
+     dicho "9100%". El umbral es el mismo que usa la página de Reportes. */
   const notaCobertura =
-    resumen.coberturaCosto >= 0.8 || resumen.facturado === 0
+    resumen.coberturaCostoPct >= 90 || resumen.facturado === 0
       ? ""
       : `<p style="margin:6px 0 0;font-size:12px;color:${SUAVE}">Margen calculado sobre el ${Math.round(
-          resumen.coberturaCosto * 100,
+          resumen.coberturaCostoPct,
         )}% de tus ventas con costo cargado.</p>`;
 
   /* Botón email-safe: el fondo va en el <td> (Outlook ignora background sobre <a>)
@@ -233,6 +254,7 @@ export function renderReporteHTML(r: ReporteMensual, accent: string, baseUrl?: s
               ${notaCobertura}
             </td></tr>
             <tr><td style="height:16px"></td></tr>
+            ${lectura}
             <tr><td>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${nudgeGastos}</table>
             </td></tr>
