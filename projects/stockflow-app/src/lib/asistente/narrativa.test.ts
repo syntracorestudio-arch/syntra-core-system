@@ -131,6 +131,85 @@ test("una caída de red tampoco", async () => {
   assert.match(res.motivo ?? "", /ETIMEDOUT/);
 });
 
+// ── Proveedor gratuito (OpenAI-compatible: Groq y cualquier otro igual) ────────
+
+test("con un proveedor OpenAI-compatible habla su dialecto, no el de Anthropic", async () => {
+  const llamadas: { url: string; init: RequestInit }[] = [];
+  const fetchImpl = (async (url: string | URL | Request, init?: RequestInit) => {
+    llamadas.push({ url: String(url), init: init ?? {} });
+    return new Response(
+      JSON.stringify({
+        choices: [{ message: { content: BUENA } }],
+        usage: { prompt_tokens: 800, completion_tokens: 90 },
+      }),
+      { status: 200 },
+    );
+  }) as unknown as typeof fetch;
+
+  const res = await narrarMes(REPORTE, {
+    proveedor: {
+      nombre: "openai-compat",
+      url: "https://api.groq.com/openai/v1/chat/completions",
+      apiKey: "gsk_test",
+      modelo: "llama-3.3-70b-versatile",
+    },
+    fetchImpl,
+  });
+
+  assert.equal(res.estado, "ok");
+  assert.equal(res.texto, BUENA);
+  assert.equal(res.tokensIn, 800);
+  assert.equal(res.tokensOut, 90);
+
+  const { url, init } = llamadas[0];
+  assert.equal(url, "https://api.groq.com/openai/v1/chat/completions");
+  const headers = init.headers as Record<string, string>;
+  assert.equal(headers.authorization, "Bearer gsk_test");
+  assert.equal(headers["x-api-key"], undefined, "no manda la cabecera de Anthropic");
+
+  // El sistema viaja como un mensaje con rol 'system', no como campo aparte.
+  const body = JSON.parse(String(init.body));
+  assert.equal(body.model, "llama-3.3-70b-versatile");
+  assert.equal(body.messages[0].role, "system");
+  assert.equal(body.messages[1].role, "user");
+  assert.ok(!body.system, "el campo `system` es de Anthropic, acá no va");
+  assert.ok(!String(init.body).includes("Roberto"), "el deudor tampoco viaja acá");
+});
+
+test("el verificador NO se afloja con el proveedor gratuito", async () => {
+  const fetchImpl = (async () =>
+    new Response(
+      JSON.stringify({ choices: [{ message: { content: "Tenés $9.900.000 parados en el estante." } }] }),
+      { status: 200 },
+    )) as unknown as typeof fetch;
+
+  const res = await narrarMes(REPORTE, {
+    proveedor: { nombre: "openai-compat", url: "https://x/y", apiKey: "k", modelo: "m" },
+    fetchImpl,
+  });
+  assert.equal(res.estado, "rechazada");
+  assert.equal(res.texto, null);
+});
+
+test("los modelos que 'piensan' en voz alta no arruinan el párrafo", async () => {
+  // Varios modelos abiertos abren con un bloque <think>. Sin esto, el
+  // verificador lo lee como markup y descarta un párrafo perfectamente válido.
+  const fetchImpl = (async () =>
+    new Response(
+      JSON.stringify({
+        choices: [{ message: { content: `<think>El mes bajó, arranco por ahí.</think>\n\n${BUENA}` } }],
+      }),
+      { status: 200 },
+    )) as unknown as typeof fetch;
+
+  const res = await narrarMes(REPORTE, {
+    proveedor: { nombre: "openai-compat", url: "https://x/y", apiKey: "k", modelo: "m" },
+    fetchImpl,
+  });
+  assert.equal(res.estado, "ok");
+  assert.equal(res.texto, BUENA);
+});
+
 test("una respuesta con forma rara tampoco", async () => {
   const fetchImpl = (async () => new Response(JSON.stringify({ content: [] }), { status: 200 })) as unknown as typeof fetch;
   const res = await narrarMes(REPORTE, { apiKey: "sk-test", fetchImpl });

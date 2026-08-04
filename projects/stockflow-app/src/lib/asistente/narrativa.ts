@@ -15,13 +15,10 @@
 
 import type { ReporteMensual } from "./composer.ts";
 import { hechosDelReporte, nombresPermitidos, valoresPermitidos, verificarNarrativa } from "./hechos.ts";
+import { ANTHROPIC_MODELO, ANTHROPIC_URL, resolverProveedor, type Proveedor } from "./proveedor.ts";
+import type { Hechos } from "./hechos.ts";
 
-const ENDPOINT = "https://api.anthropic.com/v1/messages";
 const VERSION = "2023-06-01";
-/* Alias sin fecha a propósito: el ID con sufijo (`-20251001`) queda viejo cuando
-   sale una versión nueva del mismo modelo. Haiku 4.5 cuesta ~USD 1 el millón de
-   tokens de entrada y ~5 el de salida → menos de medio centavo por reporte. */
-const MODELO_DEFAULT = "claude-haiku-4-5";
 const TIMEOUT_MS = 20_000;
 const MAX_TOKENS = 400;
 
@@ -53,8 +50,16 @@ CÓMO ESCRIBIR
 - Que no parezca escrito por una IA: concreto, sin relleno, sin "en resumen", sin "es importante destacar".`;
 
 type RespuestaAPI = {
+  /** Anthropic. */
   content?: { type?: string; text?: string }[];
-  usage?: { input_tokens?: number; output_tokens?: number };
+  /** OpenAI-compatible. */
+  choices?: { message?: { content?: string } }[];
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
+  };
 };
 
 const fallo = (motivo: string, modelo: string): ResultadoNarrativa => ({
@@ -66,22 +71,90 @@ const fallo = (motivo: string, modelo: string): ResultadoNarrativa => ({
   tokensOut: null,
 });
 
+/** Cabeceras y cuerpo en el dialecto del proveedor. Es la ÚNICA diferencia. */
+function pedido(p: Proveedor, hechos: Hechos): { headers: Record<string, string>; body: string } {
+  const datos = JSON.stringify(hechos);
+  /* Sin `temperature` en ninguno de los dos: los modelos nuevos de Anthropic la
+     rechazan con un 400 y el modelo es configurable por env. El estilo lo fija
+     el prompt, no el sampling. */
+  if (p.nombre === "anthropic") {
+    return {
+      headers: { "x-api-key": p.apiKey, "anthropic-version": VERSION, "content-type": "application/json" },
+      body: JSON.stringify({
+        model: p.modelo,
+        max_tokens: MAX_TOKENS,
+        system: SISTEMA,
+        messages: [{ role: "user", content: datos }],
+      }),
+    };
+  }
+  return {
+    headers: { authorization: `Bearer ${p.apiKey}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      model: p.modelo,
+      max_tokens: MAX_TOKENS,
+      messages: [
+        { role: "system", content: SISTEMA },
+        { role: "user", content: datos },
+      ],
+    }),
+  };
+}
+
+/** Texto y tokens, según de qué forma venga la respuesta. */
+function leer(p: Proveedor, datos: RespuestaAPI): { texto: string | null; tokensIn: number | null; tokensOut: number | null } {
+  if (p.nombre === "anthropic") {
+    return {
+      texto: datos.content?.find((c) => c.type === "text")?.text ?? null,
+      tokensIn: datos.usage?.input_tokens ?? null,
+      tokensOut: datos.usage?.output_tokens ?? null,
+    };
+  }
+  return {
+    texto: datos.choices?.[0]?.message?.content ?? null,
+    tokensIn: datos.usage?.prompt_tokens ?? null,
+    tokensOut: datos.usage?.completion_tokens ?? null,
+  };
+}
+
+/* Varios modelos abiertos razonan en voz alta antes de contestar y abren con un
+   bloque <think>. El verificador lo leería como markup y tiraría un párrafo que
+   está bien: se saca acá, y solo si abre el texto. */
+function sinRazonamiento(texto: string): string {
+  return texto.replace(/^\s*<(think|thinking|reasoning)>[\s\S]*?<\/\1>/i, "").trim();
+}
+
 export async function narrarMes(
   reporte: ReporteMensual,
   opts: {
+    /** Proveedor explícito; si no se pasa, sale del entorno. */
+    proveedor?: Proveedor | null;
+    /** Atajo para Anthropic (retrocompatible con las pruebas y el cron). */
     apiKey?: string | null;
     modelo?: string;
     fetchImpl?: typeof fetch;
     timeoutMs?: number;
   } = {},
 ): Promise<ResultadoNarrativa> {
-  const apiKey = opts.apiKey === undefined ? process.env.ANTHROPIC_API_KEY : opts.apiKey;
-  const modelo = opts.modelo ?? process.env.ANTHROPIC_MODEL ?? MODELO_DEFAULT;
+  const proveedor =
+    opts.proveedor !== undefined
+      ? opts.proveedor
+      : opts.apiKey !== undefined
+        ? opts.apiKey
+          ? {
+              nombre: "anthropic" as const,
+              url: ANTHROPIC_URL,
+              apiKey: opts.apiKey,
+              modelo: opts.modelo ?? process.env.ANTHROPIC_MODEL ?? ANTHROPIC_MODELO,
+            }
+          : null
+        : resolverProveedor(process.env);
 
-  // Sin key el add-on de narrativa simplemente no está: no es un error.
-  if (!apiKey) {
+  // Sin proveedor configurado el add-on simplemente no está: no es un error.
+  if (!proveedor) {
     return { texto: null, estado: "desactivada", motivo: null, modelo: null, tokensIn: null, tokensOut: null };
   }
+  const modelo = proveedor.modelo;
 
   const hechos = hechosDelReporte(reporte);
   const doFetch = opts.fetchImpl ?? fetch;
@@ -91,37 +164,23 @@ export async function narrarMes(
   let datos: RespuestaAPI;
   let tokensIn: number | null = null;
   let tokensOut: number | null = null;
+  let texto: string | undefined;
   try {
-    const res = await doFetch(ENDPOINT, {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": VERSION,
-        "content-type": "application/json",
-      },
-      /* Sin `temperature`: los modelos nuevos la RECHAZAN con un 400, y el modelo
-         es configurable por env (ANTHROPIC_MODEL). Mandarla ataba el reporte al
-         modelo de hoy — el estilo lo fija el prompt, no el sampling. */
-      body: JSON.stringify({
-        model: modelo,
-        max_tokens: MAX_TOKENS,
-        system: SISTEMA,
-        messages: [{ role: "user", content: JSON.stringify(hechos) }],
-      }),
-      signal: ctrl.signal,
-    });
+    const { headers, body } = pedido(proveedor, hechos);
+    const res = await doFetch(proveedor.url, { method: "POST", headers, body, signal: ctrl.signal });
 
     if (!res.ok) return fallo(`http_${res.status}`, modelo);
     datos = (await res.json()) as RespuestaAPI;
-    tokensIn = datos.usage?.input_tokens ?? null;
-    tokensOut = datos.usage?.output_tokens ?? null;
+    const leido = leer(proveedor, datos);
+    tokensIn = leido.tokensIn;
+    tokensOut = leido.tokensOut;
+    texto = leido.texto ? sinRazonamiento(leido.texto) : undefined;
   } catch (e) {
     return fallo((e as Error).message || "error_desconocido", modelo);
   } finally {
     clearTimeout(reloj);
   }
 
-  const texto = datos.content?.find((c) => c.type === "text")?.text?.trim();
   if (!texto) return fallo("sin_texto", modelo);
 
   const veredicto = verificarNarrativa(texto, valoresPermitidos(reporte), nombresPermitidos(reporte));
