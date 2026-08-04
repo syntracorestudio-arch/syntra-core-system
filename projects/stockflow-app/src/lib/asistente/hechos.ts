@@ -31,7 +31,14 @@ export type Hechos = {
     margenPct: number | null;
     coberturaCostoPct: number;
     tickets: number;
-    vsMesAnteriorPct: number | null;
+    /**
+     * La comparación ya resuelta en palabras ("subió 75% contra junio"). Un
+     * porcentaje pelado es ambiguo — un modelo real leyó `vsMesAnteriorPct: 75`
+     * como "quedó en el 75% del mes anterior", que es lo contrario. El
+     * verificador no puede atajar eso (75 es una cifra legítima), así que la
+     * dirección se decide acá y no allá.
+     */
+    vsMesAnterior: string | null;
     mesAnterior: string | null;
     facturadoPrev: number;
   };
@@ -64,7 +71,10 @@ export function hechosDelReporte(r: ReporteMensual): Hechos {
       margenPct: resumen.facturado > 0 ? Math.round((resumen.gananciaBruta / resumen.facturado) * 100) : null,
       coberturaCostoPct: Math.round(resumen.coberturaCostoPct),
       tickets: resumen.tickets,
-      vsMesAnteriorPct: resumen.vsMesAnteriorPct,
+      vsMesAnterior:
+        resumen.vsMesAnteriorPct == null || !resumen.mesAnteriorLabel
+          ? null
+          : `${resumen.vsMesAnteriorPct >= 0 ? "subió" : "bajó"} ${Math.abs(resumen.vsMesAnteriorPct)}% contra ${resumen.mesAnteriorLabel}`,
       mesAnterior: resumen.mesAnteriorLabel,
       facturadoPrev: $(resumen.facturadoPrev),
     },
@@ -104,7 +114,7 @@ export function valoresPermitidos(r: ReporteMensual): number[] {
   sumar(h.mes.margenPct);
   sumar(h.mes.coberturaCostoPct);
   sumar(h.mes.tickets);
-  sumar(h.mes.vsMesAnteriorPct);
+  sumar(r.resumen.vsMesAnteriorPct);
   sumar(h.mes.facturadoPrev);
   for (const o of h.oportunidades) {
     sumar(o.monto);
