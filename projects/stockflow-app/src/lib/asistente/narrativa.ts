@@ -18,7 +18,10 @@ import { hechosDelReporte, nombresPermitidos, valoresPermitidos, verificarNarrat
 
 const ENDPOINT = "https://api.anthropic.com/v1/messages";
 const VERSION = "2023-06-01";
-const MODELO_DEFAULT = "claude-haiku-4-5-20251001";
+/* Alias sin fecha a propósito: el ID con sufijo (`-20251001`) queda viejo cuando
+   sale una versión nueva del mismo modelo. Haiku 4.5 cuesta ~USD 1 el millón de
+   tokens de entrada y ~5 el de salida → menos de medio centavo por reporte. */
+const MODELO_DEFAULT = "claude-haiku-4-5";
 const TIMEOUT_MS = 20_000;
 const MAX_TOKENS = 400;
 
@@ -96,10 +99,12 @@ export async function narrarMes(
         "anthropic-version": VERSION,
         "content-type": "application/json",
       },
+      /* Sin `temperature`: los modelos nuevos la RECHAZAN con un 400, y el modelo
+         es configurable por env (ANTHROPIC_MODEL). Mandarla ataba el reporte al
+         modelo de hoy — el estilo lo fija el prompt, no el sampling. */
       body: JSON.stringify({
         model: modelo,
         max_tokens: MAX_TOKENS,
-        temperature: 0.6,
         system: SISTEMA,
         messages: [{ role: "user", content: JSON.stringify(hechos) }],
       }),
