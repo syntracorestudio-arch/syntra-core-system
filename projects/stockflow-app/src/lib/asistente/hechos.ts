@@ -16,7 +16,8 @@
  *      calcular no es su trabajo.
  */
 
-import type { ReporteMensual } from "./composer.ts";
+import type { DatosMensuales, Margenes, ReporteMensual } from "./composer.ts";
+import type { TipoAccion, Verdad } from "./analisis.ts";
 
 export type Hechos = {
   rubro: string;
@@ -31,7 +32,14 @@ export type Hechos = {
     margenPct: number | null;
     coberturaCostoPct: number;
     tickets: number;
-    vsMesAnteriorPct: number | null;
+    /**
+     * La comparación ya resuelta en palabras ("subió 75% contra junio"). Un
+     * porcentaje pelado es ambiguo — un modelo real leyó `vsMesAnteriorPct: 75`
+     * como "quedó en el 75% del mes anterior", que es lo contrario. El
+     * verificador no puede atajar eso (75 es una cifra legítima), así que la
+     * dirección se decide acá y no allá.
+     */
+    vsMesAnterior: string | null;
     mesAnterior: string | null;
     facturadoPrev: number;
   };
@@ -40,7 +48,39 @@ export type Hechos = {
   medios: { metodo: string; total: number }[];
   gastos: { categoria: string; total: number }[];
   alertas: { porVencer: number; stockBajo: number };
+  /**
+   * El detalle accionable. Es lo que separa un análisis de un resumen: sin el
+   * precio sugerido por producto, lo único que se puede decir es "conviene
+   * remarcar", que es exactamente lo que el email ya muestra en una tarjeta.
+   */
+  fugas?: {
+    remarcar: {
+      totalPorMes: number;
+      margenObjetivoPct: number | null;
+      productos: {
+        nombre: string;
+        precioHoy: number;
+        precioSugerido: number;
+        margenHoyPct: number;
+        plataPorMes: number;
+        unidades30d: number;
+      }[];
+    };
+    stockMuerto: { total: number; productos: { nombre: string; stock: number; plataParada: number }[] };
+    fiado: { atrasado: number; clientes: number; diasDelMasViejo: number; dadoEsteMes: number; cobradoEsteMes: number };
+    merma: number;
+  };
+  /** Dónde el dato es flojo. Decir "acá no sé" es una función, no una disculpa. */
+  saludDelDato?: { coberturaCostoPct: number; productosSinCosto: number; preciosViejos: number };
+  /** El ritmo del negocio: qué categorías y qué franjas lo mueven. */
+  ritmo?: {
+    categorias: { nombre: string; facturado: number; ganancia: number }[];
+    franjas: { nombre: string; facturado: number; tickets: number }[];
+  };
 };
+
+/** Los datos crudos que el email no renderiza pero el análisis necesita. */
+export type Crudos = { datos: DatosMensuales; margenes: Margenes };
 
 /** Ventana de "hace cuánto que no se mueve" que usa todo el producto. */
 const VENTANA_DIAS = 30;
@@ -50,9 +90,74 @@ const VENTANA_DIAS = 30;
    la cifra del texto no coincida con la del reporte. */
 const $ = (x: number): number => Math.round(x);
 
-export function hechosDelReporte(r: ReporteMensual): Hechos {
-  const { resumen } = r;
+const num = (v: unknown): number => {
+  const x = typeof v === "string" ? Number(v) : (v as number);
+  return Number.isFinite(x) ? x : 0;
+};
+
+/** El detalle accionable, armado desde los JSON crudos de las RPCs. */
+function fugasDe(c: Crudos): NonNullable<Hechos["fugas"]> {
+  const res = c.datos.resumen;
+  const atrasados = res.credit?.overdue ?? [];
   return {
+    remarcar: {
+      totalPorMes: $(num(c.margenes.total_por_mes)),
+      margenObjetivoPct: c.margenes.min_margen == null ? null : num(c.margenes.min_margen),
+      productos: (c.margenes.productos ?? []).slice(0, 6).map((p) => ({
+        nombre: p.name,
+        precioHoy: $(num(p.precio)),
+        precioSugerido: $(num(p.precio_sugerido)),
+        margenHoyPct: Math.round(num(p.margen_hoy)),
+        plataPorMes: $(num(p.plata_por_mes)),
+        unidades30d: num(p.unidades_30d),
+      })),
+    },
+    stockMuerto: {
+      total: $(num(res.dead_stock?.total)),
+      productos: (res.dead_stock?.items ?? []).slice(0, 5).map((p) => ({
+        nombre: p.name,
+        stock: num(p.stock),
+        plataParada: $(num(p.parado)),
+      })),
+    },
+    fiado: {
+      atrasado: $(atrasados.reduce((s, x) => s + num(x.owed), 0)),
+      clientes: atrasados.length,
+      // Viene ordenado por antigüedad: el primero es el más viejo, no el que más debe.
+      diasDelMasViejo: num(atrasados[0]?.dias),
+      dadoEsteMes: $(num(res.credit?.given)),
+      cobradoEsteMes: $(num(res.credit?.collected)),
+    },
+    merma: $(num(res.waste?.total)),
+  };
+}
+
+export function hechosDelReporte(r: ReporteMensual, crudos?: Crudos): Hechos {
+  const { resumen } = r;
+  const salud = crudos?.datos.resumen.data_health;
+  return {
+    ...(crudos
+      ? {
+          fugas: fugasDe(crudos),
+          saludDelDato: {
+            coberturaCostoPct: Math.round(num(salud?.cost_coverage)),
+            productosSinCosto: num(salud?.products_without_cost),
+            preciosViejos: num(salud?.stale_prices),
+          },
+          ritmo: {
+            categorias: (crudos.datos.resumen.by_category ?? []).slice(0, 5).map((c) => ({
+              nombre: c.name,
+              facturado: $(num(c.revenue)),
+              ganancia: $(num(c.profit)),
+            })),
+            franjas: (crudos.datos.resumen.by_slot ?? []).map((s) => ({
+              nombre: s.name,
+              facturado: $(num(s.total)),
+              tickets: num(s.tickets),
+            })),
+          },
+        }
+      : {}),
     rubro: r.negocio.rubro,
     periodo: r.negocio.periodoLabel,
     mes: {
@@ -64,7 +169,10 @@ export function hechosDelReporte(r: ReporteMensual): Hechos {
       margenPct: resumen.facturado > 0 ? Math.round((resumen.gananciaBruta / resumen.facturado) * 100) : null,
       coberturaCostoPct: Math.round(resumen.coberturaCostoPct),
       tickets: resumen.tickets,
-      vsMesAnteriorPct: resumen.vsMesAnteriorPct,
+      vsMesAnterior:
+        resumen.vsMesAnteriorPct == null || !resumen.mesAnteriorLabel
+          ? null
+          : `${resumen.vsMesAnteriorPct >= 0 ? "subió" : "bajó"} ${Math.abs(resumen.vsMesAnteriorPct)}% contra ${resumen.mesAnteriorLabel}`,
       mesAnterior: resumen.mesAnteriorLabel,
       facturadoPrev: $(resumen.facturadoPrev),
     },
@@ -88,9 +196,9 @@ export function hechosDelReporte(r: ReporteMensual): Hechos {
   };
 }
 
-/** Toda cifra que la narrativa tiene derecho a citar. */
-export function valoresPermitidos(r: ReporteMensual): number[] {
-  const h = hechosDelReporte(r);
+/** Toda cifra que el análisis tiene derecho a citar. */
+export function valoresPermitidos(r: ReporteMensual, crudos?: Crudos): number[] {
+  const h = hechosDelReporte(r, crudos);
   const v = new Set<number>([VENTANA_DIAS]);
 
   const sumar = (x: number | null | undefined) => {
@@ -104,7 +212,7 @@ export function valoresPermitidos(r: ReporteMensual): number[] {
   sumar(h.mes.margenPct);
   sumar(h.mes.coberturaCostoPct);
   sumar(h.mes.tickets);
-  sumar(h.mes.vsMesAnteriorPct);
+  sumar(r.resumen.vsMesAnteriorPct);
   sumar(h.mes.facturadoPrev);
   for (const o of h.oportunidades) {
     sumar(o.monto);
@@ -121,18 +229,72 @@ export function valoresPermitidos(r: ReporteMensual): number[] {
   // El año del período: "julio de 2026" es una fecha, no una cifra del negocio.
   sumar(Number(r.negocio.desde.slice(0, 4)));
 
+  // Todo el detalle accionable: precios, márgenes, unidades, plata parada.
+  if (h.fugas) {
+    sumar(h.fugas.remarcar.totalPorMes);
+    sumar(h.fugas.remarcar.margenObjetivoPct);
+    for (const p of h.fugas.remarcar.productos) {
+      sumar(p.precioHoy);
+      sumar(p.precioSugerido);
+      sumar(p.margenHoyPct);
+      sumar(p.plataPorMes);
+      sumar(p.unidades30d);
+      // La suba en pesos y en porcentaje son cuentas que el dueño va a hacer:
+      // se las damos hechas para que el modelo no tenga que calcularlas.
+      sumar(p.precioSugerido - p.precioHoy);
+      if (p.precioHoy > 0) sumar(Math.round(((p.precioSugerido - p.precioHoy) / p.precioHoy) * 100));
+    }
+    sumar(h.fugas.stockMuerto.total);
+    for (const p of h.fugas.stockMuerto.productos) {
+      sumar(p.stock);
+      sumar(p.plataParada);
+    }
+    for (const x of Object.values(h.fugas.fiado)) sumar(x);
+    sumar(h.fugas.merma);
+  }
+  if (h.saludDelDato) for (const x of Object.values(h.saludDelDato)) sumar(x);
+  if (h.ritmo) {
+    for (const c of h.ritmo.categorias) {
+      sumar(c.facturado);
+      sumar(c.ganancia);
+    }
+    for (const f of h.ritmo.franjas) {
+      sumar(f.facturado);
+      sumar(f.tickets);
+    }
+  }
+
   return [...v];
 }
 
 /** Nombres propios que el texto puede contener (y que traen dígitos: "Coca 500ml"). */
-export function nombresPermitidos(r: ReporteMensual): string[] {
+export function nombresPermitidos(r: ReporteMensual, crudos?: Crudos): string[] {
+  const h = hechosDelReporte(r, crudos);
   const n = [
     ...r.oportunidades.filter((o) => o.tipo !== "fiado").map((o) => o.sujeto),
     ...r.detalle.topGanancia.map((t) => t.nombre),
     ...r.alertas.porVencer.map((e) => e.nombre),
     ...r.alertas.stockBajo.map((s) => s.nombre),
+    ...(h.fugas?.remarcar.productos ?? []).map((p) => p.nombre),
+    ...(h.fugas?.stockMuerto.productos ?? []).map((p) => p.nombre),
+    ...(h.ritmo?.categorias ?? []).map((c) => c.nombre),
   ];
   return n.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+}
+
+/**
+ * Contra qué se verifica el análisis. `fugas` lista SOLO las que este negocio
+ * tiene de verdad: si no hay fiado atrasado, una acción de tipo "fiado" es un
+ * invento y se descarta, por más razonable que suene.
+ */
+export function verdadDelReporte(r: ReporteMensual, crudos?: Crudos): Verdad {
+  const h = hechosDelReporte(r, crudos);
+  const fugas: TipoAccion[] = [];
+  if ((h.fugas?.remarcar.totalPorMes ?? 0) > 0) fugas.push("remarcar");
+  if ((h.fugas?.stockMuerto.total ?? 0) > 0) fugas.push("stock_muerto");
+  if ((h.fugas?.fiado.atrasado ?? 0) > 0) fugas.push("fiado");
+  if ((h.saludDelDato?.productosSinCosto ?? 0) > 0 || (h.saludDelDato?.preciosViejos ?? 0) > 0) fugas.push("datos");
+  return { numeros: valoresPermitidos(r, crudos), productos: nombresPermitidos(r, crudos), fugas };
 }
 
 export type Veredicto = { ok: true } | { ok: false; motivo: string };
@@ -174,13 +336,13 @@ function coincide(x: number, v: number): boolean {
  * @param nombres nombres propios a ignorar antes de buscar cifras — "Coca 500ml"
  * no es el número 500.
  */
-export function verificarNarrativa(texto: string, permitidos: number[], nombres: string[] = []): Veredicto {
+/**
+ * SOLO el control de cifras, sin reglas de largo. Existe separado porque el
+ * análisis lo aplica a campos cortos ("Fiado atrasado" son 14 caracteres) y las
+ * cotas de un párrafo entero no tienen nada que ver con las de un título.
+ */
+export function cifrasVerificables(texto: string, permitidos: number[], nombres: string[] = []): Veredicto {
   const limpio = texto.trim();
-  if (limpio.length < LARGO_MIN) return { ok: false, motivo: "vacia" };
-  if (limpio.length > LARGO_MAX) return { ok: false, motivo: `larga:${limpio.length}` };
-  if (/<[^>]+>/.test(limpio)) return { ok: false, motivo: "html" };
-  if (/https?:\/\/|www\./i.test(limpio)) return { ok: false, motivo: "link" };
-
   // Los nombres propios salen del texto ANTES de buscar cifras.
   let sinNombres = limpio;
   for (const n of [...nombres].sort((a, b) => b.length - a.length)) {
@@ -195,4 +357,17 @@ export function verificarNarrativa(texto: string, permitidos: number[], nombres:
     }
   }
   return { ok: true };
+}
+
+/**
+ * El control completo para un párrafo suelto: cifras + largo + higiene.
+ * @param nombres nombres propios a ignorar — "Coca 500ml" no es el número 500.
+ */
+export function verificarNarrativa(texto: string, permitidos: number[], nombres: string[] = []): Veredicto {
+  const limpio = texto.trim();
+  if (limpio.length < LARGO_MIN) return { ok: false, motivo: "vacia" };
+  if (limpio.length > LARGO_MAX) return { ok: false, motivo: `larga:${limpio.length}` };
+  if (/<[^>]+>/.test(limpio)) return { ok: false, motivo: "html" };
+  if (/https?:\/\/|www\./i.test(limpio)) return { ok: false, motivo: "link" };
+  return cifrasVerificables(limpio, permitidos, nombres);
 }

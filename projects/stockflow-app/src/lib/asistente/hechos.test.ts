@@ -96,6 +96,27 @@ test("sin facturación el margen es null, no una división por cero", () => {
   assert.equal(hechosDelReporte(r).mes.margenPct, null);
 });
 
+test("la comparación contra el mes anterior viaja SIN ambigüedad", () => {
+  /* Un `vsMesAnteriorPct: 75` pelado se lee de dos formas opuestas, y un modelo
+     real leyó "quedó en el 75% del mes anterior" cuando en realidad SUBIÓ 75%.
+     El verificador no lo puede atajar: 75 es una cifra legítima. Se arregla
+     donde se origina — mandando la frase ya resuelta. */
+  const h = hechosDelReporte(reporte());
+  assert.equal(h.mes.vsMesAnterior, "bajó 12% contra junio");
+
+  const r = reporte();
+  r.resumen.vsMesAnteriorPct = 75;
+  r.resumen.mesAnteriorLabel = "junio";
+  assert.equal(hechosDelReporte(r).mes.vsMesAnterior, "subió 75% contra junio");
+});
+
+test("sin mes anterior no se inventa una comparación", () => {
+  const r = reporte();
+  r.resumen.vsMesAnteriorPct = null;
+  r.resumen.mesAnteriorLabel = null;
+  assert.equal(hechosDelReporte(r).mes.vsMesAnterior, null);
+});
+
 // ── La lista blanca de cifras ──────────────────────────────────────────────────
 
 test("todo número citable sale de un valor ya computado", () => {

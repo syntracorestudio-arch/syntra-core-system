@@ -29,7 +29,11 @@ const ANTHROPIC_MODELO = "claude-haiku-4-5";
    mandás (a diferencia de otros gratuitos), que es lo único que lo hace elegible
    el día que haya datos de un cliente real y no un negocio de prueba. */
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODELO = "llama-3.3-70b-versatile";
+/* Elegido midiendo, no de catálogo: con los datos reales del kiosco de escala,
+   gpt-oss-120b fue el único de los tres gratuitos que escribió un párrafo
+   correcto y legible. llama-3.3-70b afirmó "los gastos no afectaron la ganancia"
+   en un negocio que no cargó gastos, y qwen3.6 se pasa del largo y se descarta. */
+const GROQ_MODELO = "openai/gpt-oss-120b";
 
 const limpia = (v: string | undefined): string | null => {
   const s = (v ?? "").trim();
