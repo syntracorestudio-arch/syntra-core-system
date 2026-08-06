@@ -209,3 +209,28 @@ test("las acciones sobre datos faltantes no necesitan monto: no hay plata que co
   assert.equal(r.ok, true, r.ok === false ? r.motivo : "");
   assert.equal(r.analisis.acciones.length, 3);
 });
+
+test("la fuga más cara no puede quedar sin acción, aunque la cobertura dé", () => {
+  // Corrida real: el dolor nombraba el remarcado como problema #1 y las acciones
+  // cubrían stock muerto y fiado — cobertura formalmente OK, botón principal ausente.
+  const conPrincipal = { ...REAL, principal: "remarcar" as const };
+  const r = verificarAnalisis(
+    bueno({
+      acciones: [
+        { tipo: "stock_muerto", texto: "Liquidá Ibuprofeno x6.", producto: "Ibuprofeno x6", monto: 59254 },
+        { tipo: "fiado", texto: "Salí a cobrar.", producto: null, monto: 60450 },
+      ],
+    }),
+    conPrincipal,
+  );
+  assert.equal(r.ok, false);
+  assert.match(r.ok === false ? r.motivo : "", /principal/);
+  // Con una acción de remarcar, pasa:
+  const r2 = verificarAnalisis(bueno(), conPrincipal);
+  assert.equal(r2.ok, true, r2.ok === false ? r2.motivo : "");
+});
+
+test("sin ranking (negocio sin fugas cuantificadas) no se exige principal", () => {
+  const r = verificarAnalisis(bueno(), { ...REAL, principal: null });
+  assert.equal(r.ok, true);
+});
