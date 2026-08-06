@@ -18,6 +18,7 @@
 
 import type { DatosMensuales, Margenes, ReporteMensual } from "./composer.ts";
 import type { TipoAccion, Verdad } from "./analisis.ts";
+import type { Mercado } from "./mercado.ts";
 
 export type Hechos = {
   rubro: string;
@@ -54,6 +55,13 @@ export type Hechos = {
    * remarcar", que es exactamente lo que el email ya muestra en una tarjeta.
    */
   fugas?: {
+    /**
+     * El ranking por plata REAL. Las tres fugas suelen tener montos parecidos,
+     * pero remarcar se repite todos los meses y las otras dos son por única vez:
+     * $57.910/mes son $694.920 al año contra $59.254 que se recuperan una sola
+     * vez. Sin esto el modelo elige casi al azar cuál es "el dolor".
+     */
+    ranking: { tipo: string; plataAlAnio: number; recurrente: boolean }[];
     remarcar: {
       totalPorMes: number;
       margenObjetivoPct: number | null;
@@ -72,6 +80,11 @@ export type Hechos = {
   };
   /** Dónde el dato es flojo. Decir "acá no sé" es una función, no una disculpa. */
   saludDelDato?: { coberturaCostoPct: number; productosSinCosto: number; preciosViejos: number };
+  /**
+   * Inflación oficial del rubro (INDEC). El ÚNICO dato que no calculamos: deja
+   * comparar lo que subió el mercado contra lo que el dueño remarcó.
+   */
+  mercado?: Mercado;
   /** El ritmo del negocio: qué categorías y qué franjas lo mueven. */
   ritmo?: {
     categorias: { nombre: string; facturado: number; ganancia: number }[];
@@ -99,9 +112,23 @@ const num = (v: unknown): number => {
 function fugasDe(c: Crudos): NonNullable<Hechos["fugas"]> {
   const res = c.datos.resumen;
   const atrasados = res.credit?.overdue ?? [];
+  const porMes = $(num(c.margenes.total_por_mes));
+  const muerto = $(num(res.dead_stock?.total));
+  const fiado = $(atrasados.reduce((s, x) => s + num(x.owed), 0));
+  /* Un margen mal puesto se cobra cada mes; la plata parada y el fiado se
+     recuperan una sola vez. Comparar los tres por su monto del mes es comparar
+     mal, y lleva a priorizar la fuga equivocada. */
+  const ranking = [
+    { tipo: "remarcar", plataAlAnio: porMes * 12, recurrente: true },
+    { tipo: "stock_muerto", plataAlAnio: muerto, recurrente: false },
+    { tipo: "fiado", plataAlAnio: fiado, recurrente: false },
+  ]
+    .filter((f) => f.plataAlAnio > 0)
+    .sort((a, b) => b.plataAlAnio - a.plataAlAnio);
   return {
+    ranking,
     remarcar: {
-      totalPorMes: $(num(c.margenes.total_por_mes)),
+      totalPorMes: porMes,
       margenObjetivoPct: c.margenes.min_margen == null ? null : num(c.margenes.min_margen),
       productos: (c.margenes.productos ?? []).slice(0, 6).map((p) => ({
         nombre: p.name,
@@ -113,7 +140,7 @@ function fugasDe(c: Crudos): NonNullable<Hechos["fugas"]> {
       })),
     },
     stockMuerto: {
-      total: $(num(res.dead_stock?.total)),
+      total: muerto,
       productos: (res.dead_stock?.items ?? []).slice(0, 5).map((p) => ({
         nombre: p.name,
         stock: num(p.stock),
@@ -121,7 +148,7 @@ function fugasDe(c: Crudos): NonNullable<Hechos["fugas"]> {
       })),
     },
     fiado: {
-      atrasado: $(atrasados.reduce((s, x) => s + num(x.owed), 0)),
+      atrasado: fiado,
       clientes: atrasados.length,
       // Viene ordenado por antigüedad: el primero es el más viejo, no el que más debe.
       diasDelMasViejo: num(atrasados[0]?.dias),
@@ -132,10 +159,11 @@ function fugasDe(c: Crudos): NonNullable<Hechos["fugas"]> {
   };
 }
 
-export function hechosDelReporte(r: ReporteMensual, crudos?: Crudos): Hechos {
+export function hechosDelReporte(r: ReporteMensual, crudos?: Crudos, mercado?: Mercado | null): Hechos {
   const { resumen } = r;
   const salud = crudos?.datos.resumen.data_health;
   return {
+    ...(mercado ? { mercado } : {}),
     ...(crudos
       ? {
           fugas: fugasDe(crudos),
@@ -197,8 +225,8 @@ export function hechosDelReporte(r: ReporteMensual, crudos?: Crudos): Hechos {
 }
 
 /** Toda cifra que el análisis tiene derecho a citar. */
-export function valoresPermitidos(r: ReporteMensual, crudos?: Crudos): number[] {
-  const h = hechosDelReporte(r, crudos);
+export function valoresPermitidos(r: ReporteMensual, crudos?: Crudos, mercado?: Mercado | null): number[] {
+  const h = hechosDelReporte(r, crudos, mercado);
   const v = new Set<number>([VENTANA_DIAS]);
 
   const sumar = (x: number | null | undefined) => {
@@ -231,8 +259,19 @@ export function valoresPermitidos(r: ReporteMensual, crudos?: Crudos): number[] 
 
   // Todo el detalle accionable: precios, márgenes, unidades, plata parada.
   if (h.fugas) {
+    for (const f of h.fugas.ranking) sumar(f.plataAlAnio);
     sumar(h.fugas.remarcar.totalPorMes);
     sumar(h.fugas.remarcar.margenObjetivoPct);
+    /* Los acumulados de los primeros N productos. El modelo quiere decir "entre
+       los dos te dejan $31.350" — es lo natural y es cierto, pero la cuenta la
+       tiene que hacer el código, no él: así queda verificada. Sin esto, un
+       análisis correcto se descartaba por sumar dos cifras que eran válidas. */
+    let acumulado = 0;
+    for (const p of h.fugas.remarcar.productos) {
+      acumulado += p.plataPorMes;
+      sumar(acumulado);
+      sumar(acumulado * 12);
+    }
     for (const p of h.fugas.remarcar.productos) {
       sumar(p.precioHoy);
       sumar(p.precioSugerido);
@@ -253,6 +292,8 @@ export function valoresPermitidos(r: ReporteMensual, crudos?: Crudos): number[] 
     sumar(h.fugas.merma);
   }
   if (h.saludDelDato) for (const x of Object.values(h.saludDelDato)) sumar(x);
+  // La inflación del rubro: es cifra citable como cualquier otra.
+  for (const d of h.mercado?.divisiones ?? []) sumar(d.variacionPct);
   if (h.ritmo) {
     for (const c of h.ritmo.categorias) {
       sumar(c.facturado);
@@ -287,14 +328,14 @@ export function nombresPermitidos(r: ReporteMensual, crudos?: Crudos): string[] 
  * tiene de verdad: si no hay fiado atrasado, una acción de tipo "fiado" es un
  * invento y se descarta, por más razonable que suene.
  */
-export function verdadDelReporte(r: ReporteMensual, crudos?: Crudos): Verdad {
-  const h = hechosDelReporte(r, crudos);
+export function verdadDelReporte(r: ReporteMensual, crudos?: Crudos, mercado?: Mercado | null): Verdad {
+  const h = hechosDelReporte(r, crudos, mercado);
   const fugas: TipoAccion[] = [];
   if ((h.fugas?.remarcar.totalPorMes ?? 0) > 0) fugas.push("remarcar");
   if ((h.fugas?.stockMuerto.total ?? 0) > 0) fugas.push("stock_muerto");
   if ((h.fugas?.fiado.atrasado ?? 0) > 0) fugas.push("fiado");
   if ((h.saludDelDato?.productosSinCosto ?? 0) > 0 || (h.saludDelDato?.preciosViejos ?? 0) > 0) fugas.push("datos");
-  return { numeros: valoresPermitidos(r, crudos), productos: nombresPermitidos(r, crudos), fugas };
+  return { numeros: valoresPermitidos(r, crudos, mercado), productos: nombresPermitidos(r, crudos), fugas };
 }
 
 export type Veredicto = { ok: true } | { ok: false; motivo: string };
@@ -343,9 +384,19 @@ function coincide(x: number, v: number): boolean {
  */
 export function cifrasVerificables(texto: string, permitidos: number[], nombres: string[] = []): Veredicto {
   const limpio = texto.trim();
-  // Los nombres propios salen del texto ANTES de buscar cifras.
+  /* Los nombres propios salen del texto ANTES de buscar cifras — y también sus
+     prefijos por palabra. Los nombres reales traen colas raras ("L&M 1.5L 1"):
+     el modelo escribe "L&M 1.5L", el nombre completo no coincide, y el "1.5"
+     queda suelto leyéndose como una cifra inventada. Era la causa de rechazo más
+     común contra datos reales, y el modelo no estaba haciendo nada mal. */
+  const variantes: string[] = [];
+  for (const n of nombres) {
+    const partes = n.trim().split(/\s+/);
+    for (let i = partes.length; i >= 2; i--) variantes.push(partes.slice(0, i).join(" "));
+    if (partes.length === 1) variantes.push(partes[0]);
+  }
   let sinNombres = limpio;
-  for (const n of [...nombres].sort((a, b) => b.length - a.length)) {
+  for (const n of [...new Set(variantes)].sort((a, b) => b.length - a.length)) {
     sinNombres = sinNombres.split(n).join(" ");
   }
 

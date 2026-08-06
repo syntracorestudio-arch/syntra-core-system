@@ -45,9 +45,22 @@ const limpia = (v: string | undefined): string | null => {
  * configurado, que NO es un error: el reporte sale con la plantilla determinista.
  */
 export function resolverProveedor(env: Record<string, string | undefined>): Proveedor | null {
-  // La gratuita gana cuando están las dos: es la que se está evaluando.
   const libre = limpia(env.LLM_API_KEY);
   if (libre) {
+    /* Qué proveedor es: lo dice `LLM_PROVIDER` si está, y si no se deduce del
+       prefijo de la clave. Sin esto, una clave de Anthropic puesta en LLM_API_KEY
+       se mandaba a la URL de Groq y volvía un 401 — el reporte salía igual pero
+       sin análisis, y el motivo era imposible de adivinar desde afuera. */
+    const declarado = limpia(env.LLM_PROVIDER)?.toLowerCase();
+    const esAnthropic = declarado === "anthropic" || (!declarado && libre.startsWith("sk-ant-"));
+    if (esAnthropic) {
+      return {
+        nombre: "anthropic",
+        url: ANTHROPIC_URL,
+        apiKey: libre,
+        modelo: limpia(env.LLM_MODEL) ?? ANTHROPIC_MODELO,
+      };
+    }
     return {
       nombre: "openai-compat",
       url: limpia(env.LLM_BASE_URL) ?? GROQ_URL,

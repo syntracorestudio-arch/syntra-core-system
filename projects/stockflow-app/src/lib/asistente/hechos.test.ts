@@ -178,3 +178,10 @@ test("RECHAZA un texto vacío o larguísimo", () => {
   assert.equal(ok("   "), false);
   assert.equal(ok("Palabra ".repeat(200)), false);
 });
+
+test("un producto nombrado sin su cola rara no dispara un falso positivo", () => {
+  // El catálogo real trae nombres como "L&M 1.5L 1". El modelo escribe
+  // "L&M 1.5L" y el "1.5" quedaba leyéndose como cifra inventada.
+  const v = verificarNarrativa("Subí L&M 1.5L de precio esta semana ya mismo.", permitidos, ["L&M 1.5L 1"]);
+  assert.ok(v.ok, v.ok === false ? v.motivo : "");
+});

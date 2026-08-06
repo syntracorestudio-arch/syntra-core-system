@@ -11,6 +11,8 @@ import { asuntoReporte, renderReporteHTML } from "@/lib/asistente/email";
 import { destinatario, enviarReporte } from "@/lib/asistente/mailer";
 import { narrarMes } from "@/lib/asistente/narrativa";
 import type { Analisis } from "@/lib/asistente/analisis";
+import { contextoDeMercado } from "@/lib/asistente/mercado";
+import { baseEfimera } from "@/lib/asistente/enlaces";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -43,6 +45,15 @@ export async function GET(request: NextRequest) {
   const auth = request.headers.get("authorization");
   if (!secret || auth !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  /* Un túnel de desarrollo o localhost en la URL base manda botones que mueren en
+     horas. No se bloquea el envío —puede ser una prueba a propósito— pero tiene
+     que gritar en los logs: si no, los links rotos se descubren cuando un cliente
+     hace clic. */
+  const base = process.env.NEXT_PUBLIC_APP_URL;
+  if (baseEfimera(base)) {
+    console.warn(`[monthly-report] NEXT_PUBLIC_APP_URL es un entorno pasajero (${base}): los botones del email van a morir con él.`);
   }
 
   const admin = createAdminClient();
@@ -162,7 +173,21 @@ export async function GET(request: NextRequest) {
       let analisis: Analisis | null = guardadoPrevio ? (JSON.parse(guardadoPrevio) as Analisis) : null;
       let narrativa: Awaited<ReturnType<typeof narrarMes>> | null = null;
       if (!analisis && intentos <= MAX_INTENTOS_NARRATIVA) {
-        narrativa = await narrarMes(reporte);
+        /* La inflación oficial del rubro. Cacheada por rubro dentro de la
+           corrida: 500 negocios NO son 500 llamadas a INDEC. Si no responde, el
+           análisis sale sin la comparación contra el mercado, nunca con una
+           estimación. */
+        const mercado = await contextoDeMercado(store.vertical);
+        narrativa = await narrarMes(reporte, {
+          mercado,
+          /* Sin los crudos el análisis solo puede repetir lo que el email ya
+             muestra: acá viajan el precio sugerido por producto, la salud del
+             dato, las categorías y las franjas. */
+          crudos: {
+            datos: d,
+            margenes: (margenes as Margenes | null) ?? { productos: [], total_por_mes: 0 },
+          },
+        });
         analisis = narrativa.analisis;
       }
 

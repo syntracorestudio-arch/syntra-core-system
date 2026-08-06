@@ -255,7 +255,7 @@ StockFlow en el sweet spot $15–35k/mes (research previo), recomendación de pa
     dominio (SPF/DKIM), definir hora ART del cron, `RESEND_API_KEY` en env.
   - Gate scale-security: lecturas ya acotadas (RPCs con piso 730d); cron con `maxDuration`
     explícito y loop paralelo acotado; email idempotente.
-- **Fase 2 — Narrativa LLM (híbrido)** — ✅ **IMPLEMENTADA (2026-08-03)**
+- **Fase 2 — Análisis del negocio (híbrido)** — ✅ **COMPLETA Y VALIDADA (2026-08-05)**
   - Scope original: capa que pasa los hechos ya calculados a Claude para redactar el
     informe + anonimización de nombres de fiado + logging de payload/tokens.
   - **Cómo quedó** (`src/lib/asistente/hechos.ts` + `narrativa.ts`, migración **042**):
@@ -273,14 +273,36 @@ StockFlow en el sweet spot $15–35k/mes (research previo), recomendación de pa
     - Auditoría en `report_deliveries` (042): texto enviado, estado, modelo y tokens.
       El UPDATE es no-fatal — si 042 no corrió, el reporte igual sale.
   - Env: `ANTHROPIC_API_KEY` (opcional) y `ANTHROPIC_MODEL` (default Haiku 4.5).
-  - Falta para cerrarla: correr 042, cargar la key y **leer un email real** con narrativa
-    — lo verificado hasta acá es con la API stubbeada sobre los datos reales del negocio
-    de escala.
+  - **Creció más allá del plan original.** No quedó en "redactar el mes": el modelo
+    DIAGNOSTICA sobre datos accionables que antes no salían del servidor (precio
+    sugerido por producto, margen objetivo, salud del dato, categorías, franjas) y
+    devuelve **campos, no prosa** — en texto libre solo se pueden verificar los
+    números, y una afirmación sin cifras pasa siempre. Con campos se contrasta cada
+    pieza: el producto existe, el monto es un valor calculado, el tipo de acción
+    corresponde a una fuga real.
+  - **Contexto de mercado (INDEC)** incluido: IPC por división desde la API pública
+    de datos.gob.ar, sin clave. Deja decir "el rubro subió 2,5% y vos no remarcaste".
+    Es el único dato que no calculamos y por eso viaja siempre con su mes y su fuente.
+  - **Validado con un envío real** el 2026-08-05 con Haiku 4.5: **USD 0,0056 por
+    reporte**. Comparado contra un modelo gratuito (Groq): el gratuito da acciones
+    sueltas, Haiku arma el argumento con producto, precio y unidades.
+  - **Cerrada salvo un detalle gateado por el dominio:** los botones del email están
+    bien codeados (rutas, parámetros y ancla verificados uno por uno), pero
+    `NEXT_PUBLIC_APP_URL` apunta hoy a un túnel que muere en horas. Al comprar el
+    dominio: fijar la variable y mandar un reporte de prueba.
 - **Fase 3 — Asistente in-app + proactivo**
   - Scope: página del asistente (insights on-demand, no solo email), alertas semanales de
     oportunidad, detección de anomalías ("dejó de venderse"), las queries nuevas de §1
     (tendencia multi-período, performance por vendedor, canasta).
   - Esfuerzo: varios PRs. Dependencias: MVP + Fase 2 validados con un cliente real.
+  - **Sigue sin arrancar, y conviene que siga así**: la Fase 2 todavía no la juzgó un
+    dueño de verdad. Construir la página in-app antes de eso es adivinar.
+- **Novedades del mercado** *(idea del owner, sin fecha)*
+  - Qué se vende bien en el rubro y qué convendría sumar. **Necesita una fuente real**:
+    preguntarle al modelo qué se vende en los kioscos no devuelve "no sé", devuelve un
+    invento, y no hay con qué contrastarlo. Dos caminos honestos: los datos agregados
+    de los propios clientes (gratis y verificable, pero necesita clientes) o búsqueda
+    web **exigiendo cita** — sin fuente citada, no entra en el email.
 
 ---
 

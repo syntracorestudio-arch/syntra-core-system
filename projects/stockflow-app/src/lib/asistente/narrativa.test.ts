@@ -294,3 +294,32 @@ test("un JSON cortado a la mitad también dispara el reintento", async () => {
   assert.equal(llamadas.length, 2);
   assert.equal(res.estado, "ok", res.motivo ?? "");
 });
+
+test("un rechazo de verificación se reintenta UNA vez, no infinitas", async () => {
+  const malo = JSON.parse(BUENO);
+  malo.dolor.porque = "Estás perdiendo $9.900.000 por mes.";
+  let n = 0;
+  const fetchImpl = (async () => {
+    n++;
+    return respuestaOpenAI(n === 1 ? JSON.stringify(malo) : BUENO);
+  }) as unknown as typeof fetch;
+
+  const res = await narrarMes(REPORTE, { proveedor: GROQ, fetchImpl, crudos: CRUDOS });
+  assert.equal(n, 2, "reintenta una vez");
+  assert.equal(res.estado, "ok", res.motivo ?? "");
+});
+
+test("si el reintento también falla, se rinde y el email sale sin análisis", async () => {
+  const malo = JSON.parse(BUENO);
+  malo.dolor.porque = "Estás perdiendo $9.900.000 por mes.";
+  let n = 0;
+  const fetchImpl = (async () => {
+    n++;
+    return respuestaOpenAI(JSON.stringify(malo));
+  }) as unknown as typeof fetch;
+
+  const res = await narrarMes(REPORTE, { proveedor: GROQ, fetchImpl, crudos: CRUDOS });
+  assert.equal(n, 2, "no reintenta para siempre");
+  assert.equal(res.estado, "rechazada");
+  assert.equal(res.analisis, null);
+});

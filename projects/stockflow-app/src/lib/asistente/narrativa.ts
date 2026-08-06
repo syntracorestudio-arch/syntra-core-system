@@ -18,6 +18,7 @@ import { hechosDelReporte, verdadDelReporte, type Crudos } from "./hechos.ts";
 import { verificarAnalisis, type Analisis } from "./analisis.ts";
 import { ANTHROPIC_MODELO, ANTHROPIC_URL, resolverProveedor, type Proveedor } from "./proveedor.ts";
 import type { Hechos } from "./hechos.ts";
+import type { Mercado } from "./mercado.ts";
 
 const VERSION = "2023-06-01";
 const TIMEOUT_MS = 20_000;
@@ -43,19 +44,34 @@ Respondés SOLO un objeto JSON. Sin markdown, sin bloques de código, sin una pa
 {"dolor":{"titulo":"","porque":""},"acciones":[{"tipo":"remarcar|stock_muerto|fiado|datos","texto":"","producto":null,"monto":null}],"fuga":null,"huecos":null}
 
 QUÉ VA EN CADA CAMPO
-- dolor.titulo: el problema más caro del mes, en menos de 90 caracteres, sin cifras.
+- dolor.titulo: el problema más caro del mes, en menos de 90 caracteres. SIN NÚMEROS: los números van en "porque" y en las acciones. Un número en el título descarta el análisis entero.
 - dolor.porque: LA CAUSA. Conectá dos hechos que en los datos vienen separados. Acá está todo el valor: "no es que vendas poco, es que vendés mucho de lo que peor te paga" vale más que cualquier cifra repetida.
-- acciones: entre 2 y 4, ejecutables esta semana, con el número adentro. "producto" solo si la acción es sobre un producto puntual, con el nombre EXACTO como te lo paso. "monto" es la plata en juego, tal cual te la paso.
+- acciones: entre 2 y 4, ejecutables esta semana. "producto" solo si la acción es sobre un producto puntual, con el nombre EXACTO como te lo paso. "monto" es la plata en juego, tal cual te la paso; es OBLIGATORIO salvo en las acciones de tipo "datos".
 - fuga: un patrón o riesgo que NO se ve en las tarjetas del email. null si no hay.
 - huecos: qué dato falta y qué conclusión invalida. null si está completo.
 
+CÓMO ELEGIR EL DOLOR
+En "fugas.ranking" te paso cada fuga con la plata que representa AL AÑO. Elegí por ahí, no por lo que te parezca más grave. Y mirá "recurrente": un margen mal puesto se cobra todos los meses, mientras que la plata parada y el fiado se recuperan una sola vez. Dos fugas de monto parecido pueden diferir diez veces al año — esa es la que importa.
+
+CÓMO ELEGIR LAS ACCIONES
+- Tienen que cubrir fugas DISTINTAS. Tres acciones sobre el mismo problema es medio análisis, y el dueño no tiene cómo darse cuenta de lo que no le dijiste.
+- Cada una dice cuánta plata recupera. "Ajustá los precios" vale la mitad que "ajustá los precios y recuperás $57.910 por mes".
+- PROHIBIDO el consejo genérico. Si la recomendación le serviría igual a cualquier kiosco del país, no la escribas: no aporta nada y le hace perder la confianza en todo lo demás. Nada de "mejorá la rotación", "implementá recordatorios de pago", "controlá el stock", "hacé promociones". Cada acción tiene que apoyarse en un número concreto que te pasé.
+
+SI TE PASO "mercado"
+Es la inflación oficial del INDEC para el rubro. Sirve para lo que ningún dato interno puede: comparar cuánto subió el mercado contra cuánto remarcó el dueño. Si el rubro subió y sus precios no se movieron, ahí está la fuga y hay que decirlo.
+- "periodo" es el mes AL QUE CORRESPONDE ese dato, y NO es el mes del reporte: INDEC publica con atraso. Si citás la cifra, nombrá ese mes y decí que es del INDEC. Nunca la presentes como si fuera del mes que estás analizando.
+
 REGLAS DURAS
 - Los números que te doy son la única verdad. No calcules, no estimes, no saques porcentajes ni proporciones nuevas. Si una cifra no está en los datos, no existe.
+- NO SUMES montos entre sí. Decir "entre los dos son $31.350" es una cuenta tuya y descarta el análisis entero, aunque los dos sumandos sean correctos. Si querés hablar del conjunto, usá el total que ya te paso.
 - NO repitas las cifras que el dueño ya ve impresas (facturado, ganancia, cantidad de ventas, variación contra el mes anterior) salvo que las estés CONECTANDO con otra para explicar una causa.
 - Si hay productos sin costo cargado, no recomiendes precio sobre ellos: eso va en "huecos". Decir "acá no sé" te hace más creíble, no menos.
 - Las cifras sirven para describir lo que YA pasó. No inventes topes, metas ni límites con números propios ("poné un límite de $5.000", "apuntá a 40%"): si el número no salió de los datos, la recomendación va sin número.
 - Nunca nombres clientes ni personas.
 - Español rioplatense, de vos. Frases cortas, una idea por oración. Sin markdown, sin negritas, sin links, sin emojis.
+- Voseo sí, lunfardo NO. Nada de "al toque", "un montón", "zafar", "laburo". Profesional y cercano, no callejero.
+- Los productos que te paso para remarcar NO vienen con su categoría: no supongas a cuál pertenecen. Si seis productos tienen el margen bajo, son "seis productos", no "seis cigarrillos".
 - Escribí los montos con signo pesos y separador de miles ("$57.910", nunca "57910" ni "57.910 de plata"). Los porcentajes pegados al número ("12%", no "12 %").`;
 
 type RespuestaAPI = {
@@ -185,6 +201,10 @@ export async function narrarMes(
     timeoutMs?: number;
     /** Datos crudos de las RPCs: sin esto el análisis solo puede repetir el email. */
     crudos?: Crudos;
+    /** Inflación oficial del rubro (INDEC). Opcional: sin esto, análisis igual. */
+    mercado?: Mercado | null;
+    /** Interno: marca la segunda (y última) pasada. No lo usa quien llama. */
+    __reintento?: boolean;
   } = {},
 ): Promise<ResultadoNarrativa> {
   const proveedor =
@@ -207,7 +227,7 @@ export async function narrarMes(
   }
   const modelo = proveedor.modelo;
 
-  const hechos = hechosDelReporte(reporte, opts.crudos);
+  const hechos = hechosDelReporte(reporte, opts.crudos, opts.mercado);
   const doFetch = opts.fetchImpl ?? fetch;
   const ctrl = new AbortController();
   const reloj = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? TIMEOUT_MS);
@@ -258,7 +278,16 @@ export async function narrarMes(
   const crudo = parsear(texto);
   if (crudo === null) return fallo("json_invalido", modelo);
 
-  const veredicto = verificarAnalisis(crudo as Analisis, verdadDelReporte(reporte, opts.crudos));
+  const veredicto = verificarAnalisis(crudo as Analisis, verdadDelReporte(reporte, opts.crudos, opts.mercado));
+  if (!veredicto.ok && !opts.__reintento) {
+    /* Un rechazo de verificación es un mal SORTEO, no un modelo roto: el mismo
+       pedido suele salir bien a la segunda (medido: Haiku pasa de ~50% a ~75%
+       con un solo reintento, porque su falla típica es sumar dos cifras válidas).
+       Rechazar sin reintentar deja a la mitad de los dueños sin análisis por algo
+       que cuesta medio centavo arreglar. Uno solo: si vuelve a fallar, el problema
+       no es la suerte. */
+    return narrarMes(reporte, { ...opts, __reintento: true });
+  }
   if (!veredicto.ok) {
     /* Nada a medias: un análisis con una pieza que no se pudo contrastar no se
        "corrige", se descarta. El email sale con las tarjetas deterministas, que

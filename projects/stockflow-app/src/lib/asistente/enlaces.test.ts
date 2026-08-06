@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { rutaOportunidad, absolutizar, ctaOportunidad } from "./enlaces.ts";
+import { rutaOportunidad, absolutizar, baseEfimera, ctaOportunidad } from "./enlaces.ts";
 
 // ── Rutas ──────────────────────────────────────────────────────────────────────
 
@@ -84,4 +84,18 @@ test("respeta el sustantivo del rubro (una farmacia no vende 'productos')", () =
 
 test("sin cantidad conocida el botón sigue existiendo", () => {
   assert.equal(ctaOportunidad("remarcar", 0, "productos"), "Abrir StockFlow");
+});
+
+test("una URL base de túnel o localhost se marca como pasajera", () => {
+  // Caso real: el reporte salió con NEXT_PUBLIC_APP_URL apuntando a un túnel de
+  // Cloudflare que ya estaba muerto cuando el owner abrió el mail.
+  for (const b of [
+    "https://tent-flights-pads-blake.trycloudflare.com",
+    "http://localhost:3000",
+    "https://abc.ngrok-free.app",
+  ]) {
+    assert.equal(baseEfimera(b), true, b);
+  }
+  assert.equal(baseEfimera("https://app.stockflow.com.ar"), false);
+  assert.equal(baseEfimera(null), false);
 });
