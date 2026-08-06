@@ -140,3 +140,13 @@ test("un monto que viene como texto se normaliza, pero sigue teniendo que existi
   assert.equal(conMonto("$99.999").ok, false, "el valor no");
   assert.equal(conMonto("un montón").ok, false);
 });
+
+test("un producto nombrado a medias es un producto inventado", () => {
+  // Caso real: el modelo escribió "Chesterfield 1.5L", una variante que no existe
+  // armada con la marca de un producto real. Manda al dueño a buscar fantasmas.
+  const conTexto = (texto: string) =>
+    v(bueno({ acciones: [{ tipo: "stock_muerto", texto, producto: null, monto: null }] }));
+  assert.equal(conTexto("Liquidá Chesterfield 1.5L esta semana.").ok, false);
+  assert.equal(conTexto("Liquidá Chesterfield 100g 8 esta semana.").ok, true, "el nombre completo pasa");
+  assert.equal(conTexto("Liquidá lo que no rota esta semana.").ok, true, "sin nombrar producto, pasa");
+});

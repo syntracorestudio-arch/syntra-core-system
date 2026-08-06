@@ -81,6 +81,29 @@ function aNumeroDeMonto(v: unknown): number | null {
 const mismoNombre = (a: string, b: string) =>
   a.trim().toLocaleLowerCase("es-AR") === b.trim().toLocaleLowerCase("es-AR");
 
+/**
+ * Un producto nombrado a medias es un producto inventado.
+ *
+ * El chequeo del campo `producto` no alcanza: el modelo escribió "Chesterfield
+ * 1.5L" dentro del TEXTO de una acción — una variante que no existe, armada con
+ * la marca de un producto real. Al dueño lo manda a buscar algo que no tiene.
+ *
+ * La regla: si el texto menciona la primera palabra de un producto del catálogo
+ * (la marca), tiene que aparecer el nombre COMPLETO. No inventa nombres nuevos
+ * porque no se puede saber cuáles son; ataja el caso que sí importa, que es
+ * deformar uno real.
+ */
+function nombreDeformado(texto: string, productos: string[]): string | null {
+  const t = texto.toLocaleLowerCase("es-AR");
+  for (const p of productos) {
+    const marca = p.trim().split(/\s+/)[0]?.toLocaleLowerCase("es-AR");
+    if (!marca || marca.length < 4) continue; // "Coca" sí, "x6" no
+    if (!t.includes(marca)) continue;
+    if (!productos.some((q) => t.includes(q.toLocaleLowerCase("es-AR")))) return p;
+  }
+  return null;
+}
+
 export function verificarAnalisis(a: Analisis, verdad: Verdad): VeredictoAnalisis {
   if (!a || typeof a !== "object" || !a.dolor || !Array.isArray(a.acciones)) {
     return { ok: false, motivo: "forma_invalida" };
@@ -108,6 +131,11 @@ export function verificarAnalisis(a: Analisis, verdad: Verdad): VeredictoAnalisi
     const mal = textoValido(acc.texto, LARGO.texto, verdad, "accion");
     if (mal) {
       ultimoMotivo = mal;
+      continue;
+    }
+    const deformado = nombreDeformado(acc.texto, verdad.productos);
+    if (deformado) {
+      ultimoMotivo = `producto_deformado:${deformado}`;
       continue;
     }
     if (acc.producto != null && !verdad.productos.some((p) => mismoNombre(p, acc.producto as string))) {
