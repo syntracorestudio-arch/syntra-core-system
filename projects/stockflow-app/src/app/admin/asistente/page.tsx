@@ -2,7 +2,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { requireOwner } from "@/lib/session";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { todayInTz } from "@/lib/date";
-import { AsistenteClient, type AnalisisGuardado } from "./asistente-client";
+import { AsistenteClient, type AnalisisGuardado, type Pendientes } from "./asistente-client";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,9 @@ export default async function AsistentePage() {
   const supabase = await createSupabaseServer();
   const hoy = todayInTz(session.store.timezone);
 
-  const [{ data: filas }, { data: turnoHoy }] = await Promise.all([
+  const [{ data: pendientes }, { data: filas }, { data: turnoHoy }] = await Promise.all([
+    // Los pendientes operativos: una RPC, un round-trip, cero costo de modelo.
+    supabase.rpc("asistente_pendientes", { p_store_id: session.store.id }),
     supabase
       .from("asistente_analisis")
       .select("id, origen, period_from, period_to, analisis, created_at")
@@ -44,6 +46,7 @@ export default async function AsistentePage() {
     >
       <AsistenteClient
         analisis={(filas ?? []) as AnalisisGuardado[]}
+        pendientes={(pendientes as Pendientes | null) ?? null}
         activo={session.store.ai_assistant_enabled}
         turnoDeHoyUsado={Boolean(turnoHoy)}
       />
