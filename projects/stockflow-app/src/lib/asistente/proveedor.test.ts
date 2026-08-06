@@ -51,3 +51,20 @@ test("una key en blanco no cuenta como key", () => {
   assert.equal(resolverProveedor({ LLM_API_KEY: "   " }), null);
   assert.equal(resolverProveedor({ ANTHROPIC_API_KEY: "" }), null);
 });
+
+test("una clave de Anthropic en LLM_API_KEY no se manda a Groq", () => {
+  // Foot-gun real: la instrucción de configuración decía LLM_API_KEY=sk-ant-...
+  // y el código la mandaba a la URL de Groq. Volvía 401 y el reporte salía sin
+  // análisis, con un motivo imposible de adivinar desde afuera.
+  const p = resolverProveedor({ LLM_API_KEY: "sk-ant-abc", LLM_MODEL: "claude-haiku-4-5" });
+  assert.equal(p?.nombre, "anthropic");
+  assert.match(p?.url ?? "", /api\.anthropic\.com/);
+  assert.equal(p?.modelo, "claude-haiku-4-5");
+});
+
+test("LLM_PROVIDER manda por encima del prefijo de la clave", () => {
+  const p = resolverProveedor({ LLM_PROVIDER: "anthropic", LLM_API_KEY: "otra-cosa" });
+  assert.equal(p?.nombre, "anthropic");
+  const q = resolverProveedor({ LLM_PROVIDER: "groq", LLM_API_KEY: "gsk_x" });
+  assert.equal(q?.nombre, "openai-compat");
+});
