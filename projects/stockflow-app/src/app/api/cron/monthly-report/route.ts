@@ -11,6 +11,7 @@ import { asuntoReporte, renderReporteHTML } from "@/lib/asistente/email";
 import { destinatario, enviarReporte } from "@/lib/asistente/mailer";
 import { narrarMes } from "@/lib/asistente/narrativa";
 import type { Analisis } from "@/lib/asistente/analisis";
+import { contextoDeMercado } from "@/lib/asistente/mercado";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -162,7 +163,21 @@ export async function GET(request: NextRequest) {
       let analisis: Analisis | null = guardadoPrevio ? (JSON.parse(guardadoPrevio) as Analisis) : null;
       let narrativa: Awaited<ReturnType<typeof narrarMes>> | null = null;
       if (!analisis && intentos <= MAX_INTENTOS_NARRATIVA) {
-        narrativa = await narrarMes(reporte);
+        /* La inflación oficial del rubro. Cacheada por rubro dentro de la
+           corrida: 500 negocios NO son 500 llamadas a INDEC. Si no responde, el
+           análisis sale sin la comparación contra el mercado, nunca con una
+           estimación. */
+        const mercado = await contextoDeMercado(store.vertical);
+        narrativa = await narrarMes(reporte, {
+          mercado,
+          /* Sin los crudos el análisis solo puede repetir lo que el email ya
+             muestra: acá viajan el precio sugerido por producto, la salud del
+             dato, las categorías y las franjas. */
+          crudos: {
+            datos: d,
+            margenes: (margenes as Margenes | null) ?? { productos: [], total_por_mes: 0 },
+          },
+        });
         analisis = narrativa.analisis;
       }
 

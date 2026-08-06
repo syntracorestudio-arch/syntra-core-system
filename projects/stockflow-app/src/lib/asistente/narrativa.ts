@@ -18,6 +18,7 @@ import { hechosDelReporte, verdadDelReporte, type Crudos } from "./hechos.ts";
 import { verificarAnalisis, type Analisis } from "./analisis.ts";
 import { ANTHROPIC_MODELO, ANTHROPIC_URL, resolverProveedor, type Proveedor } from "./proveedor.ts";
 import type { Hechos } from "./hechos.ts";
+import type { Mercado } from "./mercado.ts";
 
 const VERSION = "2023-06-01";
 const TIMEOUT_MS = 20_000;
@@ -48,6 +49,10 @@ QUÉ VA EN CADA CAMPO
 - acciones: entre 2 y 4, ejecutables esta semana, con el número adentro. "producto" solo si la acción es sobre un producto puntual, con el nombre EXACTO como te lo paso. "monto" es la plata en juego, tal cual te la paso.
 - fuga: un patrón o riesgo que NO se ve en las tarjetas del email. null si no hay.
 - huecos: qué dato falta y qué conclusión invalida. null si está completo.
+
+SI TE PASO "mercado"
+Es la inflación oficial del INDEC para el rubro. Sirve para lo que ningún dato interno puede: comparar cuánto subió el mercado contra cuánto remarcó el dueño. Si el rubro subió y sus precios no se movieron, ahí está la fuga y hay que decirlo.
+- "periodo" es el mes AL QUE CORRESPONDE ese dato, y NO es el mes del reporte: INDEC publica con atraso. Si citás la cifra, nombrá ese mes y decí que es del INDEC. Nunca la presentes como si fuera del mes que estás analizando.
 
 REGLAS DURAS
 - Los números que te doy son la única verdad. No calcules, no estimes, no saques porcentajes ni proporciones nuevas. Si una cifra no está en los datos, no existe.
@@ -185,6 +190,8 @@ export async function narrarMes(
     timeoutMs?: number;
     /** Datos crudos de las RPCs: sin esto el análisis solo puede repetir el email. */
     crudos?: Crudos;
+    /** Inflación oficial del rubro (INDEC). Opcional: sin esto, análisis igual. */
+    mercado?: Mercado | null;
   } = {},
 ): Promise<ResultadoNarrativa> {
   const proveedor =
@@ -207,7 +214,7 @@ export async function narrarMes(
   }
   const modelo = proveedor.modelo;
 
-  const hechos = hechosDelReporte(reporte, opts.crudos);
+  const hechos = hechosDelReporte(reporte, opts.crudos, opts.mercado);
   const doFetch = opts.fetchImpl ?? fetch;
   const ctrl = new AbortController();
   const reloj = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? TIMEOUT_MS);
@@ -258,7 +265,7 @@ export async function narrarMes(
   const crudo = parsear(texto);
   if (crudo === null) return fallo("json_invalido", modelo);
 
-  const veredicto = verificarAnalisis(crudo as Analisis, verdadDelReporte(reporte, opts.crudos));
+  const veredicto = verificarAnalisis(crudo as Analisis, verdadDelReporte(reporte, opts.crudos, opts.mercado));
   if (!veredicto.ok) {
     /* Nada a medias: un análisis con una pieza que no se pudo contrastar no se
        "corrige", se descarta. El email sale con las tarjetas deterministas, que

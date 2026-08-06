@@ -18,6 +18,7 @@
 
 import type { DatosMensuales, Margenes, ReporteMensual } from "./composer.ts";
 import type { TipoAccion, Verdad } from "./analisis.ts";
+import type { Mercado } from "./mercado.ts";
 
 export type Hechos = {
   rubro: string;
@@ -72,6 +73,11 @@ export type Hechos = {
   };
   /** Dónde el dato es flojo. Decir "acá no sé" es una función, no una disculpa. */
   saludDelDato?: { coberturaCostoPct: number; productosSinCosto: number; preciosViejos: number };
+  /**
+   * Inflación oficial del rubro (INDEC). El ÚNICO dato que no calculamos: deja
+   * comparar lo que subió el mercado contra lo que el dueño remarcó.
+   */
+  mercado?: Mercado;
   /** El ritmo del negocio: qué categorías y qué franjas lo mueven. */
   ritmo?: {
     categorias: { nombre: string; facturado: number; ganancia: number }[];
@@ -132,10 +138,11 @@ function fugasDe(c: Crudos): NonNullable<Hechos["fugas"]> {
   };
 }
 
-export function hechosDelReporte(r: ReporteMensual, crudos?: Crudos): Hechos {
+export function hechosDelReporte(r: ReporteMensual, crudos?: Crudos, mercado?: Mercado | null): Hechos {
   const { resumen } = r;
   const salud = crudos?.datos.resumen.data_health;
   return {
+    ...(mercado ? { mercado } : {}),
     ...(crudos
       ? {
           fugas: fugasDe(crudos),
@@ -197,8 +204,8 @@ export function hechosDelReporte(r: ReporteMensual, crudos?: Crudos): Hechos {
 }
 
 /** Toda cifra que el análisis tiene derecho a citar. */
-export function valoresPermitidos(r: ReporteMensual, crudos?: Crudos): number[] {
-  const h = hechosDelReporte(r, crudos);
+export function valoresPermitidos(r: ReporteMensual, crudos?: Crudos, mercado?: Mercado | null): number[] {
+  const h = hechosDelReporte(r, crudos, mercado);
   const v = new Set<number>([VENTANA_DIAS]);
 
   const sumar = (x: number | null | undefined) => {
@@ -253,6 +260,8 @@ export function valoresPermitidos(r: ReporteMensual, crudos?: Crudos): number[] 
     sumar(h.fugas.merma);
   }
   if (h.saludDelDato) for (const x of Object.values(h.saludDelDato)) sumar(x);
+  // La inflación del rubro: es cifra citable como cualquier otra.
+  for (const d of h.mercado?.divisiones ?? []) sumar(d.variacionPct);
   if (h.ritmo) {
     for (const c of h.ritmo.categorias) {
       sumar(c.facturado);
@@ -287,14 +296,14 @@ export function nombresPermitidos(r: ReporteMensual, crudos?: Crudos): string[] 
  * tiene de verdad: si no hay fiado atrasado, una acción de tipo "fiado" es un
  * invento y se descarta, por más razonable que suene.
  */
-export function verdadDelReporte(r: ReporteMensual, crudos?: Crudos): Verdad {
-  const h = hechosDelReporte(r, crudos);
+export function verdadDelReporte(r: ReporteMensual, crudos?: Crudos, mercado?: Mercado | null): Verdad {
+  const h = hechosDelReporte(r, crudos, mercado);
   const fugas: TipoAccion[] = [];
   if ((h.fugas?.remarcar.totalPorMes ?? 0) > 0) fugas.push("remarcar");
   if ((h.fugas?.stockMuerto.total ?? 0) > 0) fugas.push("stock_muerto");
   if ((h.fugas?.fiado.atrasado ?? 0) > 0) fugas.push("fiado");
   if ((h.saludDelDato?.productosSinCosto ?? 0) > 0 || (h.saludDelDato?.preciosViejos ?? 0) > 0) fugas.push("datos");
-  return { numeros: valoresPermitidos(r, crudos), productos: nombresPermitidos(r, crudos), fugas };
+  return { numeros: valoresPermitidos(r, crudos, mercado), productos: nombresPermitidos(r, crudos), fugas };
 }
 
 export type Veredicto = { ok: true } | { ok: false; motivo: string };
