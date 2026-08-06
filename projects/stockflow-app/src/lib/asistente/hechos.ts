@@ -262,6 +262,16 @@ export function valoresPermitidos(r: ReporteMensual, crudos?: Crudos, mercado?: 
     for (const f of h.fugas.ranking) sumar(f.plataAlAnio);
     sumar(h.fugas.remarcar.totalPorMes);
     sumar(h.fugas.remarcar.margenObjetivoPct);
+    /* Los acumulados de los primeros N productos. El modelo quiere decir "entre
+       los dos te dejan $31.350" — es lo natural y es cierto, pero la cuenta la
+       tiene que hacer el código, no él: así queda verificada. Sin esto, un
+       análisis correcto se descartaba por sumar dos cifras que eran válidas. */
+    let acumulado = 0;
+    for (const p of h.fugas.remarcar.productos) {
+      acumulado += p.plataPorMes;
+      sumar(acumulado);
+      sumar(acumulado * 12);
+    }
     for (const p of h.fugas.remarcar.productos) {
       sumar(p.precioHoy);
       sumar(p.precioSugerido);
@@ -374,9 +384,19 @@ function coincide(x: number, v: number): boolean {
  */
 export function cifrasVerificables(texto: string, permitidos: number[], nombres: string[] = []): Veredicto {
   const limpio = texto.trim();
-  // Los nombres propios salen del texto ANTES de buscar cifras.
+  /* Los nombres propios salen del texto ANTES de buscar cifras — y también sus
+     prefijos por palabra. Los nombres reales traen colas raras ("L&M 1.5L 1"):
+     el modelo escribe "L&M 1.5L", el nombre completo no coincide, y el "1.5"
+     queda suelto leyéndose como una cifra inventada. Era la causa de rechazo más
+     común contra datos reales, y el modelo no estaba haciendo nada mal. */
+  const variantes: string[] = [];
+  for (const n of nombres) {
+    const partes = n.trim().split(/\s+/);
+    for (let i = partes.length; i >= 2; i--) variantes.push(partes.slice(0, i).join(" "));
+    if (partes.length === 1) variantes.push(partes[0]);
+  }
   let sinNombres = limpio;
-  for (const n of [...nombres].sort((a, b) => b.length - a.length)) {
+  for (const n of [...new Set(variantes)].sort((a, b) => b.length - a.length)) {
     sinNombres = sinNombres.split(n).join(" ");
   }
 

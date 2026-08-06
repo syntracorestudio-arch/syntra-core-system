@@ -45,7 +45,11 @@ export type Verdad = {
 
 export type VeredictoAnalisis = { ok: true; analisis: Analisis } | { ok: false; motivo: string };
 
-const LARGO = { titulo: 90, porque: 260, texto: 200, fuga: 260, huecos: 260 } as const;
+/* Topes generosos a propósito: en la comparación real, dos de tres análisis de
+   Haiku se descartaron por pasarse de 260 caracteres en `porque` — y eran los
+   buenos, los que conectaban tres hechos. Un tope que corta la explicación
+   castiga justo lo que queremos. El email tiene lugar de sobra. */
+const LARGO = { titulo: 90, porque: 380, texto: 240, fuga: 320, huecos: 340 } as const;
 
 /** Un campo de texto: ni vacío, ni desmedido, ni con markup, ni con cifras inventadas. */
 function textoValido(valor: string, max: number, verdad: Verdad, campo: string): string | null {
@@ -84,14 +88,15 @@ const mismoNombre = (a: string, b: string) =>
 /**
  * Un producto nombrado a medias es un producto inventado.
  *
- * El chequeo del campo `producto` no alcanza: el modelo escribió "Chesterfield
- * 1.5L" dentro del TEXTO de una acción — una variante que no existe, armada con
- * la marca de un producto real. Al dueño lo manda a buscar algo que no tiene.
+ * El chequeo del campo `producto` no alcanza: un nombre puede aparecer solo en
+ * el TEXTO de la acción, y ahí nadie lo estaba mirando. Si el modelo deforma una
+ * marca real ("Chesterfield" + un formato que ese producto no tiene), manda al
+ * dueño a buscar algo que no está en el estante.
  *
  * La regla: si el texto menciona la primera palabra de un producto del catálogo
- * (la marca), tiene que aparecer el nombre COMPLETO. No inventa nombres nuevos
- * porque no se puede saber cuáles son; ataja el caso que sí importa, que es
- * deformar uno real.
+ * (la marca), tiene que aparecer el nombre COMPLETO de alguno. No detecta nombres
+ * inventados de la nada — no hay cómo saber cuáles son — pero sí el caso que
+ * importa, que es deformar uno real.
  */
 function nombreDeformado(texto: string, productos: string[]): string | null {
   const t = texto.toLocaleLowerCase("es-AR");

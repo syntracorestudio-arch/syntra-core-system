@@ -44,7 +44,7 @@ Respondés SOLO un objeto JSON. Sin markdown, sin bloques de código, sin una pa
 {"dolor":{"titulo":"","porque":""},"acciones":[{"tipo":"remarcar|stock_muerto|fiado|datos","texto":"","producto":null,"monto":null}],"fuga":null,"huecos":null}
 
 QUÉ VA EN CADA CAMPO
-- dolor.titulo: el problema más caro del mes, en menos de 90 caracteres, sin cifras.
+- dolor.titulo: el problema más caro del mes, en menos de 90 caracteres. SIN NÚMEROS: los números van en "porque" y en las acciones. Un número en el título descarta el análisis entero.
 - dolor.porque: LA CAUSA. Conectá dos hechos que en los datos vienen separados. Acá está todo el valor: "no es que vendas poco, es que vendés mucho de lo que peor te paga" vale más que cualquier cifra repetida.
 - acciones: entre 2 y 4, ejecutables esta semana. "producto" solo si la acción es sobre un producto puntual, con el nombre EXACTO como te lo paso. "monto" es la plata en juego, tal cual te la paso; es OBLIGATORIO salvo en las acciones de tipo "datos".
 - fuga: un patrón o riesgo que NO se ve en las tarjetas del email. null si no hay.
@@ -64,6 +64,7 @@ Es la inflación oficial del INDEC para el rubro. Sirve para lo que ningún dato
 
 REGLAS DURAS
 - Los números que te doy son la única verdad. No calcules, no estimes, no saques porcentajes ni proporciones nuevas. Si una cifra no está en los datos, no existe.
+- NO SUMES montos entre sí. Decir "entre los dos son $31.350" es una cuenta tuya y descarta el análisis entero, aunque los dos sumandos sean correctos. Si querés hablar del conjunto, usá el total que ya te paso.
 - NO repitas las cifras que el dueño ya ve impresas (facturado, ganancia, cantidad de ventas, variación contra el mes anterior) salvo que las estés CONECTANDO con otra para explicar una causa.
 - Si hay productos sin costo cargado, no recomiendes precio sobre ellos: eso va en "huecos". Decir "acá no sé" te hace más creíble, no menos.
 - Las cifras sirven para describir lo que YA pasó. No inventes topes, metas ni límites con números propios ("poné un límite de $5.000", "apuntá a 40%"): si el número no salió de los datos, la recomendación va sin número.
@@ -200,6 +201,8 @@ export async function narrarMes(
     crudos?: Crudos;
     /** Inflación oficial del rubro (INDEC). Opcional: sin esto, análisis igual. */
     mercado?: Mercado | null;
+    /** Interno: marca la segunda (y última) pasada. No lo usa quien llama. */
+    __reintento?: boolean;
   } = {},
 ): Promise<ResultadoNarrativa> {
   const proveedor =
@@ -274,6 +277,15 @@ export async function narrarMes(
   if (crudo === null) return fallo("json_invalido", modelo);
 
   const veredicto = verificarAnalisis(crudo as Analisis, verdadDelReporte(reporte, opts.crudos, opts.mercado));
+  if (!veredicto.ok && !opts.__reintento) {
+    /* Un rechazo de verificación es un mal SORTEO, no un modelo roto: el mismo
+       pedido suele salir bien a la segunda (medido: Haiku pasa de ~50% a ~75%
+       con un solo reintento, porque su falla típica es sumar dos cifras válidas).
+       Rechazar sin reintentar deja a la mitad de los dueños sin análisis por algo
+       que cuesta medio centavo arreglar. Uno solo: si vuelve a fallar, el problema
+       no es la suerte. */
+    return narrarMes(reporte, { ...opts, __reintento: true });
+  }
   if (!veredicto.ok) {
     /* Nada a medias: un análisis con una pieza que no se pudo contrastar no se
        "corrige", se descarta. El email sale con las tarjetas deterministas, que
