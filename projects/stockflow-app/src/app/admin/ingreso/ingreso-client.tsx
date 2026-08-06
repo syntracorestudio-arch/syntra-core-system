@@ -27,6 +27,7 @@ import {
 } from "@/app/admin/productos/actions";
 import { quickCreateProduct } from "@/app/pos/actions";
 import { useWedgeScanner } from "@/components/pos/use-wedge-scanner";
+import { RemitoLector } from "./remito-lector";
 import { CameraScanner } from "@/components/pos/camera-scanner";
 
 /** Lo que la línea necesita, tal como lo resuelve `ingreso_buscar` (040). */
@@ -185,6 +186,28 @@ export function IngresoClient({
       clearTimeout(t);
     };
   }, [busqueda]);
+
+  /* Alta desde el remito: igual que `agregar`, pero con la cantidad y el costo
+     que leyó el asistente ya puestos. Si el producto ya está en la lista, se
+     respeta lo que el operario haya escrito — nadie le pisa lo que cargó. */
+  const agregarDesdeRemito = useCallback(
+    (p: IngresoProduct, cantidad: number, costo: number | null) => {
+      setLineas((prev) => {
+        if (prev.some((l) => l.producto.id === p.id)) return prev;
+        return [
+          ...prev,
+          {
+            producto: p,
+            qty: String(cantidad),
+            costo: costo != null ? String(costo) : p.cost != null ? String(p.cost) : "",
+            vence: "",
+            total: "",
+          },
+        ];
+      });
+    },
+    [],
+  );
 
   const agregar = useCallback((p: IngresoProduct) => {
     setLineas((prev) => {
@@ -419,6 +442,11 @@ export function IngresoClient({
       </div>
 
       <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
+
+      {/* La foto del remito va ANTES del buscador: es el atajo para la carga
+          grande. Buscar y escanear siguen abajo, intactos — el remito no
+          reemplaza el flujo a mano, lo saltea cuando se puede. */}
+      <RemitoLector onAgregar={agregarDesdeRemito} />
 
       <div className="mb-4 flex gap-2">
         <div className="relative flex-1">
