@@ -12,6 +12,7 @@ import { destinatario, enviarReporte } from "@/lib/asistente/mailer";
 import { narrarMes } from "@/lib/asistente/narrativa";
 import type { Analisis } from "@/lib/asistente/analisis";
 import { contextoDeMercado } from "@/lib/asistente/mercado";
+import { baseEfimera } from "@/lib/asistente/enlaces";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -44,6 +45,15 @@ export async function GET(request: NextRequest) {
   const auth = request.headers.get("authorization");
   if (!secret || auth !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  /* Un túnel de desarrollo o localhost en la URL base manda botones que mueren en
+     horas. No se bloquea el envío —puede ser una prueba a propósito— pero tiene
+     que gritar en los logs: si no, los links rotos se descubren cuando un cliente
+     hace clic. */
+  const base = process.env.NEXT_PUBLIC_APP_URL;
+  if (baseEfimera(base)) {
+    console.warn(`[monthly-report] NEXT_PUBLIC_APP_URL es un entorno pasajero (${base}): los botones del email van a morir con él.`);
   }
 
   const admin = createAdminClient();

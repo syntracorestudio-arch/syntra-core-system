@@ -43,6 +43,18 @@ export function rutaOportunidad(tipo: TipoOportunidad, ctx: { desde: string }): 
  * manda igual, sin botones. Un mail sin botón es peor que uno con botón; un mail
  * con un link a "undefined/admin/precios" es peor que los dos.
  */
+/**
+ * Dominios que viven horas: túneles de desarrollo y la máquina local. Un link a
+ * uno de estos en el mail de un cliente es peor que no tener botón — hace clic,
+ * le da error y deja de confiar en el resto del reporte.
+ */
+const EFIMERO = /localhost|127\.0\.0\.1|\.trycloudflare\.com|\.ngrok(-free)?\.(io|app|dev)|\.loca\.lt/i;
+
+/** ¿La URL base es de un entorno pasajero? El cron lo avisa en los logs. */
+export function baseEfimera(base: string | null | undefined): boolean {
+  return EFIMERO.test((base ?? "").trim());
+}
+
 export function absolutizar(base: string | null | undefined, ruta: string): string | null {
   const limpia = (base ?? "").trim().replace(/\/+$/, "");
   if (!limpia) return null;
