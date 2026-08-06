@@ -8,10 +8,16 @@ import {
   RefreshCw,
   AlertTriangle,
   ChevronDown,
+  ChevronRight,
   Tag,
   PackageX,
   Users,
   Database,
+  CircleDollarSign,
+  Barcode,
+  FolderTree,
+  PackageSearch,
+  CheckCircle2,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -29,6 +35,55 @@ export type AnalisisGuardado = {
   analisis: Analisis;
   created_at: string;
 };
+
+export type Pendientes = {
+  sin_costo: number;
+  sin_categoria: number;
+  sin_codigo: number;
+  stock_sin_confirmar: number;
+  total_activos: number;
+};
+
+/* ── Pendientes: la deuda administrativa que ninguna otra pantalla junta ────────
+   El criterio (feedback del owner): NO repetir lo que ya muestra otra sección.
+   Stock bajo y vencimientos viven en Resumen; los precios erosionados en
+   Precios. Esto es lo que quedó a medio cargar y degrada todo en silencio. */
+const PENDIENTES_DEF: {
+  clave: keyof Omit<Pendientes, "total_activos">;
+  icono: LucideIcon;
+  titulo: (n: number) => string;
+  porque: string;
+  href: string;
+}[] = [
+  {
+    clave: "sin_costo",
+    icono: CircleDollarSign,
+    titulo: (n) => `${n} ${n === 1 ? "producto" : "productos"} sin costo cargado`,
+    porque: "Sin el costo no sabés cuánto ganás con ellos, y el análisis no puede recomendarte precio.",
+    href: "/admin/productos",
+  },
+  {
+    clave: "sin_codigo",
+    icono: Barcode,
+    titulo: (n) => `${n} ${n === 1 ? "producto" : "productos"} sin código de barras`,
+    porque: "No se pueden escanear en el POS: cada venta los busca a mano.",
+    href: "/admin/productos",
+  },
+  {
+    clave: "sin_categoria",
+    icono: FolderTree,
+    titulo: (n) => `${n} ${n === 1 ? "producto" : "productos"} sin categoría`,
+    porque: "Quedan afuera de los reportes por rubro y del índice de Productos.",
+    href: "/admin/productos",
+  },
+  {
+    clave: "stock_sin_confirmar",
+    icono: PackageSearch,
+    titulo: (n) => `${n} ${n === 1 ? "producto" : "productos"} con stock sin confirmar`,
+    porque: "Quedaron marcados para revisar desde la puesta en marcha.",
+    href: "/admin/productos",
+  },
+];
 
 /* Cada acción del análisis lleva a LA pantalla donde se resuelve — el mismo
    mapa que usan los botones del email, más "datos" que solo existe acá. */
@@ -116,10 +171,12 @@ function CuerpoAnalisis({ a, desde }: { a: Analisis; desde: string }) {
 
 export function AsistenteClient({
   analisis,
+  pendientes,
   activo,
   turnoDeHoyUsado,
 }: {
   analisis: AnalisisGuardado[];
+  pendientes: Pendientes | null;
   activo: boolean;
   turnoDeHoyUsado: boolean;
 }) {
@@ -127,15 +184,20 @@ export function AsistenteClient({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [abierto, setAbierto] = useState<string | null>(null);
+  const [verAnalisis, setVerAnalisis] = useState(false);
 
   const [ultimo, ...anteriores] = analisis;
+  const items = PENDIENTES_DEF.filter((d) => (pendientes?.[d.clave] ?? 0) > 0);
 
   const actualizar = () => {
     setError(null);
     startTransition(async () => {
       const r = await actualizarAnalisis();
       if (!r.ok) setError(r.error);
-      else router.refresh();
+      else {
+        setVerAnalisis(true);
+        router.refresh();
+      }
     });
   };
 
@@ -145,113 +207,146 @@ export function AsistenteClient({
         <PageHeader
           title="Asistente"
           subtitle={
-            ultimo
-              ? `Último análisis: ${fecha(ultimo.created_at)}`
-              : "El diagnóstico de tu negocio, con números verificados."
+            items.length === 0
+              ? "Tu catálogo está al día."
+              : `${items.length} ${items.length === 1 ? "cosa pendiente" : "cosas pendientes"} en tu catálogo`
           }
           icon={Sparkles}
-        >
-          {activo && (
+        />
+      </div>
+
+      {/* ── Pendientes: lo accionable, primero ─────────────────────────────── */}
+      {items.length === 0 ? (
+        <div className="rounded-xl border border-border bg-card px-5 py-6 text-center">
+          <CheckCircle2 className="mx-auto size-7 text-success" />
+          <p className="mt-2 text-sm font-medium">Nada pendiente en el catálogo</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+            Todos tus productos tienen costo, código, categoría y stock confirmado.
+          </p>
+        </div>
+      ) : (
+        <ul className="overflow-hidden rounded-xl border border-border bg-card">
+          {items.map((d, i) => {
+            const n = pendientes?.[d.clave] ?? 0;
+            return (
+              <li key={d.clave} className={cn(i > 0 && "border-t border-border")}>
+                <Link
+                  href={d.href}
+                  className="flex cursor-pointer items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-secondary"
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent">
+                    <d.icono className="size-4.5 text-accent-foreground" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">{d.titulo(n)}</span>
+                    <span className="block text-xs leading-relaxed text-muted-foreground">
+                      {d.porque}
+                    </span>
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* ── El análisis del mes, relegado: es lo que ya llega por mail ─────── */}
+      {activo && (
+        <section className="mt-6">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setVerAnalisis(!verAnalisis)}
+              className="flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ChevronDown className={cn("size-3.5 transition-transform", !verAnalisis && "-rotate-90")} />
+              Análisis del mes
+              {ultimo && <span className="font-normal normal-case tracking-normal">· {fecha(ultimo.created_at)}</span>}
+            </button>
             <button
               type="button"
               onClick={actualizar}
               disabled={pending || turnoDeHoyUsado}
               title={turnoDeHoyUsado ? "Ya actualizaste hoy — mañana podés generar otro" : undefined}
               className={cn(
-                "flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium transition-colors",
+                "flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium transition-colors",
                 pending || turnoDeHoyUsado
                   ? "cursor-default opacity-50"
                   : "hover:border-primary/40 hover:text-primary-ink",
               )}
             >
-              <RefreshCw className={cn("size-4", pending && "animate-spin")} />
-              {pending ? "Analizando tu negocio…" : turnoDeHoyUsado ? "Actualizado hoy" : "Actualizar análisis"}
+              <RefreshCw className={cn("size-3.5", pending && "animate-spin")} />
+              {pending ? "Analizando…" : turnoDeHoyUsado ? "Actualizado hoy" : "Actualizar"}
             </button>
-          )}
-        </PageHeader>
-      </div>
+          </div>
 
-      {error && (
-        <p className="mb-4 flex items-start gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3.5 py-2.5 text-sm text-danger-ink">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          {error}
-        </p>
-      )}
-
-      {!activo ? (
-        /* El add-on apagado no esconde la página: muestra qué se está perdiendo. */
-        <div className="rounded-xl border border-border bg-card px-5 py-8 text-center">
-          <Sparkles className="mx-auto size-8 text-muted-foreground" />
-          <h2 className="mt-3 text-base font-semibold">El asistente no está activo en tu plan</h2>
-          <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-muted-foreground">
-            Con el asistente activo, cada mes recibís un diagnóstico de dónde se te está yendo la
-            plata — precios que quedaron viejos, stock parado, fiado sin cobrar — con los números de
-            tu negocio y la inflación real de tu rubro según INDEC.
-          </p>
-        </div>
-      ) : !ultimo ? (
-        <div className="rounded-xl border border-border bg-card px-5 py-8 text-center">
-          <Sparkles className="mx-auto size-8 text-muted-foreground" />
-          <h2 className="mt-3 text-base font-semibold">Todavía no hay ningún análisis</h2>
-          <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-muted-foreground">
-            Generá el primero: el asistente mira tus precios, tu stock parado, tu fiado y la
-            inflación de tu rubro, y te dice qué hacer esta semana.
-          </p>
-        </div>
-      ) : (
-        <>
-          <section className="rounded-xl border border-border bg-card px-5 py-5">
-            <p className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="rounded-full bg-accent px-2 py-0.5 font-medium text-accent-foreground">
-                {ORIGEN_LABEL[ultimo.origen]}
-              </span>
-              {fecha(ultimo.created_at)}
+          {error && (
+            <p className="mt-3 flex items-start gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3.5 py-2.5 text-sm text-danger-ink">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              {error}
             </p>
-            <CuerpoAnalisis a={ultimo.analisis} desde={ultimo.period_from} />
-          </section>
-
-          {anteriores.length > 0 && (
-            <section className="mt-6">
-              <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Análisis anteriores
-              </h2>
-              <ul className="overflow-hidden rounded-xl border border-border bg-card">
-                {anteriores.map((fila, i) => {
-                  const expandido = abierto === fila.id;
-                  return (
-                    <li key={fila.id} className={cn(i > 0 && "border-t border-border")}>
-                      <button
-                        type="button"
-                        onClick={() => setAbierto(expandido ? null : fila.id)}
-                        className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium">
-                            {fila.analisis.dolor.titulo}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {ORIGEN_LABEL[fila.origen]} · {fecha(fila.created_at)}
-                          </span>
-                        </span>
-                        <ChevronDown
-                          className={cn(
-                            "size-4 shrink-0 text-muted-foreground transition-transform",
-                            expandido && "rotate-180",
-                          )}
-                        />
-                      </button>
-                      {expandido && (
-                        <div className="border-t border-border px-4 py-4">
-                          <CuerpoAnalisis a={fila.analisis} desde={fila.period_from} />
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
           )}
-        </>
+
+          {verAnalisis && (
+            <div className="mt-3">
+              {!ultimo ? (
+                <div className="rounded-xl border border-border bg-card px-5 py-6 text-center text-sm text-muted-foreground">
+                  Todavía no hay ningún análisis. Generá el primero con “Actualizar”.
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-xl border border-border bg-card px-5 py-5">
+                    <p className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="rounded-full bg-accent px-2 py-0.5 font-medium text-accent-foreground">
+                        {ORIGEN_LABEL[ultimo.origen]}
+                      </span>
+                      {fecha(ultimo.created_at)}
+                    </p>
+                    <CuerpoAnalisis a={ultimo.analisis} desde={ultimo.period_from} />
+                  </div>
+
+                  {anteriores.length > 0 && (
+                    <ul className="mt-3 overflow-hidden rounded-xl border border-border bg-card">
+                      {anteriores.map((fila, i) => {
+                        const expandido = abierto === fila.id;
+                        return (
+                          <li key={fila.id} className={cn(i > 0 && "border-t border-border")}>
+                            <button
+                              type="button"
+                              onClick={() => setAbierto(expandido ? null : fila.id)}
+                              className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary"
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-medium">
+                                  {fila.analisis.dolor.titulo}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {ORIGEN_LABEL[fila.origen]} · {fecha(fila.created_at)}
+                                </span>
+                              </span>
+                              <ChevronDown
+                                className={cn(
+                                  "size-4 shrink-0 text-muted-foreground transition-transform",
+                                  expandido && "rotate-180",
+                                )}
+                              />
+                            </button>
+                            {expandido && (
+                              <div className="border-t border-border px-4 py-4">
+                                <CuerpoAnalisis a={fila.analisis} desde={fila.period_from} />
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </section>
       )}
     </div>
   );
