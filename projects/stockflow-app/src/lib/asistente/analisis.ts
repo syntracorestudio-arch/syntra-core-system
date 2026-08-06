@@ -142,6 +142,13 @@ export function verificarAnalisis(a: Analisis, verdad: Verdad): VeredictoAnalisi
       ultimoMotivo = `producto_inexistente:${acc.producto}`;
       continue;
     }
+    /* "Ajustá los precios" vale la mitad que "ajustá los precios y recuperás
+       $57.910 por mes": el monto es lo que convierte un consejo en una decisión.
+       Se exige en las fugas de plata; en las de datos no hay plata que contar. */
+    if (acc.tipo !== "datos" && acc.monto == null) {
+      ultimoMotivo = `accion_sin_monto:${acc.tipo}`;
+      continue;
+    }
     let monto: number | null = null;
     if (acc.monto != null) {
       const m = aNumeroDeMonto(acc.monto);
@@ -159,6 +166,24 @@ export function verificarAnalisis(a: Analisis, verdad: Verdad): VeredictoAnalisi
 
   // Un diagnóstico sin nada que hacer no es un análisis: es una queja.
   if (acciones.length === 0) return { ok: false, motivo: ultimoMotivo };
+
+  /* COBERTURA. En una corrida real el modelo devolvió tres acciones de fiado y
+     dejó afuera $57.910 por mes de margen mal puesto. Un análisis que mira una
+     sola fuga teniendo varias es medio análisis, y el dueño no tiene cómo darse
+     cuenta de lo que no le dijeron. Si el negocio tiene una sola, con esa basta.
+
+     Se mide sobre lo que el modelo PROPUSO, no sobre lo que sobrevivió al
+     filtro: son dos cosas distintas. La cobertura juzga si se tomó el trabajo de
+     mirar todo el negocio; el filtro de arriba juzga si lo que dijo es cierto.
+     Descartar un análisis completo porque una de sus acciones citó mal un
+     producto sería castigar la verdad con la vara del esfuerzo. */
+  const fugasDePlata = verdad.fugas.filter((f) => f !== "datos");
+  const propuestas = new Set(
+    a.acciones.filter((x) => x && verdad.fugas.includes(x.tipo) && x.tipo !== "datos").map((x) => x.tipo),
+  );
+  if (fugasDePlata.length >= 2 && propuestas.size < 2) {
+    return { ok: false, motivo: `cobertura_insuficiente:${[...propuestas].join(",") || "ninguna"}` };
+  }
 
   const extras: { campo: "fuga" | "huecos"; valor: string | null }[] = [
     { campo: "fuga", valor: a.fuga ?? null },

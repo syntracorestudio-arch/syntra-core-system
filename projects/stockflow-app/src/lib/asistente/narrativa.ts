@@ -46,9 +46,17 @@ Respondés SOLO un objeto JSON. Sin markdown, sin bloques de código, sin una pa
 QUÉ VA EN CADA CAMPO
 - dolor.titulo: el problema más caro del mes, en menos de 90 caracteres, sin cifras.
 - dolor.porque: LA CAUSA. Conectá dos hechos que en los datos vienen separados. Acá está todo el valor: "no es que vendas poco, es que vendés mucho de lo que peor te paga" vale más que cualquier cifra repetida.
-- acciones: entre 2 y 4, ejecutables esta semana, con el número adentro. "producto" solo si la acción es sobre un producto puntual, con el nombre EXACTO como te lo paso. "monto" es la plata en juego, tal cual te la paso.
+- acciones: entre 2 y 4, ejecutables esta semana. "producto" solo si la acción es sobre un producto puntual, con el nombre EXACTO como te lo paso. "monto" es la plata en juego, tal cual te la paso; es OBLIGATORIO salvo en las acciones de tipo "datos".
 - fuga: un patrón o riesgo que NO se ve en las tarjetas del email. null si no hay.
 - huecos: qué dato falta y qué conclusión invalida. null si está completo.
+
+CÓMO ELEGIR EL DOLOR
+En "fugas.ranking" te paso cada fuga con la plata que representa AL AÑO. Elegí por ahí, no por lo que te parezca más grave. Y mirá "recurrente": un margen mal puesto se cobra todos los meses, mientras que la plata parada y el fiado se recuperan una sola vez. Dos fugas de monto parecido pueden diferir diez veces al año — esa es la que importa.
+
+CÓMO ELEGIR LAS ACCIONES
+- Tienen que cubrir fugas DISTINTAS. Tres acciones sobre el mismo problema es medio análisis, y el dueño no tiene cómo darse cuenta de lo que no le dijiste.
+- Cada una dice cuánta plata recupera. "Ajustá los precios" vale la mitad que "ajustá los precios y recuperás $57.910 por mes".
+- PROHIBIDO el consejo genérico. Si la recomendación le serviría igual a cualquier kiosco del país, no la escribas: no aporta nada y le hace perder la confianza en todo lo demás. Nada de "mejorá la rotación", "implementá recordatorios de pago", "controlá el stock", "hacé promociones". Cada acción tiene que apoyarse en un número concreto que te pasé.
 
 SI TE PASO "mercado"
 Es la inflación oficial del INDEC para el rubro. Sirve para lo que ningún dato interno puede: comparar cuánto subió el mercado contra cuánto remarcó el dueño. Si el rubro subió y sus precios no se movieron, ahí está la fuga y hay que decirlo.

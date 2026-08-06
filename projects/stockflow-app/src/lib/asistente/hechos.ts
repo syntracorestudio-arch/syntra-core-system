@@ -55,6 +55,13 @@ export type Hechos = {
    * remarcar", que es exactamente lo que el email ya muestra en una tarjeta.
    */
   fugas?: {
+    /**
+     * El ranking por plata REAL. Las tres fugas suelen tener montos parecidos,
+     * pero remarcar se repite todos los meses y las otras dos son por única vez:
+     * $57.910/mes son $694.920 al año contra $59.254 que se recuperan una sola
+     * vez. Sin esto el modelo elige casi al azar cuál es "el dolor".
+     */
+    ranking: { tipo: string; plataAlAnio: number; recurrente: boolean }[];
     remarcar: {
       totalPorMes: number;
       margenObjetivoPct: number | null;
@@ -105,9 +112,23 @@ const num = (v: unknown): number => {
 function fugasDe(c: Crudos): NonNullable<Hechos["fugas"]> {
   const res = c.datos.resumen;
   const atrasados = res.credit?.overdue ?? [];
+  const porMes = $(num(c.margenes.total_por_mes));
+  const muerto = $(num(res.dead_stock?.total));
+  const fiado = $(atrasados.reduce((s, x) => s + num(x.owed), 0));
+  /* Un margen mal puesto se cobra cada mes; la plata parada y el fiado se
+     recuperan una sola vez. Comparar los tres por su monto del mes es comparar
+     mal, y lleva a priorizar la fuga equivocada. */
+  const ranking = [
+    { tipo: "remarcar", plataAlAnio: porMes * 12, recurrente: true },
+    { tipo: "stock_muerto", plataAlAnio: muerto, recurrente: false },
+    { tipo: "fiado", plataAlAnio: fiado, recurrente: false },
+  ]
+    .filter((f) => f.plataAlAnio > 0)
+    .sort((a, b) => b.plataAlAnio - a.plataAlAnio);
   return {
+    ranking,
     remarcar: {
-      totalPorMes: $(num(c.margenes.total_por_mes)),
+      totalPorMes: porMes,
       margenObjetivoPct: c.margenes.min_margen == null ? null : num(c.margenes.min_margen),
       productos: (c.margenes.productos ?? []).slice(0, 6).map((p) => ({
         nombre: p.name,
@@ -119,7 +140,7 @@ function fugasDe(c: Crudos): NonNullable<Hechos["fugas"]> {
       })),
     },
     stockMuerto: {
-      total: $(num(res.dead_stock?.total)),
+      total: muerto,
       productos: (res.dead_stock?.items ?? []).slice(0, 5).map((p) => ({
         nombre: p.name,
         stock: num(p.stock),
@@ -127,7 +148,7 @@ function fugasDe(c: Crudos): NonNullable<Hechos["fugas"]> {
       })),
     },
     fiado: {
-      atrasado: $(atrasados.reduce((s, x) => s + num(x.owed), 0)),
+      atrasado: fiado,
       clientes: atrasados.length,
       // Viene ordenado por antigüedad: el primero es el más viejo, no el que más debe.
       diasDelMasViejo: num(atrasados[0]?.dias),
@@ -238,6 +259,7 @@ export function valoresPermitidos(r: ReporteMensual, crudos?: Crudos, mercado?: 
 
   // Todo el detalle accionable: precios, márgenes, unidades, plata parada.
   if (h.fugas) {
+    for (const f of h.fugas.ranking) sumar(f.plataAlAnio);
     sumar(h.fugas.remarcar.totalPorMes);
     sumar(h.fugas.remarcar.margenObjetivoPct);
     for (const p of h.fugas.remarcar.productos) {

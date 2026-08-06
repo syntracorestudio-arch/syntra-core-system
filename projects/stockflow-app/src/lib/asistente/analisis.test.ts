@@ -35,6 +35,7 @@ const bueno = (over: Partial<Analisis> = {}): Analisis => ({
       producto: "Chesterfield 100g 8",
       monto: 17100,
     },
+    { tipo: "fiado", texto: "Salí a cobrar: son 3 clientes.", producto: null, monto: 60450 },
   ],
   fuga: "Tenés $59.254 parados en productos que no se mueven hace más de 30 días.",
   huecos: "250 productos sin costo cargado: la ganancia real puede ser otra.",
@@ -42,13 +43,16 @@ const bueno = (over: Partial<Analisis> = {}): Analisis => ({
 });
 
 const v = (a: Analisis) => verificarAnalisis(a, REAL);
+/** Para los casos de UNA acción: un negocio con una sola fuga no necesita cubrir dos. */
+const v1 = (a: Analisis, tipo: "remarcar" | "stock_muerto" | "fiado" = "fiado") =>
+  verificarAnalisis(a, { ...REAL, fugas: [tipo, "datos"] });
 
 // ── Lo que tiene que pasar ─────────────────────────────────────────────────────
 
 test("un análisis con todo verificable pasa entero", () => {
   const r = v(bueno());
   assert.equal(r.ok, true);
-  assert.equal(r.ok && r.analisis.acciones.length, 1);
+  assert.equal(r.ok && r.analisis.acciones.length, 2);
 });
 
 // ── Lo que el texto libre NO podía atajar ──────────────────────────────────────
@@ -134,7 +138,7 @@ test("los campos opcionales pueden faltar sin romper nada", () => {
 
 test("un monto que viene como texto se normaliza, pero sigue teniendo que existir", () => {
   const conMonto = (monto: unknown) =>
-    v(bueno({ acciones: [{ tipo: "fiado", texto: "Salí a cobrar.", producto: null, monto } as never] }));
+    v1(bueno({ acciones: [{ tipo: "fiado", texto: "Salí a cobrar.", producto: null, monto } as never] }));
   assert.equal(conMonto("$60.450").ok, true, "la forma se tolera");
   assert.equal(conMonto("60450").ok, true);
   assert.equal(conMonto("$99.999").ok, false, "el valor no");
@@ -145,8 +149,63 @@ test("un producto nombrado a medias es un producto inventado", () => {
   // Caso real: el modelo escribió "Chesterfield 1.5L", una variante que no existe
   // armada con la marca de un producto real. Manda al dueño a buscar fantasmas.
   const conTexto = (texto: string) =>
-    v(bueno({ acciones: [{ tipo: "stock_muerto", texto, producto: null, monto: null }] }));
+    v1(bueno({ acciones: [{ tipo: "stock_muerto", texto, producto: null, monto: 59254 }] }), "stock_muerto");
   assert.equal(conTexto("Liquidá Chesterfield 1.5L esta semana.").ok, false);
   assert.equal(conTexto("Liquidá Chesterfield 100g 8 esta semana.").ok, true, "el nombre completo pasa");
   assert.equal(conTexto("Liquidá lo que no rota esta semana.").ok, true, "sin nombrar producto, pasa");
+});
+
+// ── Que el análisis no PUEDA ser pobre ────────────────────────────────────────
+
+test("con varias fugas, tres acciones sobre la misma no alcanzan", () => {
+  // Corrida real: el modelo devolvió tres acciones de fiado y dejó afuera
+  // $57.910 por mes de margen mal puesto. Cubrir una sola fuga es media tarea.
+  const r = v(
+    bueno({
+      acciones: [
+        { tipo: "fiado", texto: "Llamá a los 3 clientes.", producto: null, monto: 60450 },
+        { tipo: "fiado", texto: "Pactá un plan de pago.", producto: null, monto: 60450 },
+        { tipo: "fiado", texto: "Cortá el fiado nuevo.", producto: null, monto: 60450 },
+      ],
+    }),
+  );
+  assert.equal(r.ok, false);
+  assert.match(r.ok === false ? r.motivo : "", /cobertura/i);
+});
+
+test("si el negocio tiene una sola fuga, con esa alcanza", () => {
+  const unaSola = { ...REAL, fugas: ["fiado"] as const };
+  const r = verificarAnalisis(
+    bueno({ acciones: [{ tipo: "fiado", texto: "Llamá a los 3 clientes.", producto: null, monto: 60450 }] }),
+    unaSola,
+  );
+  assert.equal(r.ok, true);
+});
+
+test("una acción sobre plata cuantificada tiene que decir cuánta", () => {
+  // "Ajustá los precios" vale la mitad que "Ajustá los precios y recuperás
+  // $57.910 por mes". El monto es lo que convierte el consejo en una decisión.
+  const sinMonto = v(
+    bueno({
+      acciones: [
+        { tipo: "remarcar", texto: "Ajustá los precios sugeridos.", producto: null, monto: null },
+        { tipo: "fiado", texto: "Salí a cobrar.", producto: null, monto: 60450 },
+      ],
+    }),
+  );
+  assert.deepEqual(sinMonto.ok && sinMonto.analisis.acciones.map((a) => a.tipo), ["fiado"]);
+});
+
+test("las acciones sobre datos faltantes no necesitan monto: no hay plata que contar", () => {
+  const r = v(
+    bueno({
+      acciones: [
+        { tipo: "datos", texto: "Cargá los costos que faltan.", producto: null, monto: null },
+        { tipo: "fiado", texto: "Salí a cobrar.", producto: null, monto: 60450 },
+        { tipo: "remarcar", texto: "Subí los 6 productos al precio sugerido.", producto: null, monto: 57910 },
+      ],
+    }),
+  );
+  assert.equal(r.ok, true, r.ok === false ? r.motivo : "");
+  assert.equal(r.analisis.acciones.length, 3);
 });
