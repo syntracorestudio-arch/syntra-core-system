@@ -41,6 +41,8 @@ export type Verdad = {
   numeros: number[];
   productos: string[];
   fugas: readonly TipoAccion[];
+  /** La fuga #1 del ranking por plata al año. Si existe, ninguna acción puede ignorarla. */
+  principal?: TipoAccion | null;
 };
 
 export type VeredictoAnalisis = { ok: true; analisis: Analisis } | { ok: false; motivo: string };
@@ -188,6 +190,15 @@ export function verificarAnalisis(a: Analisis, verdad: Verdad): VeredictoAnalisi
   );
   if (fugasDePlata.length >= 2 && propuestas.size < 2) {
     return { ok: false, motivo: `cobertura_insuficiente:${[...propuestas].join(",") || "ninguna"}` };
+  }
+
+  /* La fuga MÁS CARA no puede quedar sin qué-hacer. Pasó en una corrida real:
+     el dolor nombraba el remarcado como problema #1 y las acciones cubrían las
+     otras dos fugas — cobertura formalmente cumplida, botón principal ausente.
+     Igual que la cobertura, se mide sobre lo PROPUESTO. */
+  if (verdad.principal && verdad.fugas.includes(verdad.principal)) {
+    const atacada = a.acciones.some((x) => x && x.tipo === verdad.principal);
+    if (!atacada) return { ok: false, motivo: `sin_accion_principal:${verdad.principal}` };
   }
 
   const extras: { campo: "fuga" | "huecos"; valor: string | null }[] = [

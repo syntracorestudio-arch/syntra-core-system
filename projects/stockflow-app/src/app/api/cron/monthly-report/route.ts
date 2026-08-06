@@ -202,6 +202,24 @@ export async function GET(request: NextRequest) {
         enviados++;
         await registrar({ status: "sent", last_error: null, sent_at: new Date().toISOString() });
         // Solo se registra lo que se GENERÓ en este run (si se reusó, ya está en la fila).
+        /* La página del asistente (043) muestra el historial unificado: el
+           análisis del email también se guarda ahí. No fatal — si falla, el
+           email ya salió y eso es lo que importa. */
+        if (narrativa?.analisis) {
+          const { error: errHist } = await admin.from("asistente_analisis").insert({
+            store_id: store.id,
+            origen: "mensual",
+            dia: todayInTz(store.timezone),
+            period_from: from,
+            period_to: to,
+            estado: "ok",
+            analisis: narrativa.analisis,
+            modelo: narrativa.modelo,
+            tokens_in: narrativa.tokensIn,
+            tokens_out: narrativa.tokensOut,
+          });
+          if (errHist) console.error("[monthly-report] no se pudo guardar el análisis en el historial:", errHist.message);
+        }
         if (narrativa && narrativa.estado !== "desactivada") {
           await registrarNarrativa({
             narrativa: narrativa.analisis ? JSON.stringify(narrativa.analisis) : null,

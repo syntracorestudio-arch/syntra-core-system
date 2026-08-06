@@ -7,6 +7,7 @@ import {
   CalendarClock,
   Settings,
   ChartColumn,
+  Sparkles,
   Wallet,
   Users2,
   TrendingUp,
@@ -68,6 +69,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/fiado", label: "Fiado", icon: Users },
       { href: "/admin/gastos", label: "Gastos", icon: Receipt },
       { href: "/admin/reportes", label: "Reportes", icon: ChartColumn },
+      /* El add-on de IA vive junto a Reportes: es la lectura ANALIZADA de lo
+         mismo que Reportes muestra crudo. La página gatea por flag; acá no. */
+      { href: "/admin/asistente", label: "Asistente", icon: Sparkles },
     ],
   },
   {

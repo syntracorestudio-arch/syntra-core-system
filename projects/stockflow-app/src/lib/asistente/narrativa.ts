@@ -55,6 +55,7 @@ En "fugas.ranking" te paso cada fuga con la plata que representa AL AÑO. Elegí
 
 CÓMO ELEGIR LAS ACCIONES
 - Tienen que cubrir fugas DISTINTAS. Tres acciones sobre el mismo problema es medio análisis, y el dueño no tiene cómo darse cuenta de lo que no le dijiste.
+- La PRIMERA fuga del ranking lleva acción SÍ O SÍ. Un análisis cuyo problema más caro no tiene qué-hacer se descarta entero.
 - Cada una dice cuánta plata recupera. "Ajustá los precios" vale la mitad que "ajustá los precios y recuperás $57.910 por mes".
 - PROHIBIDO el consejo genérico. Si la recomendación le serviría igual a cualquier kiosco del país, no la escribas: no aporta nada y le hace perder la confianza en todo lo demás. Nada de "mejorá la rotación", "implementá recordatorios de pago", "controlá el stock", "hacé promociones". Cada acción tiene que apoyarse en un número concreto que te pasé.
 

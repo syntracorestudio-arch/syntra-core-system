@@ -335,7 +335,14 @@ export function verdadDelReporte(r: ReporteMensual, crudos?: Crudos, mercado?: M
   if ((h.fugas?.stockMuerto.total ?? 0) > 0) fugas.push("stock_muerto");
   if ((h.fugas?.fiado.atrasado ?? 0) > 0) fugas.push("fiado");
   if ((h.saludDelDato?.productosSinCosto ?? 0) > 0 || (h.saludDelDato?.preciosViejos ?? 0) > 0) fugas.push("datos");
-  return { numeros: valoresPermitidos(r, crudos, mercado), productos: nombresPermitidos(r, crudos), fugas };
+  // La fuga #1 por plata al año: el análisis está obligado a atacarla.
+  const principal = (h.fugas?.ranking[0]?.tipo ?? null) as TipoAccion | null;
+  return {
+    numeros: valoresPermitidos(r, crudos, mercado),
+    productos: nombresPermitidos(r, crudos),
+    fugas,
+    principal: principal && fugas.includes(principal) ? principal : null,
+  };
 }
 
 export type Veredicto = { ok: true } | { ok: false; motivo: string };

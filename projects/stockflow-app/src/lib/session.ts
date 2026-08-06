@@ -31,6 +31,10 @@ export type Store = {
   timezone: string;
   branding: { accent?: string; logo_url?: string } | null;
   status: string;
+  /** Rubro del negocio (019). Decide qué series de INDEC mira el asistente. */
+  vertical: string;
+  /** Add-on del Asistente IA (019). Gatea la página del asistente y sus crons. */
+  ai_assistant_enabled: boolean;
 };
 
 export type SessionContext = {
@@ -52,7 +56,7 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
     .select(
       `id, role, display_name, can_sell_on_credit, can_apply_discount,
        can_void_sale, can_receive_stock, can_see_costs,
-       store:stores!inner ( id, name, slug, timezone, branding, status )`,
+       store:stores!inner ( id, name, slug, timezone, branding, status, vertical, ai_assistant_enabled )`,
     )
     .eq("profile_id", auth.user.id)
     .eq("status", "active")
