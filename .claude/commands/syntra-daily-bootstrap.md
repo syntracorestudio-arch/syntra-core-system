@@ -1,5 +1,16 @@
 # SYNTRA CORE — DAILY BOOTSTRAP (V2, 2026-07-07)
 
+> **PRIMERO, ANTES DE CUALQUIER ANÁLISIS O PLAN: verificar que estás sobre main
+> al día** (`git fetch` + `git status` contra `origin/main`) y **REPORTAR el
+> commit base**. Si el checkout está en otra rama o detrás de main, decirlo en la
+> primera línea y traer los archivos relevantes de main antes de leer nada.
+>
+> No es ceremonia: **pasó dos veces** que un análisis se escribió contra un
+> checkout viejo (el reintento de F0 y el plan de Promociones, 2026-08-07, con el
+> checkout 156 commits atrás). El síntoma es siempre el mismo — el análisis
+> reporta como bloqueante algo que main ya resolvió, y el plan sale caro y mal.
+> El costo de verificar es un comando; el de no verificar es un plan entero.
+
 Arranque de sesión. Read-only: diagnóstico sí, cambios no (nada de commits,
 stashes ni ediciones durante el bootstrap).
 
@@ -14,6 +25,10 @@ stashes ni ediciones durante el bootstrap).
 ## Qué verificar (rápido, en paralelo donde se pueda)
 
 ```text
+0. BASE (bloqueante): git fetch origin · ¿estoy en main y al día?
+   git rev-parse --short origin/main  → reportar el commit base SIEMPRE.
+   Si NO estoy en main: git cherry origin/main HEAD (¿cuánto falta absorber?)
+   y decir explícitamente que el checkout no es main antes de analizar nada.
 1. Git: branch actual · status · log -3 · stashes.
 2. PRs abiertos: "/c/Program Files/GitHub CLI/gh.exe" pr list --state open
    (separar: web SYNTRA vs StudioFlow/pilates).
@@ -50,6 +65,7 @@ stashes ni ediciones durante el bootstrap).
 
 ```text
 # BOOTSTRAP · <fecha>
+Base: <origin/main = sha · estoy en main SÍ/NO — si NO, cuánto falta absorber>
 Git: <branch · limpio/sucio · último commit>
 PRs abiertos: <n web / n pilates — cuáles esperan merge>
 Próxima acción (TASKS.md): <línea>
