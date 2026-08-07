@@ -110,8 +110,8 @@ type LivingBackgroundProps = {
 ## Precedencia
 
 Normativa para la implementación de la web viva en SYNTRA. Subordinada a
-`living-web-doctrine.md`, `ROLE-AUTHORITY-MAP.md`, `CLAUDE.md`, el Design System Guardian
-y el Visual Quality Director. Las skills externas (p. ej. `ui-ux-pro-max`) son
+`living-web-doctrine.md`, `design-freedom-v2.md`, `CLAUDE.md` y el
+`visual-quality-director`. Las skills externas (p. ej. `ui-ux-pro-max`) son
 consultivas y no pueden contradecirla.
 
 ## Referencias

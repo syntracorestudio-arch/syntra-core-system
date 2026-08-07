@@ -1,15 +1,26 @@
 ---
 name: syntra-reference-lock
-description: Use AFTER the owner approves a live prototype (variantes-vivas workflow) to DOCUMENT the approved direction as docs/reference-locks/<section>.md — decisions, iterations, verified criteria, files. V2 (2026-07-07): documentation artifact written post-approval; it is NOT a permission gate before code anymore.
+description: Use in TWO moments of section work. (1) BEFORE redesigning or touching a section that already has a lock — hero, servicios, casos, proceso, contacto, nosotros, faq, footer — read docs/reference-locks/<section>.md to know what was approved and why. (2) AFTER the owner approves a live prototype, write the lock: decisions, iterations rejected, verified criteria, files touched.
 ---
 
 # SYNTRA Reference Lock
 
-**REFORMA V2 (2026-07-07): esta skill cambió de rol.** El workflow vigente es VARIANTES VIVAS (design-freedom-v2 §4): los prototipos se construyen directamente CON motion y el owner los aprueba EN VIVO en su navegador — ese OK es el gate. El reference-lock se escribe **DESPUÉS de la aprobación**, como DOCUMENTACIÓN de la dirección elegida (decisiones del owner, iteraciones, criterios verificados, archivos). Ya NO es un permiso previo al código. El formato del artefacto (abajo) sigue vigente como plantilla de documentación; ignorar toda regla de este archivo que condicione el código a un lock aprobado.
+**Cargar esta skill es obligatorio; el lock NO es un permiso.** Son dos cosas
+distintas y conviene no confundirlas (regla vigente desde la reforma V2):
+
+- **DISPARO (obligatorio).** Si vas a tocar una sección que ya tiene lock, leelo
+  ANTES de escribir código. No es burocracia: es enterarte de qué se aprobó, qué
+  se rechazó y por qué, para no volver a proponer lo que el owner ya descartó.
+- **APROBACIÓN (solo el owner).** El gate de commit es su OK sobre el prototipo
+  VIVO en su navegador (variantes vivas, design-freedom-v2 §4). El lock se
+  escribe DESPUÉS, como documentación de lo aprobado — nunca como permiso previo.
+
+Ignorá toda regla de este archivo que condicione el código a un lock aprobado.
 
 ## When this applies
-Run this for any **Categoría B / C** visual task with relevant visual work, AFTER `syntra-premium-section-design` (concept) and BEFORE any implementation:
-- Hero, Casos, Servicios, Proceso, Contacto, Footer, signature pieces, protagonist backgrounds, premium scenes, hero visuals, image/3D/illustration-led sections.
+- **Antes** de rediseñar o tocar una sección CON lock: hero, servicios, casos,
+  proceso, contacto, nosotros, faq, footer — leer `docs/reference-locks/<section>.md`.
+- **Después** del OK del owner sobre el prototipo vivo: escribir/actualizar el lock.
 - **Skip it** for Categoría A (fast-track: spacing, hover, typo, responsive polish, bugfix, perf) and for pure code-first sections with no protagonist visual.
 - When in doubt whether the task needs a lock, treat it as needing one.
 
@@ -51,26 +62,25 @@ If there is no concrete visual reference, the lock stays `draft` and **does not 
 7. If the main protagonist is image/mockup/object/3D/protagonist background → **default asset-first**.
 8. Claude does not invent premium protagonist visuals from code alone without explicit owner approval.
 9. Anti-loop: **max 2 code iterations** of a signature piece; on the 3rd, return to the lock (the reference was wrong) instead of patching code.
-10. If the section is a **signature piece** that needs to step outside the 90/10 blue rule (white/light dominant, silver, glass, electric reflections, a controlled non-blue accent), the lock MUST declare a **Signature Palette Exception** (see below). Without it, the Design System Guardian may veto the brand drift.
+10. The lock **records** the palette actually used, including anything unusual, and why. It does not request permission for it — see below.
 
-## Signature palette exception (piezas-firma)
-The SYNTRA palette (90/10 blue; cyan = HECHO; sober base) is the default for every
-section. A **signature piece** (Hero visual, protagonist 3D object, protagonist
-background, brand scene, high-impact first-impression asset) may step outside it —
-but **only if the approved lock declares it**. The declaration must include:
-- which extra colors/materials are allowed;
-- why they are needed;
-- their limits (how far, no further);
-- how the SYNTRA brand is kept (not generic/template);
-- how legibility is protected (text/CTA contrast).
-- reference to `docs/creative-library/signature-palette-exception.md`.
+## Paleta: qué registra el lock (REFORMA V2, 2026-07-07)
+La regla **90/10 azul**, el **cyan = solo HECHO** y el **trámite de excepción de
+paleta** quedaron **DEROGADOS** por `docs/creative-library/design-freedom-v2.md`.
+No hay que declarar una excepción por adelantado ni pedir permiso para salirse de
+una proporción: la familia de marca (slate + electric + cyan + violeta + warm) es
+de **uso libre con criterio**, y en los componentes de sistema el cyan conserva su
+semántica de resultado.
 
-Rules: common sections (Servicios/Casos/Proceso/Contacto/Sistema/UI) stay under the
-standard 90/10 — for them the exception is "no aplica". The exception NEVER allows
-gamer/crypto/template-AI, random colors, rainbow gradients, or loss of legibility.
-It does NOT suspend the Design System Guardian: it gives it a **declared, bounded**
-exception. If the lock does not declare the exception, the DSG keeps its veto over
-brand drift.
+Lo que el lock sí hace, **después** de la aprobación, es dejar registro para que
+la próxima sección no tenga que re-deducirlo:
+- qué colores/materiales terminó usando la pieza y por qué;
+- hasta dónde llega (el límite que el owner aceptó en vivo);
+- cómo se mantiene la marca (no genérico/template);
+- cómo queda protegida la legibilidad (contraste de texto/CTA, AA en el peor caso).
+
+Los únicos límites duros siguen siendo los técnicos y los de marca: nada
+gamer/crypto/template-IA, ni degradados arcoíris, ni pérdida de legibilidad.
 
 ## Output Claude must deliver
 When this skill runs:

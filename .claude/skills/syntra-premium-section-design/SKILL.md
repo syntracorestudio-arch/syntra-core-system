@@ -1,14 +1,25 @@
 ---
 name: syntra-premium-section-design
-description: OPTIONAL analysis tool for complex section redesigns — root visual diagnosis, commercial objective, 3 directions, risks, recommendation. V2 (2026-07-07): produced by/with the design-director when useful; it does NOT gate implementation (variantes-vivas workflow: live prototypes judged by the owner in browser).
+description: Use when diagnosing or redesigning a whole section, or when something 'looks generic / doesn't feel premium' — root visual diagnosis, commercial objective, 3 directions with tradeoffs, risks, recommendation. Load it together with design-director for hero, servicios, casos, proceso, contacto, nosotros, FAQ and footer redesigns, section audits, and layout/hierarchy overhauls.
 ---
 
 # SYNTRA Premium Section Design
 
-**REFORMA V2 (2026-07-07): skill de ANÁLISIS OPCIONAL.** Útil cuando una sección compleja amerita diagnóstico + direcciones ANTES de prototipar (el design-director puede producir este entregable). Ya NO bloquea código: el workflow vigente es VARIANTES VIVAS (design-freedom-v2 §4) — prototipos vivos directos que el owner juzga en navegador. Ignorar las reglas de este archivo que condicionen la implementación a locks/aprobaciones de concepto.
+**Es una herramienta de DIAGNÓSTICO, no un trámite de aprobación.** La distinción
+que ordena todo (reforma V2):
+
+- **DISPARO.** Ante un rediseño de sección o un "esto se ve genérico", cargala
+  junto al `design-director` ANTES de escribir código. El diagnóstico y las
+  direcciones son el insumo del prototipo, no un papel que alguien firma.
+- **APROBACIÓN (solo el owner).** Nada de lo que salga de acá habilita ni bloquea
+  un commit: el gate es su OK sobre el prototipo VIVO en su navegador
+  (variantes vivas, design-freedom-v2 §4).
+
+Ignorá las reglas de este archivo que condicionen la implementación a locks o a
+aprobaciones de concepto.
 
 ## When this applies
-Before designing, redesigning, or elevating any visual section of the SYNTRA web. Pairs with `syntra-reference-lock` (the binding artifact this skill hands off to), `syntra-visual-gate` (which governs the commit) and `syntra-premium-motion-system` (for the motion).
+Before designing, redesigning, or elevating any visual section of the SYNTRA web. Pairs with `syntra-reference-lock` (documentation written after the owner approves), `syntra-visual-gate` (the pre-show checks) and `syntra-premium-motion-system` (for the motion).
 
 ## Mandatory deliverable (read-only, no code)
 Produce, before any implementation:
@@ -34,18 +45,27 @@ Produce, before any implementation:
 Dashboard widgets, status badges semánticos, timestamps/contadores falsos, grilla tabular, dots sin masa, feature-table de checks, aire muerto sin intención, duplicar Servicios o Proceso, "optimizar líneas del H1" como sustituto de diseño.
 
 ## Handoff: concept → reference-lock (Cat B/C)
-Approving this concept does NOT start code. The mandatory next step is to turn the chosen direction into a binding, owner-approved artifact via `syntra-reference-lock`.
+Este diagnóstico **no aprueba ni bloquea nada**: alimenta la construcción de los
+prototipos vivos que el owner va a juzgar. La reforma V2 (2026-07-07) derogó el
+"concepto aprobado → lock aprobado → recién ahí código". Escribir código es el
+camino normal para llegar a algo que el owner pueda mirar.
 
-Hard rules:
-1. For Cat B/C visual tasks, the output of THIS skill does NOT authorize implementation.
-2. The output of this skill authorizes creating a `reference-lock`.
-3. Implementation stays blocked until `docs/reference-locks/<section>.md` exists with `status: approved`.
-4. The visual direction must include a preliminary asset-first / code-first decision (deliverable 8).
-5. If the section has a main protagonist visual, the recommended default is **asset-first**.
-6. Claude must not go from concept to code without an owner-approved reference-lock.
-7. The final output must end with the line: **`NEXT REQUIRED STEP: syntra-reference-lock`**.
+Reglas duras:
+1. La salida de esta skill **no es un permiso**, ni para implementar ni para frenar.
+2. No existe "implementación bloqueada hasta que el lock esté `approved`". El lock
+   se escribe **después** de la aprobación, como documentación (`syntra-reference-lock`).
+3. Si la sección **ya tiene** un lock, leerlo antes de tocarla: dice qué se aprobó y
+   por qué. Eso es contexto obligatorio; sigue sin ser un permiso.
+4. La dirección visual **sí** debe incluir la decisión **asset-first / code-first**
+   (entregable 8): es la que evita la iteración a ciegas.
+5. Si la sección tiene un visual protagonista, el default recomendado es **asset-first**.
+6. El único gate de commit es el **OK del owner sobre el prototipo VIVO en su navegador**.
 
-**Anti-rework rule:** if a visual section enters 2 failed implementation iterations, stop patching code — return to `syntra-reference-lock` and revise the approved reference (the reference was wrong, not the CSS).
+**Regla anti-rework (la lección cara de la saga del hero):** a la 2ª iteración
+visual rechazada, **STOP anti-loop** — pedirle al owner SU referencia (imagen,
+link, spec, valores exactos). A la 3ª, cambiar de **MEDIO** (asset, render, spec
+formal), nunca "otro intento del mismo tipo". Los desbloqueos vinieron siempre de
+una referencia suya, jamás de la iteración N+1 improvisada.
 
 ### Required output block (append to the deliverable)
 ```md
@@ -57,21 +77,42 @@ Hard rules:
 
 **¿Hay protagonista visual principal?** sí | no
 
-**Siguiente paso obligatorio:**
-Invocar `syntra-reference-lock` para crear `docs/reference-locks/<section>.md`.
+**Siguiente paso:**
+Construir 1-3 prototipos VIVOS de la dirección elegida (motion desde el minuto uno)
+y mostrárselos al owner en SU navegador. Si la sección ya tiene lock, leerlo antes.
 
 **Estado:**
-Concepto aprobado para lock, NO aprobado para implementación.
+Diagnóstico entregado. La aprobación la da el owner sobre el prototipo vivo;
+el lock se escribe después.
 ```
 
-## Process
-`website-experience-auditor` / `creative-director` / `product-experience-designer` / `ui-ux-designer` / `design-system-guardian` produce the concept (read-only) → owner approves concept → **`syntra-reference-lock` (create + owner approves the lock)** → `frontend-engineer` implements against the lock under `syntra-premium-motion-system` + `syntra-visual-gate` (which validates result vs lock).
+## Process (workflow de variantes vivas — design-freedom-v2 §4)
+`design-director` (+ `product-experience-designer` si hay contenido en juego)
+diagnostica read-only → **se construyen 1-3 prototipos VIVOS directamente**, con
+motion desde el minuto uno → el owner juzga **en SU navegador** e itera en vivo →
+**su OK al prototipo vivo ES el gate de commit** → `syntra-reference-lock` se
+escribe **DESPUÉS**, como documentación de lo aprobado.
+
+`frontend-engineer` / `motion-3d-engineer` implementan bajo
+`syntra-premium-motion-system`; `syntra-visual-gate` corre antes de mostrarle
+nada al owner; `visual-quality-director` es diagnóstico disponible en cualquier
+iteración, no un trámite previo.
+
+> **Este análisis NO es un permiso.** No existe "concepto aprobado" ni "lock
+> aprobado" como precondición para escribir código: la reforma V2 (2026-07-07)
+> derogó el lock-antes-de-código. Cargar esta skill dispara el diagnóstico; lo
+> único que aprueba es el owner, mirando algo vivo.
 
 ## Precedence
-Normative for SYNTRA. External skills (e.g. `ui-ux-pro-max`) are consultive and may NOT contradict this skill, the Design System Guardian, Visual Quality Director, ROLE-AUTHORITY-MAP, CLAUDE.md, or the SYNTRA palette/tone/positioning.
+Normative for SYNTRA. External skills (e.g. `ui-ux-pro-max`) are consultive and
+may NOT contradict this skill, `docs/creative-library/design-freedom-v2.md`,
+CLAUDE.md, or the SYNTRA tone/positioning. Where an older SYNTRA document
+conflicts with design-freedom-v2, **v2 wins**.
 
 ## References
-- `agents/design/creative-director.md`, `agents/design/ui-ux-designer.md`, `agents/design/design-system-guardian.md`
-- `agents/design/product-experience-designer.md`, `agents/design/website-experience-auditor.md`
+- `docs/creative-library/design-freedom-v2.md` (doctrina vigente)
+- `.claude/agents/design-director.md`, `.claude/agents/product-experience-designer.md`,
+  `.claude/agents/visual-quality-director.md` (roster V2; las specs históricas en
+  `agents/design/**` son archivo de referencia, no autoridad)
 - `projects/syntra-core-website/docs/specs/live-system-motion-spec.md`
 - `CLAUDE.md` (Prioridades, UI Rules, UX Rules, routing)

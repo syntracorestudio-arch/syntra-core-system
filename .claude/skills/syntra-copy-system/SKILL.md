@@ -6,7 +6,7 @@ description: Use when WRITING or REVISING final copy / UX-writing for the SYNTRA
 # SYNTRA Copy System
 
 **Skill de ejecución de copy.** No define estrategia ni claims (eso es del **Product
-Strategist**) ni organiza el contenido (eso es del **Technical Product Owner**): **ejecuta el
+Strategist**) ni organiza el contenido (eso es del **`product-experience-designer`**): **ejecuta el
 copy final y el microcopy** con la voz SYNTRA, bajo esa dirección. Cierra el hueco de "nadie
 es dueño del copy final" sin sumar un opinador de mensaje a la jerarquía.
 
@@ -20,9 +20,10 @@ trata por separado.
 ## Frontera de autoridad (no la cruza)
 - **Product Strategist** = dueño del **mensaje, claims, propuesta de valor, posicionamiento,
   narrativa**. Esta skill NO inventa claims ni cambia el posicionamiento.
-- **Technical Product Owner** = organiza qué contenido va en cada sección (arquitectura de
-  información). Esta skill redacta lo que el TPO ya estructuró.
-- **Creative Director + Design System Guardian** pueden **vetar** drift de tono/marca.
+- **`product-experience-designer`** = organiza qué contenido va en cada sección (arquitectura
+  de información; absorbió al technical-product-owner en la reforma V2). Esta skill redacta
+  lo que ya está estructurado.
+- **`design-director`** y **`visual-quality-director`** señalan drift de tono/marca.
 - En secciones visuales (Cat B/C) el copy entra dentro del trabajo que pasa por el
   **visual gate**: "dale/ok" no autoriza commitear copy visible sin el gate. Copy-only en
   sección ya aprobada = Cat A (puede commitearse con QA técnico), pero **reescrituras grandes
@@ -93,14 +94,14 @@ Esto mantiene el copy editable, auditable y separado de la implementación.
 
 ## Precedencia
 Skill **ejecutora**, subordinada a: **Product Strategist** (mensaje/claims),
-**Technical Product Owner** (estructura), **Creative Director** y **Design System Guardian**
-(veto de tono/marca), `CLAUDE.md` (sección Copy + Filosofía) y la gobernanza SYNTRA. En
+**`product-experience-designer`** (estructura), **`design-director`** y
+**`visual-quality-director`** (drift de tono/marca), `CLAUDE.md` (sección Copy + Filosofía) y la gobernanza SYNTRA. En
 secciones visuales rige además `syntra-visual-gate`. `ui-ux-pro-max` es consultiva y no la
 contradice.
 
 ## Referencias
 - `CLAUDE.md` (sección **Copy**: tono profesional/claro/humano, español-only, no genérico)
 - `agents/business/product-strategist.md` (autoridad de mensaje; declara que no redacta copy final)
-- `agents/business/technical-product-owner.md` (arquitectura de información)
+- `.claude/agents/product-experience-designer.md` (arquitectura de información)
 - `projects/syntra-core-website/src/config/site.ts` (hogar del copy, content-driven)
 - Memoria: *Positioning premium-accesible* · *Website Spanish-only, no i18n*
