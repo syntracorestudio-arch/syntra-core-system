@@ -90,6 +90,25 @@ los pedidos cuando convenga.
 > la sesión. Ninguno bloquea: bloquear es solo de los guards de git. El reporte de
 > tooling en una línea sigue siendo obligatorio — es lo que hace auditable el disparo.
 
+## Contexto y tokens (obligatorio, pedido del owner 2026-07-21)
+
+Claude debe CUIDAR la ventana de contexto proactivamente y AVISAR al owner cuándo
+usar los comandos de limpieza — en TODAS las sesiones:
+
+- **Avisar `/compact`**: al cerrar un arco grande (PR abierto/mergeado) si la sesión
+  sigue, o cuando la conversación acumule mucho material ya consumido (capturas
+  leídas, sagas de iteración cerradas). Decirlo explícito: "buen momento para /compact".
+- **Avisar `/clear`**: al cambiar de arco/proyecto (web → app, feature → feature) con
+  TODO commiteado. Antes de sugerirlo, verificar el checklist de cierre:
+  commit/PR + TASKS.md al día + memoria/locks escritos. **Nunca** sugerir `/clear`
+  con trabajo visual sin commitear o feedback del owner sin aplicar.
+- **`/context`** como diagnóstico cuando el owner pregunte por consumo.
+- Buenas prácticas propias (siempre): capturas de a una y descartables (borrarlas
+  tras leer), no releer archivos grandes ya vistos, delegar lecturas masivas a
+  subagents (su contexto muere con ellos), iterar previews chicos antes que páginas
+  enteras, y cerrar arcos con docs (TASKS/locks/memoria) para que un `/clear` nunca
+  pierda nada importante.
+
 ---
 
 # Filosofía
@@ -422,10 +441,10 @@ prohibido derivar en genérico/glass excesivo.
 ## Herramientas / MCP (loop visual)
 - **shadcn MCP** (`.mcp.json`): buscar/traer componentes (shadcn + registries premium
   Magic UI / Aceternity / React Bits) como base, siempre sobre tokens de marca.
-- **Playwright MCP** (`.mcp.json`, `--isolated`): **loop visual**. Claude navega el sitio,
-  usa snapshot a11y (texto, barato) para navegar/inspeccionar y **screenshots on-demand**
-  (navegador con GPU → captura el 3D) para juzgar lo visual. Disciplina de tokens: a11y
-  para navegar; screenshot **solo** para juicio visual, de a una sección/viewport.
+- **Loop visual — CLI primero** (disciplina de tokens 2026-07-14): `npx @playwright/cli`
+  para navegar/capturar (goto → screenshot → leer PNG con visión → BORRAR la captura).
+  El MCP de Playwright solo si hace falta interacción fina que el CLI no cubre.
+  Juzgar con visión SOLO en gates, de a una sección/viewport; capturas descartables.
 - **`npm run visual:shots`**: capturas batch. Modo `full` (Home completa) y `--mode=section`
   (element screenshot por sección, nítido). Claude **lee los PNG con visión**.
 - Ya no dependemos solo del ojo del owner: usar el loop visual para revisar antes de cerrar
