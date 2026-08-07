@@ -420,3 +420,144 @@ QA de la tanda 1C (gate): N `register_sale` concurrentes sobre el mismo producto
 ledger suma exacta y cache consistente; mismo `idempotency_key` en paralelo ⇒ UNA
 venta; venta fiada + void ⇒ saldo del cliente vuelve al original; cross-tenant ⇒
 `not_a_member`/`product_not_found` siempre.
+
+---
+
+# Promociones (migración 045)
+
+> **Contrato CONGELADO antes del SQL** (2026-08-07). Plan aprobado:
+> `docs/promociones-plan.md`. Una promo = **precio rebajado con fecha de fin sobre
+> UN producto**, opcionalmente atado a un vencimiento, que **la caja cobra sola**.
+
+## La regla que ordena todo: el precio de promo lo resuelve el SERVIDOR
+
+El POS **nunca** manda el precio de promo. No es estilo, es obligatorio:
+
+1. **Permisos.** Un `unit_price` enviado por el cliente exige `owner` o
+   `can_apply_discount` (`027:180-187`). Si la promo viajara por ahí, **todo
+   empleado sin ese flag recibiría `not_allowed` al vender un producto en promo**.
+   La promo y el descuento manual son cosas distintas y no comparten permiso.
+2. **Confianza.** El cliente no puede ser la autoridad del precio.
+
+Las **cuatro** RPCs que exponen precio resuelven con `promo_precio()`:
+`register_sale` (cobra) · `pos_destacados` (tiles) · `productos_buscar` (búsqueda)
+· `producto_por_codigo` (escaneo). Misma función en cuatro lugares, cero lógica
+de precio en el cliente.
+
+## `promos` — la entidad
+
+```
+promos(
+  id, store_id, product_id,
+  promo_price   numeric(12,2),   -- < list_price, >= 0
+  list_price    numeric(12,2),   -- products.price CONGELADO al crear
+  cost_at_start numeric(12,2),   -- products.cost congelado (para medir después)
+  starts_on, ends_on date,
+  expiry_id     uuid null,       -- ligadura opcional a stock_expiries
+  origin        text,            -- 'manual' | 'sugerida'
+  below_cost_ok boolean,
+  ended_at      timestamptz null,
+  ended_reason  text null        -- 'manual' | 'vencimiento' | 'reemplazo'
+)
+```
+
+**No hay columna `status`: el estado se DERIVA de las fechas.**
+
+| Estado | Condición |
+| --- | --- |
+| terminada | `ended_at is not null` **o** `ends_on < current_date` |
+| activa | no terminada **y** `starts_on <= current_date <= ends_on` |
+| programada | no terminada **y** `starts_on > current_date` |
+
+Esto es lo que cumple **"no zombie promos" sin un cron**: pasada `ends_on` la
+promo deja de existir para la resolución de precio sin que nadie la marque.
+`ended_at` existe solo para el fin **anticipado**.
+
+## `promo_precio(p_store_id, p_product_id) returns numeric` — `stable`
+
+Precio efectivo: el de la promo activa hoy, o `products.price`. Una sola
+definición de la regla, consumida por las cuatro RPCs de arriba.
+`promo_vigente(p_store_id, p_product_id) returns public.promos` devuelve la fila
+completa cuando hace falta también el `list_price` (tachado) y el `promo_id`.
+
+## `create_promo` — **owner-only**
+
+```
+create_promo(
+  p_store_id uuid, p_product_id uuid, p_promo_price numeric,
+  p_starts_on date, p_ends_on date,
+  p_expiry_id uuid default null, p_origin text default 'manual',
+  p_below_cost_ok boolean default false, p_reemplazar boolean default false
+) returns jsonb   -- {promo_id, replaced_promo_id, estado}
+```
+
+1. `v_member.role <> 'owner'` → `not_allowed`.
+2. Producto del store y `status='active'` → si no, `product_not_found`.
+3. `p_ends_on >= p_starts_on` y `p_starts_on >= current_date` → si no, `invalid_range`.
+4. `p_promo_price >= 0` y `< products.price` → si no, `invalid_amount`.
+5. **Piso de costo**: `p_promo_price < products.cost` y no `p_below_cost_ok` →
+   `below_cost`. El opt-in es del **owner**, nunca del algoritmo.
+6. Lock de la fila del producto (`for update`, mismo patrón anti-deadlock que
+   `register_sale`); si hay promo viva **solapada** → `promo_overlap`, salvo
+   `p_reemplazar` → cierra la anterior con `ended_reason='reemplazo'`.
+7. Congela `list_price = products.price` y `cost_at_start = products.cost`.
+
+## `end_promo(p_store_id, p_promo_id) returns jsonb` — **owner-only**
+
+`ended_at = now()`, `ended_reason = 'manual'`. **Idempotente**: si ya estaba
+terminada devuelve el estado sin error. Devuelve `vuelve_a` (el precio al que
+vuelve) para el copy `Terminar · vuelve a $1.800`.
+
+## `promos_listado(p_store_id) returns jsonb`
+
+Activas / programadas / terminadas, **terminadas acotadas a 30 días**
+(cota de fecha obligatoria — baseline de escala). Cada una con su atribución:
+
+| Cifra | Cómo |
+| --- | --- |
+| Unidades vendidas en promo | `sum(qty) where promo_id = X` |
+| Ganancia recuperada | `sum((unit_price - unit_cost) * qty)` |
+| **Lo que te costó** | `sum((list_price - unit_price) * qty)` — se muestra SIEMPRE |
+
+Costos solo si `owner or can_see_costs`.
+
+## `promos_sugeridas(p_store_id) returns jsonb`
+
+Motor **determinista**, sin LLM. `ritmo_actual = vendidas 14d / 14` ·
+`ritmo_necesario = stock / días_hasta_vencer`. Si `ritmo_actual >=
+ritmo_necesario` **no sugiere nada** (se agota solo; descontarlo sería regalar
+margen). Escalera por urgencia (>7d: −15% · 4-7: −25% · 2-3: −35% · ≤1: −50% o
+piso), pisos `min_margin_pct` → costo → bajo costo solo con opt-in, redondeo con
+`round_price` + `store_settings.reprice_rounding`.
+
+**La escalera es una tabla de política, no una optimización.** El sistema puede
+calcular que al ritmo actual **no se vende**; NO puede saber que con −30% sí. La
+UI dice el ritmo que haría falta, nunca "vas a vender los 8".
+
+## Cambios a RPCs existentes
+
+- **`register_sale`** — copia literal de `027` con **un** cambio: la resolución de
+  `027:189` pasa por `promo_vigente()`, y cuando hay promo graba `promo_id` +
+  `list_price` en `sale_items`. Locks, negativos, idempotencia, fingerprint y
+  append-only quedan **idénticos**. El override manual (`unit_price` con
+  `can_apply_discount`) **gana** sobre la promo y no se registra como promo.
+- **`resolve_expiry`** — al resolver (`sold` o `wasted`) termina la promo ligada
+  con `ended_reason='vencimiento'`. Sin esto queda un agujero de máquina de
+  estados: el vencimiento se resuelve y la promo sigue descontando.
+- **`pos_destacados` · `productos_buscar` · `producto_por_codigo`** — agregan
+  `price` = efectivo, más `list_price` y `promo_id` cuando hay promo.
+
+**No se tocan:** `register_split_sale`, `register_split_group`, `void_sale`,
+`adjust_stock`, ni el SQL de corte de día.
+
+## Errores nuevos
+
+`promo_overlap` · `below_cost` · `invalid_range` · `promo_not_found`
+
+## Escala (baseline)
+
+Índices: `promos (store_id, product_id) where ended_at is null` ·
+`promos (store_id, ends_on) where ended_at is null` ·
+`sale_items (promo_id) where promo_id is not null` (FK nueva ⇒ índice, Postgres
+no lo crea solo). `promo_vigente` se resuelve por el primero. Toda lectura de
+`sale_items` en la atribución va acotada por `sales.sold_at`.
