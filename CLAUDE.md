@@ -466,12 +466,18 @@ gobernanza** (su propio meta defiere a CLAUDE.md). Adopción **selectiva** para 
 - Web: `projects/syntra-core-website/` (componentes en `src/components/**`, incl.
   `marketing/servicios/`, `marketing/aplicaciones/`, `marketing/hero/`).
 - Tokens: `projects/syntra-core-website/src/app/globals.css`.
-- Reference-locks: `docs/reference-locks/<section>.md` — **approved**: `hero`, `casos`,
-  `proceso`, `servicios` (v5 imagery-led), `contacto` (Contacto v2 = **campo vivo +
-  núcleo SC**), `nosotros` (v3 "Brasa"), `faq` ("Puente térmico"), `footer` ("Cierre
-  de marca"), y `grilla` (**"Dos rails"** — fuente de verdad de anchos, transversal;
-  ante cualquier duda de shell/ancho manda ese lock). La sección **"Sistema" fue
-  eliminada** (ya no existe `#sistema`).
+- Reference-locks: `docs/reference-locks/<section>.md` — **los 9 en `status: approved`**
+  (verificado contra el frontmatter de cada lock el 2026-08-07; ante duda manda el
+  lock, no esta línea):
+  `hero` (v2 "El Vórtice" + **FONDO v3 "La Tinta"**, 2026-07-22 — el fondo **ya no
+  está FROZEN**; ese lock deroga los intentos no aprobados de la saga) · `servicios`
+  (v5 imagery-led) · `casos` (v2) · `proceso` (v2 "Escenario evolutivo") · `nosotros`
+  (**v4 "Carrusel cilíndrico 3D"**) · `faq` ("Puente térmico") · `contacto` (**v3
+  "Estudio de noche"**, panel image-led) · `footer` ("Cierre de marca") · `grilla`
+  (**"Dos rails"** — fuente de verdad de anchos, transversal; ante cualquier duda de
+  shell/ancho manda ese lock).
+  Los 9 mapean a una sección que la Home realmente renderiza. La sección **"Sistema"
+  fue eliminada** (ya no existe `#sistema`).
 
 ## QA mínimo (trabajo web)
 `npx tsc --noEmit` · `npm run lint` · `npm run build` · `npm run visual:shots`
