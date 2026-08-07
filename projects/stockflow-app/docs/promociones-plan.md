@@ -505,23 +505,40 @@ ver el margen → fin automático.
 
 ---
 
-## 12. Decisiones que necesito antes de empezar
+## 12. Decisiones del owner — TOMADAS (2026-08-07)
 
-1. **La frase del mostrador.** ¿*"Está en promo"* o *"Liquidación por
-   vencimiento"*? Define si el cajero ve la fecha de vencimiento en el POS.
-   **Recomiendo "está en promo"**: el motivo del descuento es tuyo, y "porque
-   está por vencer" en boca del cajero mata la venta.
-2. **La escalera.** ¿Baja sola el jueves, o el sistema vuelve a avisar y vos
-   aprobás el segundo escalón? **Recomiendo que vuelva a avisar**: cuesta un tap
-   y mantiene **todo cambio de precio firmado por vos**. Si queda automática, la
-   escalera completa tiene que mostrarse al aceptar (`Hoy −20% → jue −35%`) y
-   cada escalón necesita aviso propio, obligatoriamente. **Esta decisión cambia
-   el esquema** (`promos` pasaría a tener escalones), así que es la que más
-   importa.
-3. **Duración mínima** de una promo, para frenar el latigazo de precio.
-   Recomiendo 3 días.
-4. **Label de nav:** "Promos" (en línea con "Vender", "Precios", "Fiado") o
-   "Promociones".
-5. **§10a:** ¿entra "Carteles de hoy" en PR3? (El `union` y el seed del v1 ya no
-   aplican: el primero era un fix para un problema que main no tiene, el segundo
-   ya existe.)
+1. **La frase del mostrador:** *"está en promo"*. El POS no menciona el
+   vencimiento en ningún lado; el motivo del descuento es del dueño.
+2. **La escalera: NO baja sola.** El sistema vuelve a avisar y el owner firma
+   cada escalón — ningún precio cambia sin su firma. Consecuencia: el esquema
+   NO cambia (un segundo escalón es una promo nueva que reemplaza a la
+   anterior, con `ended_reason='reemplazo'`), pero `promos_sugeridas` sí tuvo
+   que dejar de excluir lo que ya está en promo (047 · B1) — hasta entonces la
+   decisión era literalmente inejecutable.
+3. **Duración mínima: 3 días, acotada por el vencimiento ligado** — la regla es
+   *"mínimo 3 días O hasta la fecha de vencimiento, lo que sea MÁS CORTO"*. Una
+   promo que liquida algo que vence en 2 días tiene que poder durar 2 días.
+   Vive en `create_promo` (`promo_too_short`) y espejada en `lib/promos.ts`
+   para que la pantalla nunca llegue al error; los dos lados tienen tests.
+4. **Label de nav: "Promos"** (grupo Mercadería, entre Precios y Vencimientos).
+5. **"Carteles de hoy": ENTRA en PR3**, con vista imprimible. El desfasaje
+   entre el precio de la góndola y el de la caja mata la confianza.
+6. **Arte de marca:** se reusa la pieza `precios` por ahora; una pieza `promos`
+   propia se puede cambiar después sin tocar código.
+
+### Lo que apareció al construir PR3 (migración 047)
+
+Cuatro huecos de backend que el contrato congelado de PR1 no cubría, más un
+bug propio, todos con test en `verify-promos-047.sql`:
+
+- **B5 · el día se cortaba en UTC.** 045 usó `current_date` en 14 lugares
+  mientras el resto de la app usa la timezone del negocio desde la migración
+  007. En Argentina eso adelanta la fecha a las 21:00 local: una promo "hasta
+  el viernes" moría el viernes a las 21:00 con el cartel puesto y el kiosco
+  abierto. Es exactamente la falla que la feature existe para evitar.
+- **B1 · el segundo escalón no se podía sugerir** (ver decisión 2).
+- **B3 · la medición contaba ventas ANULADAS**: los predicados vivían en el
+  `on` de un `left join`, así que la fila de `sale_items` sobrevivía al void.
+- **B2 · no había cota de duración** en ningún lado (ver decisión 3).
+- **B4 · faltaban `cost_at_start` y el tamaño del lote**, sin los cuales la
+  medición no puede decir qué había en juego.

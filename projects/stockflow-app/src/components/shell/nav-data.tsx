@@ -12,6 +12,7 @@ import {
   Users2,
   TrendingUp,
   Receipt,
+  Tag,
 } from "lucide-react";
 
 /**
@@ -57,6 +58,11 @@ export const NAV_GROUPS: NavGroup[] = [
          Fiado, se lee como plata que entra. */
       { href: "/admin/ingreso", label: "Recibir mercadería", icon: PackagePlus },
       { href: "/admin/precios", label: "Precios", icon: TrendingUp },
+      /* "Promos" y no "Promociones": mismo criterio que "Gastos" o "Fiado" —
+         la palabra que el kiosquero usa. Va entre Precios y Vencimientos
+         porque es exactamente eso: una decisión de precio que dispara un
+         vencimiento. En Control ("mirar y cobrar") no tendría sentido. */
+      { href: "/admin/promos", label: "Promos", icon: Tag },
       { href: "/admin/vencimientos", label: "Vencimientos", icon: CalendarClock },
     ],
   },

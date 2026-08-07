@@ -10,6 +10,13 @@
 --
 -- La concurrencia real (N ventas simultáneas del mismo producto) se prueba
 -- aparte, desde varias conexiones: ver tests/concurrency.sh
+--
+-- PROMOS (047): una promo viva sobre un producto del seed es estado LEGÍTIMO
+-- de una base de desarrollo — desde 045, register_sale resuelve el precio con
+-- promo_vigente() y estos tests, que asumen precios de lista, fallaban con
+-- razón aparente pero sin bug. Cada bloque neutraliza las promos vivas ANTES
+-- de suplantar al usuario (como postgres, dentro de su transacción: el
+-- rollback lo deshace). La cobertura de promos vive en verify-promos*.sql.
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -29,6 +36,7 @@
 -- 1. Venta simple: descuenta stock por ledger y actualiza el cache
 -- ---------------------------------------------------------------------------
 begin;
+update public.promos set ended_at = now() where ended_at is null;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
 
@@ -57,6 +65,7 @@ rollback;
 -- 2. IDEMPOTENCIA: el mismo carrito reintentado no cobra dos veces
 -- ---------------------------------------------------------------------------
 begin;
+update public.promos set ended_at = now() where ended_at is null;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
 
@@ -95,6 +104,7 @@ rollback;
 -- 3. Fiado: crea deuda y el saldo sale del ledger
 -- ---------------------------------------------------------------------------
 begin;
+update public.promos set ended_at = now() where ended_at is null;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
 
@@ -119,6 +129,7 @@ rollback;
 -- 4. Cobro de fiado (parcial) y saldo resultante
 -- ---------------------------------------------------------------------------
 begin;
+update public.promos set ended_at = now() where ended_at is null;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
 
@@ -142,6 +153,7 @@ rollback;
 -- 5. Anular una venta fiada devuelve stock Y borra la deuda
 -- ---------------------------------------------------------------------------
 begin;
+update public.promos set ended_at = now() where ended_at is null;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
 
@@ -182,6 +194,7 @@ rollback;
 -- 6. PERMISOS: la cajera no puede fiar sin el flag, ni anular
 -- ---------------------------------------------------------------------------
 begin;
+update public.promos set ended_at = now() where ended_at is null;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000002","role":"authenticated"}';
 
@@ -214,6 +227,7 @@ rollback;
 -- 7. CROSS-TENANT: la dueña del otro kiosco no puede vender productos ajenos
 -- ---------------------------------------------------------------------------
 begin;
+update public.promos set ended_at = now() where ended_at is null;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"bbbbbbbb-0000-0000-0000-000000000001","role":"authenticated"}';
 
@@ -252,6 +266,7 @@ rollback;
 -- 8. Ingreso de mercadería: sube stock y pisa el costo (último costo)
 -- ---------------------------------------------------------------------------
 begin;
+update public.promos set ended_at = now() where ended_at is null;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
 
@@ -286,6 +301,7 @@ rollback;
 -- 9. Venta por monto libre: cobra sin tocar catálogo ni stock
 -- ---------------------------------------------------------------------------
 begin;
+update public.promos set ended_at = now() where ended_at is null;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
 
@@ -312,6 +328,7 @@ rollback;
 -- 10. Stock negativo: por default la caja NO se frena, pero avisa
 -- ---------------------------------------------------------------------------
 begin;
+update public.promos set ended_at = now() where ended_at is null;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
 
@@ -340,6 +357,7 @@ rollback;
 -- 11. Modo estricto: con allow_negative_stock=false, la venta se rechaza
 -- ---------------------------------------------------------------------------
 begin;
+update public.promos set ended_at = now() where ended_at is null;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
 
