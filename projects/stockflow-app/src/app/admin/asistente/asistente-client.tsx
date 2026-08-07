@@ -25,6 +25,7 @@ import { EmptyArt } from "@/components/ui/empty-art";
 import type { Analisis, Accion, TipoAccion } from "@/lib/asistente/analisis";
 import { rutaOportunidad } from "@/lib/asistente/enlaces";
 import { actualizarAnalisis } from "./actions";
+import { TareasCatalogo } from "./tareas-catalogo";
 
 export type AnalisisGuardado = {
   id: string;
@@ -388,6 +389,10 @@ export function AsistenteClient({
           })}
         </ul>
       )}
+
+      {/* Las tareas van DESPUÉS de los pendientes: primero qué falta, después
+          qué puedo hacer yo al respecto. */}
+      <TareasCatalogo onHecho={() => router.refresh()} />
 
       {/* ── El análisis del mes, relegado: es lo que ya llega por mail ─────── */}
       {activo && (
