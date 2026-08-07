@@ -1,6 +1,6 @@
 ---
 name: syntra-visual-gate
-description: Use before committing visual work to the SYNTRA web. V2 (2026-07-07): the gate IS the owner's approval of the LIVE prototype in their browser (variantes vivas). Minimum before showing: tsc/lint clean, console clean, render reviewed with vision at 1920+390. visual-quality-director = diagnostic tool on demand, not a mandatory step. A green build is NOT design approval; neither is prose.
+description: Use BEFORE showing any visual or UI work to the owner and before committing it — sections, pages, components, cards, tiles, modals, sheets, sidebars, layout, spacing, padding, colors, typography, icons, responsive and motion. Requires tsc + lint clean, zero console errors, and the render reviewed with vision at 1920 and 390 BEFORE the owner sees anything. The owner's approval of the LIVE prototype in their own browser is the commit gate; a green build is not design approval, and neither is prose.
 ---
 
 # SYNTRA Visual Quality Gate
@@ -194,7 +194,7 @@ brillante de una imagen.
 Until the owner approves explicitly, changes stay in the working tree, uncommitted. The `visual-quality-director` APROBADO lifts the visual veto but does NOT authorize the commit — only the owner does.
 
 ## Precedence
-This skill is normative for SYNTRA. External skills (e.g. `ui-ux-pro-max`) are consultive and may NOT contradict it, the Visual Quality Gate, Design System Guardian, Visual Quality Director, ROLE-AUTHORITY-MAP, CLAUDE.md, or the SYNTRA palette/tone/positioning.
+This skill is normative for SYNTRA. External skills (e.g. `ui-ux-pro-max`) are consultive and may NOT contradict it, `design-freedom-v2.md`, the `visual-quality-director`, CLAUDE.md, or the SYNTRA tone/positioning.
 
 ## References
 - `agents/governance/visual-quality-gate.md` (full protocol)

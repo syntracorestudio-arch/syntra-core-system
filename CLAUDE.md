@@ -17,14 +17,53 @@ SYNTRA CORE es una Software Factory AI-Native especializada en:
 Ante CUALQUIER tarea no trivial, usar la estructura completa de SYNTRA antes y durante la
 ejecución — no improvisar:
 
+## La regla que ordena todo: DISPARO ≠ APROBACIÓN
+
+Se confundieron durante meses y por eso las herramientas no se usaban solas:
+
+- **DISPARO (automático y obligatorio).** Cargar una skill, consultar un agente o
+  leer un lock **no es un trámite y no pide permiso**: es leer antes de escribir.
+  Pasa solo, sin que el owner lo pida, cada vez que la tarea entra en un dominio
+  con disparador (tabla de abajo).
+- **APROBACIÓN (una sola, del owner).** El **único** gate que existe para trabajo
+  visual es su OK sobre el prototipo **VIVO en su navegador**. Ningún documento,
+  lock, análisis ni build verde aprueba nada.
+
+En concreto: ante trabajo visual/UI **nuevo** es obligatorio —ANTES de escribir
+código— consultar `design-director` y cargar `ui-ux-pro-max`, la doctrina visual
+vigente y el `reference-lock` de la sección que se toca. Nada de eso bloquea el
+código: prepara el prototipo que el owner va a juzgar.
+
+## Disparadores AUTOMÁTICOS (sin que el owner lo pida — regla dura 2026-07-21)
+
+El owner detectó que la estructura solo se usa cuando él la pide. Estos disparadores
+son obligatorios y proactivos:
+
+| Cuando pasa esto… | Disparo SIEMPRE |
+| --- | --- |
+| Tarea visual o UI, nueva o retoque (spacing, color, tipografía, cards, modales, responsive) | `design-director` + skills de diseño ANTES de escribir código |
+| Cualquier cambio de código de UI | `frontend-engineer` (o `motion-3d-engineer` si hay motion/3D) — son los implementadores por defecto |
+| El owner rechaza un prototipo visual por 2ª vez | **STOP anti-loop**: pedir SU referencia (imagen/link/spec) — no iterar una 3ª a ciegas |
+| 3ª iteración sin convergencia | Cambiar de MEDIO (asset/render/spec formal/valores exactos), nunca "otro intento del mismo tipo" |
+| Contenido/copy de una sección | `product-experience-designer` (arquitectura) + `syntra-copy-system` (voz) — copy final lo decide el owner |
+| Backend/data/queries/webhooks | `syntra-scale-security-baseline` + `backend-engineer` |
+| Antes de cerrar trabajo web | QA mínimo completo + review visual propio (visión 1920+390) ANTES de mostrarle nada |
+| Antes de cada commit | `syntra-safe-commit-gate` |
+
+**Lección de la saga del hero (2026-07-17→21):** los desbloqueos vinieron SIEMPRE de
+referencias/specs/valores del owner (dump de Spline, prompt formal), nunca de la
+iteración N+1 improvisada. Ante ambigüedad visual: pedir referencia > generar a ciegas.
+
 - **Agents** (routing tarea→agente, abajo): diagnóstico, dirección y QA con el subagent correcto.
 - **Skills** SYNTRA: `ui-ux-pro-max` (research estándar del design-director),
   `syntra-living-motion` + `syntra-premium-motion-system` (implementación de motion),
   `syntra-copy-system`, `syntra-safe-commit-gate`,
   `syntra-scale-security-baseline` (**normativa en todo backend/data**: cotas de fecha,
   índices, async, rate limiting, headers, gate de load-test pre-clientes);
-  `syntra-reference-lock` = documentación POST-aprobación;
-  `syntra-premium-section-design` = análisis opcional.
+  `syntra-reference-lock` (leer el lock ANTES de tocar una sección que lo tenga;
+  escribirlo DESPUÉS del OK del owner) y `syntra-premium-section-design`
+  (diagnóstico de sección). Las dos se CARGAN solas ante trabajo visual —
+  ninguna aprueba ni bloquea nada.
 - **MCP**: `shadcn` (componentes) y `playwright` (loop visual — ver "Herramientas / MCP").
 - **Plugins**: `superpowers` de forma SELECTIVA y subordinada (ver "Plugins / superpowers").
 
@@ -44,9 +83,12 @@ los pedidos cuando convenga.
   narrativa del proceso. Tablas solo si comparan opciones.
 - Cerrar siempre con el próximo paso o la pregunta concreta (una).
 
-> Vive en CLAUDE.md (se carga cada turno); el `syntra-daily-bootstrap` lo reactiva al
-> inicio del día. Ningún setup vuelve esto 100% automático → el reporte de tooling + el
-> control del owner son parte del diseño, no un extra.
+> Vive en CLAUDE.md (se carga cada turno) y el `syntra-daily-bootstrap` lo reactiva al
+> inicio del día, pero lo que lo vuelve mecánico son los hooks de `.claude/hooks/`: el
+> **radar** inyecta el disparador junto al prompt del owner, y el **guard de UI** avisa
+> al primer Edit sobre `src/components/**` o `src/app/**` si no se consultó diseño en
+> la sesión. Ninguno bloquea: bloquear es solo de los guards de git. El reporte de
+> tooling en una línea sigue siendo obligatorio — es lo que hace auditable el disparo.
 
 ---
 
@@ -326,7 +368,8 @@ Ante cualquier tarea no trivial:
    `automation-architect` → `n8n-workflow-engineer` → `automation-qa-reliability-guard`.
 7. Antes de commits: `git status` + commits atómicos; no mezclar temas.
 8. **Trabajo visual = WORKFLOW DE VARIANTES VIVAS** (`design-freedom-v2.md` §4):
-   análisis opcional (`design-director` + `product-experience-designer` en paralelo)
+   consultar `design-director` (+ `product-experience-designer` si hay contenido en
+   juego) y cargar las skills de diseño — **obligatorio, antes de codear** —
    → construir 1-3 **prototipos VIVOS directamente** (motion desde el minuto uno) →
    **el owner juzga en SU navegador** e itera en vivo → **su OK al prototipo vivo ES
    el gate de commit** → el reference-lock se escribe DESPUÉS como documentación de
@@ -372,8 +415,9 @@ versionados; **wiring** en `.claude/settings.json` (local, **no se commitea**).
 ## UI UX Pro Max (skill de apoyo)
 `.claude/skills/ui-ux-pro-max` — research/auditoría/inspiración UI/UX, **nunca**
 autoridad. Política: `agents/governance/ui-ux-pro-max-usage.md`. Los reference-locks y
-los tokens de `globals.css` mandan; toda recomendación pasa por Creative Director +
-Design System Guardian; prohibido derivar en genérico/glass excesivo.
+los tokens de `globals.css` mandan; toda recomendación pasa por el `design-director`
+(y por el `visual-quality-director` cuando hace falta diagnóstico con visión);
+prohibido derivar en genérico/glass excesivo.
 
 ## Herramientas / MCP (loop visual)
 - **shadcn MCP** (`.mcp.json`): buscar/traer componentes (shadcn + registries premium

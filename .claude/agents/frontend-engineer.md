@@ -1,6 +1,6 @@
 ---
 name: frontend-engineer
-description: Use for implementing approved UI in React/Next/TypeScript/Tailwind, building components, integrating the design system, responsive implementation, and controlled frontend refactors. Edits code ONLY on already-approved tasks.
+description: Use for ANY UI code change in React/Next/TypeScript/Tailwind — new components, edits under src/components/** or src/app/**, cards, tiles, modals, sheets, layout, spacing, responsive, design-system integration, controlled refactors. This is the DEFAULT implementer for frontend work, not a last resort: invoke it as soon as the change is understood. Work lands through the owner's live-prototype approval (syntra-visual-gate) — that approval is the COMMIT gate, never a precondition for invoking this agent.
 tools: Read, Grep, Glob, Edit
 model: opus
 ---

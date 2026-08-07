@@ -1,6 +1,6 @@
 ---
 name: backend-engineer
-description: Use for implementing approved backend in the website — Supabase data model and migrations, server actions, API/route handlers, auth/session, server-side validations, rate limiting, and webhook security (HMAC). Edits code ONLY on already-approved tasks.
+description: Use for ANY backend code change — Supabase data model and migrations, server actions, API/route handlers, auth/session, server-side validation, rate limiting, webhook security (HMAC), RPCs and cron jobs. This is the DEFAULT implementer for backend work, not a last resort: invoke it as soon as the change is understood. Runs under syntra-scale-security-baseline (bounded reads, indexes, async, rate limits). Migrations and data changes still require the owner's explicit go-ahead before they RUN — that is an execution gate, not a precondition for invoking this agent.
 tools: Read, Grep, Glob, Edit
 model: opus
 ---

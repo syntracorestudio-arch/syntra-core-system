@@ -43,13 +43,49 @@ junto al prompt del usuario sí mueve comportamiento).
   texto matchea un dominio con disparador automático (visual/backend/commit/
   copy/rechazo-iterativo), imprime 1-3 líneas `[SYNTRA-RADAR]` que Claude Code
   agrega como contexto del turno.
-- **Targeted, no wallpaper:** si el prompt no matchea ningún dominio (o es un
-  comando slash), no inyecta NADA — costo cero. Máximo 3 líneas por turno.
+- **Targeted, no wallpaper:** si el prompt no matchea ningún dominio, no inyecta
+  NADA — costo cero. Máximo 3 líneas por turno.
+- **Los slash commands SÍ disparan** (ensanchado 2026-08-06). Antes se saltaban
+  enteros, así que `/loop mejorá las cards` pasaba de largo. Única excepción:
+  `/syntra-daily-bootstrap` (ya trae su instrucción) y los comandos de sesión
+  del harness (`/clear`, `/compact`, `/context`, `/model`, `/help`).
+- **Vocabulario ensanchado (2026-08-06):** la versión original sólo miraba
+  palabras de *proyecto* (hero, sección, rediseño). Ninguno de los pedidos
+  reales del owner matcheaba, porque el trabajo visual cotidiano se nombra por
+  **componente** (card, sheet, modal, sidebar…), por **propiedad** (espaciado,
+  color, tipografía…), por **síntoma** ("se ve mal en mobile") o por **archivo**
+  (`*.tsx`, `src/components/`). Las cinco familias están en el mismo regex.
 - **Nunca bloquea:** siempre `exit 0`, todo envuelto en try/catch. Un fallo del
   script jamás frena el prompt.
 - **Mantenimiento:** las reglas (regex→línea) viven en el propio script y deben
   reflejar los "Disparadores AUTOMÁTICOS" de CLAUDE.md — una línea por dominio,
   sin duplicar el detalle (single source of truth: CLAUDE.md manda).
+
+## syntra-ui-guard.mjs — Hook 4: guard de UI (ADVISORY, nunca bloquea)
+El radar mira la **intención** (el prompt). Este mira la **acción**: un pedido
+inocente ("arreglá esto", "seguí") puede terminar en una edición de UI sin que se
+haya consultado diseño en toda la sesión. Ahí avisa.
+
+- **Qué es:** hook `PreToolUse` con matcher `Edit|Write|MultiEdit|NotebookEdit|Skill|Task`.
+- **Cuándo avisa:** se va a escribir sobre un archivo de UI
+  (`src/components/**`, `src/app/**/(page|layout|template|error|loading|*-client).tsx`,
+  `*.css` bajo `src/app|src/components`) **y** en la sesión no pasó ninguna
+  skill/agente de diseño.
+- **ADVISORY POR DISEÑO — siempre `exit 0`, NUNCA bloquea una edición.** Bloquear
+  es atribución exclusiva de los guards de git: ahí se protege el repositorio,
+  acá sólo el criterio. Un guard de diseño que bloquea se vuelve un peaje que se
+  aprende a esquivar; uno que avisa se lee.
+- **Una vez por sesión.** Repetir el aviso en cada `Edit` de una tanda de veinte
+  lo convertiría en ruido que se filtra solo.
+- **Cómo recuerda:** marcador por `session_id` en el temp del SO
+  (`<tmp>/syntra-ui-guard/<id>.flag`), escrito cuando ve pasar un `Skill`/`Task`
+  de diseño (design-director, visual-quality-director, ui-ux-pro-max,
+  syntra-visual-gate, reference-lock, frontend-engineer, motion-3d-engineer…).
+  Sin estado no habría cómo distinguir "editó sin consultar" de "editó después
+  de consultar".
+- **Lo que NO es:** no es un gate de aprobación. El **único** gate de commit
+  sigue siendo el OK del owner sobre el prototipo VIVO en su navegador
+  (design-freedom-v2 §4). El hook dispara la consulta; no aprueba nada.
 
 ## Diseño de mensajes de deny (lección codegraph: "errors teach abandonment")
 Un bloqueo seco enseña al agente a abandonar o rodear la herramienta. Por eso
@@ -79,6 +115,15 @@ Hook 2 en la misma cadena Bash, en orden):
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-forbidden-commit.mjs\""
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Skill|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/syntra-ui-guard.mjs\""
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -94,6 +139,10 @@ Hook 2 en la misma cadena Bash, en orden):
   }
 }
 ```
+
+> El matcher del Hook 4 incluye `Skill|Task` **a propósito**: es la única forma
+> que tiene el script de enterarse de que ya se consultó diseño. Sin esas dos
+> tools en el matcher, el guard avisaría siempre, incluso después de una consulta.
 
 > ⚠️ Si `.claude/settings.json` ya tiene otras claves (p. ej. `permissions`),
 > **fusioná** la clave `hooks` como hermana **sin borrar** la configuración
@@ -143,7 +192,26 @@ echo '{"tool_input":{"command":"git commit -m x"}}'  | node .claude/hooks/guard-
 ```bash
 echo '{"prompt":"quiero redisenar el hero"}' | node .claude/hooks/syntra-structure-radar.mjs   # imprime [SYNTRA-RADAR] visual
 echo '{"prompt":"arregla este typo"}' | node .claude/hooks/syntra-structure-radar.mjs ; echo "exit=$?"  # sin output, exit=0
+echo '{"prompt":"/loop mejora el padding de los tiles"}' | node .claude/hooks/syntra-structure-radar.mjs  # slash SÍ dispara
+echo '{"prompt":"/syntra-daily-bootstrap"}' | node .claude/hooks/syntra-structure-radar.mjs ; echo "exit=$?"  # excluido, sin output
 ```
+
+**Hook 4** — validación directa (usar un `session_id` nuevo por escenario; el
+marcador vive en `<tmp>/syntra-ui-guard/`):
+```bash
+G=.claude/hooks/syntra-ui-guard.mjs
+# UI sin diseño consultado → avisa (y siempre exit=0)
+echo '{"session_id":"t1","tool_name":"Edit","tool_input":{"file_path":"src/components/x.tsx"}}' | node $G ; echo "exit=$?"
+# segunda edición de la misma sesión → silencio (una vez por sesión)
+echo '{"session_id":"t1","tool_name":"Edit","tool_input":{"file_path":"src/components/y.tsx"}}' | node $G ; echo "exit=$?"
+# diseño consultado ANTES → nunca avisa
+echo '{"session_id":"t2","tool_name":"Skill","tool_input":{"skill":"syntra-visual-gate"}}'      | node $G
+echo '{"session_id":"t2","tool_name":"Edit","tool_input":{"file_path":"src/components/x.tsx"}}' | node $G ; echo "exit=$?"
+# no-UI (lib, migraciones, Bash) → nunca molesta
+echo '{"session_id":"t3","tool_name":"Edit","tool_input":{"file_path":"src/lib/hechos.ts"}}'    | node $G ; echo "exit=$?"
+```
+**Esperado:** solo la primera línea imprime `[SYNTRA-UI-GUARD]`; **todas** salen
+con `exit=0`. Si alguna sale con `exit=2`, el hook está mal — no debe bloquear.
 
 ## Alcance / límites
 - Solo cubre comandos ejecutados **por Claude Code** (no terminal manual ni CI).

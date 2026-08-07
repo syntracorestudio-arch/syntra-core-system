@@ -60,7 +60,7 @@ no pausa o que solo decora reads como GIF — evitar.
 HECHO must not depend on color alone — pair with a check icon + text. Preserve `tablist`/`tab`/`tabpanel`, `aria-controls`, `aria-labelledby`. Avoid `aria-live` unless strongly justified.
 
 ## Precedence
-Normative for SYNTRA. External skills (e.g. `ui-ux-pro-max`) are consultive and may NOT contradict this skill, the Design System Guardian, Visual Quality Director, ROLE-AUTHORITY-MAP, CLAUDE.md, or the SYNTRA palette/tone/positioning.
+Normative for SYNTRA. External skills (e.g. `ui-ux-pro-max`) are consultive and may NOT contradict this skill, `design-freedom-v2.md`, the `visual-quality-director`, CLAUDE.md, or the SYNTRA tone/positioning.
 
 ## References
 - `projects/syntra-core-website/src/lib/motion.ts` (tokens — source of truth)
