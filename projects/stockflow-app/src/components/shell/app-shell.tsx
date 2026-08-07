@@ -36,7 +36,10 @@ export function AppShell({
     <div className="flex min-h-dvh">
       {/* Sidebar — desktop. Sticky con scroll propio: en las páginas largas
           (Ajustes, Reportes) antes se iba con el scroll y dejaba un hueco. */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card lg:sticky lg:top-0 lg:flex lg:h-dvh">
+      {/* `print:hidden` en las dos navegaciones y en el colchón inferior: la
+          única pantalla imprimible de la app son los carteles de góndola, y una
+          sidebar impresa se lleva media hoja de tinta. */}
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card lg:sticky lg:top-0 lg:flex lg:h-dvh print:hidden">
         <div className="flex items-center gap-2.5 px-5 py-5">
           <LogoMark className="size-8" />
           <div className="min-w-0">
@@ -66,12 +69,12 @@ export function AppShell({
         {/* El colchón de abajo reserva la barra de pestañas MÁS la barra gestual
             de Android: sin el `env()`, los últimos ~20px del contenido quedaban
             debajo del pill del sistema. */}
-        <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0 print:pb-0">
           {children}
         </main>
 
         {/* Barra inferior — mobile */}
-        <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden print:hidden">
           {mobileNav.map((item) => {
             const active = item.href === current;
             return (

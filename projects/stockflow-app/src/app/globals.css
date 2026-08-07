@@ -307,3 +307,54 @@
 .sf-tap {
   animation: sf-tap 0.35s ease-out;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   IMPRESIÓN — "Carteles de hoy" (PR3 de Promociones)
+
+   StockFlow es dark-only, y ese es el modo de falla clásico de una app así:
+   sin esto, "Guardar como PDF" produce una hoja en blanco con texto #f1f5fb.
+   Prácticamente invisible, y el dueño concluye que la función no anda.
+
+   La estrategia es INVERTIR LOS TOKENS, no escribir una hoja de estilos
+   paralela: todo lo que ya usa `bg-card`, `text-foreground` o `border-border`
+   sale bien en papel sin tocar un solo componente.
+   ═════════════════════════════════════════════════════════════════════════ */
+@media print {
+  :root {
+    --background: #fff;
+    --card: #fff;
+    --popover: #fff;
+    --foreground: #000;
+    --border: #000;
+    /* #444 y no #000: aplastar el gris al negro borraría la jerarquía entre el
+       nombre, el precio tachado y la fecha. #444 imprime legible y conserva el
+       rango tonal. */
+    --muted-foreground: #444;
+  }
+
+  /* El grano de las superficies sale como suciedad sobre papel, y las sombras
+     internas como una banda gris arriba de cada bloque. */
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    filter: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  .bg-noise::before {
+    display: none !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  /* SIN `print-color-adjust: exact` a propósito: queremos que el navegador tire
+     los fondos. Es tinta que no se gasta y contraste que se gana. */
+  body {
+    background: #fff;
+    color: #000;
+  }
+}

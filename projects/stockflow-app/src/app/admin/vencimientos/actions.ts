@@ -8,16 +8,26 @@ import { requireSession } from "@/lib/session";
 
 export type Result = { ok: true } | { ok: false; error: string };
 
-/** Resolver un vencimiento: se vendió, o hubo que tirarlo. */
+export type ResolveResult =
+  | { ok: true; promosTerminadas: number }
+  | { ok: false; error: string };
+
+/**
+ * Resolver un vencimiento: se vendió, o hubo que tirarlo.
+ *
+ * Devuelve cuántas promos cerró de paso: resolver el lote termina la promo que
+ * lo liquidaba (045), y si el aviso no lo dice, el dueño se entera cuando la
+ * caja cobra distinto — con el cartel todavía puesto en la góndola.
+ */
 export async function resolveExpiry(
   expiryId: string,
   resolution: "sold" | "wasted",
   wasteQty?: number | null,
-): Promise<Result> {
+): Promise<ResolveResult> {
   const session = await requireSession();
   const supabase = await createSupabaseServer();
 
-  const { error } = await supabase.rpc("resolve_expiry", {
+  const { data, error } = await supabase.rpc("resolve_expiry", {
     p_store_id: session.store.id,
     p_expiry_id: expiryId,
     p_resolution: resolution,
@@ -34,7 +44,12 @@ export async function resolveExpiry(
   revalidatePath("/admin/vencimientos");
   revalidatePath("/admin");
   revalidatePath("/pos");
-  return { ok: true };
+  revalidatePath("/admin/promos");
+  revalidatePath("/admin/promos/carteles");
+  return {
+    ok: true,
+    promosTerminadas: Number((data as { promos_terminadas?: number } | null)?.promos_terminadas ?? 0),
+  };
 }
 
 /* -------------------------------------------------------------------------

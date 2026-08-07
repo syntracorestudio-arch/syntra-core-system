@@ -11,8 +11,13 @@ import {
   LoaderCircle,
   CalendarPlus,
   CalendarClock,
+  Tag,
+  ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/cn";
+import { money } from "@/lib/format";
+import { fechaCorta } from "@/lib/promos";
 import { AvisoBanner } from "@/components/ui/aviso";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyArt } from "@/components/ui/empty-art";
@@ -23,6 +28,7 @@ import {
   sendTestPush,
 } from "./actions";
 import { addExpiry } from "@/app/admin/configuracion/actions";
+import { crearPromo } from "@/app/admin/promos/actions";
 
 export type ExpiryRow = {
   id: string;
@@ -46,22 +52,46 @@ function urgencia(days: number): { label: string; tone: "danger" | "warning" | "
 
 export type ProductOption = { id: string; name: string; emoji: string | null };
 
+/** Lo que necesita la franja de promo. Espejo parcial de `promos_sugeridas`. */
+export type SugerenciaPromo = {
+  expiry_id: string;
+  product_id: string;
+  name: string;
+  sugerido: string | number;
+  list_price: string | number;
+  cost: string | number | null;
+  expiry_date: string;
+  aplicable: boolean;
+  es_reescalon: boolean;
+};
+
 export function VencimientosClient({
   expiries,
   products,
+  sugerencias,
+  hoy,
   warningDays,
   canEdit,
   vapidPublicKey,
 }: {
   expiries: ExpiryRow[];
   products: ProductOption[];
+  sugerencias: SugerenciaPromo[];
+  /** Hoy en la zona DEL NEGOCIO. Nunca `new Date()` del navegador. */
+  hoy: string;
   warningDays: number;
   canEdit: boolean;
   vapidPublicKey: string | null;
 }) {
   const [aviso, setAviso] = useState<Aviso>(null);
   const [agregando, setAgregando] = useState(false);
+  /* Lo que ya se puso en promo desde acá: la franja se reemplaza EN EL LUGAR
+     en vez de navegar. El dueño estaba decidiendo sobre esta lista; sacarlo de
+     acá le corta el hilo. */
+  const [puestas, setPuestas] = useState<Map<string, number>>(new Map());
   const [pending, startTransition] = useTransition();
+
+  const porVencimiento = new Map(sugerencias.map((s) => [s.expiry_id, s]));
 
   function resolver(id: string, resolution: "sold" | "wasted", qty: number) {
     startTransition(async () => {
@@ -70,10 +100,38 @@ export function VencimientosClient({
         setAviso({ tone: "error", text: res.error });
         return;
       }
+      const base = resolution === "sold" ? "Marcado como vendido." : "Registrado como merma.";
       setAviso({
         tone: "ok",
-        text: resolution === "sold" ? "Marcado como vendido." : "Registrado como merma.",
+        /* Resolver el lote cierra la promo que lo liquidaba: callarlo deja al
+           dueño con un cartel de promo puesto y la caja cobrando el precio de
+           lista. */
+        text:
+          res.promosTerminadas > 0
+            ? `${base} La promo terminó y el precio vuelve al de siempre.`
+            : base,
       });
+    });
+  }
+
+  function ponerEnPromo(s: SugerenciaPromo) {
+    startTransition(async () => {
+      const precio = Number(s.sugerido);
+      const r = await crearPromo({
+        productId: s.product_id,
+        promoPrice: precio,
+        startsOn: hoy,
+        endsOn: s.expiry_date,
+        expiryId: s.expiry_id,
+        origin: "sugerida",
+        belowCostOk: false,
+        reemplazar: s.es_reescalon,
+      });
+      if (!r.ok) {
+        setAviso({ tone: "error", text: r.error });
+        return;
+      }
+      setPuestas((m) => new Map(m).set(s.expiry_id, precio));
     });
   }
 
@@ -118,9 +176,64 @@ export function VencimientosClient({
         <ul className="space-y-2.5">
           {expiries.map((e) => {
             const u = urgencia(e.daysLeft);
-            return (
-              <li key={e.id} className="rounded-xl border border-border bg-card p-4">
-                <div className="flex items-start gap-3">
+              const sug = porVencimiento.get(e.id);
+              const yaPuesta = puestas.get(e.id);
+              const bajoCosto =
+                sug != null && sug.cost !== null && Number(sug.sugerido) < Number(sug.cost);
+
+              return (
+              <li key={e.id} className="overflow-hidden rounded-xl border border-border bg-card">
+                {/* Franja de promo: va ARRIBA y separada, nunca como tercer
+                    botón. Las dos acciones de abajo son RESOLUCIONES ("ya pasó
+                    esto"); poner una promo es preventivo y mezclarlos hace que
+                    se toque el equivocado con apuro. */}
+                {yaPuesta != null ? (
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border bg-secondary/50 px-4 py-2 text-xs">
+                    <Tag className="size-3.5 shrink-0 text-info-ink" />
+                    <span className="tabular">
+                      En promo a {money(yaPuesta)} hasta el {fechaCorta(e.expiryDate)}
+                    </span>
+                    <Link
+                      href="/admin/promos"
+                      className="ml-auto text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                      Ver en Promos
+                    </Link>
+                  </div>
+                ) : sug ? (
+                  bajoCosto ? (
+                    /* Bajo costo no se resuelve de un toque: el segundo tap en
+                       pesos necesita el contexto completo, y eso vive en Promos. */
+                    <Link
+                      href="/admin/promos"
+                      className="flex w-full items-center gap-2 border-b border-border bg-secondary/40 px-4 py-2 text-left text-xs transition-colors hover:bg-secondary"
+                    >
+                      <Tag className="size-3.5 shrink-0 text-info-ink" />
+                      <span className="min-w-0 flex-1">
+                        No se vende al ritmo actual · rebajarlo queda bajo costo
+                      </span>
+                      <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => ponerEnPromo(sug)}
+                      className="flex w-full cursor-pointer items-center gap-2 border-b border-border bg-secondary/40 px-4 py-2 text-left text-xs transition-colors hover:bg-secondary disabled:opacity-40"
+                    >
+                      <Tag className="size-3.5 shrink-0 text-info-ink" />
+                      {/* El precio en pesos y la fecha van SIEMPRE: sin los dos,
+                          el tap es a ciegas y no se puede ofrecer de un toque. */}
+                      <span className="tabular min-w-0 flex-1">
+                        No se vende al ritmo actual · ponerlo a {money(Number(sug.sugerido))} hasta
+                        el {fechaCorta(e.expiryDate)}
+                      </span>
+                      <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
+                    </button>
+                  )
+                ) : null}
+
+                <div className="flex items-start gap-3 p-4 pb-0">
                   <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-lg" aria-hidden>
                     {e.productEmoji ?? "📦"}
                   </span>
@@ -144,7 +257,7 @@ export function VencimientosClient({
                   </span>
                 </div>
 
-                <div className="mt-3 flex gap-2">
+                <div className="flex gap-2 p-4 pt-3">
                   <button
                     type="button"
                     disabled={pending}

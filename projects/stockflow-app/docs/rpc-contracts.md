@@ -564,3 +564,65 @@ UI dice el ritmo que haría falta, nunca "vas a vender los 8".
 `sale_items (promo_id) where promo_id is not null` (FK nueva ⇒ índice, Postgres
 no lo crea solo). `promo_vigente` se resuelve por el primero. Toda lectura de
 `sale_items` en la atribución va acotada por `sales.sold_at`.
+
+---
+
+## Promociones · migración 047 (PR3 — la sección)
+
+Aditiva: no cambia el esquema de `promos` ni de `sale_items`. Recrea cinco
+funciones de 045 y agrega dos.
+
+### `store_hoy(store) → date`
+Una sola definición de "hoy" para toda la feature: `(now() at time zone
+stores.timezone)::date`. **Corrige un bug de 045**, que usaba `current_date`
+(fecha UTC del servidor) en 14 lugares. En Argentina (UTC−3) eso se adelanta a
+las 21:00 hora local: una promo "hasta el viernes" dejaba de aplicar el viernes
+a las 21:00, con el cartel puesto y el kiosco abierto. El resto de la app ya
+resolvía el día así desde la migración 007.
+
+### `create_promo` — dos reglas nuevas
+- **`promo_too_short`** — piso de duración: **3 días, o hasta el vencimiento
+  ligado, lo que sea MÁS CORTO** (decisión del owner, 2026-08-07). Frena el
+  latigazo de precio, pero cede ante el vencimiento: liquidar algo que vence
+  pasado mañana es medio motivo de la feature.
+- **`promo_after_expiry`** — techo: una promo atada a un lote no puede
+  sobrevivirlo (pasada esa fecha liquidaría mercadería nueva al precio de la
+  vieja). Atar el lote ES decir "esta promo es por este lote".
+- El reemplazo (`p_reemplazar`) ahora **hereda `list_price` de la promo que
+  cierra**: si no, el segundo escalón congelaría como "lista" el precio ya
+  rebajado y el POS tacharía una rebaja más chica de la que hubo.
+
+### `promos_sugeridas` — el segundo escalón
+Antes excluía todo producto con promo viva, con lo cual **el re-escalón era
+inejecutable** (y la decisión del owner es que el sistema vuelva a avisar y él
+firme cada escalón). Ahora también los evalúa, con tres cotas:
+1. mínimo **2 días completos** desde `starts_on` (no contradecirse al otro día);
+2. el ritmo se mide **desde `starts_on`**, no a 14 días (la ventana larga está
+   contaminada por los días previos a la rebaja);
+3. la escalera se calcula sobre el **precio de LISTA**, no sobre el vigente (si
+   no, los descuentos se componen solos).
+
+Claves nuevas: `es_reescalon`, `promo_vigente_id`, `promo_price_actual`,
+`promo_starts_on`, `promo_ends_on`, `unidades_desde_promo`, `list_price`,
+`lote_qty`. `price` pasa a ser el precio **efectivo** de hoy.
+
+### `promos_listado` — la medición deja de mentir
+Los predicados `status` y `sold_at` vivían en el `on` de un `left join`: al
+anular una venta, la fila de `sale_items` sobrevivía con su `qty` y el `sum` la
+sumaba igual — una promo cuya única venta se anuló declaraba unidades vendidas
+y plata cobrada. Ahora la atribución va por escalares correlacionados con `join`
+real, acotados a 90 días.
+Claves nuevas: `cobrado`, `lote_qty`, `lote_al_costo`, `cost_at_start`,
+`lote_vence`. El lote **no se cruza** con las unidades vendidas: sin FIFO por
+lote, "vendiste 6 de las 8 del lote" sería una atribución que el dato no tiene.
+
+### `promos_carteles(store) → jsonb`
+Lectura para la góndola: `name`, `emoji`, `precio`, `antes`, `ends_on`,
+`termina_hoy`. Sólo lo **activo hoy** (las programadas quedan afuera: un cartel
+puesto hoy con el precio de mañana es el desfasaje cartel↔caja que la feature
+existe para evitar). No expone costo, margen, stock ni el motivo del descuento.
+No exige `can_see_costs`: no hay un solo costo, y el que pone los carteles
+muchas veces no es el dueño.
+
+### Errores nuevos
+`promo_too_short` · `promo_after_expiry`
