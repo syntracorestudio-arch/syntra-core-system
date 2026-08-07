@@ -252,7 +252,12 @@ export type ProductoPorCodigo = {
   name: string;
   emoji: string | null;
   color: string | null;
+  /** Precio EFECTIVO: si hay promo activa, ya viene rebajado del servidor. */
   price: number;
+  /** Precio de lista congelado al crear la promo. null = no hay promo. */
+  listPrice: number | null;
+  promoId: string | null;
+  promoEndsOn: string | null;
   stock: number;
   categoryId: string | null;
   categoryName: string | null;
@@ -283,6 +288,9 @@ export async function buscarProductoPorCodigo(
     emoji: string | null;
     color: string | null;
     price: string | number;
+    list_price?: string | number | null;
+    promo_id?: string | null;
+    promo_ends_on?: string | null;
     stock: string | number;
     category_id: string | null;
     category_name: string | null;
@@ -297,6 +305,9 @@ export async function buscarProductoPorCodigo(
     emoji: r.emoji,
     color: r.color,
     price: Number(r.price),
+    listPrice: r.list_price == null ? null : Number(r.list_price),
+    promoId: r.promo_id ?? null,
+    promoEndsOn: r.promo_ends_on ?? null,
     stock: Number(r.stock),
     categoryId: r.category_id,
     categoryName: r.category_name,
@@ -319,7 +330,12 @@ export type ProductoBuscado = {
   name: string;
   emoji: string | null;
   color: string | null;
+  /** Precio EFECTIVO: si hay promo activa, ya viene rebajado del servidor. */
   price: number;
+  /** Precio de lista congelado al crear la promo. null = no hay promo. */
+  listPrice: number | null;
+  promoId: string | null;
+  promoEndsOn: string | null;
   cost: number | null;
   stock: number;
   lowStockThreshold: number | null;
@@ -377,6 +393,9 @@ export async function buscarProductos(input: unknown): Promise<PaginaProductos> 
       emoji: string | null;
       color: string | null;
       price: string | number;
+      list_price?: string | number | null;
+      promo_id?: string | null;
+      promo_ends_on?: string | null;
       cost: string | number | null;
       stock: string | number;
       low_stock_threshold: string | number | null;
@@ -398,6 +417,9 @@ export async function buscarProductos(input: unknown): Promise<PaginaProductos> 
       emoji: p.emoji,
       color: p.color,
       price: Number(p.price),
+      listPrice: p.list_price == null ? null : Number(p.list_price),
+      promoId: p.promo_id ?? null,
+      promoEndsOn: p.promo_ends_on ?? null,
       cost: p.cost === null ? null : Number(p.cost),
       stock: Number(p.stock),
       lowStockThreshold: p.low_stock_threshold === null ? null : Number(p.low_stock_threshold),

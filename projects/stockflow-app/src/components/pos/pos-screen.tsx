@@ -29,6 +29,7 @@ import { cn } from "@/lib/cn";
 import { CategoryChips } from "@/components/ui/category-chips";
 import { EmptyArt } from "@/components/ui/empty-art";
 import { money } from "@/lib/format";
+import { enPromo, textoAntes, textoDelta, textoHasta } from "@/lib/promos";
 import {
   registerSale,
   registerSplitSale,
@@ -58,7 +59,13 @@ export type PosProduct = {
   name: string;
   emoji: string | null;
   color: string | null;
+  /** Precio EFECTIVO: si hay promo activa, ya viene rebajado del servidor. */
   price: number;
+  /** Precio de lista congelado al crear la promo. null = no hay promo. */
+  listPrice?: number | null;
+  promoId?: string | null;
+  /** Fecha de fin: deja que el cajero diga HASTA CUÁNDO, no solo que hay promo. */
+  promoEndsOn?: string | null;
   stock: number;
   categoryId: string | null;
   categoryName: string | null;
@@ -288,6 +295,9 @@ export function PosScreen({
               emoji: p.emoji,
               color: p.color,
               price: p.price,
+              listPrice: p.listPrice,
+              promoId: p.promoId,
+              promoEndsOn: p.promoEndsOn,
               stock: p.stock,
               categoryId: p.categoryId,
               categoryName: p.categoryName,
@@ -408,7 +418,7 @@ export function PosScreen({
       const encontrado = porCodigo.get(codigo);
       if (encontrado) {
         agregar(encontrado);
-        setAviso({ tone: "ok", text: `${encontrado.name} agregado` });
+        setAviso({ tone: "ok", text: `${encontrado.name} agregado` + (textoHasta(encontrado) ? ` · en promo ${textoHasta(encontrado)}` : enPromo(encontrado) ? " · en promo" : "") });
         return;
       }
 
@@ -436,6 +446,9 @@ export function PosScreen({
               emoji: p.emoji,
               color: p.color,
               price: p.price,
+              listPrice: p.listPrice,
+              promoId: p.promoId,
+              promoEndsOn: p.promoEndsOn,
               stock: p.stock,
               categoryId: p.categoryId,
               categoryName: p.categoryName,
@@ -443,7 +456,7 @@ export function PosScreen({
               stockConfiable: p.stockConfiable,
               sold14d: 0,
             });
-            setAviso({ tone: "ok", text: `${p.name} agregado` });
+            setAviso({ tone: "ok", text: `${p.name} agregado` + (textoHasta(p) ? ` · en promo ${textoHasta(p)}` : enPromo(p) ? " · en promo" : "") });
             return;
           }
           // Ahora sí: no existe en el negocio. Se consulta el catálogo compartido
@@ -1409,6 +1422,15 @@ export function PosScreen({
                       <span className="rounded-full bg-danger/15 px-1.5 py-0.5 text-[10px] font-semibold text-danger-ink ring-1 ring-danger/30">
                         sin stock
                       </span>
+                    ) : enPromo(p) ? (
+                      /* Prioridad dura: sin stock > promo > quedan N. Cuando la
+                         promo desplaza al contador está bien: "quedan 2" es un
+                         aviso de reposición para el dueño, no algo que cambie lo
+                         que hace el cajero. Un segundo portador (borde, punto)
+                         reintroduce dos señales por tile por la puerta de atrás. */
+                      <span className="rounded-full bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold text-info-ink ring-1 ring-info/30">
+                        promo
+                      </span>
                     ) : poco ? (
                       <span className="tabular rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning-ink ring-1 ring-warning/30">
                         {p.stock}
@@ -1418,8 +1440,17 @@ export function PosScreen({
                   <p className="mt-1.5 line-clamp-2 text-[13px] font-medium leading-tight">
                     {p.name}
                   </p>
-                  <p className="tabular mt-auto pt-1 text-[15px] font-semibold">
+                  <p className="tabular mt-auto flex flex-wrap items-baseline gap-1.5 pt-1 text-[15px] font-semibold">
                     {money(p.price)}
+                    {enPromo(p) && (
+                      /* flex-wrap es el guard: un precio patológico manda el
+                         tachado a una segunda línea en vez de desbordar en
+                         horizontal, que es lo que rompía el POS a 360px. */
+                      <s className="text-[11px] font-medium text-info-ink">
+                        <span className="sr-only">antes </span>
+                        {money(p.listPrice!)}
+                      </s>
+                    )}
                   </p>
                 </button>
               );
@@ -1494,7 +1525,15 @@ export function PosScreen({
                            tienen que ver que eso NO salió del catálogo. */
                         <span className="text-warning-ink">Monto libre · sin producto</span>
                       ) : (
-                        `${money(l.producto.price)} c/u`
+                        <>
+                          {money(l.producto.price)} c/u
+                          {textoAntes(l.producto) && (
+                            <>
+                              {" · "}
+                              <s className="text-info-ink">{textoAntes(l.producto)}</s>
+                            </>
+                          )}
+                        </>
                       )}
                     </p>
                   </div>
@@ -1558,6 +1597,16 @@ export function PosScreen({
               {money(total)}
             </span>
           </div>
+
+          {/* El modo de falla que esto ataja: el cajero canta el precio de la
+              góndola de memoria, el cliente paga de más y a la noche la caja
+              cierra con sobrante sin que nadie sepa por qué. Va acá porque
+              Confirmar es el instante exacto en que se cuenta la plata. */}
+          {textoDelta(carrito) && (
+            <p className="tabular -mt-2 mb-3 text-right text-xs text-info-ink">
+              {textoDelta(carrito)}
+            </p>
+          )}
 
           {!confirmando ? (
           <>

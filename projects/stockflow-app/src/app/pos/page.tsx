@@ -110,6 +110,11 @@ export default async function PosPage() {
       stock_confiable?: boolean;
       vendidas_14d: string | number;
       barcodes: string[] | null;
+      /* 045 · `price` YA viene con la promo aplicada; estos dos sólo sirven para
+         que la pantalla pueda mostrar de dónde bajó. */
+      list_price?: string | number | null;
+      promo_id?: string | null;
+      promo_ends_on?: string | null;
     }[]
   ).map((p) => ({
     id: p.id,
@@ -117,6 +122,9 @@ export default async function PosPage() {
     emoji: p.emoji,
     color: p.color,
     price: Number(p.price),
+    listPrice: p.list_price == null ? null : Number(p.list_price),
+    promoId: p.promo_id ?? null,
+    promoEndsOn: p.promo_ends_on ?? null,
     stock: Number(p.stock),
     categoryId: p.category_id,
     categoryName: p.category_name,

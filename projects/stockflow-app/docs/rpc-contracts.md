@@ -546,6 +546,9 @@ UI dice el ritmo que haría falta, nunca "vas a vender los 8".
   estados: el vencimiento se resuelve y la promo sigue descontando.
 - **`pos_destacados` · `productos_buscar` · `producto_por_codigo`** — agregan
   `price` = efectivo, más `list_price` y `promo_id` cuando hay promo.
+  **Migración 046** suma `promo_ends_on` a las tres: sin la fecha el cajero puede
+  decir "está en promo" pero no HASTA CUÁNDO, y eso es una excusa en vez de una
+  explicación. Cuesta una clave sobre la MISMA llamada a `promo_vigente()`.
 
 **No se tocan:** `register_split_sale`, `register_split_group`, `void_sale`,
 `adjust_stock`, ni el SQL de corte de día.
