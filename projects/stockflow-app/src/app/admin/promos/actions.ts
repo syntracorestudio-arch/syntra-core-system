@@ -32,6 +32,8 @@ const crearSchema = z.object({
   belowCostOk: z.boolean().default(false),
   /** Segundo escalón: cierra la promo vigente y crea la nueva ATÓMICAMENTE. */
   reemplazar: z.boolean().default(false),
+  /** 048 · promo de cantidad: tamaño del grupo. 1 = promo simple. */
+  minQty: z.number().int().min(1).max(24).default(1),
 });
 
 /**
@@ -58,6 +60,7 @@ export async function crearPromo(input: unknown): Promise<Result<{ promoId: stri
     p_origin: parsed.data.origin,
     p_below_cost_ok: parsed.data.belowCostOk,
     p_reemplazar: parsed.data.reemplazar,
+    p_min_qty: parsed.data.minQty,
   });
 
   if (error) return { ok: false, error: errorPromo(error.message) };

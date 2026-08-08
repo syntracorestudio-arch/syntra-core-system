@@ -12,11 +12,13 @@ import {
   sumarDias,
   diasEntre,
   margenPct,
+  textoGrupo,
 } from "@/lib/promos";
 import { Button } from "@/components/ui/button";
 import { buscarProductos, type ProductoBuscado } from "@/app/pos/actions";
 import { Hoja, BajoCosto } from "./hoja";
 import { crearPromo, lotesDelProducto, type LoteDelProducto } from "./actions";
+import type { Sugerencia } from "./promos-client";
 
 /**
  * Alta manual de una promo.
@@ -32,18 +34,21 @@ import { crearPromo, lotesDelProducto, type LoteDelProducto } from "./actions";
 export function NuevaPromo({
   hoy,
   margenMinimo,
+  porVencer,
   onClose,
   onDone,
 }: {
   hoy: string;
   margenMinimo: number;
+  /** Las sugerencias vivas de la sección: el atajo "por vencer" del picker. */
+  porVencer: Sugerencia[];
   onClose: () => void;
   onDone: (texto: string) => void;
 }) {
   const [producto, setProducto] = useState<ProductoBuscado | null>(null);
 
   if (!producto) {
-    return <ElegirProducto onClose={onClose} onElegir={setProducto} />;
+    return <ElegirProducto porVencer={porVencer} onClose={onClose} onElegir={setProducto} />;
   }
 
   return (
@@ -62,10 +67,40 @@ export function NuevaPromo({
    Paso 1 · el producto
    ─────────────────────────────────────────────────────────────────────────── */
 
+/**
+ * Sugerencia → ProductoBuscado, tipado COMPLETO contra el tipo real (no un
+ * Partial): si `ProductoBuscado` gana un campo, TS avisa acá en vez de dejar
+ * que `ArmarPromo` lea un undefined en producción.
+ */
+function comoProducto(s: Sugerencia): ProductoBuscado {
+  return {
+    id: s.product_id,
+    name: s.name,
+    emoji: s.emoji,
+    color: null,
+    price: Number(s.price),
+    listPrice: Number(s.list_price),
+    promoId: s.promo_vigente_id,
+    promoEndsOn: s.promo_ends_on,
+    promoMinQty: 1,
+    promoUnitPrice: s.promo_price_actual == null ? null : Number(s.promo_price_actual),
+    cost: s.cost == null ? null : Number(s.cost),
+    stock: Number(s.stock),
+    lowStockThreshold: null,
+    categoryId: null,
+    categoryName: null,
+    stockConfiable: true,
+    sold14d: Math.round(Number(s.ritmo_actual) * 14),
+    sold30d: Math.round(Number(s.ritmo_actual) * 30),
+  };
+}
+
 function ElegirProducto({
+  porVencer,
   onClose,
   onElegir,
 }: {
+  porVencer: Sugerencia[];
   onClose: () => void;
   onElegir: (p: ProductoBuscado) => void;
 }) {
@@ -74,6 +109,12 @@ function ElegirProducto({
   const [cargando, setCargando] = useState(true);
   const pedido = useRef(0);
 
+  const buscando = q.trim() !== "";
+  /* El atajo "por vencer": lo más urgente primero, máximo 3 — la hoja es
+     plataforma de lanzamiento, no superficie de browse. */
+  const urgentes = porVencer.slice(0, 3);
+  const idsUrgentes = new Set(urgentes.map((s) => s.product_id));
+
   useEffect(() => {
     /* Debounce 250 ms + descarte por número de pedido: sin el contador, una
        respuesta lenta de "alf" puede pisar a la de "alfajor" y la lista queda
@@ -81,7 +122,8 @@ function ElegirProducto({
     const id = window.setTimeout(async () => {
       const mio = ++pedido.current;
       setCargando(true);
-      const r = await buscarProductos({ q: q.trim() || null, limit: 20 });
+      /* Con q vacío la lista es un arranque, no un catálogo: 8 alcanzan. */
+      const r = await buscarProductos({ q: q.trim() || null, limit: q.trim() ? 20 : 8 });
       if (mio !== pedido.current) return;
       setItems(r.items);
       setCargando(false);
@@ -115,41 +157,101 @@ function ElegirProducto({
         />
       </div>
 
-      <ul className="mt-3 space-y-1">
+      {/* Con q vacío la lista tiene NOMBRE: el atajo de lo urgente arriba y un
+          arranque corto de los más vendidos abajo. Tipeando, los grupos
+          desaparecen — el que busca ya sabe qué busca y agrupar es ruido. */}
+      {!buscando && urgentes.length > 0 && (
+        <>
+          <p className="mb-1.5 mt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Por vencer
+          </p>
+          <ul className="space-y-1">
+            {urgentes.map((sug) => (
+              <li key={sug.product_id}>
+                <FilaProducto
+                  p={comoProducto(sug)}
+                  meta={
+                    <span className="text-warning-ink">
+                      {sug.dias <= 0
+                        ? "vence hoy"
+                        : sug.dias === 1
+                          ? "vence mañana"
+                          : `vence en ${sug.dias} días`}
+                      {" · "}
+                      {Number(sug.stock)} u.
+                    </span>
+                  }
+                  onElegir={onElegir}
+                />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {!buscando && (
+        <p className="mb-1.5 mt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Los que más vendés
+        </p>
+      )}
+      <ul className={buscando ? "mt-3 space-y-1" : "space-y-1"}>
         {cargando && items.length === 0 && (
           <li className="py-6 text-center text-sm text-muted-foreground">
             <LoaderCircle className="mx-auto size-4 animate-spin" />
           </li>
         )}
-        {!cargando && items.length === 0 && (
+        {!cargando && items.length === 0 && buscando && (
           <li className="py-6 text-center text-sm text-muted-foreground">
             No encontramos nada con «{q}».
           </li>
         )}
-        {items.map((p) => (
-          <li key={p.id}>
-            <button
-              type="button"
-              onClick={() => onElegir(p)}
-              className="flex w-full cursor-pointer items-center gap-3 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-border hover:bg-secondary"
-            >
-              <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-secondary text-base">
-                {p.emoji ?? "📦"}
-              </span>
-              <span className="min-w-0 flex-1">
-                {/* Sin truncar: acá el nombre DECIDE cuál producto se rebaja, y
-                    dos productos que difieren en el final se verían iguales. */}
-                <span className="block text-sm font-medium">{p.name}</span>
-                <span className="tabular block text-xs text-muted-foreground">
-                  {money(p.listPrice ?? p.price)} · {p.stock} u.
-                  {p.promoId && " · ya está en promo"}
-                </span>
-              </span>
-            </button>
-          </li>
-        ))}
+        {items
+          /* Un producto puede estar por vencer Y entre los más vendidos:
+             mostrarlo dos veces es pedir dos veces la misma decisión. */
+          .filter((p) => buscando || !idsUrgentes.has(p.id))
+          .map((p) => (
+            <li key={p.id}>
+              <FilaProducto p={p} onElegir={onElegir} />
+            </li>
+          ))}
       </ul>
     </Hoja>
+  );
+}
+
+/** Una fila del picker. `meta` reemplaza el renglón de precio/stock (urgencia). */
+function FilaProducto({
+  p,
+  meta,
+  onElegir,
+}: {
+  p: ProductoBuscado;
+  meta?: React.ReactNode;
+  onElegir: (p: ProductoBuscado) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onElegir(p)}
+      className="flex w-full cursor-pointer items-center gap-3 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-border hover:bg-secondary"
+    >
+      <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-secondary text-base">
+        {p.emoji ?? "📦"}
+      </span>
+      <span className="min-w-0 flex-1">
+        {/* Sin truncar: acá el nombre DECIDE cuál producto se rebaja, y dos
+            productos que difieren en el final se verían iguales. */}
+        <span className="block text-sm font-medium">{p.name}</span>
+        <span className="tabular block text-xs text-muted-foreground">
+          {meta ?? (
+            <>
+              {money(p.listPrice ?? p.price)} · {p.stock} u.
+              {p.promoId && " · ya está en promo"}
+            </>
+          )}
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -178,6 +280,10 @@ function ArmarPromo({
   const costo = producto.cost;
 
   const [valor, setValor] = useState("");
+  /* La MECÁNICA: 1 = precio nuevo por unidad · 2/3 = precio por el GRUPO
+     ("2 x $1.000"). El input siempre es UN número; la mecánica define qué
+     significa — decisión del owner: el alta habla como el cartel. */
+  const [mecanica, setMecanica] = useState<1 | 2 | 3>(1);
   const [lotes, setLotes] = useState<LoteDelProducto[]>([]);
   const [loteId, setLoteId] = useState<string | null>(null);
   const [fin, setFin] = useState<string>(sumarDias(hoy, 6) ?? hoy);
@@ -208,10 +314,16 @@ function ArmarPromo({
   const lote = useMemo(() => lotes.find((l) => l.id === loteId) ?? null, [lotes, loteId]);
   const venceLote = lote?.expiryDate ?? null;
 
-  const precio = Number(valor);
+  const grupo = Number(valor);
+  /* El unitario EXACTO que viaja a la RPC. Con mecánica de grupo, el precio de
+     grupo tiene que dividir entero: el contrato guarda el unitario y un
+     unitario con decimales rompería la exactitud que sostiene al split. */
+  const divideExacto = mecanica === 1 || (Number.isFinite(grupo) && grupo % mecanica === 0);
+  const precio = mecanica === 1 ? grupo : grupo / mecanica;
   const margen = margenPct(precio, costo);
   const bajoCosto = costo !== null && Number.isFinite(precio) && precio > 0 && precio < costo;
-  const precioOk = Number.isFinite(precio) && precio > 0 && precio < lista;
+  const precioOk =
+    Number.isFinite(precio) && precio > 0 && precio < lista && divideExacto;
   const duracionOk = duracionValida(hoy, fin, venceLote);
   const minimo = finMinimo(hoy, venceLote);
   const dias = (diasEntre(hoy, fin) ?? 0) + 1;
@@ -235,6 +347,7 @@ function ArmarPromo({
         expiryId: loteId,
         origin: "manual",
         belowCostOk,
+        minQty: mecanica,
         /* Reemplaza si el producto YA tiene una promo viva: el dueño la eligió
            a sabiendas (la lista se lo dijo) y dos llamadas dejarían una ventana
            cobrando el precio de lista. */
@@ -246,9 +359,13 @@ function ArmarPromo({
         return;
       }
       onDone(
-        `Listo. La caja ya cobra ${money(precio)} el ${producto.name}. Termina el ${fechaCorta(
-          fin,
-        )} y vuelve solo a ${money(lista)}.`,
+        mecanica === 1
+          ? `Listo. La caja ya cobra ${money(precio)} el ${producto.name}. Termina el ${fechaCorta(
+              fin,
+            )} y vuelve solo a ${money(lista)}.`
+          : `Listo. La caja cobra ${mecanica} x ${money(grupo)} el ${producto.name} (la unidad suelta sigue a ${money(
+              lista,
+            )}). Termina el ${fechaCorta(fin)}.`,
       );
     });
   }
@@ -302,14 +419,44 @@ function ArmarPromo({
 
       {producto.promoId && (
         <p className="mt-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning-ink">
-          Ya tiene una promo corriendo a {money(producto.price)}. Si seguís, esta la reemplaza.
+          Ya tiene una promo corriendo{" "}
+          {textoGrupo(producto) ? `de ${textoGrupo(producto)}` : `a ${money(producto.price)}`}. Si
+          seguís, esta la reemplaza.
         </p>
       )}
 
+      {/* ---- mecánica ---- */}
+      {/* Los chips van ARRIBA del input porque cambian qué SIGNIFICA el número
+          de abajo. Sólo tres mecánicas: más es superficie de decisión sin caso
+          real de kiosco. */}
+      <p className="mt-4 text-sm font-medium">¿Cómo?</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {([1, 2, 3] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMecanica(m)}
+            className={cn(
+              "min-h-9 cursor-pointer rounded-full border px-3 text-xs font-medium transition-colors",
+              mecanica === m
+                ? "border-primary bg-primary/10 text-primary-ink"
+                : "border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {m === 1 ? "Precio nuevo" : `${m} x`}
+          </button>
+        ))}
+      </div>
+
       {/* ---- precio ---- */}
-      <label htmlFor="np-precio" className="mt-4 block text-sm font-medium">
-        Precio de promo
+      <label htmlFor="np-precio" className="mt-3 block text-sm font-medium">
+        {mecanica === 1 ? "Precio de promo" : `Precio por las ${mecanica}`}
       </label>
+      {mecanica > 1 && (
+        <p className="tabular mt-0.5 text-xs text-muted-foreground">
+          Hoy {mecanica} salen {money(lista * mecanica)}.
+        </p>
+      )}
       <input
         id="np-precio"
         value={valor}
@@ -320,11 +467,24 @@ function ArmarPromo({
       />
       <p className="mt-1.5 text-sm text-muted-foreground">
         {valor === "" ? (
-          "Poné cuánto querés cobrarlo."
-        ) : !Number.isFinite(precio) || precio <= 0 ? (
+          mecanica === 1 ? "Poné cuánto querés cobrarlo." : "Poné cuánto salen juntas."
+        ) : !Number.isFinite(grupo) || grupo <= 0 ? (
           "Poné un número."
+        ) : !divideExacto ? (
+          /* El contrato guarda el UNITARIO exacto (es lo que mantiene al split
+             lejos del mismatch): un grupo que no divide entero no es un promo
+             válida, es una cuenta con resto. */
+          <>
+            Poné un precio divisible por {mecanica} — p. ej.{" "}
+            {money(Math.floor(grupo / mecanica) * mecanica)} o{" "}
+            {money(Math.ceil(grupo / mecanica) * mecanica)}.
+          </>
         ) : precio >= lista ? (
-          <>Tiene que ser menor a {money(lista)}.</>
+          mecanica === 1 ? (
+            <>Tiene que ser menor a {money(lista)}.</>
+          ) : (
+            <>Tiene que ser menor a lo que salen {mecanica} hoy ({money(lista * mecanica)}).</>
+          )
         ) : (
           /* Bajo costo se dice "perdés X", no "te queda −X": un menos delante
              de un monto se lee mal y rápido, y acá el signo es lo único que
@@ -354,6 +514,14 @@ function ArmarPromo({
           )
         )}
       </p>
+      {mecanica > 1 && divideExacto && Number.isFinite(precio) && precio > 0 && precio < lista && (
+        /* La doble lectura de la decisión del owner: input = precio del grupo,
+           acá la equivalencia. La segunda mitad es el seteo de expectativa
+           clave de toda la mecánica y va UNA sola vez, acá. */
+        <p className="tabular mt-1 text-xs text-muted-foreground">
+          = {money(precio)} c/u llevando de a {mecanica} · la unidad suelta sigue a {money(lista)}.
+        </p>
+      )}
 
       {/* ---- hasta cuándo ---- */}
       <p className="mt-4 text-sm font-medium">¿Hasta cuándo?</p>
@@ -425,8 +593,14 @@ function ArmarPromo({
 
       {seAgotaSolo && (
         <p className="mt-3 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning-ink">
-          Vendés ~{porDia.toFixed(1).replace(".", ",")} por día y te quedan {producto.stock}: se
-          agotan solos antes de vencer. Si igual querés rebajarlo, dale.
+          {/* Mismo criterio que la card: entero, hacia arriba, y por semana
+              cuando sale menos de uno por día. Cero decimales, cero "~". */}
+          Venís vendiendo{" "}
+          {porDia < 1
+            ? `${Math.ceil(porDia * 7 - 1e-9)} por semana`
+            : `${Math.ceil(porDia - 1e-9)} por día`}{" "}
+          y te quedan {producto.stock}: se agotan solos antes de vencer. Si igual querés
+          rebajarlo, dale.
         </p>
       )}
 
@@ -450,9 +624,15 @@ function ArmarPromo({
         {pendiente && <LoaderCircle className="size-4 animate-spin" />}
         <span className="truncate">
           {precioOk ? (
-            <>
-              Poner a {money(precio)} hasta el {fechaCorta(fin)}
-            </>
+            mecanica === 1 ? (
+              <>
+                Poner a {money(precio)} hasta el {fechaCorta(fin)}
+              </>
+            ) : (
+              <>
+                Poner {mecanica} x {money(grupo)} hasta el {fechaCorta(fin)}
+              </>
+            )
           ) : (
             "Poner en promo"
           )}

@@ -19,6 +19,12 @@ import {
   razonDeDuracion,
   margenPct,
   errorPromo,
+  esPromoCantidad,
+  tienePromo,
+  desgloseLinea,
+  totalLinea,
+  textoGrupo,
+  textoDesglose,
 } from "./promos.ts";
 import { money } from "./format.ts";
 
@@ -256,4 +262,112 @@ test("errorPromo: traduce los códigos, nunca los muestra crudos", () => {
   }
   assert.equal(errorPromo("algo_que_no_conocemos"), "No pudimos guardar la promo.");
   assert.equal(errorPromo(null), "No pudimos guardar la promo.");
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FASE 2 — promos de cantidad ("2 x $1.000")
+   La misma matemática que register_sale (048): si estas cuentas difieren de
+   las del server, el botón dice una cosa, el ticket otra, y el split se cae.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+// "2 x $1.000": lista 600, grupo de 2 al unitario 500. `price` = LISTA (048).
+const dosXMil = {
+  ...base,
+  price: 600,
+  listPrice: 600,
+  promoId: "pq1",
+  promoMinQty: 2,
+  promoUnitPrice: 500,
+};
+
+test("esPromoCantidad / enPromo / tienePromo: la partición de semántica", () => {
+  assert.equal(esPromoCantidad(dosXMil), true);
+  // La pregunta del tachado da FALSE: a una unidad no hay rebaja que tachar.
+  assert.equal(enPromo(dosXMil), false);
+  // La pregunta del badge da TRUE: el tile sigue diciendo `promo`.
+  assert.equal(tienePromo(dosXMil), true);
+  // La promo simple responde igual que siempre.
+  assert.equal(esPromoCantidad(conPromo), false);
+  assert.equal(enPromo(conPromo), true);
+  assert.equal(tienePromo(conPromo), true);
+});
+
+test("esPromoCantidad: un grupo que no rebaja es dato roto, no promo", () => {
+  assert.equal(esPromoCantidad({ ...dosXMil, promoUnitPrice: 600 }), false);
+  assert.equal(esPromoCantidad({ ...dosXMil, promoUnitPrice: null }), false);
+  assert.equal(esPromoCantidad({ ...dosXMil, promoMinQty: 1 }), false);
+});
+
+test("textoAntes: NUNCA tacha en una promo de cantidad", () => {
+  assert.equal(textoAntes(dosXMil), null);
+});
+
+test("desgloseLinea: LA CUENTA — 2 x $1.000 llevando 3 = $1.600", () => {
+  const d = desgloseLinea(dosXMil, 3);
+  assert.equal(d.unidadesPromo, 2);
+  assert.equal(d.unidadesLista, 1);
+  assert.equal(d.total, 1600);
+  assert.equal(d.ahorro, 200);
+});
+
+test("desgloseLinea: bajo el umbral, todo a lista y ahorro CERO", () => {
+  const d = desgloseLinea(dosXMil, 1);
+  assert.equal(d.unidadesPromo, 0);
+  assert.equal(d.total, 600);
+  assert.equal(d.ahorro, 0);
+});
+
+test("desgloseLinea: múltiplo exacto, todo en promo", () => {
+  const d = desgloseLinea(dosXMil, 4);
+  assert.equal(d.unidadesPromo, 4);
+  assert.equal(d.unidadesLista, 0);
+  assert.equal(d.total, 2000);
+  assert.equal(d.ahorro, 400);
+});
+
+test("desgloseLinea: promo simple y sin promo siguen exactos", () => {
+  assert.equal(desgloseLinea(conPromo, 3).total, 2100); // efectivo 700 × 3
+  assert.equal(desgloseLinea(conPromo, 3).ahorro, 900);
+  assert.equal(desgloseLinea(sinPromo, 2).total, 2000);
+  assert.equal(desgloseLinea(sinPromo, 2).ahorro, 0);
+});
+
+test("totalLinea: el total de línea SIEMPRE sale de acá", () => {
+  assert.equal(totalLinea(dosXMil, 3), 1600);
+  assert.equal(totalLinea(conPromo, 2), 1400);
+});
+
+test("ahorroCarrito: la línea del pie se MATERIALIZA al cerrar el grupo", () => {
+  const con1 = [{ tipo: "producto" as const, producto: dosXMil, cantidad: 1 }];
+  const con2 = [{ tipo: "producto" as const, producto: dosXMil, cantidad: 2 }];
+  assert.equal(ahorroCarrito(con1), 0);          // sin señal
+  assert.equal(ahorroCarrito(con2), 200);        // la señal del 2º escaneo
+  assert.equal(textoDelta(con1), null);
+  assert.equal(textoDelta(con2), `Promo aplicada · −${money(200)}`);
+});
+
+test("ahorroCarrito: mezcla cantidad + simple + monto libre", () => {
+  const carrito = [
+    { tipo: "producto" as const, producto: dosXMil, cantidad: 3 },
+    { tipo: "producto" as const, producto: conPromo, cantidad: 1 },
+    { tipo: "libre" as const, id: "l1", label: "Suelto", amount: 500, cantidad: 1 },
+  ];
+  assert.equal(ahorroCarrito(carrito), 500); // 200 (grupo) + 300 (simple)
+});
+
+test("textoGrupo: la sintaxis universal", () => {
+  assert.equal(textoGrupo(dosXMil), `2 x ${money(1000)}`);
+  assert.equal(textoGrupo(conPromo), null);
+  assert.equal(textoGrupo(sinPromo), null);
+});
+
+test("textoDesglose: grupo · multiplicador · resto — nunca '$500 c/u'", () => {
+  assert.equal(textoDesglose(dosXMil, 1), null); // bajo el umbral: nada
+  assert.equal(textoDesglose(dosXMil, 2), `2 x ${money(1000)}`);
+  assert.equal(textoDesglose(dosXMil, 3), `2 x ${money(1000)} + 1 x ${money(600)}`);
+  assert.equal(textoDesglose(dosXMil, 4), `2 x ${money(1000)} (×2)`);
+  assert.equal(textoDesglose(dosXMil, 5), `2 x ${money(1000)} (×2) + 1 x ${money(600)}`);
+  for (const n of [2, 3, 4, 5]) {
+    assert.ok(!textoDesglose(dosXMil, n)!.includes("c/u"), "colapsó a c/u");
+  }
 });

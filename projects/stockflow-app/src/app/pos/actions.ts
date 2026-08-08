@@ -258,6 +258,8 @@ export type ProductoPorCodigo = {
   listPrice: number | null;
   promoId: string | null;
   promoEndsOn: string | null;
+  promoMinQty: number | null;
+  promoUnitPrice: number | null;
   stock: number;
   categoryId: string | null;
   categoryName: string | null;
@@ -291,6 +293,8 @@ export async function buscarProductoPorCodigo(
     list_price?: string | number | null;
     promo_id?: string | null;
     promo_ends_on?: string | null;
+    promo_min_qty?: string | number | null;
+    promo_unit_price?: string | number | null;
     stock: string | number;
     category_id: string | null;
     category_name: string | null;
@@ -308,6 +312,8 @@ export async function buscarProductoPorCodigo(
     listPrice: r.list_price == null ? null : Number(r.list_price),
     promoId: r.promo_id ?? null,
     promoEndsOn: r.promo_ends_on ?? null,
+    promoMinQty: r.promo_min_qty == null ? null : Number(r.promo_min_qty),
+    promoUnitPrice: r.promo_unit_price == null ? null : Number(r.promo_unit_price),
     stock: Number(r.stock),
     categoryId: r.category_id,
     categoryName: r.category_name,
@@ -336,6 +342,8 @@ export type ProductoBuscado = {
   listPrice: number | null;
   promoId: string | null;
   promoEndsOn: string | null;
+  promoMinQty: number | null;
+  promoUnitPrice: number | null;
   cost: number | null;
   stock: number;
   lowStockThreshold: number | null;
@@ -396,6 +404,8 @@ export async function buscarProductos(input: unknown): Promise<PaginaProductos> 
       list_price?: string | number | null;
       promo_id?: string | null;
       promo_ends_on?: string | null;
+      promo_min_qty?: string | number | null;
+      promo_unit_price?: string | number | null;
       cost: string | number | null;
       stock: string | number;
       low_stock_threshold: string | number | null;
@@ -420,6 +430,8 @@ export async function buscarProductos(input: unknown): Promise<PaginaProductos> 
       listPrice: p.list_price == null ? null : Number(p.list_price),
       promoId: p.promo_id ?? null,
       promoEndsOn: p.promo_ends_on ?? null,
+      promoMinQty: p.promo_min_qty == null ? null : Number(p.promo_min_qty),
+      promoUnitPrice: p.promo_unit_price == null ? null : Number(p.promo_unit_price),
       cost: p.cost === null ? null : Number(p.cost),
       stock: Number(p.stock),
       lowStockThreshold: p.low_stock_threshold === null ? null : Number(p.low_stock_threshold),
