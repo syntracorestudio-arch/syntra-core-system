@@ -28,6 +28,12 @@
 -- RPC), así que los fixtures que la tocan directo van como `postgres`. Cada
 -- bloque declara con qué rol corre — mezclarlos es lo que hace ilegibles a estos
 -- scripts.
+--
+-- FECHAS (fix 048): todas las fechas de negocio usan store_hoy(), NUNCA
+-- public.store_hoy('11111111-1111-1111-1111-111111111111'). `public.store_hoy('11111111-1111-1111-1111-111111111111')` es la fecha UTC del servidor y entre las 21:00
+-- y las 24:00 hora argentina ya es "mañana": un fixture armado con
+-- public.store_hoy('11111111-1111-1111-1111-111111111111')-1 creaba una promo "vencida"... que en la zona del negocio
+-- seguía viva, y el test fallaba tres horas por día sin ningún bug.
 
 \set ON_ERROR_STOP on
 \timing off
@@ -52,7 +58,7 @@ values (:'store', :'prod', '7790000000009')
 on conflict do nothing;
 
 insert into public.stock_expiries (store_id, product_id, expiry_date, qty)
-values (:'store', :'prod', current_date + 3, 5);
+values (:'store', :'prod', public.store_hoy('11111111-1111-1111-1111-111111111111') + 3, 5);
 
 -- 8.c · una promo YA VENCIDA por fecha, con ended_at null: nadie la marcó y no
 -- hay cron. Si el diseño es correcto, no aplica igual — y tampoco bloquea crear
@@ -60,7 +66,7 @@ values (:'store', :'prod', current_date + 3, 5);
 insert into public.promos (store_id, product_id, promo_price, list_price,
                            cost_at_start, starts_on, ends_on, origin)
 values (:'store', :'prod', 700, 1000, 600,
-        current_date - 10, current_date - 1, 'manual');
+        public.store_hoy('11111111-1111-1111-1111-111111111111') - 10, public.store_hoy('11111111-1111-1111-1111-111111111111') - 1, 'manual');
 
 -- ===========================================================================
 -- BLOQUE A (rol authenticated · OWNER) — 1, 2, 3, 4, 6, 7, 8, 9, 10, 13
@@ -94,7 +100,7 @@ begin
 
   -- ---- 2 · validaciones de create_promo, antes de crear nada --------------
   begin
-    perform public.create_promo(v_store, v_prod, 700, current_date, current_date - 1);
+    perform public.create_promo(v_store, v_prod, 700, public.store_hoy('11111111-1111-1111-1111-111111111111'), public.store_hoy('11111111-1111-1111-1111-111111111111') - 1);
     raise exception 'FALLO 2.a: aceptó un rango invertido';
   exception when others then
     if sqlerrm not like '%invalid_range%' then
@@ -103,7 +109,7 @@ begin
   end;
 
   begin
-    perform public.create_promo(v_store, v_prod, 1000, current_date, current_date + 3);
+    perform public.create_promo(v_store, v_prod, 1000, public.store_hoy('11111111-1111-1111-1111-111111111111'), public.store_hoy('11111111-1111-1111-1111-111111111111') + 3);
     raise exception 'FALLO 2.b: aceptó promo_price = list_price';
   exception when others then
     if sqlerrm not like '%invalid_amount%' then
@@ -113,7 +119,7 @@ begin
 
   -- piso de costo (costo 600) SIN opt-in
   begin
-    perform public.create_promo(v_store, v_prod, 500, current_date, current_date + 3);
+    perform public.create_promo(v_store, v_prod, 500, public.store_hoy('11111111-1111-1111-1111-111111111111'), public.store_hoy('11111111-1111-1111-1111-111111111111') + 3);
     raise exception 'FALLO 2.c: dejó bajar del costo sin opt-in';
   exception when others then
     if sqlerrm not like '%below_cost%' then
@@ -122,7 +128,7 @@ begin
   end;
 
   -- bajo costo CON opt-in explícito del owner → permitido
-  v_res := public.create_promo(v_store, v_prod2, 300, current_date, current_date + 3,
+  v_res := public.create_promo(v_store, v_prod2, 300, public.store_hoy('11111111-1111-1111-1111-111111111111'), public.store_hoy('11111111-1111-1111-1111-111111111111') + 3,
                                null, 'manual', true);
   if (v_res->>'promo_id') is null then
     raise exception 'FALLO 2.d: el opt-in de bajo costo no creó la promo';
@@ -130,7 +136,7 @@ begin
   perform public.end_promo(v_store, (v_res->>'promo_id')::uuid);
 
   -- ---- 1 · promo_precio ---------------------------------------------------
-  v_res   := public.create_promo(v_store, v_prod, 700, current_date, current_date + 3);
+  v_res   := public.create_promo(v_store, v_prod, 700, public.store_hoy('11111111-1111-1111-1111-111111111111'), public.store_hoy('11111111-1111-1111-1111-111111111111') + 3);
   v_promo := (v_res->>'promo_id')::uuid;
 
   v_precio := public.promo_precio(v_store, v_prod);
@@ -140,7 +146,7 @@ begin
 
   -- 2.e · una viva por producto
   begin
-    perform public.create_promo(v_store, v_prod, 650, current_date + 1, current_date + 5);
+    perform public.create_promo(v_store, v_prod, 650, public.store_hoy('11111111-1111-1111-1111-111111111111') + 1, public.store_hoy('11111111-1111-1111-1111-111111111111') + 5);
     raise exception 'FALLO 2.e: permitió dos promos solapadas';
   exception when others then
     if sqlerrm not like '%promo_overlap%' then
@@ -225,7 +231,7 @@ begin
   end if;
 
   -- ---- 8.b · programada no aplica todavía --------------------------------
-  v_res   := public.create_promo(v_store, v_prod, 700, current_date + 5, current_date + 9);
+  v_res   := public.create_promo(v_store, v_prod, 700, public.store_hoy('11111111-1111-1111-1111-111111111111') + 5, public.store_hoy('11111111-1111-1111-1111-111111111111') + 9);
   v_promo := (v_res->>'promo_id')::uuid;
   if public.promo_precio(v_store, v_prod) <> 1000 then
     raise exception 'FALLO 8.b: una promo programada ya descontaba';
@@ -238,7 +244,7 @@ begin
    order by created_at desc limit 1;
 
   v_res   := public.create_promo(v_store, v_prod, 700,
-                                 current_date, current_date + 3, v_exp);
+                                 public.store_hoy('11111111-1111-1111-1111-111111111111'), public.store_hoy('11111111-1111-1111-1111-111111111111') + 3, v_exp);
   v_promo := (v_res->>'promo_id')::uuid;
 
   perform public.resolve_expiry(v_store, v_exp, 'sold');
@@ -285,7 +291,7 @@ begin
   perform set_config('request.jwt.claims',
                      '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}', true);
   v_promo := (public.create_promo(v_store, v_prod, 700,
-                                  current_date, current_date + 3)->>'promo_id')::uuid;
+                                  public.store_hoy('11111111-1111-1111-1111-111111111111'), public.store_hoy('11111111-1111-1111-1111-111111111111') + 3)->>'promo_id')::uuid;
 
   perform set_config('request.jwt.claims',
                      '{"sub":"aaaaaaaa-0000-0000-0000-000000000002","role":"authenticated"}', true);
@@ -305,7 +311,7 @@ begin
   end if;
 
   begin
-    perform public.create_promo(v_store, v_prod, 600, current_date + 10, current_date + 12);
+    perform public.create_promo(v_store, v_prod, 600, public.store_hoy('11111111-1111-1111-1111-111111111111') + 10, public.store_hoy('11111111-1111-1111-1111-111111111111') + 12);
     raise exception 'FALLO 2.f: un cajero pudo crear una promo';
   exception when others then
     if sqlerrm not like '%not_allowed%' then
@@ -334,7 +340,7 @@ begin
   perform set_config('request.jwt.claims',
                      '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}', true);
   v_promo := (public.create_promo(v_store, v_prod, 700,
-                                  current_date, current_date + 3)->>'promo_id')::uuid;
+                                  public.store_hoy('11111111-1111-1111-1111-111111111111'), public.store_hoy('11111111-1111-1111-1111-111111111111') + 3)->>'promo_id')::uuid;
 
   -- 11.a escaneo
   v_p := public.producto_por_codigo(v_store, '7790000000009');
@@ -380,7 +386,7 @@ begin
                      '{"sub":"bbbbbbbb-0000-0000-0000-000000000001","role":"authenticated"}', true);
 
   begin
-    perform public.create_promo(v_store, v_prod, 700, current_date, current_date + 3);
+    perform public.create_promo(v_store, v_prod, 700, public.store_hoy('11111111-1111-1111-1111-111111111111'), public.store_hoy('11111111-1111-1111-1111-111111111111') + 3);
     raise exception 'FALLO 12.a: cross-tenant pudo crear una promo';
   exception when others then
     if sqlerrm not like '%not_a_member%' then
@@ -412,8 +418,8 @@ on conflict (id) do update set cost = excluded.cost, price = excluded.price,
                                stock = excluded.stock, status = 'active';
 
 insert into public.stock_expiries (store_id, product_id, expiry_date, qty)
-values (:'store', 'd9000000-0000-0000-0000-00000000000c', current_date + 5, 10),
-       (:'store', 'd9000000-0000-0000-0000-00000000000d', current_date + 5, 10);
+values (:'store', 'd9000000-0000-0000-0000-00000000000c', public.store_hoy('11111111-1111-1111-1111-111111111111') + 5, 10),
+       (:'store', 'd9000000-0000-0000-0000-00000000000d', public.store_hoy('11111111-1111-1111-1111-111111111111') + 5, 10);
 
 -- Al "rápido" se le fabrica ritmo: 28 unidades en 14 días = 2/día. Con 10 de
 -- stock y 5 días por delante necesita 2/día ⇒ se agota justo: no hay que tocarlo.

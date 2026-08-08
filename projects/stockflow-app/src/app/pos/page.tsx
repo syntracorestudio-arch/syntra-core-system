@@ -115,6 +115,8 @@ export default async function PosPage() {
       list_price?: string | number | null;
       promo_id?: string | null;
       promo_ends_on?: string | null;
+      promo_min_qty?: string | number | null;
+      promo_unit_price?: string | number | null;
     }[]
   ).map((p) => ({
     id: p.id,
@@ -125,6 +127,8 @@ export default async function PosPage() {
     listPrice: p.list_price == null ? null : Number(p.list_price),
     promoId: p.promo_id ?? null,
     promoEndsOn: p.promo_ends_on ?? null,
+    promoMinQty: p.promo_min_qty == null ? null : Number(p.promo_min_qty),
+    promoUnitPrice: p.promo_unit_price == null ? null : Number(p.promo_unit_price),
     stock: Number(p.stock),
     categoryId: p.category_id,
     categoryName: p.category_name,

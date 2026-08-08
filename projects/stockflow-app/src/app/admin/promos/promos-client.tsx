@@ -41,6 +41,8 @@ export type PromoRow = {
   product_name: string;
   product_emoji: string | null;
   promo_price: string | number;
+  /** 048 · tamaño del grupo. 1 = promo simple; 2 = "2 x $1.000". */
+  min_qty: number;
   list_price: string | number;
   precio_actual: string | number;
   starts_on: string;
@@ -98,9 +100,31 @@ function urgencia(dias: number): { label: string; tone: "danger" | "warning" | "
   return { label: `en ${dias} días`, tone: "muted" };
 }
 
-/** "~1,2 por día" — un decimal, coma decimal, sin falsa precisión. */
-function ritmo(n: number): string {
-  return `${n.toFixed(1).replace(".", ",")} por día`;
+/**
+ * El ritmo MEDIDO, entero y hacia arriba (decisión del owner: cero decimales
+ * en la card).
+ *
+ * Por debajo de 1 por día se dice POR SEMANA, y no es un capricho: redondear
+ * 0,6 hacia arriba daría "1 por día" — un 66% más de lo que realmente sale, y
+ * justo en la dirección que desalienta la promo ("vendo 1 por día, no está tan
+ * mal"). En la unidad semanal el mismo redondeo hacia arriba mueve el número
+ * apenas, y "5 por semana" es además como habla un kiosquero de algo que sale
+ * poco.
+ */
+function ritmoMedido(n: number): string {
+  if (n < 1) return `${Math.ceil(n * 7 - 1e-9)} por semana`;
+  return `${Math.ceil(n - 1e-9)} por día`;
+}
+
+/**
+ * El ritmo EXIGIDO, siempre techo (ceil): es un umbral, no una medición.
+ * Redondear 2,3 → 2 afirmaría que alcanza con menos de lo que alcanza;
+ * vendiendo el techo, el lote seguro se vacía. El epsilon evita que un
+ * 3.0000001 del driver se convierta en 4. Sin "~": con ceil el número ya no
+ * es aproximado — es el techo garantizado, y "aprox. 3" invitaría a vender 2.
+ */
+function ritmoTecho(n: number): string {
+  return `${Math.ceil(n - 1e-9)} por día`;
 }
 
 /** Cuántas sugerencias se ven antes de plegar. A 390px, más no se llega a leer. */
@@ -222,7 +246,13 @@ export function PromosClient({
     visibles.length === 0 && activas.length === 0 && programadas.length === 0;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8 lg:py-8">
+    /* Promos es la única hermana con DOS corrientes simultáneas (cola de
+       decisión + estado): por eso diverge de Precios/Vencimientos y abre a
+       `max-w-6xl` en xl con un rail de estado a la derecha. El criterio, para
+       la próxima sección: una corriente = max-w-3xl centrado; dos = split.
+       El breakpoint es xl y no lg a propósito — a 1024 el split dejaría la
+       columna de decisión en ~550px y rompería la medida de lectura. */
+    <div className="mx-auto max-w-3xl px-4 py-6 xl:max-w-6xl lg:px-8 lg:py-8">
       <div className="mb-5">
         <PageHeader
           title="Promos"
@@ -246,22 +276,28 @@ export function PromosClient({
 
       <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />
 
-      {enRiesgo > 0 && (
-        <CardHero glow="danger" className="mb-4">
-          <p className="text-sm text-muted-foreground">Tenés por vencer, y no sale al ritmo actual</p>
-          <p className="text-3xl font-semibold tabular text-danger-ink lg:text-4xl">
-            <CountUp value={enRiesgo} prefix="$ " />
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Es lo que te costó esa mercadería, no lo que ibas a cobrar por ella.
-          </p>
-        </CardHero>
-      )}
-
       {vacia ? (
-        <VacioSegunElCaso tieneVencimientos={tieneVencimientos} hayLotes={sugerencias.length > 0} />
+        /* El vacío mantiene la columna de lectura: estirado a 1152px sería
+           peor que el espacio muerto que vinimos a arreglar. */
+        <div className="mx-auto max-w-3xl">
+          <VacioSegunElCaso tieneVencimientos={tieneVencimientos} hayLotes={sugerencias.length > 0} />
+        </div>
       ) : (
+        <div className="space-y-6 xl:grid xl:grid-cols-[minmax(0,1fr)_24rem] xl:items-start xl:gap-8 xl:space-y-0">
         <div className="space-y-6">
+          {enRiesgo > 0 && (
+            /* La plata en riesgo pertenece a lo que hay que DECIDIR: va con la
+               cola de trabajo, no en el rail de estado. */
+            <CardHero glow="danger">
+              <p className="text-sm text-muted-foreground">Tenés por vencer, y no sale al ritmo actual</p>
+              <p className="text-3xl font-semibold tabular text-danger-ink lg:text-4xl">
+                <CountUp value={enRiesgo} prefix="$ " />
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Es lo que te costó esa mercadería, no lo que ibas a cobrar por ella.
+              </p>
+            </CardHero>
+          )}
           {mostradas.length > 0 && (
             <section>
               <h2 className="mb-2 text-sm font-semibold">Para decidir</h2>
@@ -307,7 +343,14 @@ export function PromosClient({
               )}
             </section>
           )}
+        </div>
 
+        {/* El rail de ESTADO (384px en xl): lo ya decidido retrocede a la
+            derecha y la cola de decisión conserva su ancho de lectura. Las
+            secciones vacías no se renderizan, así que el rail colapsa solo
+            cuando no hay nada corriendo. Debajo de xl: mismo orden vertical
+            de siempre. */}
+        <div className="space-y-6">
           {activas.length > 0 && (
             <section>
               <h2 className="mb-2 text-sm font-semibold">En promo ahora</h2>
@@ -346,12 +389,14 @@ export function PromosClient({
 
           {terminadas.length > 0 && <Terminadas promos={terminadas} />}
         </div>
+        </div>
       )}
 
       {creando && (
         <NuevaPromo
           hoy={hoy}
           margenMinimo={margenMinimo}
+          porVencer={visibles}
           onClose={() => setCreando(false)}
           onDone={(texto) => {
             setCreando(false);
@@ -422,8 +467,10 @@ function SugerenciaCard({
 
       {/* SITUACIÓN — hechos. */}
       <div className="mt-2 space-y-1 text-sm text-muted-foreground lg:max-w-[52ch]">
+        {/* Los HECHOS van sin bold: con 5 números fuertes por card, el rojo de
+           la plata en riesgo (el que rankea entre cards) no destacaba nada. */}
         <p>
-          Te quedan <strong className="tabular text-foreground">{Number(s.stock)} u.</strong> y vencen
+          Te quedan <span className="tabular text-foreground">{Number(s.stock)} u.</span> y vencen
           el {fechaCorta(s.expiry_date)}.
         </p>
         <p>
@@ -431,8 +478,10 @@ function SugerenciaCard({
             <>No vendiste ninguna en las últimas dos semanas.</>
           ) : (
             <>
-              Vendés{" "}
-              <strong className="tabular text-foreground">~{ritmo(Number(s.ritmo_actual))}</strong>:
+              {/* "Venís vendiendo": el gerundio dice "promedio medido" mejor
+                 que el símbolo ~, que se fue de toda la app. */}
+              Venís vendiendo{" "}
+              <span className="tabular text-foreground">{ritmoMedido(Number(s.ritmo_actual))}</span>:
               a ese ritmo no salen todas.
             </>
           )}
@@ -475,9 +524,12 @@ function SugerenciaCard({
         {/* La frase que separa una sugerencia de una promesa: el sistema PUEDE
             calcular el ritmo que haría falta; NO puede saber que con -30% se
             vende. Nunca dice "vas a vender los 8". */}
+        {/* El ritmo EXIGIDO es el único indigo de texto del cuerpo, siempre:
+           indigo ya significa "régimen de promo" (chip, tachados) — acá marca
+           lo que el trato pide, sin prometer que se cumple. */}
         <p>
-          Para venderlos todos necesitás{" "}
-          <strong className="tabular text-foreground">~{ritmo(Number(s.ritmo_necesario))}</strong>.
+          Para venderlos todos necesitás vender{" "}
+          <strong className="tabular text-info-ink">{ritmoTecho(Number(s.ritmo_necesario))}</strong>.
         </p>
       </div>
 
@@ -558,16 +610,16 @@ function ReescalonCard({
 
       <div className="mt-2 space-y-1 text-sm text-muted-foreground lg:max-w-[52ch]">
         <p>
-          Lo pusiste a <strong className="tabular text-foreground">{money(vigente)}</strong>
+          Lo pusiste a <span className="tabular text-foreground">{money(vigente)}</span>
           {s.promo_starts_on && diasDePromo > 0 && (
             <> hace {diasDePromo} día{diasDePromo === 1 ? "" : "s"}</>
           )}
-          . Vendiste <strong className="tabular text-foreground">{vendidas}</strong>.
+          . Vendiste <span className="tabular text-foreground">{vendidas}</span>.
         </p>
         <p>
-          Te quedan <strong className="tabular text-foreground">{Number(s.stock)} u.</strong> y para
-          que salgan todas necesitás{" "}
-          <strong className="tabular text-foreground">~{ritmo(Number(s.ritmo_necesario))}</strong>.
+          Te quedan <span className="tabular text-foreground">{Number(s.stock)} u.</span> y para
+          que salgan todas necesitás vender{" "}
+          <strong className="tabular text-info-ink">{ritmoTecho(Number(s.ritmo_necesario))}</strong>.
         </p>
       </div>
 
@@ -669,13 +721,27 @@ function PromoActivaCard({
         </span>
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-sm font-medium">{p.product_name}</p>
-          {/* El precio en el encabezado: acá es un HECHO, no una propuesta. */}
+          {/* El precio en el encabezado: acá es un HECHO, no una propuesta.
+              Promo de cantidad: "2 x $1.000" + "1 x $600" — el segundo es la
+              LISTA vigente (un hecho), va muted y SIN tachar: a una unidad no
+              hay rebaja, y un tachado acá enseñaría que el tachado miente. */}
           <p className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <span className="tabular text-base font-semibold">{money(precio)}</span>
-            <s className="tabular text-xs font-medium text-info-ink">
-              <span className="sr-only">antes </span>
-              {money(lista)}
-            </s>
+            {p.min_qty > 1 ? (
+              <>
+                <span className="tabular text-base font-semibold">
+                  {p.min_qty} x {money(precio * p.min_qty)}
+                </span>
+                <span className="tabular text-xs text-muted-foreground">1 x {money(lista)}</span>
+              </>
+            ) : (
+              <>
+                <span className="tabular text-base font-semibold">{money(precio)}</span>
+                <s className="tabular text-xs font-medium text-info-ink">
+                  <span className="sr-only">antes </span>
+                  {money(lista)}
+                </s>
+              </>
+            )}
           </p>
         </div>
         <span className="shrink-0 text-right text-xs text-muted-foreground">
@@ -1175,8 +1241,20 @@ function TerminarPromo({
         ) : (
           <>
             <p>
-              Desde ahora la caja vuelve a cobrar{" "}
-              <strong className="tabular text-foreground">{money(actual)}</strong>.
+              {p.min_qty > 1 ? (
+                /* La unidad suelta SIEMPRE estuvo a lista: lo que termina es el
+                   precio de grupo, no un precio de unidad. */
+                <>
+                  Desde ahora se termina el {p.min_qty} x {money(Number(p.promo_price) * p.min_qty)}:
+                  la caja cobra todo a{" "}
+                  <strong className="tabular text-foreground">{money(actual)}</strong>.
+                </>
+              ) : (
+                <>
+                  Desde ahora la caja vuelve a cobrar{" "}
+                  <strong className="tabular text-foreground">{money(actual)}</strong>.
+                </>
+              )}
             </p>
             <p>
               {unidades > 0 ? (

@@ -626,3 +626,51 @@ muchas veces no es el dueño.
 
 ### Errores nuevos
 `promo_too_short` · `promo_after_expiry`
+
+---
+
+## Promociones · migración 048 (Fase 2 — precio por cantidad)
+
+Plan firme: `docs/promociones-fase2-analisis.md`. Decisión del owner:
+semántica **POR GRUPOS** — "2 x $1.000" llevando 3 = $1.600 (la 3ra a lista).
+
+### Esquema
+`promos.min_qty int not null default 1 check (min_qty between 1 and 24)`.
+**`promo_price` sigue siendo POR UNIDAD dentro del grupo** (2 x $1.000 ⇒
+`min_qty 2, promo_price 500`). Guardar el unitario exacto es lo que mantiene
+`line_total = unit_price·qty` exacto y al split lejos del `split_sum_mismatch`;
+la división exacta del precio de grupo se exige en el alta (UI), no acá.
+
+### `create_promo(p_min_qty int default 1)`
+`invalid_qty` fuera de [1,24]. El resto (below_cost, promo_too_short,
+promo_after_expiry, overlap, reemplazo con herencia de list_price) opera sobre
+el unitario y NO cambia. Una promo viva por producto **de cualquier tipo** —
+la regla de overlap existente cubre precio y cantidad (decisión owner #2).
+
+### `register_sale` — split de línea
+Con promo `min_qty > 1` sobre una línea de `qty` unidades:
+`unidades_promo = floor(qty / min_qty) · min_qty` al unitario de promo, el
+resto a lista ⇒ **dos filas exactas de `sale_items`**: la de promo con
+`promo_id + list_price`; la del resto SIN promo (el invariante
+`promo_id ⟺ list_price` se sostiene). `qty < min_qty` ⇒ una fila a lista sin
+promo. El override manual (`can_apply_discount`) sigue ganando y no registra
+promo. Stock, fingerprint, idempotencia y void: sin cambios (void devuelve por
+fila y cubre las dos).
+
+### RPCs de catálogo (`pos_destacados` · `productos_buscar` · `producto_por_codigo`)
+Con `min_qty > 1`, `price` expuesto = **LISTA** (a cantidad 1 no hay rebaja;
+un tachado sería mentira) y `list_price`/`promo_id` se siguen emitiendo, más
+las claves nuevas `promo_min_qty` y `promo_unit_price`. Con `min_qty = 1`:
+comportamiento idéntico al actual (compat total).
+
+### Medición y carteles
+`promos_listado` suma SOLO filas con `promo_id` ⇒ solo unidades efectivamente
+rebajadas; expone `min_qty`. `promos_carteles` expone `min_qty` y
+`promo_unit_price` — el cartel dice "2 x $1.000" + "1 x $600", sin tachado.
+
+### Sin cambios
+`promo_vigente` (firma) · motor de sugerencias (no toca promos de cantidad —
+decisión owner #4) · split · `store_hoy`.
+
+### Errores nuevos
+`invalid_qty`

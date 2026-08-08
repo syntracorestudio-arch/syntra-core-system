@@ -29,7 +29,17 @@ import { cn } from "@/lib/cn";
 import { CategoryChips } from "@/components/ui/category-chips";
 import { EmptyArt } from "@/components/ui/empty-art";
 import { money } from "@/lib/format";
-import { enPromo, textoAntes, textoDelta, textoHasta } from "@/lib/promos";
+import {
+  enPromo,
+  tienePromo,
+  esPromoCantidad,
+  totalLinea,
+  textoAntes,
+  textoDelta,
+  textoHasta,
+  textoGrupo,
+  textoDesglose,
+} from "@/lib/promos";
 import {
   registerSale,
   registerSplitSale,
@@ -66,6 +76,10 @@ export type PosProduct = {
   promoId?: string | null;
   /** Fecha de fin: deja que el cajero diga HASTA CUÁNDO, no solo que hay promo. */
   promoEndsOn?: string | null;
+  /** 048 · promo de cantidad: tamaño del grupo ("2 x $1.000" ⇒ 2). */
+  promoMinQty?: number | null;
+  /** 048 · unitario dentro del grupo ("2 x $1.000" ⇒ 500). */
+  promoUnitPrice?: number | null;
   stock: number;
   categoryId: string | null;
   categoryName: string | null;
@@ -101,7 +115,6 @@ type Linea =
    serían 8 oportunidades de mandar mal la plata. */
 const lineaId = (l: Linea): string => (l.tipo === "producto" ? l.producto.id : l.id);
 const lineaNombre = (l: Linea): string => (l.tipo === "producto" ? l.producto.name : l.label);
-const lineaPrecio = (l: Linea): number => (l.tipo === "producto" ? l.producto.price : l.amount);
 const lineaEmoji = (l: Linea): string =>
   l.tipo === "producto" ? (l.producto.emoji ?? "📦") : "🧾";
 
@@ -298,6 +311,8 @@ export function PosScreen({
               listPrice: p.listPrice,
               promoId: p.promoId,
               promoEndsOn: p.promoEndsOn,
+              promoMinQty: p.promoMinQty,
+              promoUnitPrice: p.promoUnitPrice,
               stock: p.stock,
               categoryId: p.categoryId,
               categoryName: p.categoryName,
@@ -323,7 +338,14 @@ export function PosScreen({
 
   const visibles = buscando ? (resultados ?? []) : products;
 
-  const total = carrito.reduce((a, l) => a + lineaPrecio(l) * l.cantidad, 0);
+  /* 048 · el total pasa por `totalLinea` (el espejo exacto de register_sale):
+     con una promo de cantidad, `precio · cantidad` ya NO es el total de la
+     línea — "2 x $1.000" llevando 3 son $1.600, no $1.800 ni $1.500. Si esta
+     cuenta difiere de la del server, el split se cae con split_sum_mismatch. */
+  const total = carrito.reduce(
+    (a, l) => a + (l.tipo === "producto" ? totalLinea(l.producto, l.cantidad) : l.amount * l.cantidad),
+    0,
+  );
   const unidades = carrito.reduce((a, l) => a + l.cantidad, 0);
   const cliente = clienteId ? (clients.find((c) => c.id === clienteId) ?? null) : null;
 
@@ -418,7 +440,7 @@ export function PosScreen({
       const encontrado = porCodigo.get(codigo);
       if (encontrado) {
         agregar(encontrado);
-        setAviso({ tone: "ok", text: `${encontrado.name} agregado` + (textoHasta(encontrado) ? ` · en promo ${textoHasta(encontrado)}` : enPromo(encontrado) ? " · en promo" : "") });
+        setAviso({ tone: "ok", text: `${encontrado.name} agregado` + (textoGrupo(encontrado) ? ` · ${textoGrupo(encontrado)}` : textoHasta(encontrado) ? ` · en promo ${textoHasta(encontrado)}` : enPromo(encontrado) ? " · en promo" : "") });
         return;
       }
 
@@ -449,6 +471,8 @@ export function PosScreen({
               listPrice: p.listPrice,
               promoId: p.promoId,
               promoEndsOn: p.promoEndsOn,
+              promoMinQty: p.promoMinQty,
+              promoUnitPrice: p.promoUnitPrice,
               stock: p.stock,
               categoryId: p.categoryId,
               categoryName: p.categoryName,
@@ -456,7 +480,7 @@ export function PosScreen({
               stockConfiable: p.stockConfiable,
               sold14d: 0,
             });
-            setAviso({ tone: "ok", text: `${p.name} agregado` + (textoHasta(p) ? ` · en promo ${textoHasta(p)}` : enPromo(p) ? " · en promo" : "") });
+            setAviso({ tone: "ok", text: `${p.name} agregado` + (textoGrupo(p) ? ` · ${textoGrupo(p)}` : textoHasta(p) ? ` · en promo ${textoHasta(p)}` : enPromo(p) ? " · en promo" : "") });
             return;
           }
           // Ahora sí: no existe en el negocio. Se consulta el catálogo compartido
@@ -1422,7 +1446,7 @@ export function PosScreen({
                       <span className="rounded-full bg-danger/15 px-1.5 py-0.5 text-[10px] font-semibold text-danger-ink ring-1 ring-danger/30">
                         sin stock
                       </span>
-                    ) : enPromo(p) ? (
+                    ) : tienePromo(p) ? (
                       /* Prioridad dura: sin stock > promo > quedan N. Cuando la
                          promo desplaza al contador está bien: "quedan 2" es un
                          aviso de reposición para el dueño, no algo que cambie lo
@@ -1450,6 +1474,14 @@ export function PosScreen({
                         <span className="sr-only">antes </span>
                         {money(p.listPrice!)}
                       </s>
+                    )}
+                    {esPromoCantidad(p) && (
+                      /* El slot del tachado, sin tachar: acá no hay rebaja de
+                         unidad que tachar — el precio grande ($600) es lo que
+                         paga el que lleva 1, y "2 x $1.000" es el deal. */
+                      <span className="text-[11px] font-medium text-info-ink">
+                        {textoGrupo(p)}
+                      </span>
                     )}
                   </p>
                 </button>
@@ -1525,15 +1557,35 @@ export function PosScreen({
                            tienen que ver que eso NO salió del catálogo. */
                         <span className="text-warning-ink">Monto libre · sin producto</span>
                       ) : (
-                        <>
-                          {money(l.producto.price)} c/u
-                          {textoAntes(l.producto) && (
-                            <>
-                              {" · "}
-                              <s className="text-info-ink">{textoAntes(l.producto)}</s>
-                            </>
-                          )}
-                        </>
+                        textoDesglose(l.producto, l.cantidad) ? (
+                          /* Cruzó el umbral: el desglose ES la línea — la parte
+                             agrupada en indigo (la promo), el resto a lista en
+                             muted. Nunca colapsa a "$500 c/u": mentiría. */
+                          <>
+                            <span className="text-info-ink">{textoGrupo(l.producto)}</span>
+                            {textoDesglose(l.producto, l.cantidad)!.slice(
+                              textoGrupo(l.producto)!.length,
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {money(l.producto.price)} c/u
+                            {textoAntes(l.producto) && (
+                              <>
+                                {" · "}
+                                <s className="text-info-ink">{textoAntes(l.producto)}</s>
+                              </>
+                            )}
+                            {esPromoCantidad(l.producto) && (
+                              /* Bajo el umbral el deal se MUESTRA igual: es el
+                                 guion del cajero para ofrecer la segunda. */
+                              <>
+                                {" · "}
+                                <span className="text-info-ink">{textoGrupo(l.producto)}</span>
+                              </>
+                            )}
+                          </>
+                        )
                       )}
                     </p>
                   </div>

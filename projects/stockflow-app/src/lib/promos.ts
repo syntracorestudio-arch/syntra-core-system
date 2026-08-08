@@ -17,39 +17,109 @@ import { money } from "./format.ts";
 
 /** Lo mínimo que necesita algo para poder mostrarse en promo. */
 export type ConPromo = {
-  /** Precio EFECTIVO (ya con la promo aplicada por el servidor). */
+  /**
+   * Precio EFECTIVO a UNA unidad, ya resuelto por el servidor. Con promo
+   * simple viene rebajado; con promo de cantidad viene el de LISTA (a una
+   * unidad no hay rebaja — 048).
+   */
   price: number;
   /** Precio de lista congelado al crear la promo. null = no hay promo. */
   listPrice?: number | null;
   promoId?: string | null;
   /** Fecha de fin (YYYY-MM-DD). Lo que le permite al cajero decir hasta cuándo. */
   promoEndsOn?: string | null;
+  /** 048 · tamaño del grupo ("2 x $1.000" ⇒ 2). 1 o ausente = promo simple. */
+  promoMinQty?: number | null;
+  /** 048 · unitario DENTRO del grupo ("2 x $1.000" ⇒ 500). */
+  promoUnitPrice?: number | null;
 };
 
 type LineaLike =
   | { tipo: "producto"; producto: ConPromo; cantidad: number }
   | { tipo: "libre"; cantidad: number };
 
+/* ── La partición de semántica (048) ─────────────────────────────────────────
+   Desde las promos de cantidad, "tiene promo" y "esta unidad está rebajada"
+   son preguntas DISTINTAS: un "2 x $1.000" tiene promo pero la unidad suelta
+   paga lista. Si una superficie usa la pregunta equivocada, o desaparece el
+   badge del tile o aparece un tachado que miente. Un solo dueño, acá. */
+
 /**
- * ¿Se muestra como promo?
+ * ¿Es una promo de cantidad ("2 x $1.000")?
+ *
+ * Exige el unitario del grupo y que realmente rebaje: un grupo a precio igual
+ * o mayor que la lista sería un dato roto y no se muestra como promo.
+ */
+export function esPromoCantidad(p: ConPromo): boolean {
+  return (
+    p.promoId != null &&
+    (p.promoMinQty ?? 1) > 1 &&
+    p.promoUnitPrice != null &&
+    Number.isFinite(p.promoUnitPrice) &&
+    p.promoUnitPrice < p.price
+  );
+}
+
+/**
+ * ¿La unidad SUELTA está rebajada? (la pregunta del tachado)
  *
  * Exige las TRES cosas: id, precio de lista, y que ese precio sea realmente
- * mayor. Un `list_price` igual o menor sería un dato roto, y tachar un precio
- * que no bajó es peor que no mostrar nada: le enseña al cajero que el tachado
- * no significa nada.
+ * mayor. Tachar un precio que no bajó es peor que no mostrar nada: le enseña
+ * al cajero que el tachado no significa nada. Para promos de cantidad devuelve
+ * false SIEMPRE — a una unidad no hay rebaja que tachar.
  */
 export function enPromo(p: ConPromo): boolean {
   return (
     p.promoId != null &&
+    !esPromoCantidad(p) &&
     p.listPrice != null &&
     Number.isFinite(p.listPrice) &&
     p.listPrice > p.price
   );
 }
 
-/** Cuánto se ahorra por unidad. Sin promo: 0, nunca negativo. */
+/** ¿Lleva badge `promo`? — de cualquier tipo. La pregunta del tile. */
+export function tienePromo(p: ConPromo): boolean {
+  return enPromo(p) || esPromoCantidad(p);
+}
+
+/** Cuánto se ahorra por unidad SUELTA. Promo de cantidad: 0 (a 1 no hay rebaja). */
 export function ahorroUnitario(p: ConPromo): number {
   return enPromo(p) ? p.listPrice! - p.price : 0;
+}
+
+/**
+ * El desglose de una línea del carrito — LA cuenta de la Fase 2, espejo
+ * EXACTO de `register_sale` (048): semántica POR GRUPOS, sólo los grupos
+ * completos van al unitario de promo y el resto a lista.
+ *
+ * Es la misma matemática que corre en SQL, duplicada a propósito: la RPC es
+ * la autoridad, esto existe para que el botón de Cobrar y el ticket digan lo
+ * mismo. Si difieren, el split se cae con `split_sum_mismatch` — por eso acá
+ * no hay redondeos: el unitario ya es exacto por contrato.
+ */
+export function desgloseLinea(
+  p: ConPromo,
+  cantidad: number,
+): { unidadesPromo: number; unidadesLista: number; total: number; ahorro: number } {
+  if (esPromoCantidad(p)) {
+    const minQty = p.promoMinQty!;
+    const unidadesPromo = Math.floor(cantidad / minQty) * minQty;
+    const unidadesLista = cantidad - unidadesPromo;
+    return {
+      unidadesPromo,
+      unidadesLista,
+      total: unidadesPromo * p.promoUnitPrice! + unidadesLista * p.price,
+      ahorro: unidadesPromo * (p.price - p.promoUnitPrice!),
+    };
+  }
+  // Promo simple o sin promo: `price` ya es el efectivo.
+  return {
+    unidadesPromo: enPromo(p) ? cantidad : 0,
+    unidadesLista: enPromo(p) ? 0 : cantidad,
+    total: p.price * cantidad,
+    ahorro: ahorroUnitario(p) * cantidad,
+  };
 }
 
 /**
@@ -59,17 +129,47 @@ export function ahorroUnitario(p: ConPromo): number {
  * líneas. Y va ahí y no en otro lado porque Confirmar es el instante exacto en
  * que se cuenta la plata — si el cajero canta el precio de la góndola de
  * memoria, la caja cierra con sobrante a la noche y nadie sabe por qué.
+ *
+ * En una promo de cantidad el ahorro es 0 hasta cerrar el grupo: la línea del
+ * pie MATERIALIZÁNDOSE en el 2º escaneo es la señal de que la promo entró.
  */
 export function ahorroCarrito(carrito: LineaLike[]): number {
   return carrito.reduce(
-    (a, l) => (l.tipo === "producto" ? a + ahorroUnitario(l.producto) * l.cantidad : a),
+    (a, l) => (l.tipo === "producto" ? a + desgloseLinea(l.producto, l.cantidad).ahorro : a),
     0,
   );
 }
 
-/** El "antes" tachado. null cuando no hay promo: la UI no debe renderizar nada. */
+/** Total de una línea de producto — SIEMPRE por acá, nunca `price · cantidad` suelto. */
+export function totalLinea(p: ConPromo, cantidad: number): number {
+  return desgloseLinea(p, cantidad).total;
+}
+
+/** El "antes" tachado. null cuando no hay rebaja de unidad (incluida TODA promo de cantidad). */
 export function textoAntes(p: ConPromo): string | null {
   return enPromo(p) ? `antes ${money(p.listPrice!)}` : null;
+}
+
+/** "2 x $1.000" — la sintaxis universal de la promo de cantidad, en todas las superficies. */
+export function textoGrupo(p: ConPromo): string | null {
+  if (!esPromoCantidad(p)) return null;
+  return `${p.promoMinQty} x ${money(p.promoUnitPrice! * p.promoMinQty!)}`;
+}
+
+/**
+ * El desglose que lee el cajero en la línea del carrito una vez cruzado el
+ * umbral: "2 x $1.000" · "2 x $1.000 (×2)" · "2 x $1.000 + 1 x $600".
+ * Nunca colapsa a "$500 c/u": eso mentiría la mecánica.
+ */
+export function textoDesglose(p: ConPromo, cantidad: number): string | null {
+  if (!esPromoCantidad(p)) return null;
+  const d = desgloseLinea(p, cantidad);
+  if (d.unidadesPromo === 0) return null;
+  const grupos = d.unidadesPromo / p.promoMinQty!;
+  let s = textoGrupo(p)!;
+  if (grupos > 1) s += ` (×${grupos})`;
+  if (d.unidadesLista > 0) s += ` + ${d.unidadesLista} x ${money(p.price)}`;
+  return s;
 }
 
 const DIAS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"] as const;
@@ -226,6 +326,7 @@ const ERRORES: Record<string, string> = {
   promo_after_expiry: "La promo no puede durar más que el lote al que la atás.",
   below_cost: "Ese precio queda abajo de lo que te sale el producto.",
   invalid_amount: "El precio de promo tiene que ser menor al que tenés hoy.",
+  invalid_qty: "La cantidad del grupo tiene que ser de 1 a 24.",
   invalid_range: "Revisá las fechas: la promo no puede arrancar antes de hoy.",
   product_not_found: "No encontramos ese producto.",
   expiry_not_found: "Ese vencimiento ya no está.",

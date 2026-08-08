@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { cn } from "@/lib/cn";
 import { Printer, ArrowLeft } from "lucide-react";
 import { money } from "@/lib/format";
 import { fechaCorta } from "@/lib/promos";
@@ -11,7 +12,10 @@ export type Cartel = {
   promo_id: string;
   name: string;
   emoji: string | null;
+  /** Unitario dentro del grupo. Con min_qty 1, el precio de promo a secas. */
   precio: string | number;
+  /** 048 · "2 x $1.000" ⇒ 2. */
+  min_qty: number;
   antes: string | number;
   ends_on: string;
   termina_hoy: boolean;
@@ -81,48 +85,98 @@ export function CartelesClient({ carteles }: { carteles: Cartel[] }) {
           </ButtonLink>
         </div>
       ) : (
-        <ul className="space-y-3 print:grid print:grid-cols-2 print:gap-0 print:space-y-0">
-          {carteles.map((c) => (
-            <li
-              key={c.promo_id}
-              /* En papel: media hoja A4 por cartel, borde punteado como guía de
-                 tijera y `break-inside-avoid` para que ninguno quede partido
-                 entre dos páginas. */
-              className="rounded-xl border border-border bg-card p-5 print:h-[130mm] print:break-inside-avoid print:rounded-none print:border print:border-dashed print:p-8"
-            >
-              <p className="text-lg font-semibold leading-tight print:text-[16pt]">
-                {/* Sin truncar, sin excepción: si el cartel corta el nombre, el
-                    cartel está mal — no hay una pantalla siguiente donde leerlo. */}
-                <span aria-hidden className="print:hidden">{c.emoji ? `${c.emoji} ` : ""}</span>
-                {c.name}
-              </p>
+        <ul className="grid gap-4 sm:grid-cols-2 print:grid-cols-2 print:gap-[6mm]">
+          {carteles.map((c) => {
+            /* "$12.500" a 64pt mide ~105mm y desborda los ~92mm de la celda A4:
+               los precios largos bajan un escalón. Condicional por longitud del
+               string YA formateado — nada de auto-fit con JS. */
+            const precioTexto =
+              c.min_qty > 1 ? money(Number(c.precio) * c.min_qty) : money(Number(c.precio));
+            /* El ancho lo manda el string COMPLETO del hero: en una promo de
+               grupo el "2x " suma ~3 caracteres que un umbral sobre el precio
+               solo no ve (y desbordaba la celda A4 por 100px). */
+            const largoHero = precioTexto.length + (c.min_qty > 1 ? String(c.min_qty).length + 2 : 0);
+            const chico = largoHero > 7;
 
-              <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="tabular whitespace-nowrap text-5xl font-bold tracking-tight print:text-[40pt] print:leading-none">
-                  {money(Number(c.precio))}
-                </span>
-                <s className="tabular text-xl font-medium text-muted-foreground print:text-[18pt]">
-                  <span className="sr-only">antes </span>
-                  {money(Number(c.antes))}
-                </s>
-              </div>
+            return (
+              <li
+                key={c.promo_id}
+                /* PÓSTER, no recibo: anatomía centrada con marco sólido — el
+                   marco ES el cartel y se corta por afuera de él. La preview en
+                   pantalla y el papel comparten estructura para que lo que se
+                   ve en el celu sea lo que sale de la impresora. En papel el
+                   gap entre marcos es la guía de tijera (el punteado pegado al
+                   vecino destruía el marco de al lado al cortar). */
+                className="flex flex-col items-center rounded-lg border-[3px] border-foreground/80 bg-card p-5 text-center print:h-[128mm] print:break-inside-avoid print:rounded-none print:border-[3pt] print:p-[6mm]"
+              >
+                {/* La palabra que declara el género, entre REGLAS y nunca sobre
+                    fondo negro: la impresión tira los fondos a propósito
+                    (ahorro de tinta), los bordes imprimen siempre. */}
+                <p className="w-full border-y-2 border-foreground/80 py-1 text-center text-sm font-black uppercase tracking-[0.3em] print:border-y-[2pt] print:py-[2mm] print:text-[20pt]">
+                  Oferta
+                </p>
 
-              <p className="mt-2 text-sm text-muted-foreground print:text-[11pt]">
-                {/* En papel la fecha se vuelve "hoy": el cartel carga su propio
+                <p className="mt-3 text-lg font-semibold leading-tight print:text-[18pt]">
+                  {/* Sin truncar, sin excepción: si el cartel corta el nombre,
+                      el cartel está mal — no hay pantalla siguiente. */}
+                  {c.name}
+                </p>
+
+                {/* El bloque del precio domina el centro vertical (my-auto). */}
+                <div className="my-auto py-3">
+                  {c.min_qty > 1 ? (
+                    <>
+                      <p
+                        className={cn(
+                          "tabular whitespace-nowrap font-black leading-none tracking-tight",
+                          chico
+                            ? "text-4xl print:text-[36pt]"
+                            : "text-5xl print:text-[44pt]",
+                        )}
+                      >
+                        <span className={chico ? "text-2xl print:text-[24pt]" : "text-3xl print:text-[30pt]"}>
+                          {c.min_qty}x{" "}
+                        </span>
+                        {precioTexto}
+                      </p>
+                      {/* La unidad suelta es un HECHO, no una rebaja: sin tachar. */}
+                      <p className="tabular mt-2 text-sm text-muted-foreground print:text-[13pt]">
+                        Llevando 1: {money(Number(c.antes))}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <s className="tabular text-sm text-muted-foreground print:text-[13pt]">
+                        Antes {money(Number(c.antes))}
+                      </s>
+                      <p
+                        className={cn(
+                          "tabular mt-1 whitespace-nowrap font-black leading-none tracking-tight",
+                          chico
+                            ? "text-5xl print:text-[48pt]"
+                            : "text-6xl print:text-[64pt]",
+                        )}
+                      >
+                        {precioTexto}
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                {/* La fecha, chica y anclada abajo: el cartel carga su propio
                     vencimiento y nadie tiene que acordarse de qué día es. */}
-                <span className="print:hidden">
-                  {c.termina_hoy ? "Último día" : `Hasta el ${fechaCorta(c.ends_on)}`}
-                </span>
-                <span className="hidden print:inline">
+                <p className="mt-auto text-xs text-muted-foreground print:text-[10pt]">
                   {c.termina_hoy ? "Válido solo hoy" : `Válido hasta el ${fechaCorta(c.ends_on)}`}
-                </span>
-              </p>
+                </p>
 
-              {c.termina_hoy && (
-                <p className="mt-2 text-xs font-semibold text-warning-ink print:hidden">termina hoy</p>
-              )}
-            </li>
-          ))}
+                {c.termina_hoy && (
+                  <p className="mt-1 text-xs font-semibold text-warning-ink print:hidden">
+                    termina hoy — sacalo al cerrar
+                  </p>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
