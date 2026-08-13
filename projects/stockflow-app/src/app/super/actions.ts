@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSuperadmin } from "@/lib/superadmin";
+import { credencialTemporal } from "@/lib/credenciales";
 
 export type AltaResult =
   | { ok: true; store: string; email: string; password: string }
@@ -27,13 +28,11 @@ const schema = z.object({
   aiAssistant: z.boolean().default(false),
 });
 
-/** Contraseña temporal legible: se la dicta por teléfono al dueño. */
-function passwordTemporal(): string {
-  const palabras = ["kiosco", "gondola", "vuelto", "mostrador", "changuito", "fiambre"];
-  const palabra = palabras[Math.floor(Math.random() * palabras.length)];
-  const numero = Math.floor(1000 + Math.random() * 9000);
-  return `${palabra}-${numero}`;
-}
+/* 049 · el generador se mudó a `@/lib/credenciales`: usaba `Math.random()`
+   (no criptográfico) sobre 6 palabras — ~54.000 combinaciones — y como no
+   había forma de cambiar la clave dentro del producto, esa era la contraseña
+   definitiva del negocio para siempre. Ahora es CSPRNG sobre 64 palabras y
+   nace con `must_change_password`. */
 
 /**
  * Alta de un kiosco nuevo. Es un acto de SYNTRA, no self-service.
@@ -51,7 +50,7 @@ export async function crearNegocio(input: unknown): Promise<AltaResult> {
   }
 
   const admin = createAdminClient();
-  const password = passwordTemporal();
+  const password = credencialTemporal();
 
   const { data: creado, error: errUser } = await admin.auth.admin.createUser({
     email: parsed.data.ownerEmail,
@@ -68,17 +67,38 @@ export async function crearNegocio(input: unknown): Promise<AltaResult> {
     return { ok: false, error: "No pudimos crear el usuario del dueño." };
   }
 
-  const { data: nuevoStore, error: errStore } = await admin.rpc("create_store", {
-    p_name: parsed.data.name,
-    p_slug: parsed.data.slug,
-    p_owner_profile: creado.user.id,
-    p_owner_name: parsed.data.ownerName,
-    p_accent: parsed.data.accent,
-  });
+  /* 049 · el RPC va dentro de try/catch y el rollback se VERIFICA. Antes, si
+     la llamada *lanzaba* (red caída, timeout) en vez de devolver `{ error }`,
+     la acción explotaba y el usuario de auth quedaba huérfano sin que se
+     enterara nadie: el email quedaba tomado y el reintento fallaba con
+     "ese email ya tiene una cuenta". */
+  let errStore: { message: string } | null = null;
+  let nuevoStore: unknown = null;
+  try {
+    const r = await admin.rpc("create_store", {
+      p_name: parsed.data.name,
+      p_slug: parsed.data.slug,
+      p_owner_profile: creado.user.id,
+      p_owner_name: parsed.data.ownerName,
+      p_accent: parsed.data.accent,
+    });
+    errStore = r.error;
+    nuevoStore = r.data;
+  } catch (e) {
+    errStore = { message: e instanceof Error ? e.message : "network" };
+  }
 
   if (errStore) {
-    // Rollback manual: el usuario ya existe pero el negocio no.
-    await admin.auth.admin.deleteUser(creado.user.id);
+    /* Rollback: el usuario ya existe pero el negocio no. Se chequea el
+       resultado — si el borrado TAMBIÉN falla, el error lo NOMBRA para que
+       quede registro operativo de qué usuario hay que limpiar a mano. */
+    const { error: errBorrado } = await admin.auth.admin.deleteUser(creado.user.id);
+    if (errBorrado) {
+      return {
+        ok: false,
+        error: `No pudimos crear el negocio y quedó un usuario suelto (${parsed.data.ownerEmail}). Borralo antes de reintentar.`,
+      };
+    }
 
     const m = errStore.message;
     if (m.includes("slug_taken")) {

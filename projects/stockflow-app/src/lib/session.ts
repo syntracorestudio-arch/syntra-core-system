@@ -42,7 +42,16 @@ export type SessionContext = {
   email: string | null;
   member: Member;
   store: Store;
+  /** 049 · la credencial de alta todavía no se cambió: ninguna ruta responde. */
+  mustChangePassword: boolean;
 };
+
+/** Por qué alguien con usuario válido no tiene sesión. Alimenta el mensaje del login. */
+export type MotivoSinAcceso =
+  | "sin_sesion"
+  | "sin_acceso"
+  | "sin_membresia"
+  | "negocio_suspendido";
 
 export const getSession = cache(async (): Promise<SessionContext | null> => {
   const supabase = await createSupabaseServer();
@@ -56,16 +65,28 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
     .select(
       `id, role, display_name, can_sell_on_credit, can_apply_discount,
        can_void_sale, can_receive_stock, can_see_costs,
+       profile:profiles!inner ( must_change_password ),
        store:stores!inner ( id, name, slug, timezone, branding, status, vertical, ai_assistant_enabled )`,
     )
     .eq("profile_id", auth.user.id)
     .eq("status", "active")
+    /* 049 · un negocio suspendido desde /super NO opera. Era el único
+       apalancamiento de cobranza del producto y no tenía efecto: la sesión
+       leía `stores.status` y no lo miraba nunca. */
+    .eq("store.status", "active")
+    /* 049 · determinismo. Antes era `.limit(1)` SIN `order by`: con dos
+       membresías activas el negocio lo elegía el planner. `role` ascendente
+       pone 'owner' antes que 'staff' (alfabético), y después gana el más
+       viejo ⇒ "tu negocio principal es el más viejo donde sos dueño". */
+    .order("role", { ascending: true })
+    .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
   if (error || !data) return null;
 
   const store = data.store as unknown as Store;
+  const profile = data.profile as unknown as { must_change_password: boolean } | null;
 
   return {
     userId: auth.user.id,
@@ -81,16 +102,47 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
       can_see_costs: data.can_see_costs,
     },
     store,
+    mustChangePassword: profile?.must_change_password ?? false,
   };
 });
 
 /**
- * Guard de página. El middleware ya exige sesión; esto además exige que el usuario
- * SEA miembro activo de un negocio (podría tener cuenta y ninguna pertenencia).
+ * POR QUÉ no hay sesión — sólo se llama cuando `getSession()` ya dio null.
+ *
+ * Es una segunda consulta a propósito: el camino feliz sigue costando una sola.
+ * Existe porque el mensaje importa: hasta ahora el empleado dado de baja el
+ * domingo a la noche veía el login genérico, creía haberse equivocado de clave
+ * y terminaba llamando al dueño.
+ */
+export async function motivoSinAcceso(): Promise<MotivoSinAcceso> {
+  const supabase = await createSupabaseServer();
+  const { data, error } = await supabase.rpc("mi_acceso");
+  if (error || !data) return "sin_sesion";
+  const estado = (data as { estado?: string }).estado;
+  if (
+    estado === "sin_acceso" ||
+    estado === "sin_membresia" ||
+    estado === "negocio_suspendido"
+  ) {
+    return estado;
+  }
+  return "sin_sesion";
+}
+
+/**
+ * Guard de página. El proxy ya exige sesión; esto además exige que el usuario
+ * SEA miembro activo de un negocio ACTIVO, y que ya haya cambiado la
+ * credencial con la que lo dieron de alta.
  */
 export async function requireSession(): Promise<SessionContext> {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) {
+    const motivo = await motivoSinAcceso();
+    redirect(motivo === "sin_sesion" ? "/login" : `/login?motivo=${motivo}`);
+  }
+  /* 049 · la guarda del cambio obligatorio vive acá y no en el cliente: si
+     estuviera en el cliente, entrar por URL a cualquier ruta la esquivaría. */
+  if (session.mustChangePassword) redirect("/clave");
   return session;
 }
 

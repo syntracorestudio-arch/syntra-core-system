@@ -1,6 +1,25 @@
 # StockFlow — Onboarding de catálogo: audit + plan
 
-> **Estado: PROPUESTA (2026-07-30) — sin código, sin migraciones.**
+> **Estado: MAYORMENTE IMPLEMENTADO (actualizado 2026-08-08).** El encabezado decía
+> "PROPUESTA sin código" y hacía meses que no era cierto. Estado real, verificado
+> sobre `3b882fb`:
+> - **F1a captura orgánica: IMPLEMENTADO** — `037_captura_organica.sql`
+>   (`products.stock_confiable`, trigger `graduar_stock_confiable`,
+>   `crear_producto_rapido`, `store_settings.margen_default_pct`).
+> - **Modo puesta en marcha: IMPLEMENTADO** — `038_puesta_en_marcha.sql` + UI en
+>   `src/app/admin/dashboard-client.tsx:148`.
+> - **F1b total en góndola: IMPLEMENTADO** — `039_total_gondola.sql`.
+> - **F3 ingreso a escala: IMPLEMENTADO** — `040_ingreso_escala.sql`,
+>   `041_alta_desde_ingreso.sql`.
+> - **F2 import CSV: IMPLEMENTADO** — `src/lib/csv-import.ts` + `import-dialog.tsx`
+>   (cap 500 filas).
+> - **F1c pantalla "Carga inicial": NO EXISTE** (0 hits de `carga_inicial`).
+> - **F0 import SEPA masivo: PENDIENTE** — `catalogo_publico` tiene 36 filas y
+>   `scripts/importar-sepa.mjs` no tiene npm script ni cron.
+>
+> Lo que sigue es el plan original, que se conserva como registro del razonamiento.
+>
+> **Estado original: PROPUESTA (2026-07-30) — sin código, sin migraciones.**
 > Objetivo: definir la mejor forma de cargar el catálogo de un cliente NUEVO
 > (kiosco/almacén AR real, 800–2000+ SKUs). La carga manual uno-por-uno es
 > inviable: pierde al cliente. El PRD ya lo declara riesgo nº1

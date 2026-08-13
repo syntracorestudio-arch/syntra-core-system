@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { publicEnv, isSupabaseConfigured } from "./env";
 
 /** Rutas que exigen sesión. Toda ruta privada nueva se agrega ACÁ y al matcher. */
-const PROTECTED_PREFIXES = ["/pos", "/admin", "/super"] as const;
+const PROTECTED_PREFIXES = ["/pos", "/admin", "/super", "/clave"] as const;
 
 /**
  * Refresca la sesión de Supabase en cada request y protege rutas.

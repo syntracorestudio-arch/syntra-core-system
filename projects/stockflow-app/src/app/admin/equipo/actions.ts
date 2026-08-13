@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireOwner } from "@/lib/session";
+import { credencialTemporal } from "@/lib/credenciales";
 
 export type Result = { ok: true } | { ok: false; error: string };
 export type AltaEmpleado =
@@ -21,12 +22,9 @@ const empleadoSchema = z.object({
   veCostos: z.boolean(),
 });
 
-/** Contraseña temporal legible: el dueño se la dicta a su empleado. */
-function passwordTemporal(): string {
-  const palabras = ["caja", "gondola", "vuelto", "mostrador", "changuito"];
-  const palabra = palabras[Math.floor(Math.random() * palabras.length)];
-  return `${palabra}-${Math.floor(1000 + Math.random() * 9000)}`;
-}
+/* 049 · el generador se mudó a `@/lib/credenciales` (CSPRNG, 64 palabras).
+   Ver la nota en `super/actions.ts`: el anterior era `Math.random()` sobre 5
+   palabras y la credencial no se podía cambiar nunca. */
 
 /**
  * Alta de un empleado.
@@ -44,7 +42,7 @@ export async function crearEmpleado(input: unknown): Promise<AltaEmpleado> {
   }
 
   const admin = createAdminClient();
-  const password = passwordTemporal();
+  const password = credencialTemporal();
 
   const { data: creado, error: errUser } = await admin.auth.admin.createUser({
     email: parsed.data.email,
