@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { headers } from "next/headers";
+import { createHash } from "node:crypto";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -28,12 +29,26 @@ export async function signIn(_prev: LoginState, formData: FormData): Promise<Log
     return { error: parsed.error.issues[0]?.message ?? "Revisá los datos." };
   }
 
-  // Freno anti fuerza-bruta por IP. Fail-open: si el limiter se cae, no dejamos
-  // a nadie afuera de su propio negocio.
+  /* Freno anti fuerza-bruta en DOS ejes. Fail-open: si el limiter se cae, no
+     dejamos a nadie afuera de su propio negocio.
+
+     049 · el freno por cuenta es el que importa y no existía: un kiosco entero
+     sale por UNA sola IP, así que el cupo compartido lo consumían tres
+     empleados equivocándose, mientras que un atacante con muchas IPs no tenía
+     ningún techo sobre una cuenta puntual. Por eso el de IP se afloja (30) y
+     el freno real pasa a la cuenta (5 / 15 min).
+
+     La clave se hashea: `rate_limits` es una tabla y no tiene por qué guardar
+     el email de nadie en claro. */
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  const allowed = await checkRateLimit(`login:${ip}`, 10, 300);
-  if (!allowed) {
-    return { error: "Demasiados intentos. Esperá un minuto y probá de nuevo." };
+  const cuenta = createHash("sha256").update(parsed.data.email.toLowerCase()).digest("hex");
+
+  const [ipOk, cuentaOk] = await Promise.all([
+    checkRateLimit(`login:ip:${ip}`, 30, 300),
+    checkRateLimit(`login:acct:${cuenta}`, 5, 900),
+  ]);
+  if (!ipOk || !cuentaOk) {
+    return { error: "Demasiados intentos. Esperá unos minutos y probá de nuevo." };
   }
 
   const supabase = await createSupabaseServer();

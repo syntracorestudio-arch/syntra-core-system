@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { redirect } from "next/navigation";
-import { Zap, PackageCheck, NotebookPen } from "lucide-react";
+import { Zap, PackageCheck, NotebookPen, Info } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { Wordmark } from "@/components/brand/logo";
 import { LogoMark3D } from "@/components/brand/logo-3d";
@@ -25,10 +25,28 @@ const PERKS = [
   { icon: NotebookPen, label: "El fiado\nbajo control" },
 ];
 
-export default async function LoginPage() {
+/* 049 · por qué NO entrás, dicho en criollo. Antes, un empleado dado de baja
+   el domingo a la noche veía el error genérico de credenciales, creía haberse
+   equivocado de clave y terminaba llamando al dueño. */
+const MOTIVOS: Record<string, string> = {
+  sin_acceso: "Ya no tenés acceso a este kiosco. Hablá con el dueño.",
+  negocio_suspendido: "Tu cuenta está suspendida. Escribinos y lo resolvemos.",
+  sin_membresia: "Tu usuario todavía no está asignado a ningún kiosco.",
+};
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ motivo?: string; error?: string }>;
+}) {
   // Ya logueado: no tiene sentido mostrarle el formulario.
   const session = await getSession();
   if (session) redirect("/");
+
+  const sp = await searchParams;
+  /* El proxy manda `?error=` cuando el proveedor de auth se cae; hasta la 049
+     esta página no leía searchParams y ese aviso NUNCA se mostraba. */
+  const aviso = MOTIVOS[sp.motivo ?? ""] ?? sp.error ?? null;
 
   return (
     <main className="flex min-h-dvh flex-col md:grid md:grid-cols-2">
@@ -96,6 +114,18 @@ export default async function LoginPage() {
           <p className="mt-1.5 text-sm text-muted-foreground">
             Tu stock, tus ventas y tu fiado en una pantalla.
           </p>
+          {aviso && (
+            /* Va ARRIBA del form y no adentro: no es un error de lo que el
+               usuario acaba de tipear, es el estado de su cuenta. Ámbar y no
+               rojo — no hizo nada mal. */
+            <p
+              role="status"
+              className="mt-5 flex items-start gap-2 rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning-ink ring-1 ring-warning/25"
+            >
+              <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
+              {aviso}
+            </p>
+          )}
           <div className="mt-6">
             <LoginForm />
           </div>

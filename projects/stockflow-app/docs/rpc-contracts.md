@@ -674,3 +674,73 @@ decisión owner #4) · split · `store_hoy`.
 
 ### Errores nuevos
 `invalid_qty`
+
+---
+
+## Identidad y acceso · migración 049 (bloque A — endurecimiento de auth)
+
+Plan: `docs/identidad-acceso-plan.md` (decisiones congeladas 2026-08-08).
+**Nada de este bloque toca el camino de cobro**: `register_sale`,
+`register_split_sale`, `void_sale` y `rpc_member` quedan idénticos. El aislamiento
+sigue colgando de `auth.uid()` exactamente igual que hoy.
+
+### Qué NO cambia (y por qué importa decirlo)
+`rpc_member(store_id)` · los 4 helpers de RLS (`auth_member_stores`, `auth_has_role`,
+`auth_my_member_ids`, `auth_can`) · el esquema de `members` y sus 5 flags ·
+`sales.member_id`. La identidad del empleado se resuelve con un `auth.users` normal
+(email sintético), así que el modelo de permisos y de atribución no se entera.
+
+### 1 · `stores.status` deja de ser decorativo
+Hoy `getSession` filtra `members.status='active'` pero **nunca mira `stores.status`**
+(`src/lib/session.ts:55-64`), así que un negocio suspendido desde `/super`
+(`src/app/super/actions.ts:118-127`) sigue entrando y operando — el único
+apalancamiento de cobranza que existe, sin efecto.
+
+- **`store_activa(p_store_id uuid) returns boolean`** — `stable security definer`.
+  Devuelve `stores.status = 'active'`. Se consume desde `getSession` (corte de
+  sesión) y desde `rpc_member` **NO** (no se toca el camino de cobro en este bloque;
+  el corte de sesión ya deja al usuario afuera antes de llegar a una RPC).
+- Contrato de UI: sesión de un negocio suspendido ⇒ `getSession()` devuelve `null` y
+  el login muestra un mensaje **distinto** al de credencial incorrecta.
+
+### 2 · Contraseñas: CSPRNG + cambio obligatorio
+- La generación pasa de `Math.random()` sobre 6 palabras (~54.000 combinaciones,
+  `src/app/super/actions.ts:31-36`) a **`crypto.randomInt` sobre 64 palabras**
+  (~5,8·10⁵) — módulo compartido, un solo dueño de la lista.
+- **`profiles.must_change_password boolean not null default false`.** Va en la tabla y
+  no en `app_metadata` por una razón verificable en test: `app_metadata` sólo se
+  escribe con service_role, pero **leerlo desde SQL para una guarda exigiría parsear el
+  JWT**; en `profiles` lo lee la misma query que ya hace `getSession` (cero round-trips
+  nuevos) y el usuario no puede tocarlo (no hay policy de UPDATE sobre esa columna).
+- Toda alta (dueño y empleado) nace con `must_change_password = true`.
+- **`marcar_clave_cambiada()`** — `security definer`, sin parámetros: pone
+  `must_change_password = false` para `auth.uid()`. Es lo único que el usuario puede
+  hacer sobre esa columna, y sólo sobre sí mismo.
+- Contrato de guarda: con el flag en `true`, **ninguna ruta protegida responde** salvo
+  la de cambio de clave y el logout. La guarda vive en `requireSession`, no en el
+  cliente.
+
+### 3 · Selección de negocio determinística
+`getSession` usa `.limit(1)` **sin `ORDER BY`** (`src/lib/session.ts:63`): con dos
+membresías activas el negocio elegido lo decide el planner. Pasa a ordenar por
+`role='owner'` primero y luego `created_at asc` — estable y explicable ("tu negocio
+principal es el más viejo donde sos dueño").
+
+### 4 · Alta de negocio sin usuarios huérfanos
+`crearNegocio` (`src/app/super/actions.ts:71-81`) no envuelve el RPC en `try/catch` y
+**no chequea el resultado del rollback**: si `create_store` *lanza* (red, timeout)
+queda un usuario de auth huérfano sin que se entere nadie.
+- El rollback pasa a ser explícito y **verificado**; si el borrado del usuario también
+  falla, la acción devuelve un error que NOMBRA el usuario huérfano para que quede
+  registro operativo.
+
+### 5 · Rate limiting por CUENTA
+Hoy sólo hay `login:${ip}` 10/300s (`src/app/login/actions.ts:33-34`), y **un kiosco
+entero es una sola IP**: tres empleados equivocándose se consumen el cupo compartido.
+- Se agrega `login:acct:<sha256(identificador)>` → 5 intentos / 15 min, y el de IP
+  sube a 30/300s.
+- El limitador sigue **fail-open** (default de `syntra-scale-security-baseline`). El
+  cambio a fail-closed en el login es una decisión abierta del owner y NO entra acá.
+
+### Errores nuevos
+`store_suspended` (corte de sesión) · `must_change_password` (guarda de primer ingreso)
