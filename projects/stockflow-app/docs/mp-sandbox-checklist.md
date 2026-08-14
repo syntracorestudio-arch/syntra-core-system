@@ -103,7 +103,7 @@ MP_ENC_KEY=<los 32 bytes en base64>
 | ✅ Atadura del monto | Que lo acreditado sea lo cobrado, no lo que dijo el cliente |
 | ✅ Pata electrónica del split | Una parte por QR y el resto en efectivo |
 | ⚠️ **Point (posnet)** | **NO se valida con sandbox: necesita el aparato físico.** El código está gateado por `has_posnet` + `mp_terminal_id`, así que sin device queda apagado y no molesta |
-| ⚠️ Reembolso | El reembolso de una venta a medio cobrar vive en SQL (`027`) y **nunca se ejerció contra MP**. No hay flag de entorno que lo apague: si el camino se toca, corre. Es lo primero a revisar después del QR |
+| — Reembolso | **No existe en `main`.** Ver la corrección al final |
 
 ## Lo que voy a correr yo cuando estén las credenciales
 
@@ -120,3 +120,47 @@ MP_ENC_KEY=<los 32 bytes en base64>
 **Estado:** pendiente de credenciales. Todo lo demás del camino de cobro está
 verificado contra nuestros tests; esto es lo único que falta para poder decir
 que funciona **contra MercadoPago**, que no es lo mismo.
+
+---
+
+## Corrección: el reembolso NO está en `main`
+
+En la primera versión de este checklist escribí que *"el reembolso de una venta a
+medio cobrar vive en SQL (027) y no tiene flag que lo apague: si el camino se
+toca, corre"*. **Es falso.** Lo verifiqué a fondo recién cuando el owner, con
+razón sobre el principio, pidió construirle el gate.
+
+Lo que hay en `022` y `027` con el nombre `v_reembolso` es **aritmética
+contable**: un `sum(total)` sobre ventas en efectivo anuladas hoy que se
+vendieron antes, para restarlo del efectivo esperado del cierre. No mueve un
+peso — la plata se la devuelve el cajero de la mano. Leí el nombre de la
+variable y no el cuerpo.
+
+Estado real, verificado de tres formas independientes:
+
+| Verificación | Resultado |
+| --- | --- |
+| Lista completa de RPCs de `main` (76) | ninguna de reembolso / refund / devolución |
+| Superficie de MP en `src/lib/mercadopago.ts` | crear orden QR, crear orden Point, **cancelar orden impaga**, listar terminales, leer orden. **Ningún endpoint de refunds** |
+| `git merge-base --is-ancestor c84490d origin/main` | **NO** — la rama del split que trae el reembolso no está mergeada |
+
+**No hay código de reembolso vivo, así que no hay nada que gatear hoy.**
+Construir el gate igual habría producido exactamente el riesgo que el owner
+señaló —sensación falsa de seguridad— pero del otro lado: un flag que "protege"
+código inexistente, un checklist que parece cerrado y una tarea que se da por
+hecha cuando la real sigue pendiente.
+
+### Lo que SÍ hay que hacer, y cuándo
+
+`docs/despliegue-plan.md` lista `STOCKFLOW_REEMBOLSO_HABILITADO` en la tabla de
+variables como "dejar sin setear (OFF)". **Ese flag no lo lee ningún código.**
+
+Mientras el reembolso siga sin mergear da igual. El día que
+`feat/stockflow-split-dos-electronicas` entre, "sin setear" dejaría de
+significar "apagado" y pasaría a significar **"prendido y sin control"** — y
+alguien siguiendo el checklist de despliegue creería lo contrario.
+
+Por eso el gate es **precondición de merge de esa rama**, no una tarea suelta:
+se construye ahí, sobre los puntos de entrada que esa misma rama trae, con el
+test en las dos direcciones (ausente ⇒ rechaza en todos lados; en `1` ⇒ anda).
+Queda anotado con esa palabra en el plan de despliegue.
