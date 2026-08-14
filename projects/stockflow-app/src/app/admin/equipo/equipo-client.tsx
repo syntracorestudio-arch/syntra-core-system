@@ -68,6 +68,17 @@ export type Miembro = {
  * `enAlta` marca cuáles se ofrecen al crear la cuenta. Cerrar la caja y ver qué
  * se vende NO están: se otorgan después, cuando el dueño ya decidió que confía.
  * Un permiso que se tilda en el apuro del alta no es una decisión.
+ *
+ * ACÁ VIVÍA "Cambiar precios en la venta" (`can_apply_discount`), y se sacó por
+ * el mismo motivo que "Ver costos": prometía algo que la app no hace. Ocho RPCs
+ * validan el flag, pero NINGUNA pantalla manda `unit_price` — ni para el dueño.
+ * El carrito sólo tiene cantidad. Era la segunda promesa vacía encontrada en
+ * esta pantalla, así que se barrieron las cinco restantes una por una
+ * (docs/permisos-audit.md §A.3): las cinco llegan a una acción real.
+ *
+ * La columna y la validación en SQL se DEJAN: el guard del servidor es correcto
+ * y no queremos reconstruirlo cuando la función llegue. Lo que no puede quedar
+ * es el interruptor que no enciende nada.
  */
 const PERMISOS = [
   {
@@ -76,13 +87,6 @@ const PERMISOS = [
     enAlta: true,
     label: "Fiar",
     ayuda: "Puede vender a cuenta y cobrarle al que viene a pagar",
-  },
-  {
-    key: "puedeDescuento",
-    grupo: "mostrador",
-    enAlta: true,
-    label: "Cambiar precios en la venta",
-    ayuda: "Puede hacer descuentos",
   },
   {
     key: "puedeAnular",
@@ -206,7 +210,6 @@ export function EquipoClient({ miembros, yoId }: { miembros: Miembro[]; yoId: st
               (p) =>
                 ({
                   puedeFiar: m.puede_fiar,
-                  puedeDescuento: m.puede_descuento,
                   puedeAnular: m.puede_anular,
                   puedeRecibir: m.puede_recibir,
                   puedeCerrar: m.puede_cerrar,
@@ -332,7 +335,6 @@ function AltaDialog({
   // Fiar, descontar, anular y ver costos se otorgan a conciencia.
   const [permisos, setPermisos] = useState<PermisosState>({
     puedeFiar: false,
-    puedeDescuento: false,
     puedeAnular: false,
     puedeRecibir: true,
     // 052 · no se ofrecen en el alta: nacen apagados y se otorgan después.
@@ -431,7 +433,6 @@ function PermisosDialog({
 }) {
   const [permisos, setPermisos] = useState<PermisosState>({
     puedeFiar: miembro.puede_fiar,
-    puedeDescuento: miembro.puede_descuento,
     puedeAnular: miembro.puede_anular,
     puedeRecibir: miembro.puede_recibir,
     puedeCerrar: miembro.puede_cerrar,
