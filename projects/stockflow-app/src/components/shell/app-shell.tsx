@@ -5,12 +5,59 @@ import { LogoMark, Wordmark } from "@/components/brand/logo";
 import { signOut } from "@/app/login/actions";
 import { NAV_GROUPS, ALL_ITEMS } from "./nav-data";
 import { SidebarNav } from "./sidebar-nav";
+import { getSession } from "@/lib/session";
+
+/**
+ * Qué secciones puede ABRIR realmente esta persona.
+ *
+ * Hasta acá el nav no filtraba nada: el empleado veía las 14 secciones y casi
+ * todas lo rebotaban a /pos en silencio. Peor todavía, eso hacía INVISIBLES los
+ * permisos — el dueño le habilitaba "cargar mercadería" y del lado del empleado
+ * la app se veía idéntica, porque el ítem ya estaba (y antes lo rebotaba).
+ *
+ * La lista sale de las guardas REALES de cada página, no de una convención: si
+ * mañana una pantalla cambia de `requireOwner` a `requireSession`, hay que
+ * tocar esto también. Por eso está en un solo lugar y con el motivo escrito.
+ */
+function puedeAbrir(
+  href: string,
+  m: {
+    role: string;
+    can_receive_stock: boolean;
+    can_close_register: boolean;
+    can_see_reports: boolean;
+  },
+): boolean {
+  if (m.role === "owner") return true;
+  // `requireSession` puro: cualquier miembro activo entra.
+  if (href === "/pos" || href === "/admin/vencimientos") return true;
+  // `requireSession` + flag (ingreso/page.tsx chequea can_receive_stock).
+  if (href === "/admin/ingreso") return m.can_receive_stock;
+  /* 052 · las dos pantallas que se PARTEN por permiso. No abren la sección
+     entera: `cierre_caja` y la página de reportes le sirven al empleado un
+     payload distinto, sin recaudación ni ganancia. Sin estas dos líneas el
+     permiso queda invisible — que es exactamente el bug que esta función vino
+     a arreglar, repetido un nivel más abajo. */
+  if (href === "/admin/caja") return m.can_close_register;
+  if (href === "/admin/reportes") return m.can_see_reports;
+  // Todo el resto de /admin es `requireOwner`.
+  return false;
+}
+
+/* 052 · Las dos rutas que sirven OTRA pantalla según el permiso. El empleado
+   entra al mismo href que el dueño pero recibe un payload recortado, así que
+   su barra tiene que nombrar lo que él va a ver, no lo que ve el dueño.
+   Sólo se aplica al staff: `AppShell` no las pasa cuando el rol es owner. */
+const ETIQUETAS_STAFF: Record<string, string> = {
+  "/admin/caja": "Cerrar turno",
+  "/admin/reportes": "Qué se vende",
+};
 
 /**
  * Shell de la app: sidebar en desktop, barra inferior en mobile.
  * Mobile-first — el dueño mira el negocio desde el teléfono.
  */
-export function AppShell({
+export async function AppShell({
   children,
   current,
   storeName,
@@ -21,16 +68,33 @@ export function AppShell({
   storeName: string;
   userLabel: string;
 }) {
+  /* Server component: la sesión se lee acá y no baja por prop, así ninguna de
+     las ~15 páginas que usan el shell tiene que acordarse de pasarla. */
+  const session = await getSession();
+  const visible = (href: string) =>
+    !session || puedeAbrir(href, session.member);
+
+  const GRUPOS = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => visible(i.href)),
+  })).filter((g) => g.items.length > 0);
+  const ITEMS = ALL_ITEMS.filter((i) => visible(i.href));
+  // Sólo el staff renombra: el dueño ve "Caja" y "Reportes", que es lo suyo.
+  const ETIQUETAS = session?.member.role === "owner" ? undefined : ETIQUETAS_STAFF;
   /* La barra inferior lleva el loop diario (abrir caja → vender → mirar el
      resumen); todo lo demás entra por "Más". Productos NO va en la barra: es
      tarea de edición, no de mostrador. */
   const MOBILE_PRIMARY = ["/admin", "/pos", "/admin/caja"];
-  const mobileNav = ALL_ITEMS.filter((i) => MOBILE_PRIMARY.includes(i.href));
-  const mobileRestGroups = NAV_GROUPS.map((g) => ({
+  /* El rename vale también acá: la barra inferior es lo ÚNICO que el empleado
+     ve en el teléfono, que es donde de verdad trabaja. */
+  const renombrar = <T extends { href: string; label: string }>(items: T[]) =>
+    ETIQUETAS ? items.map((i) => ({ ...i, label: ETIQUETAS[i.href] ?? i.label })) : items;
+  const mobileNav = renombrar(ITEMS.filter((i) => MOBILE_PRIMARY.includes(i.href)));
+  const mobileRestGroups = GRUPOS.map((g) => ({
     ...g,
     items: g.items.filter((i) => !MOBILE_PRIMARY.includes(i.href)),
   })).filter((g) => g.items.length > 0);
-  const mobileRest = mobileRestGroups.flatMap((g) => g.items);
+  const mobileRest = renombrar(mobileRestGroups.flatMap((g) => g.items));
 
   return (
     <div className="flex min-h-dvh">
@@ -48,7 +112,7 @@ export function AppShell({
           </div>
         </div>
 
-        <SidebarNav current={current} />
+        <SidebarNav current={current} permitidos={ITEMS.map((i) => i.href)} etiquetas={ETIQUETAS} />
 
         <div className="border-t border-border px-5 py-4">
           <p className="text-xs text-muted-foreground">Conectado como</p>

@@ -10,42 +10,159 @@ import {
   Users,
   UserMinus,
   UserCheck,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { AvisoBanner } from "@/components/ui/aviso";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyArt } from "@/components/ui/empty-art";
 import { Button } from "@/components/ui/button";
-import { crearEmpleado, actualizarPermisos, cambiarEstado, type AltaEmpleado } from "./actions";
+import {
+  crearEmpleado,
+  actualizarPermisos,
+  cambiarEstado,
+  resetearClaveEmpleado,
+  type AltaEmpleado,
+  type ResetClave,
+} from "./actions";
 
 export type Miembro = {
   id: string;
   nombre: string | null;
   rol: "owner" | "staff";
   email: string;
+  /** 050 · con qué usuario entra. null en el dueño y en las altas viejas. */
+  usuario: string | null;
   estado: string;
   puede_fiar: boolean;
   puede_descuento: boolean;
   puede_anular: boolean;
   puede_recibir: boolean;
+  /** Sigue viniendo de la RPC, pero ya no es un toggle: acompaña a puede_recibir. */
   ve_costos: boolean;
+  /** 052 · cierra el turno; el payload que recibe NO trae la recaudación. */
+  puede_cerrar: boolean;
+  /** 052 · ve unidades y faltantes; ni un número de plata. */
+  ve_reportes: boolean;
   desde: string;
 };
 
-/** Los permisos, explicados por lo que HABILITAN, no por su nombre técnico. */
+/**
+ * Los permisos, explicados por lo que HABILITAN, no por su nombre técnico.
+ *
+ * "Ver costos y ganancias" SALIÓ de esta lista (decisión del owner 2026-08-13).
+ * No es que no hiciera nada: es que se contradecía con "Cargar mercadería" —
+ * no se puede recibir mercadería sin anotar cuánto costó, así que quien
+ * registra lo que entra ve costos por necesidad. Dos permisos que se pisan
+ * confunden más de lo que protegen. `can_see_costs` sigue existiendo en la base
+ * y ahora ACOMPAÑA a `can_receive_stock` (ver `actions.ts`), así que la columna
+ * dice la verdad en vez de contradecir a la pantalla.
+ */
+/**
+ * 052 · Seis permisos en dos grupos.
+ *
+ * Agrupados porque seis toggles planos ya no se leen de un vistazo, y porque el
+ * dueño no piensa en una matriz: piensa "esta persona atiende" o "esta persona
+ * además me maneja el local". Los títulos están en su idioma, no en el nuestro.
+ *
+ * `enAlta` marca cuáles se ofrecen al crear la cuenta. Cerrar la caja y ver qué
+ * se vende NO están: se otorgan después, cuando el dueño ya decidió que confía.
+ * Un permiso que se tilda en el apuro del alta no es una decisión.
+ */
 const PERMISOS = [
-  { key: "puedeFiar", label: "Fiar", ayuda: "Puede vender a cuenta y cobrar deudas" },
-  { key: "puedeRecibir", label: "Cargar mercadería", ayuda: "Puede registrar lo que entra" },
-  { key: "puedeDescuento", label: "Cambiar precios en la venta", ayuda: "Puede hacer descuentos" },
-  { key: "puedeAnular", label: "Anular ventas", ayuda: "Puede deshacer una venta cobrada" },
-  { key: "veCostos", label: "Ver costos y ganancias", ayuda: "Ve cuánto te cuesta cada producto" },
+  {
+    key: "puedeFiar",
+    grupo: "mostrador",
+    enAlta: true,
+    label: "Fiar",
+    ayuda: "Puede vender a cuenta y cobrarle al que viene a pagar",
+  },
+  {
+    key: "puedeDescuento",
+    grupo: "mostrador",
+    enAlta: true,
+    label: "Cambiar precios en la venta",
+    ayuda: "Puede hacer descuentos",
+  },
+  {
+    key: "puedeAnular",
+    grupo: "mostrador",
+    enAlta: true,
+    label: "Anular ventas",
+    ayuda: "Puede deshacer la venta que acaba de cobrar",
+  },
+  {
+    key: "puedeRecibir",
+    grupo: "local",
+    enAlta: true,
+    label: "Cargar mercadería",
+    ayuda: "Puede registrar lo que entra — y ver cuánto te costó",
+  },
+  {
+    key: "puedeCerrar",
+    grupo: "local",
+    enAlta: false,
+    label: "Cerrar la caja",
+    /* La ayuda dice explícitamente lo que NO ve: es justo lo que el dueño
+       quiere saber antes de tildarlo. */
+    ayuda: "Cuenta el efectivo y cierra el turno — no ve lo que se facturó ni la ganancia",
+  },
+  {
+    key: "veReportes",
+    grupo: "local",
+    enAlta: false,
+    label: "Ver qué se vende",
+    ayuda: "Lo que más sale y lo que se está por acabar, en unidades — sin un solo precio",
+  },
+] as const;
+
+const GRUPOS = [
+  { id: "mostrador", titulo: "En el mostrador" },
+  { id: "local", titulo: "Además de atender" },
 ] as const;
 
 type PermisosState = Record<(typeof PERMISOS)[number]["key"], boolean>;
 
+/** Los toggles agrupados. Vive acá para no repetir el map en los dos diálogos. */
+function GrupoPermisos({
+  soloAlta,
+  permisos,
+  onChange,
+}: {
+  soloAlta: boolean;
+  permisos: PermisosState;
+  onChange: (key: keyof PermisosState, v: boolean) => void;
+}) {
+  return (
+    <>
+      {GRUPOS.map((g) => {
+        const items = PERMISOS.filter((p) => p.grupo === g.id && (!soloAlta || p.enAlta));
+        if (items.length === 0) return null;
+        return (
+          <div key={g.id} className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {g.titulo}
+            </p>
+            {items.map((p) => (
+              <Toggle
+                key={p.key}
+                label={p.label}
+                ayuda={p.ayuda}
+                activo={permisos[p.key]}
+                onChange={(v) => onChange(p.key, v)}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 export function EquipoClient({ miembros, yoId }: { miembros: Miembro[]; yoId: string }) {
   const [creando, setCreando] = useState(false);
   const [alta, setAlta] = useState<Extract<AltaEmpleado, { ok: true }> | null>(null);
+  const [reset, setReset] = useState<Extract<ResetClave, { ok: true }> | null>(null);
   const [editando, setEditando] = useState<Miembro | null>(null);
   const [aviso, setAviso] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -92,7 +209,8 @@ export function EquipoClient({ miembros, yoId }: { miembros: Miembro[]; yoId: st
                   puedeDescuento: m.puede_descuento,
                   puedeAnular: m.puede_anular,
                   puedeRecibir: m.puede_recibir,
-                  veCostos: m.ve_costos,
+                  puedeCerrar: m.puede_cerrar,
+                  veReportes: m.ve_reportes,
                 })[p.key],
             );
             return (
@@ -103,7 +221,12 @@ export function EquipoClient({ miembros, yoId }: { miembros: Miembro[]; yoId: st
                       {m.nombre}
                       {inactivo && <span className="ml-2 text-xs text-danger-ink">dado de baja</span>}
                     </p>
-                    <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+                    {/* El USUARIO es el dato que el dueño le dicta; el email
+                        sintético no se le muestra a nadie. Las altas viejas
+                        (con email real) siguen mostrando el email. */}
+                    <p className="truncate text-xs text-muted-foreground">
+                      {m.usuario ?? m.email}
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -111,6 +234,22 @@ export function EquipoClient({ miembros, yoId }: { miembros: Miembro[]; yoId: st
                     className="h-8 cursor-pointer rounded-md border border-border px-2.5 text-xs font-medium transition-colors hover:border-primary"
                   >
                     Permisos
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      startTransition(async () => {
+                        const r = await resetearClaveEmpleado(m.id);
+                        if (r.ok) setReset(r);
+                        else setAviso({ tone: "error", text: r.error });
+                      })
+                    }
+                    aria-label={`Darle una clave nueva a ${m.nombre}`}
+                    title="Clave nueva"
+                    className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:text-foreground disabled:opacity-30"
+                  >
+                    <KeyRound className="size-3.5" />
                   </button>
                   <button
                     type="button"
@@ -148,7 +287,8 @@ export function EquipoClient({ miembros, yoId }: { miembros: Miembro[]; yoId: st
       )}
 
       <p className="mt-4 text-xs text-muted-foreground">
-        Los empleados entran directo a la caja. No ven reportes, ajustes ni el equipo.
+        Los empleados entran directo a la caja. Sin permisos no ven la plata del día,
+        ni los costos, ni las cuentas de fiado.
       </p>
 
       {creando && (
@@ -162,6 +302,7 @@ export function EquipoClient({ miembros, yoId }: { miembros: Miembro[]; yoId: st
       )}
 
       {alta && <CredencialesDialog alta={alta} onClose={() => setAlta(null)} />}
+      {reset && <ClaveNuevaDialog reset={reset} onClose={() => setReset(null)} />}
 
       {editando && (
         <PermisosDialog
@@ -186,7 +327,7 @@ function AltaDialog({
   onDone: (r: Extract<AltaEmpleado, { ok: true }>) => void;
 }) {
   const [nombre, setNombre] = useState("");
-  const [email, setEmail] = useState("");
+  const [usuario, setUsuario] = useState("");
   // Por defecto puede lo básico de mostrador: vender y recibir mercadería.
   // Fiar, descontar, anular y ver costos se otorgan a conciencia.
   const [permisos, setPermisos] = useState<PermisosState>({
@@ -194,7 +335,9 @@ function AltaDialog({
     puedeDescuento: false,
     puedeAnular: false,
     puedeRecibir: true,
-    veCostos: false,
+    // 052 · no se ofrecen en el alta: nacen apagados y se otorgan después.
+    puedeCerrar: false,
+    veReportes: false,
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -223,39 +366,41 @@ function AltaDialog({
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="eq-email" className="text-sm font-medium">
-            Su email
+          <label htmlFor="eq-usuario" className="text-sm font-medium">
+            Con qué usuario entra
           </label>
           <input
-            id="eq-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="luciana@gmail.com"
+            id="eq-usuario"
+            value={usuario}
+            onChange={(e) => setUsuario(e.target.value)}
+            placeholder="luciana"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-primary"
           />
-          <p className="text-xs text-muted-foreground">Con esto va a entrar a la caja.</p>
+          {/* 050 · ya no se pide email: la cajera de un kiosco muchas veces no
+              tiene, y exigirlo era el bloqueante real del onboarding. */}
+          <p className="text-xs text-muted-foreground">
+            No hace falta que tenga email. Se lo dictás junto con la clave.
+          </p>
         </div>
 
         <fieldset className="space-y-2 rounded-lg border border-border bg-background p-3">
           <legend className="px-1 text-sm font-medium">¿Qué puede hacer?</legend>
-          {PERMISOS.map((p) => (
-            <Toggle
-              key={p.key}
-              label={p.label}
-              ayuda={p.ayuda}
-              activo={permisos[p.key]}
-              onChange={(v) => setPermisos((s) => ({ ...s, [p.key]: v }))}
-            />
-          ))}
+          <GrupoPermisos
+            soloAlta
+            permisos={permisos}
+            onChange={(k, v) => setPermisos((s) => ({ ...s, [k]: v }))}
+          />
         </fieldset>
 
         <button
           type="button"
-          disabled={pending || !nombre.trim() || !email}
+          disabled={pending || !nombre.trim() || usuario.trim().length < 3}
           onClick={() =>
             startTransition(async () => {
-              const res = await crearEmpleado({ nombre, email, ...permisos });
+              const res = await crearEmpleado({ nombre, usuario, ...permisos });
               if (!res.ok) {
                 setError(res.error);
                 return;
@@ -289,23 +434,20 @@ function PermisosDialog({
     puedeDescuento: miembro.puede_descuento,
     puedeAnular: miembro.puede_anular,
     puedeRecibir: miembro.puede_recibir,
-    veCostos: miembro.ve_costos,
+    puedeCerrar: miembro.puede_cerrar,
+    veReportes: miembro.ve_reportes,
   });
   const [pending, startTransition] = useTransition();
 
   return (
     <Dialog title={`Permisos de ${miembro.nombre}`} onClose={onClose}>
       <div className="space-y-3">
-        <fieldset className="space-y-2 rounded-lg border border-border bg-background p-3">
-          {PERMISOS.map((p) => (
-            <Toggle
-              key={p.key}
-              label={p.label}
-              ayuda={p.ayuda}
-              activo={permisos[p.key]}
-              onChange={(v) => setPermisos((s) => ({ ...s, [p.key]: v }))}
-            />
-          ))}
+        <fieldset className="space-y-4 rounded-lg border border-border bg-background p-3">
+          <GrupoPermisos
+            soloAlta={false}
+            permisos={permisos}
+            onChange={(k, v) => setPermisos((s) => ({ ...s, [k]: v }))}
+          />
         </fieldset>
 
         <button
@@ -339,22 +481,32 @@ function CredencialesDialog({
   onClose: () => void;
 }) {
   const [copiado, setCopiado] = useState(false);
-  const texto = `StockFlow\nEntrá con:\nEmail: ${alta.email}\nContraseña: ${alta.password}`;
+  /* Lo que el dueño le dicta o le manda: los TRES datos del login, en el
+     mismo orden en que aparecen en la pantalla. */
+  const texto = `StockFlow
+Código del negocio: ${alta.kiosco}
+Usuario: ${alta.usuario}
+Clave: ${alta.password}`;
 
   return (
     <Dialog title={`${alta.nombre} ya puede entrar`} onClose={onClose}>
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Pasale estos datos. La contraseña es temporal y{" "}
+          Pasale estos datos. La clave es temporal —se la va a cambiar al
+          entrar— y{" "}
           <strong className="text-foreground">no la vas a poder ver de nuevo</strong>.
         </p>
         <dl className="space-y-2 rounded-lg border border-border bg-background p-3">
           <div>
-            <dt className="text-xs text-muted-foreground">Email</dt>
-            <dd className="text-sm font-medium">{alta.email}</dd>
+            <dt className="text-xs text-muted-foreground">Código del negocio</dt>
+            <dd className="text-sm font-medium">{alta.kiosco}</dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Contraseña temporal</dt>
+            <dt className="text-xs text-muted-foreground">Usuario</dt>
+            <dd className="text-sm font-medium">{alta.usuario}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Clave temporal</dt>
             <dd className="tabular text-lg font-semibold">{alta.password}</dd>
           </div>
         </dl>
@@ -441,5 +593,71 @@ function Dialog({
         {children}
       </div>
     </div>
+  );
+}
+
+/**
+ * La clave nueva de un empleado, después de que el dueño se la resetea.
+ *
+ * Muestra el usuario junto a la clave a propósito: el dueño está por dictarle
+ * las dos cosas y, si sólo viera la clave, tendría que ir a buscar el usuario a
+ * la lista. Al resetear se cierran las sesiones abiertas de esa persona y se le
+ * exige cambiarla al entrar — igual que en el alta.
+ */
+function ClaveNuevaDialog({
+  reset,
+  onClose,
+}: {
+  reset: Extract<ResetClave, { ok: true }>;
+  onClose: () => void;
+}) {
+  const [copiado, setCopiado] = useState(false);
+  const texto = reset.usuario
+    ? `StockFlow
+Usuario: ${reset.usuario}
+Clave: ${reset.password}`
+    : `StockFlow
+Clave: ${reset.password}`;
+
+  return (
+    <Dialog title={`Clave nueva para ${reset.nombre}`} onClose={onClose}>
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          La anterior dejó de servir y se cerró su sesión en todos lados.
+          Dictásela: se la va a cambiar al entrar y{" "}
+          <strong className="text-foreground">no la vas a poder ver de nuevo</strong>.
+        </p>
+        <dl className="space-y-2 rounded-lg border border-border bg-background p-3">
+          {reset.usuario && (
+            <div>
+              <dt className="text-xs text-muted-foreground">Usuario</dt>
+              <dd className="text-sm font-medium">{reset.usuario}</dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-xs text-muted-foreground">Clave nueva</dt>
+            <dd className="tabular text-lg font-semibold">{reset.password}</dd>
+          </div>
+        </dl>
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard.writeText(texto);
+            setCopiado(true);
+          }}
+          className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          {copiado ? <Check className="size-4" /> : <Copy className="size-4" />}
+          {copiado ? "Copiado" : "Copiar para mandarle"}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-9 w-full cursor-pointer text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Listo
+        </button>
+      </div>
+    </Dialog>
   );
 }

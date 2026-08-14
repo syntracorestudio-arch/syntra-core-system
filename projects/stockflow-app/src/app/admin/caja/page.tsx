@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/shell/app-shell";
-import { requireOwner } from "@/lib/session";
+import { redirect } from "next/navigation";
+import { requireSession } from "@/lib/session";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { CajaClient, type CierreData } from "./caja-client";
 import { CobrosHuerfanos, type CobroHuerfano } from "./cobros-huerfanos";
@@ -12,10 +13,16 @@ export default async function CajaPage({
   searchParams: Promise<{ d?: string }>;
 }) {
   const sp = await searchParams;
-  // Caja = herramienta de dueño: expone la recaudación del día y cada venta con su
-  // vendedor. El empleado hace POS, no ve la caja (antes entraba por URL con
-  // requireSession). Ver auditoría Tanda 2 · M3.
-  const session = await requireOwner();
+  /* 052 · la caja deja de ser owner-only, pero NO se abre: se PARTE.
+     Quien tiene `can_close_register` entra a contar el cajón y `cierre_caja`
+     le devuelve un payload recortado —efectivo esperado, ventas del turno y
+     anuladas— sin facturado, sin desglose por medio y sin el detalle de
+     ventas. El recorte vive en SQL, no acá: entrar por URL no alcanza para
+     ver un peso de más. Ver docs/permisos-audit.md §D-1. */
+  const session = await requireSession();
+  const puedeCerrar =
+    session.member.role === "owner" || session.member.can_close_register;
+  if (!puedeCerrar) redirect("/pos");
   const supabase = await createSupabaseServer();
 
   // Fecha explícita para poder revisar días anteriores; por defecto, hoy.

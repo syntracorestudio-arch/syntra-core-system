@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
-import { NAV_GROUPS } from "./nav-data";
+import { NAV_GROUPS, type NavGroup } from "./nav-data";
 
 /**
  * Navegación de la sidebar (auditoría UI-UX 2026-07-23, parte A):
@@ -21,7 +21,34 @@ import { NAV_GROUPS } from "./nav-data";
  * Control terracota (rosa rechazado) y Negocio acero azulado (el gris leía
  * blanco).
  */
-export function SidebarNav({ current }: { current: string }) {
+/* `permitidos` son HREFS (strings), no los grupos: los grupos llevan el
+   componente del ícono y un server component no puede pasar componentes a uno
+   cliente ("Only plain objects can be passed to Client Components"). */
+export function SidebarNav({
+  current,
+  permitidos,
+  etiquetas,
+}: {
+  current: string;
+  permitidos?: string[];
+  /* 052 · El empleado entra a las MISMAS rutas que el dueño pero recibe otra
+     pantalla: /admin/caja le da "Cerrar turno" y /admin/reportes "Qué se
+     vende". Llamarlas "Caja" y "Reportes" en su barra prometía lo del dueño y
+     entregaba otra cosa. El nombre se sobreescribe acá y no en NAV_GROUPS
+     porque el href es el mismo: lo que cambia es quién mira. */
+  etiquetas?: Record<string, string>;
+}) {
+  const renombrar = (items: NavGroup["items"]) =>
+    etiquetas ? items.map((i) => ({ ...i, label: etiquetas[i.href] ?? i.label })) : items;
+
+  const grupos = permitidos
+    ? NAV_GROUPS.map((g) => ({
+        ...g,
+        items: renombrar(g.items.filter((i) => permitidos.includes(i.href))),
+      })).filter(
+        (g) => g.items.length > 0,
+      )
+    : NAV_GROUPS;
   const navRef = useRef<HTMLElement>(null);
   const [rail, setRail] = useState<{ top: number; visible: boolean }>({
     top: 0,
@@ -58,7 +85,7 @@ export function SidebarNav({ current }: { current: string }) {
         style={{ top: rail.top, opacity: rail.visible ? 1 : 0 }}
       />
 
-      {NAV_GROUPS.map((group) => {
+      {grupos.map((group) => {
         const groupActive = group.items.some((i) => i.href === current);
         return (
           <div key={group.label}>

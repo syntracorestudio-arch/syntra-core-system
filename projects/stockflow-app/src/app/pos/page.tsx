@@ -159,7 +159,12 @@ export default async function PosPage() {
       storeName={session.store.name}
       products={catalog}
       canSellOnCredit={session.member.role === "owner" || session.member.can_sell_on_credit}
+      puedeAnular={session.member.role === "owner" || session.member.can_void_sale}
       canQuickAdd={puedeAltaRapida}
+      /* 052 · sin esto el permiso no existe en la práctica: el POS no tiene
+         barra de navegación, así que la única puerta del empleado es su header. */
+      puedeCerrarCaja={session.member.role === "owner" || session.member.can_close_register}
+      veReportes={session.member.role === "owner" || session.member.can_see_reports}
       /* 0 cuando no puede dar de alta: ni se pidieron. Ver `puedeAltaRapida`. */
       margenDefault={puedeAltaRapida ? Number(m.margen_default_pct ?? 35) : 0}
       margenMinimo={puedeAltaRapida ? Number(m.min_margin_pct ?? 25) : 0}

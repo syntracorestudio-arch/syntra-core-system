@@ -747,6 +747,62 @@ entero es una sola IP**: tres empleados equivocándose se consumen el cupo compa
 
 ---
 
+## Identidad y acceso · migración 050 (bloque B1 — identidad del empleado)
+
+Plan: `docs/identidad-acceso-plan.md`. **No toca el camino de cobro** ni el
+aislamiento: el empleado sigue siendo un `auth.users` normal y `auth.uid()`
+resuelve todo igual que hoy. Lo único que cambia es **de dónde sale el string
+del email**.
+
+### La decisión, en una línea
+El empleado entra con **`kiosco + usuario + clave`** y el servidor compone
+`<usuario>.<slug>@staff.stockflow.invalid`. `.invalid` es TLD reservado por
+RFC 2606 ⇒ nunca colisiona con un dominio real, nunca recibe correo y hace
+explícito que no es un buzón. **Verificado contra GoTrue**: `createUser`,
+`signInWithPassword` y `updateUserById` funcionan con ese dominio.
+
+**El slug viaja DENTRO del email**, así que el login no necesita ninguna
+consulta previa para resolver el negocio: compone y llama a
+`signInWithPassword`. Un kiosco inexistente produce un email inexistente ⇒ el
+mismo error genérico que una clave incorrecta (no se filtra qué parte falló).
+
+### Esquema
+- **`members.usuario text`** — nullable (el dueño no tiene), con índice único
+  parcial `(store_id, lower(usuario)) where usuario is not null`. La unicidad
+  real la garantiza `auth.users.email`, que es única global y lleva el slug
+  adentro; el índice existe para **fallar antes y con un mensaje del negocio**
+  ("ya hay alguien con ese usuario en tu kiosco") en vez del de GoTrue ("ese
+  email ya tiene una cuenta").
+
+### `add_member(..., p_usuario text default null)`
+Suma el parámetro y guarda el usuario normalizado. Errores nuevos:
+`usuario_invalido` (fuera de 3-20 tras normalizar) · `usuario_ocupado`.
+El resto —owner-only, `already_member`, `role='staff'` hardcodeado— no cambia.
+
+### `equipo_del_negocio` — expone `usuario`
+La pantalla de equipo tiene que poder decirle al dueño **con qué usuario entra
+cada empleado**: es el dato que le dicta. Para los que no tienen (el dueño, y
+los empleados creados antes de esta migración) devuelve `null` y la UI muestra
+el email.
+
+### `empleado_a_resetear(p_store_id, p_member_id) → jsonb`
+Owner-only. Devuelve `{ profile_id, display_name, usuario }` del empleado, para
+que la server action pueda llamar a `admin.updateUserById`. Existe para que el
+`service_role` **nunca** tenga que confiar en un `member_id` que vino del
+cliente: la RPC valida que ese member sea del store del que llama y que no sea
+un owner. Errores: `not_allowed`, `member_not_found`.
+
+### Normalización (compartida app ↔ SQL)
+Minúsculas, sin acentos, sólo `[a-z0-9]`, 3-20 caracteres. **La misma función
+corre al crear y al entrar** (`src/lib/credenciales.ts`): si difirieran, el
+empleado no entraría nunca y el síntoma sería indistinguible de una clave mal
+tipeada.
+
+### Errores nuevos
+`usuario_invalido` · `usuario_ocupado`
+
+---
+
 ## Migración 051 · Permisos herméticos
 
 Auditoría completa: `docs/permisos-audit.md`. Suite: `supabase/tests/verify-permisos.sql`.
@@ -779,3 +835,51 @@ recortando el jsonb por flag, como ya lo hace `promos_listado` (045:847).
 | --- | --- |
 | Antes | `store_id in (auth_member_stores())` — todo el equipo |
 | Ahora | `auth_can(store_id, 'can_sell_on_credit')` — que incluye al owner |
+
+---
+
+## Migración 052 · Permisos de turno
+
+Auditoría §D (fase 3). Suite: `verify-permisos.sql` bloques 13-14.
+
+### Dos flags nuevos en `members`, default `false`
+`can_close_register` · `can_see_reports`. `add_member` **no** los toma a
+propósito: nacen apagados y se otorgan desde `actualizar_permisos`.
+
+`actualizar_permisos` suma `p_cerrar` y `p_reportes` (al final, con default).
+`equipo_del_negocio` suma `puede_cerrar` y `ve_reportes`.
+
+> ⚠️ **Nota de merge.** La rama de identidad del empleado (B1) redefine
+> `equipo_del_negocio` para agregar `usuario`. La que se mergee segunda tiene
+> que llevar las dos cosas.
+
+### `cierre_caja(uuid, date)` — payload PARTIDO
+
+| | Dueño | `can_close_register` |
+| --- | --- | --- |
+| `parcial` | `false` | `true` |
+| `fecha` · `anuladas` | ✓ | ✓ |
+| `efectivo_esperado` | ✓ | ✓ — es contra lo que cuenta el cajón |
+| `ventas_del_turno` (conteo) | — | ✓ |
+| `facturado` · `entro_en_caja` · `fiado` · `cobros_fiado` | ✓ | **✗** |
+| `by_method` (suma la recaudación) | ✓ | **✗** |
+| `ventas` (300 filas con monto y vendedor) | ✓ | **✗** |
+
+El cliente discrimina por `parcial`, así que el compilador impide leer
+`facturado` cuando no viajó.
+
+### `reportes_reposicion(uuid, date, date)` → jsonb — **NUEVA**
+Gate: `owner or can_see_reports`. Error: `not_allowed`.
+
+`period` · `volumen {units, tickets, prev_units, vs_prev_pct}` · `top_units` ·
+`by_date` · `by_slot` · `low_stock` · `expiring`. **Cero columnas de plata**, en
+ningún nivel del jsonb — lo afirma el bloque 14 con `jsonb_path_query` sobre
+todo el árbol.
+
+`reportes_summary` queda **intacta y owner-only**: no se recortó porque
+`by_date`, `by_weekday` y `by_category` son sumas de plata y nada más, así que
+censurarlas dejaba dos pantallas peores. El reporte del empleado es otra cosa,
+no el del dueño tachado.
+
+`vs_prev_pct` exige un piso de **10 unidades** en el período anterior: con `> 0`
+a secas, una base de 3 unidades producía "+72.667%", que no es un dato.

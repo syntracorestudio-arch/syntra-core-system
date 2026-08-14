@@ -13,6 +13,7 @@ import {
   QrCode,
   CreditCard,
   ArrowRightLeft,
+  ArrowRight,
   UserRound,
   X,
   Check,
@@ -22,6 +23,9 @@ import {
   LoaderCircle,
   PackagePlus,
   LogOut,
+  Menu,
+  Wallet,
+  PackageSearch,
   Sparkles,
   Split,
 } from "lucide-react";
@@ -156,11 +160,14 @@ export function PosScreen({
   storeName,
   products,
   canSellOnCredit,
+  puedeAnular,
   canQuickAdd,
   margenDefault,
   margenMinimo,
   redondeo: redondeoPrecio,
   isOwner,
+  puedeCerrarCaja,
+  veReportes,
   mpConectado,
   posnetActivo,
   transferAlias,
@@ -173,6 +180,9 @@ export function PosScreen({
   /** Tiles curados: los más vendidos, ya rankeados por la base (escala Fase 2). */
   products: PosProduct[];
   canSellOnCredit: boolean;
+  /** `can_void_sale`. Sin esto, «Deshacer» era un botón muerto: se ofrecía a
+      todos y al tocarlo devolvía "No tenés permiso para anular ventas". */
+  puedeAnular: boolean;
   /** Espeja el gate del server de quickCreateProduct (owner || can_receive_stock):
       la UI no debe ser MÁS estricta — un cajero con permiso quedaba ante un
       diálogo muerto en plena venta. */
@@ -184,6 +194,13 @@ export function PosScreen({
   /** Redondeo de precios del negocio (el mismo del remarcado masivo). */
   redondeo: number;
   isOwner: boolean;
+  /* 052 · las dos pantallas que un empleado PUEDE tener además de la caja.
+     Existen acá por una razón concreta: para el empleado el POS es toda la app
+     —no hay barra de navegación—, así que si la puerta no está en este header,
+     el permiso no existe en la práctica. Es el mismo bug que la auditoría
+     encontró en el nav del panel, un nivel más abajo. */
+  puedeCerrarCaja: boolean;
+  veReportes: boolean;
   /** ¿El negocio conectó su cuenta de MercadoPago? Decide si el QR lo genera la app. */
   mpConectado: boolean;
   /** ¿Hay terminal Point configurada? Si sí, el cobro con MP pregunta terminal/pantalla. */
@@ -750,7 +767,10 @@ export function PosScreen({
     }
 
     beep();
-    const undoId = ofrecerUndo ? res.saleId : undefined;
+    /* 050 · el permiso decide si se OFRECE, no sólo si funciona. `anularVenta`
+       ya chequeaba `can_void_sale` del lado del servidor (caja/actions.ts), así
+       que el que no lo tenía veía el botón, lo tocaba y comía un error. */
+    const undoId = ofrecerUndo && puedeAnular ? res.saleId : undefined;
 
     if (res.negativeStock.length > 0) {
       const nombres = res.negativeStock.map((n) => n.name).join(", ");
@@ -1206,17 +1226,15 @@ export function PosScreen({
                 <ArrowLeft className="size-5" />
               </Link>
             ) : (
-              /* Para el empleado el POS es toda la app: si no le damos salida acá,
-                 no tiene ninguna forma de cerrar sesión. */
-              <form action={signOut}>
-                <button
-                  type="submit"
-                  aria-label="Cerrar sesión"
-                  className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors duration-150 hover:text-foreground"
-                >
-                  <LogOut className="size-5" />
-                </button>
-              </form>
+              /* Para el empleado el POS es toda la app: si no le damos salida
+                 acá, no tiene ninguna forma de cerrar sesión — ni de llegar a
+                 lo que su permiso le habilita. El menú aparece SOLO si tiene a
+                 dónde ir; con cero permisos extra queda el botón de salir de
+                 siempre, sin un menú de un solo ítem. */
+              <MenuEmpleado
+                puedeCerrarCaja={puedeCerrarCaja}
+                veReportes={veReportes}
+              />
             )}
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -1772,6 +1790,104 @@ export function PosScreen({
  * Estado de cuenta del cliente al que se le va a fiar. Avisa, nunca bloquea
  * (business-rules: el límite es un aviso) — pero el cajero decide informado.
  */
+/**
+ * 052 · La única navegación que tiene un empleado.
+ *
+ * El POS no usa `AppShell`: no hay sidebar ni pestañas. Mientras el empleado
+ * sólo cobraba eso estaba bien, pero desde que puede tener "cerrar la caja" o
+ * "ver qué se vende", un permiso sin puerta es un permiso que no existe.
+ *
+ * Si no tiene ninguno de los dos, esto es exactamente el botón de salir que
+ * había antes: no se le agrega un menú para esconder un solo ítem adentro.
+ */
+function MenuEmpleado({
+  puedeCerrarCaja,
+  veReportes,
+}: {
+  puedeCerrarCaja: boolean;
+  veReportes: boolean;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const hayADonde = puedeCerrarCaja || veReportes;
+
+  if (!hayADonde) {
+    return (
+      <form action={signOut}>
+        <button
+          type="submit"
+          aria-label="Cerrar sesión"
+          className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors duration-150 hover:text-foreground"
+        >
+          <LogOut className="size-5" />
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        aria-label="Menú"
+        aria-expanded={abierto}
+        aria-haspopup="menu"
+        className="grid size-11 cursor-pointer place-items-center rounded-lg border border-border text-muted-foreground transition-colors duration-150 hover:text-foreground"
+      >
+        <Menu className="size-5" />
+      </button>
+
+      {abierto && (
+        <>
+          {/* Capta el toque de afuera. El POS es táctil: sin esto el menú
+              queda abierto tapando los tiles y hay que acertarle al botón. */}
+          <button
+            type="button"
+            aria-label="Cerrar menú"
+            onClick={() => setAbierto(false)}
+            className="fixed inset-0 z-30 cursor-default"
+          />
+          <div
+            role="menu"
+            className="absolute left-0 top-[calc(100%+0.5rem)] z-40 w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-lg"
+          >
+            {puedeCerrarCaja && (
+              <Link
+                href="/admin/caja"
+                role="menuitem"
+                className="flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-secondary"
+              >
+                <Wallet className="size-4 shrink-0 text-muted-foreground" />
+                Cerrar turno
+              </Link>
+            )}
+            {veReportes && (
+              <Link
+                href="/admin/reportes"
+                role="menuitem"
+                className="flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-secondary"
+              >
+                <PackageSearch className="size-4 shrink-0 text-muted-foreground" />
+                Qué se vende
+              </Link>
+            )}
+            <form action={signOut} className="border-t border-border">
+              <button
+                type="submit"
+                role="menuitem"
+                className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <LogOut className="size-4 shrink-0" />
+                Cerrar sesión
+              </button>
+            </form>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function SaldoCliente({ cliente, aFiar }: { cliente: Client; aFiar: number }) {
   const quedaria = cliente.owed + aFiar;
   const limite = cliente.creditLimit;
@@ -1804,6 +1920,22 @@ function SaldoCliente({ cliente, aFiar }: { cliente: Client; aFiar: number }) {
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
           Pasa su límite. Podés fiarle igual, pero mejor que lo sepas.
         </p>
+      )}
+      {/* 050 · la entrada ACOTADA a la cuenta de fiado: sólo la del cliente que
+          está siendo atendido, nunca la lista completa (esa expone la deuda de
+          todo el negocio y por eso es del dueño). La ficha ya existía y ya era
+          `requireSession` + `canCharge`: lo único que faltaba era una forma de
+          llegar. Sin esto, "puede vender a cuenta Y COBRAR DEUDAS" era media
+          promesa — el empleado fiaba pero no podía cobrar cuando el cliente
+          venía a pagar. */}
+      {cliente.owed > 0 && (
+        <Link
+          href={`/admin/fiado/${cliente.id}`}
+          className="mt-2 flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-primary-ink transition-colors hover:bg-accent"
+        >
+          Ver su cuenta y cobrarle
+          <ArrowRight className="size-3.5 shrink-0" aria-hidden />
+        </Link>
       )}
     </div>
   );
