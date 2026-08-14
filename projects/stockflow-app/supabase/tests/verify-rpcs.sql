@@ -279,8 +279,23 @@ begin
 
   if v_n <> 1 then raise exception 'FALLA 8: aplico % lineas', v_n; end if;
 
+  /* 051 · POR QUÉ ESTE ASSERT CORRE COMO `postgres` (no es que se haya
+     relajado un test de seguridad — es exactamente lo contrario).
+
+     La migración 051 revocó las columnas de COSTO para `authenticated`:
+     un cajero leía el costo de cada producto y la ganancia de cada venta.
+     Este assert no verifica qué puede VER un cajero: verifica QUÉ ESCRIBIÓ
+     LA RPC. Que la RPC guarde bien el costo es un hecho de la base, y
+     comprobarlo requiere poder leerlo.
+
+     Las dos salidas eran: subir el privilegio del ASSERT, o bajar el del
+     PRODUCTO para que el test siguiera pasando. Se hizo la primera. La
+     segunda habría sido reabrir la fuga para no tocar un test.
+     Mismo criterio que el assert de `sale_payments` en verify-split.sql. */
+  perform set_config('role', 'postgres', true);
   select stock, cost into v_stock, v_cost from public.products
    where id = 'd1000000-0000-0000-0000-000000000001';
+  perform set_config('role', 'authenticated', true);
   if v_stock <> 36 then
     raise exception 'FALLA 8: stock deberia subir de 24 a 36 y quedo en %', v_stock;
   end if;

@@ -11,13 +11,19 @@ export default async function ConfiguracionPage() {
   const session = await requireOwner();
   const supabase = await createSupabaseServer();
 
-  const { data } = await supabase
-    .from("store_settings")
-    .select(
-      "expiry_warning_days, low_stock_threshold_default, reprice_rounding, allow_negative_stock, min_margin_pct, margen_default_pct, transfer_alias, confirm_methods",
-    )
-    .eq("store_id", session.store.id)
-    .maybeSingle();
+  /* 051 · los dos márgenes vienen por RPC (columnas revocadas); el resto de la
+     configuración se sigue leyendo directo. Escribirlos no cambió: el UPDATE es
+     un grant aparte del SELECT y lo conserva el dueño. */
+  const [{ data }, { data: margenes }] = await Promise.all([
+    supabase
+      .from("store_settings")
+      .select(
+        "expiry_warning_days, low_stock_threshold_default, reprice_rounding, allow_negative_stock, transfer_alias, confirm_methods",
+      )
+      .eq("store_id", session.store.id)
+      .maybeSingle(),
+    supabase.rpc("margenes_del_negocio", { p_store_id: session.store.id }),
+  ]);
 
   const cm = (data?.confirm_methods ?? {}) as Record<string, boolean>;
   const settings: Settings = {
@@ -25,8 +31,8 @@ export default async function ConfiguracionPage() {
     lowStockThresholdDefault: data?.low_stock_threshold_default ?? 3,
     repriceRounding: Number(data?.reprice_rounding ?? 50),
     allowNegativeStock: data?.allow_negative_stock ?? true,
-    minMarginPct: Number(data?.min_margin_pct ?? 25),
-    margenDefaultPct: Number(data?.margen_default_pct ?? 35),
+    minMarginPct: Number((margenes as { min_margin_pct?: number })?.min_margin_pct ?? 25),
+    margenDefaultPct: Number((margenes as { margen_default_pct?: number })?.margen_default_pct ?? 35),
     transferAlias: data?.transfer_alias ?? null,
     confirmMethods: {
       cash: cm.cash ?? true,

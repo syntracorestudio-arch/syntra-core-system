@@ -27,8 +27,13 @@ export default async function ProductosPage({
   /* ESCALA FASE 2 — search-first. Antes viajaban 500 productos + ~8000 sale_items
      (772 KB de documento con 2005 SKUs) y el filtrado era en memoria. Ahora la
      primera página la trae `productos_buscar` y el resto lo pide el cliente. */
-  const [{ data: pagina }, { data: categories }, { count: totalProductos }, { data: settings }] =
-    await Promise.all([
+  const [
+    { data: pagina },
+    { data: categories },
+    { count: totalProductos },
+    { data: settings },
+    { data: margenes },
+  ] = await Promise.all([
     supabase.rpc("productos_buscar", {
       p_store_id: session.store.id,
       p_q: q,
@@ -47,11 +52,16 @@ export default async function ProductosPage({
       .eq("status", "active"),
     // Margen y redondeo: con eso el import propone precio cuando la planilla
     // solo trae el costo (una lista de proveedor se vuelve catálogo vendible).
+    /* 051 · los márgenes ya no se leen de `store_settings`: esas dos columnas
+       están revocadas para `authenticated` porque, con el precio a la vista,
+       el margen despeja el costo de todo el catálogo. `margenes_del_negocio`
+       las devuelve mirando `can_receive_stock`. */
     supabase
       .from("store_settings")
-      .select("margen_default_pct, reprice_rounding")
+      .select("reprice_rounding")
       .eq("store_id", session.store.id)
       .maybeSingle(),
+    supabase.rpc("margenes_del_negocio", { p_store_id: session.store.id }),
     ]);
 
   const p0 = (pagina ?? { items: [], total: 0 }) as {
@@ -136,7 +146,7 @@ export default async function ProductosPage({
         soloSinControl={soloSinControl}
         defaultThreshold={3}
         totalProductos={totalProductos ?? rows.length}
-        margenDefault={Number(settings?.margen_default_pct ?? 35)}
+        margenDefault={Number((margenes as { margen_default_pct?: number } | null)?.margen_default_pct ?? 35)}
         redondeo={Number(settings?.reprice_rounding ?? 50)}
       />
     </AppShell>
