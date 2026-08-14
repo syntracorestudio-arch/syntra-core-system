@@ -5,7 +5,6 @@ import { z } from "zod";
 import { headers } from "next/headers";
 import { createHash } from "node:crypto";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
@@ -79,19 +78,13 @@ export async function signOut() {
   redirect("/login");
 }
 
-/**
- * Ruteo por rol después del login. Vive server-side y no en el cliente para que
- * nadie pueda "elegir" a qué panel entra.
- */
-export async function roleHome(profileId: string): Promise<string> {
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("members")
-    .select("role")
-    .eq("profile_id", profileId)
-    .eq("status", "active")
-    .limit(1)
-    .maybeSingle();
-
-  return data?.role === "owner" ? "/admin" : "/pos";
-}
+/* 051 · acá vivía `roleHome(profileId)`. Se borró, no se arregló.
+ *
+ * Era un `export` de un archivo "use server" ⇒ un endpoint invocable por
+ * CUALQUIERA, sin sesión, que aceptaba un `profileId` arbitrario y lo resolvía
+ * con `createAdminClient()` (service_role, saltea RLS). Devolvía "/admin" o
+ * "/pos": un oráculo de rol sobre cualquier UUID de la plataforma.
+ *
+ * No tenía un solo llamador (verificado en todo `src/`). El ruteo por rol real
+ * lo hace `src/app/page.tsx` con la sesión propia del usuario, que es donde
+ * corresponde. Ver docs/permisos-audit.md B-9. */

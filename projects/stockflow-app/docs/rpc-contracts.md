@@ -744,3 +744,38 @@ entero es una sola IP**: tres empleados equivocándose se consumen el cupo compa
 
 ### Errores nuevos
 `store_suspended` (corte de sesión) · `must_change_password` (guarda de primer ingreso)
+
+---
+
+## Migración 051 · Permisos herméticos
+
+Auditoría completa: `docs/permisos-audit.md`. Suite: `supabase/tests/verify-permisos.sql`.
+
+### Estanqueidad por columna (no es RPC, pero manda sobre todas)
+`authenticated` **ya no lee** `products.cost`, `sale_items.unit_cost` ni
+`stock_ledger.unit_cost`. Se otorgan por lista explícita.
+
+> **Si agregás una columna a esas tres tablas, agregala también al `grant` de
+> 051** — si no, nace invisible para la app. Falla del lado seguro, a propósito.
+
+Las RPCs `security definer` **no están afectadas**: corren como el dueño de la
+función. Por eso el dueño sigue viendo sus costos sin un solo cambio de query.
+
+### `dashboard_summary(uuid)` · `reportes_summary(uuid, date, date)` · `cierre_caja(uuid, date)`
+
+| | |
+| --- | --- |
+| Antes | `perform rpc_member(p_store_id)` — **membresía**: cualquier empleado del negocio |
+| Ahora | `rpc_member(...).role = 'owner'` — **rol** |
+| Errores | `not_a_member` (otro negocio, sin cambios) · `not_allowed` (empleado del propio negocio, **nuevo**) |
+| Payload | idéntico para el dueño; los cuerpos se extrajeron con `pg_get_functiondef` y el único cambio es el gate |
+
+Si la fase 3 abre estas RPCs al empleado, **no se hace quitando el gate**: se hace
+recortando el jsonb por flag, como ya lo hace `promos_listado` (045:847).
+
+### Policies `clients_select` y `client_ledger_select`
+
+| | |
+| --- | --- |
+| Antes | `store_id in (auth_member_stores())` — todo el equipo |
+| Ahora | `auth_can(store_id, 'can_sell_on_credit')` — que incluye al owner |

@@ -33,16 +33,25 @@ export default async function PosPage() {
        · escanear lo que no está en los tiles lo resuelve `producto_por_codigo`
          (Fase 1, intacto),
        · los clientes de fiado se piden recién al abrir ese medio de pago. */
+  /* Espeja el gate del servidor de `quickCreateProduct` (pos/actions.ts:520).
+     Decide dos cosas a la vez: si se OFRECE el alta rápida y si se PIDEN los
+     márgenes que esa pantalla necesita. Van juntas a propósito — mandarle los
+     márgenes a quien no puede usarlos era la fuga B-8, y desde 051 la RPC que
+     los sirve levanta `not_allowed` si se la pide igual. */
+  const puedeAltaRapida =
+    session.member.role === "owner" || session.member.can_receive_stock;
+
   const [
     { data: destacados },
     { data: settings },
     { data: categories },
     { count: totalProductos },
+    { data: margenes },
   ] = await Promise.all([
       supabase.rpc("pos_destacados", { p_store_id: session.store.id, p_limit: 24 }),
       supabase
         .from("store_settings")
-        .select("transfer_alias, confirm_methods, has_posnet, margen_default_pct, min_margin_pct, reprice_rounding")
+        .select("transfer_alias, confirm_methods, has_posnet, reprice_rounding")
         .eq("store_id", session.store.id)
         .maybeSingle(),
       // Categorías con CONTADORES REALES (escala F2 visual, migración 036): alimenta
@@ -55,7 +64,14 @@ export default async function PosPage() {
         .from("products")
         .select("id", { count: "exact", head: true })
         .eq("status", "active"),
+      // Sólo para quien puede dar de alta: al que únicamente cobra no se le
+      // piden ni se le mandan. Ver el comentario de `puedeAltaRapida`.
+      puedeAltaRapida
+        ? supabase.rpc("margenes_del_negocio", { p_store_id: session.store.id })
+        : Promise.resolve({ data: null }),
     ]);
+
+  const m = (margenes ?? {}) as { margen_default_pct?: number; min_margin_pct?: number };
 
   // La terminal Point se ofrece solo si el negocio la prendió Y quedó una terminal
   // configurada: sin las dos cosas, la caja cobra con QR como siempre (cero fricción
@@ -143,9 +159,10 @@ export default async function PosPage() {
       storeName={session.store.name}
       products={catalog}
       canSellOnCredit={session.member.role === "owner" || session.member.can_sell_on_credit}
-      canQuickAdd={session.member.role === "owner" || session.member.can_receive_stock}
-      margenDefault={Number(settings?.margen_default_pct ?? 35)}
-      margenMinimo={Number(settings?.min_margin_pct ?? 25)}
+      canQuickAdd={puedeAltaRapida}
+      /* 0 cuando no puede dar de alta: ni se pidieron. Ver `puedeAltaRapida`. */
+      margenDefault={puedeAltaRapida ? Number(m.margen_default_pct ?? 35) : 0}
+      margenMinimo={puedeAltaRapida ? Number(m.min_margin_pct ?? 25) : 0}
       redondeo={Number(settings?.reprice_rounding ?? 50)}
       isOwner={session.member.role === "owner"}
       mpConectado={mpConectado}

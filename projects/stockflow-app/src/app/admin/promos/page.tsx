@@ -18,15 +18,16 @@ export default async function PromosPage() {
 
   const supabase = await createSupabaseServer();
 
-  const [{ data: listado }, { data: sugeridas }, { data: settings }, { count: vencimientosCargados }] =
-    await Promise.all([
+  const [
+    { data: listado },
+    { data: sugeridas },
+    { data: margenes },
+    { count: vencimientosCargados },
+  ] = await Promise.all([
       supabase.rpc("promos_listado", { p_store_id: session.store.id }),
       supabase.rpc("promos_sugeridas", { p_store_id: session.store.id }),
-      supabase
-        .from("store_settings")
-        .select("min_margin_pct")
-        .eq("store_id", session.store.id)
-        .maybeSingle(),
+      /* 051 · ver la nota de `margenes_del_negocio`: la columna está revocada. */
+      supabase.rpc("margenes_del_negocio", { p_store_id: session.store.id }),
       /* Sólo el CONTEO (head: no trae filas): distingue al dueño nuevo que
          todavía no cargó ningún vencimiento —donde la sección está
          estructuralmente muerta y hay que decírselo— del que sí cargó y no
@@ -48,7 +49,7 @@ export default async function PromosPage() {
         promos={(listado ?? []) as PromoRow[]}
         sugerencias={(sugeridas ?? []) as Sugerencia[]}
         hoy={todayInTz(session.store.timezone)}
-        margenMinimo={Number(settings?.min_margin_pct ?? 25)}
+        margenMinimo={Number((margenes as { min_margin_pct?: number } | null)?.min_margin_pct ?? 25)}
         tieneVencimientos={(vencimientosCargados ?? 0) > 0}
       />
     </AppShell>

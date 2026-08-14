@@ -22,18 +22,23 @@ export default async function IngresoPage() {
      Lo único que sigue viniendo del server es el total de activos, para poder
      decir la verdad en el encabezado. */
   const supabase = await createSupabaseServer();
-  const [{ count: totalProductos }, { data: settings }] = await Promise.all([
+  const [{ count: totalProductos }, { data: settings }, { data: margenes }] = await Promise.all([
     supabase
       .from("products")
       .select("id", { count: "exact", head: true })
       .eq("store_id", session.store.id)
       .eq("status", "active"),
     // Margen y redondeo: con eso se propone el precio de lo que se da de alta acá.
+    /* 051 · los márgenes ya no se leen de `store_settings`: esas dos columnas
+       están revocadas para `authenticated` porque, con el precio a la vista,
+       el margen despeja el costo de todo el catálogo. `margenes_del_negocio`
+       las devuelve mirando `can_receive_stock`. */
     supabase
       .from("store_settings")
-      .select("margen_default_pct, reprice_rounding")
+      .select("reprice_rounding")
       .eq("store_id", session.store.id)
       .maybeSingle(),
+    supabase.rpc("margenes_del_negocio", { p_store_id: session.store.id }),
   ]);
 
   return (
@@ -46,7 +51,7 @@ export default async function IngresoPage() {
     >
       <IngresoClient
         totalProductos={totalProductos ?? 0}
-        margenDefault={Number(settings?.margen_default_pct ?? 35)}
+        margenDefault={Number((margenes as { margen_default_pct?: number } | null)?.margen_default_pct ?? 35)}
         redondeo={Number(settings?.reprice_rounding ?? 50)}
       />
     </AppShell>

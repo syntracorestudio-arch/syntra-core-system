@@ -68,8 +68,23 @@ begin
   --    Si los 11 de diferencia entraran como 'purchase', el reporte diría que
   --    compraste 41 cuando compraste 30, y la plata gastada quedaría inflada.
   ---------------------------------------------------------------------------
+  /* 051 · POR QUÉ ESTE ASSERT CORRE COMO `postgres` (no es que se haya
+     relajado un test de seguridad — es exactamente lo contrario).
+
+     La migración 051 revocó las columnas de COSTO para `authenticated`:
+     un cajero leía el costo de cada producto y la ganancia de cada venta.
+     Este assert no verifica qué puede VER un cajero: verifica QUÉ ESCRIBIÓ
+     LA RPC. Que la RPC guarde bien el costo es un hecho de la base, y
+     comprobarlo requiere poder leerlo.
+
+     Las dos salidas eran: subir el privilegio del ASSERT, o bajar el del
+     PRODUCTO para que el test siguiera pasando. Se hizo la primera. La
+     segunda habría sido reabrir la fuga para no tocar un test.
+     Mismo criterio que el assert de `sale_payments` en verify-split.sql. */
+  perform set_config('role', 'postgres', true);
   select count(*) into v_n from public.stock_ledger
    where product_id = v_p and reason = 'purchase' and delta = 30 and unit_cost = 950;
+  perform set_config('role', 'authenticated', true);
   if v_n <> 1 then
     raise exception 'FALLA 2: no quedó el asiento de compra por 30 con su costo';
   end if;
@@ -90,7 +105,13 @@ begin
   ---------------------------------------------------------------------------
   -- 3. El costo del producto sigue siendo el de la ÚLTIMA compra
   ---------------------------------------------------------------------------
+  /* 051 · ídem que el assert de arriba: `products.cost` ya no es legible por
+     `authenticated` (es plata del dueño). Se verifica lo que la RPC ESCRIBIÓ,
+     así que se lee como `postgres`. No se relajó ningún chequeo de seguridad:
+     el que se relajaría es el del PRODUCTO, y ése quedó más estricto. */
+  perform set_config('role', 'postgres', true);
   select cost into v_cost from public.products where id = v_p;
+  perform set_config('role', 'authenticated', true);
   if v_cost <> 950 then
     raise exception 'FALLA 3: el costo quedó en % y la última compra fue a 950', v_cost;
   end if;
