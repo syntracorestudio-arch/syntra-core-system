@@ -22,6 +22,10 @@ export type Member = {
   can_void_sale: boolean;
   can_receive_stock: boolean;
   can_see_costs: boolean;
+  /** 052 · cierra el turno; NO ve la recaudación. */
+  can_close_register: boolean;
+  /** 052 · ve qué se vende y qué falta, en unidades. Sin plata. */
+  can_see_reports: boolean;
 };
 
 export type Store = {
@@ -65,6 +69,7 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
     .select(
       `id, role, display_name, can_sell_on_credit, can_apply_discount,
        can_void_sale, can_receive_stock, can_see_costs,
+       can_close_register, can_see_reports,
        profile:profiles!inner ( must_change_password ),
        store:stores!inner ( id, name, slug, timezone, branding, status, vertical, ai_assistant_enabled )`,
     )
@@ -100,6 +105,8 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
       can_void_sale: data.can_void_sale,
       can_receive_stock: data.can_receive_stock,
       can_see_costs: data.can_see_costs,
+      can_close_register: data.can_close_register,
+      can_see_reports: data.can_see_reports,
     },
     store,
     mustChangePassword: profile?.must_change_password ?? false,

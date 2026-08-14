@@ -394,3 +394,52 @@ Barato de cambiar después: la forma exacta de la credencial · los umbrales de 
    soporte, pero expone tus intervenciones.
 5. **¿SMTP de Supabase Auth apuntando a Resend?** Sin eso no hay `/recuperar`.
 6. **¿La forma de la credencial del empleado**: `palabra-NNNN` (recomendada) o 6 dígitos?
+
+---
+
+## AUDITORÍA DE PERMISOS DEL EMPLEADO (2026-08-13)
+
+Reporte del owner: *"el dueño habilita permisos y del lado del empleado no se
+habilita ninguno, la cuenta sigue igual"*.
+
+### El diagnóstico, en capas
+
+| Capa | Estado |
+| --- | --- |
+| RPC `actualizar_permisos` | ✅ persiste (probado aislado en SQL) |
+| `equipo_del_negocio` | ✅ devuelve los valores nuevos |
+| UI del dueño | ✅ guarda, la lista se actualiza, el diálogo reabre bien |
+| **Nav del empleado** | ❌ **no filtraba nada** |
+
+**La causa raíz era el nav.** El empleado veía las **14 secciones** y casi todas
+lo rebotaban a `/pos` en silencio. Eso hacía los permisos **invisibles**: al
+habilitarle "cargar mercadería", el ítem ya estaba antes (y antes también
+rebotaba), así que del lado de él la app se veía idéntica. Arreglado en
+`app-shell.tsx`: el nav muestra sólo lo que la persona puede ABRIR de verdad,
+derivado de las guardas reales de cada página.
+
+### Permisos huérfanos que destapó la auditoría
+
+Tres permisos desbloqueaban pantallas con `requireOwner()` encima — el síntoma
+era código muerto (`caja/page.tsx:46` pasaba `puedeAnular=`, `fiado/page.tsx:48`
+pasaba `canCreate=`, en páginas que el empleado no puede abrir). Ese
+`requireOwner` fue **deliberado** (auditoría Tanda 2 · M3: Caja expone la
+recaudación del día, Fiado la deuda de todos los clientes), así que la salida no
+era abrirlas.
+
+**Decisión del owner: superficies ACOTADAS (opción 2), para no exponer el negocio.**
+
+| Permiso | Antes | Ahora |
+| --- | --- | --- |
+| Anular ventas | Botón muerto: el POS ofrecía «Deshacer» a todos y al tocarlo devolvía "no tenés permiso" | El permiso decide si se **ofrece**. La acción ya validaba bien (`anularVenta` es `requireSession` + flag) |
+| Fiar / cobrar deudas | Media promesa: fiaba pero no podía cobrar | Entrada acotada desde el POS a **la cuenta del cliente que atiende** (`/admin/fiado/[id]`, que ya era `requireSession` + `canCharge`). Nunca la lista |
+| Ver costos y ganancias | **Se contradecía** con "Cargar mercadería": Recibir muestra costos sin mirar el flag, y no se puede recibir sin anotar cuánto costó | **Sale de la lista** (opción 1 del owner para este caso). `can_see_costs` **acompaña** a `can_receive_stock` ⇒ la columna dice la verdad |
+
+Detalle menor arreglado de paso: el "← Fiado" de la ficha de cliente mandaba al
+empleado a la lista prohibida; ahora dice "Volver a la caja".
+
+### Regla que queda escrita
+`puedeAbrir()` en `app-shell.tsx` **deriva de las guardas reales**, no de una
+convención. Si una pantalla cambia de `requireOwner` a `requireSession` (o al
+revés), hay que tocar esa función también — por eso está en un solo lugar y con
+el motivo escrito al lado.

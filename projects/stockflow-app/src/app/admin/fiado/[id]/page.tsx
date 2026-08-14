@@ -65,6 +65,7 @@ export default async function ClientePage({
         balance={Number(cliente.balance)}
         movimientos={movimientos}
         canCharge={session.member.role === "owner" || session.member.can_sell_on_credit}
+        esOwner={session.member.role === "owner"}
         isOwner={session.member.role === "owner"}
       />
     </AppShell>

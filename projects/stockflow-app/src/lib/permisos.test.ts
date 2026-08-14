@@ -203,3 +203,51 @@ test("los márgenes y el alta rápida se deciden con la MISMA condición", () =>
     );
   }
 });
+
+// ---------------------------------------------------------------------------
+// 5 · Todo estado de fallo tiene su cartel
+//
+// Origen: un empleado dado de baja entraba a GoTrue (su usuario de auth sigue
+// vivo), caía en `/` y salía por un `redirect("/login")` PELADO. No veía nada,
+// concluía que erró la clave y la reintentaba hasta que el rate limit por
+// cuenta lo bloqueaba 15 minutos.
+//
+// Lo caro del bug es que NINGUNA suite podía verlo: el SQL estaba bien y
+// `verify-identidad.sql` ya afirmaba que `mi_acceso` devuelve `sin_acceso`. El
+// agujero era "esa ruta no pregunta el motivo". Esto es lo que sí se puede
+// afirmar desde acá — que ningún estado quede sin texto — y es la mitad que
+// evita la reincidencia: si mañana `mi_acceso` devuelve un estado nuevo y nadie
+// le escribe el cartel, la pantalla vuelve a quedar muda y este test lo canta.
+// ---------------------------------------------------------------------------
+import { ESTADOS_SIN_ACCESO, MOTIVOS, textoDelMotivo } from "./motivos.ts";
+
+test("cada estado de fallo de mi_acceso tiene un texto", () => {
+  for (const estado of ESTADOS_SIN_ACCESO) {
+    const texto = textoDelMotivo(estado);
+    assert.ok(texto, `el estado \`${estado}\` no tiene cartel: la pantalla queda muda`);
+    assert.ok(
+      texto!.length > 30,
+      `el texto de \`${estado}\` es demasiado corto para explicar algo`,
+    );
+  }
+});
+
+test("el cartel de baja aclara que NO es la clave", () => {
+  // Sin esta aclaración la persona reintenta y se come el rate limit. Es la
+  // razón de existir del mensaje, no un detalle de redacción.
+  assert.match(MOTIVOS.sin_acceso, /no es la clave/i);
+});
+
+test("cada cartel dice a quién recurrir", () => {
+  // Un mensaje que dice "no podés entrar" y no dice qué hacer deja a la persona
+  // en el mismo lugar. Al empleado lo reactiva su dueño; al dueño, SYNTRA.
+  assert.match(MOTIVOS.sin_acceso, /dueño/i);
+  assert.match(MOTIVOS.sin_membresia, /dueño/i);
+  assert.match(MOTIVOS.negocio_suspendido, /escribinos|dueño/i);
+});
+
+test("un motivo desconocido no rompe: devuelve null y la pantalla no inventa", () => {
+  assert.equal(textoDelMotivo("cualquier_cosa"), null);
+  assert.equal(textoDelMotivo(undefined), null);
+  assert.equal(textoDelMotivo(""), null);
+});

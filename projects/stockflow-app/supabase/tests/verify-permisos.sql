@@ -90,7 +90,15 @@ end $$;
 \echo '========================================================================'
 
 -- 2.a · SIN el permiso (Sofía) no ve NADA: ni el ledger ni los clientes.
+--
+-- El flag se apaga ACÁ ADENTRO en vez de confiar en cómo vino el fixture: una
+-- sesión de pruebas manuales se lo dejó prendido y este bloque se puso rojo
+-- por una razón que no tenía nada que ver con lo que afirma. Un test que
+-- depende del estado ambiente reporta el ruido de al lado, no su propio
+-- invariante. Todo dentro de la transacción que se revierte.
 begin;
+update public.members set can_sell_on_credit = false
+ where profile_id = '22b9e8aa-7e92-4af5-b193-b94c4bfbed8b';
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"22b9e8aa-7e92-4af5-b193-b94c4bfbed8b","role":"authenticated"}';
 do $$
@@ -597,6 +605,147 @@ begin
 end $$;
 rollback;
 \echo 'OK 12 · ninguna columna de plata quedó alcanzable por una cajera sin permisos'
+
+\echo ''
+\echo '========================================================================'
+\echo ' 13 · can_close_register — cierra el turno SIN ver la recaudación'
+\echo '========================================================================'
+
+-- La condición dura del owner: el permiso no sirve si otorgarlo entrega el
+-- margen. Por eso el test no comprueba "puede entrar": comprueba QUÉ RECIBE.
+begin;
+do $$
+declare
+  v_store uuid := '33333333-3333-3333-3333-333333333333';
+  v_sofia uuid := '22b9e8aa-7e92-4af5-b193-b94c4bfbed8b';
+  v_res   jsonb;
+  k       text;
+begin
+  -- 13.a · SIN el flag no entra (el default es false, mínimo privilegio).
+  update public.members set can_close_register = false where profile_id = v_sofia;
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims',
+    format('{"sub":"%s","role":"authenticated"}', v_sofia), true);
+  begin
+    perform public.cierre_caja(v_store);
+    raise exception 'FALLO 13.a: cerró la caja sin can_close_register';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> 'not_allowed' then raise; end if;
+  end;
+
+  -- 13.b · CON el flag entra…
+  perform set_config('role', 'postgres', true);
+  update public.members set can_close_register = true where profile_id = v_sofia;
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims',
+    format('{"sub":"%s","role":"authenticated"}', v_sofia), true);
+  v_res := public.cierre_caja(v_store);
+
+  -- …y recibe lo que necesita para contar el cajón.
+  if not (v_res ? 'efectivo_esperado') then
+    raise exception 'FALLO 13.b: sin efectivo_esperado no puede cerrar nada';
+  end if;
+  if not (v_res ? 'ventas_del_turno') or not (v_res ? 'anuladas') then
+    raise exception 'FALLO 13.c: le falta el conteo del turno';
+  end if;
+
+  -- 13.d · LA AFIRMACIÓN QUE IMPORTA: ninguna clave de plata del dueño.
+  --        Se enumeran una por una y a propósito: si alguien agrega una clave
+  --        nueva al return del dueño y se olvida del recorte, cae acá.
+  foreach k in array array['facturado','entro_en_caja','fiado','cobros_fiado',
+                           'by_method','ventas','profit','ganancia','margen']
+  loop
+    if v_res ? k then
+      raise exception 'FALLO 13.d: el cajero recibió `%` — eso es plata del dueño', k;
+    end if;
+  end loop;
+
+  -- 13.e · y el dueño NO perdió nada con el recorte.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims',
+    '{"sub":"cccccccc-0000-0000-0000-000000000001","role":"authenticated"}', true);
+  v_res := public.cierre_caja(v_store);
+  if not (v_res ? 'facturado') or not (v_res ? 'by_method') or not (v_res ? 'ventas') then
+    raise exception 'FALLO 13.e: el dueño perdió el cierre completo';
+  end if;
+end $$;
+rollback;
+\echo 'OK 13 · cierra el turno con efectivo esperado; sin facturado, by_method ni el detalle'
+
+\echo ''
+\echo '========================================================================'
+\echo ' 14 · can_see_reports — qué se vende y qué falta, sin un peso'
+\echo '========================================================================'
+
+begin;
+do $$
+declare
+  v_store uuid := '33333333-3333-3333-3333-333333333333';
+  v_sofia uuid := '22b9e8aa-7e92-4af5-b193-b94c4bfbed8b';
+  v_res   jsonb;
+  v_txt   text;
+  k       text;
+begin
+  -- 14.a · SIN el flag, nada.
+  update public.members set can_see_reports = false where profile_id = v_sofia;
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims',
+    format('{"sub":"%s","role":"authenticated"}', v_sofia), true);
+  begin
+    perform public.reportes_reposicion(v_store, current_date - 30, current_date);
+    raise exception 'FALLO 14.a: vio el reporte sin can_see_reports';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> 'not_allowed' then raise; end if;
+  end;
+
+  -- 14.b · CON el flag, recibe lo suyo.
+  perform set_config('role', 'postgres', true);
+  update public.members set can_see_reports = true where profile_id = v_sofia;
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims',
+    format('{"sub":"%s","role":"authenticated"}', v_sofia), true);
+  v_res := public.reportes_reposicion(v_store, current_date - 30, current_date);
+
+  foreach k in array array['top_units','low_stock','expiring','by_slot','volumen']
+  loop
+    if not (v_res ? k) then
+      raise exception 'FALLO 14.b: le falta `%` — sin eso el reporte no sirve para reponer', k;
+    end if;
+  end loop;
+
+  -- 14.c · NI UNA CLAVE DE PLATA, en NINGÚN nivel del jsonb.
+  --        No se enumeran claves: se busca el nombre en TODO el árbol. Si
+  --        alguien agrega `revenue` adentro de `top_units` dentro de seis
+  --        meses, cae acá aunque nadie se acuerde de este test.
+  foreach k in array array['sold','profit','margin_pct','revenue','total',
+                           'line_total','cost','purchased','shelf_value',
+                           'prev_sold','money','credit','waste']
+  loop
+    if exists (
+      select 1 from jsonb_path_query(v_res, ('$.**.' || k)::jsonpath) limit 1
+    ) then
+      raise exception 'FALLO 14.c: el reporte del empleado trae `%` — es plata', k;
+    end if;
+  end loop;
+
+  -- 14.d · y no hay números de plata escondidos con otro nombre: el reporte
+  --        entero no puede mencionar ninguna de las columnas monetarias.
+  v_txt := v_res::text;
+  if v_txt ~* '"(facturado|ganancia|margen|recaudacion)"' then
+    raise exception 'FALLO 14.d: apareció una clave de plata en el payload';
+  end if;
+
+  -- 14.e · el reporte COMPLETO del dueño sigue cerrado para ella.
+  begin
+    perform public.reportes_summary(v_store, current_date - 30, current_date);
+    raise exception 'FALLO 14.e: can_see_reports le abrió el reporte del dueño';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> 'not_allowed' then raise; end if;
+  end;
+end $$;
+rollback;
+\echo 'OK 14 · unidades, ritmo, faltantes y vencimientos — cero plata, en todo el árbol'
+\echo '        · y reportes_summary sigue siendo del dueño'
 
 \echo ''
 \echo '========================================================================'

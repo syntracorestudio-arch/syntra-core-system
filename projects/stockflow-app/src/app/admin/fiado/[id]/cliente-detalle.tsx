@@ -44,6 +44,7 @@ export function ClienteDetalle({
   balance,
   movimientos,
   canCharge,
+  esOwner,
   isOwner,
 }: {
   clientId: string;
@@ -53,6 +54,10 @@ export function ClienteDetalle({
   balance: number;
   movimientos: Movimiento[];
   canCharge: boolean;
+  /* 050 · el empleado llega acá DESDE la caja (entrada acotada al cliente que
+     atiende): mandarlo "atrás" a la lista de Fiado lo rebotaría, porque esa
+     lista expone la deuda de todo el negocio y es del dueño. */
+  esOwner: boolean;
   isOwner: boolean;
 }) {
   const [cobrando, setCobrando] = useState(false);
@@ -66,10 +71,10 @@ export function ClienteDetalle({
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 lg:px-8 lg:py-8">
       <Link
-        href="/admin/fiado"
+        href={esOwner ? "/admin/fiado" : "/pos"}
         className="mb-4 inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ArrowLeft className="size-4" /> Fiado
+        <ArrowLeft className="size-4" /> {esOwner ? "Fiado" : "Volver a la caja"}
       </Link>
 
       <AvisoBanner aviso={aviso} onClose={() => setAviso(null)} />

@@ -18,9 +18,13 @@ const schema = z
       .string()
       .min(8, "Poné al menos 8 caracteres.")
       .max(72, "Máximo 72 caracteres."),
-    repetir: z.string(),
+    /* Opcional: el empleado ve UN solo campo con «mostrar» (el repetir existe
+       para cachar un typo que no ves; si lo ves, sobra). El dueño sí lo tiene
+       porque todavía no hay `/recuperar` y un typo lo dejaría afuera. Cuando
+       viene, tiene que coincidir. */
+    repetir: z.string().optional(),
   })
-  .refine((d) => d.password === d.repetir, {
+  .refine((d) => d.repetir === undefined || d.password === d.repetir, {
     message: "Las dos no coinciden.",
     path: ["repetir"],
   });
@@ -33,7 +37,7 @@ export async function cambiarMiClave(
 ): Promise<ClaveState> {
   const parsed = schema.safeParse({
     password: formData.get("password"),
-    repetir: formData.get("repetir"),
+    repetir: formData.get("repetir") ?? undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Revisá los datos." };

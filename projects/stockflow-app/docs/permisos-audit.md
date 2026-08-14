@@ -313,9 +313,25 @@ POS (A.1): hoy el cajero sin el permiso edita el precio, cobra y la venta falla
 entera con el cliente enfrente. `can_void_sale` y `can_receive_stock` ya los
 arregló B1. Es UX, no seguridad — el servidor ya corta bien.
 
-**Fase 3 — permisos nuevos (`052`, requiere tu decisión).** `can_close_register` y
-`can_see_reports`, con el recorte de payload por flag en `cierre_caja` y
-`reportes_summary`. Additive, default `false`, enforcement en SQL.
+**Fase 3 — permisos nuevos (`052`) — ✅ IMPLEMENTADA.** `can_close_register` y
+`can_see_reports`, aprobados por el owner con una condición dura: *el permiso no
+sirve si otorgarlo entrega el margen*. Resultado:
+
+| | Se partió así |
+| --- | --- |
+| `cierre_caja` | **Sí, inline.** El cajero recibe `efectivo_esperado`, `ventas_del_turno` y `anuladas`. NO recibe `facturado`, `entro_en_caja`, `fiado`, `cobros_fiado`, `by_method` ni el detalle de 300 ventas — sumar cualquiera de esos dos últimos daría la recaudación |
+| `reportes_summary` | **No, y por eso no se tocó.** `by_date`, `by_weekday` y `by_category` son `sum(total)` y NADA más: censurarlas dejaba al empleado con una pantalla llena de huecos y al dueño con un `if` alrededor de cada bloque. El empleado tiene `reportes_reposicion`, una RPC propia con unidades, faltantes, vencimientos y franjas — cero plata, calculada desde cero. El reporte del dueño queda intacto y owner-only |
+
+Los cuatro descartes se mantienen: `can_receive_stock` ya significa "maneja la
+mercadería" y cubre vencimientos/conteo/góndola; gastos sigue siendo del dueño.
+
+**Dos agujeros que aparecieron recién al mirar la app corriendo**, los dos de la
+misma clase que la auditoría ya había encontrado un nivel más arriba —*el
+permiso existe, la puerta no*—: el POS **no tiene barra de navegación** (para el
+empleado es toda la app), así que sin un menú en su header las dos pantallas
+eran inalcanzables; y `puedeAbrir()` no conocía los flags nuevos, así que
+tampoco aparecían en la barra del panel. Ninguno de los dos lo detectó un test:
+los dos se vieron abriendo la app con la cuenta de la empleada.
 
 > **Por qué la fase 3 no se hizo sola:** la 1 arregla bugs (no hay decisión que
 > tomar); la 3 **agrega capacidades** y define qué ve un empleado del negocio de
