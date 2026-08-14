@@ -27,7 +27,6 @@ const empleadoSchema = z.object({
     .min(1, "Poné un usuario.")
     .refine(usuarioValido, "El usuario va de 3 a 20 letras o números, sin espacios."),
   puedeFiar: z.boolean(),
-  puedeDescuento: z.boolean(),
   puedeAnular: z.boolean(),
   puedeRecibir: z.boolean(),
   /* 052 · el alta los ACEPTA pero no los usa: `add_member` no los toma y las
@@ -89,7 +88,11 @@ export async function crearEmpleado(input: unknown): Promise<AltaEmpleado> {
     p_profile_id: creado.user.id,
     p_name: parsed.data.nombre,
     p_can_sell_on_credit: parsed.data.puedeFiar,
-    p_can_apply_discount: parsed.data.puedeDescuento,
+    /* `can_apply_discount` nace y queda en false: la app no tiene ninguna
+       pantalla que cambie el precio de una venta, así que el toggle se sacó
+       (docs/permisos-audit.md §A.3). La columna y las 8 validaciones en SQL se
+       dejan intactas para cuando la función exista. */
+    p_can_apply_discount: false,
     p_can_void_sale: parsed.data.puedeAnular,
     p_can_receive_stock: parsed.data.puedeRecibir,
     /* `can_see_costs` ACOMPAÑA a `can_receive_stock` y ya no es un toggle
@@ -129,7 +132,6 @@ export async function actualizarPermisos(
   memberId: string,
   permisos: {
     puedeFiar: boolean;
-    puedeDescuento: boolean;
     puedeAnular: boolean;
     puedeRecibir: boolean;
     puedeCerrar: boolean;
@@ -143,7 +145,7 @@ export async function actualizarPermisos(
     p_store_id: session.store.id,
     p_member_id: memberId,
     p_fiar: permisos.puedeFiar,
-    p_descuento: permisos.puedeDescuento,
+    p_descuento: false, // ver el comentario de `p_can_apply_discount`
     p_anular: permisos.puedeAnular,
     p_recibir: permisos.puedeRecibir,
     p_costos: permisos.puedeRecibir,

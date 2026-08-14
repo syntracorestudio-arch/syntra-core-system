@@ -70,6 +70,61 @@ de precio manual, lo edita, cobra y **la venta falla entera** con `not_allowed` 
 el cliente enfrente. No es una fuga: es el mismo bug de UX que B1 le arregló a
 `can_void_sale` en el POS. **Recomendación: espejar el flag en el POS** (P1).
 
+### A.3 · BARRIDO DE PROMESAS VACÍAS (decisión del owner, 2026-08-14)
+
+`can_apply_discount` resultó **dormido**, no invisible: ocho RPCs lo validan y
+**ninguna pantalla manda `unit_price`** — verificado sobre todo `src/`, y la
+línea del carrito sólo tiene `cantidad`. Nadie puede cambiar el precio de una
+venta, **ni el dueño**. Lo que escribí antes en A.1 —"el cajero edita el precio
+y la venta falla"— describía una pantalla que no existe.
+
+**Decisión: se saca el toggle, se deja la validación.** El razonamiento del
+owner, textual en lo que importa: *un toggle que promete "puede hacer
+descuentos" y no habilita nada es la misma clase de mentira de producto que ya
+sacamos en otros lados* (el contador de "500 activos", el "todo con stock
+suficiente"). Los casos legítimos ya están cubiertos —promos (baja de precio por
+producto), monto libre (importe arbitrario), redondeo de vuelto—; lo que queda
+es **el descuento de mostrador ad-hoc, que es justamente el que fuga margen sin
+que se note**, y nadie lo extrañó porque todavía no hay usuarios.
+
+La columna se queda (default false, inalcanzable, inofensiva) y **las 8
+validaciones en SQL también**: ese guard es correcto y no queremos reconstruirlo
+cuando la función llegue.
+
+> ⚠️ **Residuo pendiente de decisión del owner.** Quedan **2 miembros con
+> `can_apply_discount = true`**, otorgado cuando el toggle existía. Hoy es
+> inofensivo —nadie lee el flag— pero el día que la función se construya esas
+> personas lo tendrían **sin que nadie se lo haya dado a conciencia**, que es
+> justo el tipo de concesión silenciosa que esta auditoría vino a eliminar.
+> `actualizar_permisos` ya escribe `false` siempre, así que se corrige solo en
+> cuanto alguien edite sus permisos; los que nadie toque quedan como están.
+> Ponerlos en `false` es una migración de DATOS y ésas las aprueba el owner.
+> Recomendación: una línea en la migración que traiga la función, no antes.
+
+#### Y el barrido, porque era la SEGUNDA promesa vacía
+
+La primera fue `can_see_costs`. Dos en la misma pantalla dejan de ser casos y
+pasan a ser un patrón, así que se verificó **cada flag restante** contra el
+criterio duro: *con el flag en ON, ¿un empleado llega de verdad a hacer algo que
+con OFF no podía?*
+
+| Flag | Acción concreta y alcanzable | Veredicto |
+| --- | --- | --- |
+| `can_sell_on_credit` | Medio de pago "Fiado" en el POS (`pos-screen.tsx:1685`) + entrada a la cuenta del cliente que atiende (`:1933` → `/admin/fiado/[id]`) | ✅ **verificado** |
+| `can_void_sale` | El POS ofrece «Deshacer» tras cobrar (`pos-screen.tsx:773`) | ✅ **verificado** |
+| `can_receive_stock` | Alta rápida en el POS (`:1188`) + `/admin/ingreso` entera | ✅ **verificado** |
+| `can_close_register` | `/admin/caja` con payload recortado + entrada en el menú del POS | ✅ **verificado en vivo** |
+| `can_see_reports` | `/admin/reportes` con `reportes_reposicion` + entrada en el menú del POS | ✅ **verificado en vivo** |
+| `can_apply_discount` | **ninguna** — nadie manda `unit_price` | ❌ **dormido → toggle removido** |
+| `can_see_costs` | *(ya no es toggle: acompaña a `can_receive_stock`)* | — |
+
+**La regla que queda:** un permiso nuevo no se considera terminado cuando el
+servidor lo valida. Se considera terminado cuando existe **una acción concreta
+que el empleado alcanza con el flag en ON y no alcanza con OFF** — y esa acción
+se prueba abriendo la app con su cuenta, no leyendo el código. Los dos agujeros
+de la fase 3 (el POS sin navegación, el nav sin los flags nuevos) se
+encontraron así y ningún test los había visto.
+
 ### A.2 · `can_see_costs` es el flag más honesto y el más incumplido
 Es el único con recorte **condicional** bien hecho (`045:847`: `promos_listado`
 arma el jsonb con o sin costos según el flag) y con gate duro (`015:219`,
@@ -308,7 +363,27 @@ Lo que se hizo, punto por punto:
    `"use server"` sin sesión, con `service_role`, y sin un solo llamador.
 6. El POS ni siquiera pide los márgenes si no puede dar de alta (B-8).
 
-**Fase 2 — permisos invisibles (pendiente).** Espejar `can_apply_discount` en el
+**Fase 2 — RESUELTA, y no como estaba planteada.** Lo que figuraba como
+"espejar `can_apply_discount` en el POS" partía de una premisa falsa: no hay
+pantalla que cambie precios. Se removió el toggle (§A.3). `can_void_sale` y
+`can_receive_stock` ya los había arreglado B1.
+
+### ROADMAP — el descuento de mostrador (NO construir todavía)
+
+Cuando llegue, **no va solo**: va con el precio por medio de pago (efectivo vs.
+lista), que el owner ya había mandado al roadmap como feature propia durante
+promociones fase 2. Son la misma familia —ajuste de precio del lado del
+mostrador— y diseñarlas por separado termina en dos mecanismos que se pisan.
+
+Condición: **evidencia de piloto real**. Hoy no hay usuarios, así que no hay
+forma de saber si el kiosquero quiere descuento por línea, por ticket, o sólo el
+precio de efectivo. Construir las tres "por las dudas" es exactamente cómo se
+llega a una pantalla de precios que nadie entiende.
+
+Lo que YA está listo para ese día: la columna `can_apply_discount` y las 8
+validaciones de `unit_price` en SQL. No hay que rehacer el backend.
+
+**Fase 2 (redacción original, para trazabilidad).** Espejar `can_apply_discount` en el
 POS (A.1): hoy el cajero sin el permiso edita el precio, cobra y la venta falla
 entera con el cliente enfrente. `can_void_sale` y `can_receive_stock` ya los
 arregló B1. Es UX, no seguridad — el servidor ya corta bien.
