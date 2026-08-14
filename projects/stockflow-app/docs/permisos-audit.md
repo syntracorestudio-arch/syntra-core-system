@@ -91,15 +91,17 @@ La columna se queda (default false, inalcanzable, inofensiva) y **las 8
 validaciones en SQL también**: ese guard es correcto y no queremos reconstruirlo
 cuando la función llegue.
 
-> ⚠️ **Residuo pendiente de decisión del owner.** Quedan **2 miembros con
-> `can_apply_discount = true`**, otorgado cuando el toggle existía. Hoy es
-> inofensivo —nadie lee el flag— pero el día que la función se construya esas
-> personas lo tendrían **sin que nadie se lo haya dado a conciencia**, que es
-> justo el tipo de concesión silenciosa que esta auditoría vino a eliminar.
-> `actualizar_permisos` ya escribe `false` siempre, así que se corrige solo en
-> cuanto alguien edite sus permisos; los que nadie toque quedan como están.
-> Ponerlos en `false` es una migración de DATOS y ésas las aprueba el owner.
-> Recomendación: una línea en la migración que traiga la función, no antes.
+**El residuo se apagó en el momento (migración `053`).** Habían quedado 2
+miembros con el flag en `true`, de cuando el toggle existía. Mi recomendación
+era arreglarlo en la migración que trajera la función; **el owner la rechazó, y
+con razón**: eso es un acordate-después, y en este proyecto los acordate-después
+tienen historial propio —el fallback del límite de 500 que nunca se construyó,
+el encabezado desactualizado del plan de onboarding, el "drift conocido" que
+volvió tres veces—.
+
+> Costo de hacerlo ahora: una línea. Costo de no hacerlo: dos empleados con un
+> permiso que **nadie les dio a conciencia**, en otro contexto y meses después.
+> Mínimo privilegio gana.
 
 #### Y el barrido, porque era la SEGUNDA promesa vacía
 
