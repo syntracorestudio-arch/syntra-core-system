@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/session";
+import { getSession, motivoSinAcceso } from "@/lib/session";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
 /**
@@ -22,6 +22,27 @@ export default async function Home() {
       .eq("id", auth.user.id)
       .maybeSingle();
     if (perfil?.is_superadmin) redirect("/super");
+  }
+
+  /* 052 · POR QUÉ ACÁ TAMBIÉN, y no sólo en `requireSession`.
+   *
+   * Un empleado dado de baja SIGUE teniendo su usuario de auth vivo, así que
+   * `signInWithPassword` le funciona: entra, cae en esta raíz, `getSession`
+   * devuelve null porque su membresía está inactiva… y hasta ahora salía por un
+   * `redirect("/login")` pelado, sin una palabra. El motivo estaba construido
+   * (049) pero lo consumía sólo `requireSession`, y por este camino nunca se
+   * pasa por ahí.
+   *
+   * Sin el aviso el resultado no es sólo confuso, es CARO: la persona concluye
+   * que erró la clave, la reintenta, y a los 5 intentos el rate limit por
+   * cuenta (login/actions.ts) la bloquea 15 minutos. Termina llamando al dueño
+   * igual, pero enojada y sin saber por qué.
+   *
+   * La consulta extra sólo corre en el camino de fallo: el que entra bien ya
+   * salió por el `redirect` de arriba. */
+  if (auth.user) {
+    const motivo = await motivoSinAcceso();
+    if (motivo !== "sin_sesion") redirect(`/login?motivo=${motivo}`);
   }
 
   redirect("/login");

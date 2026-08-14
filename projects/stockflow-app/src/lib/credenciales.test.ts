@@ -6,6 +6,10 @@ import {
   ESPACIO_CREDENCIAL,
   normalizarUsuario,
   usuarioValido,
+  emailSintetico,
+  esEmailSintetico,
+  pareceEmail,
+  DOMINIO_STAFF,
 } from "./credenciales.ts";
 
 /* La contraseña de alta de CADA cliente sale de acá. El generador anterior
@@ -85,4 +89,55 @@ test("usuarioValido: 3 a 20 caracteres ya normalizados", () => {
   assert.equal(usuarioValido("a-b"), false); // normaliza a "ab", 2 chars
   assert.equal(usuarioValido("x".repeat(21)), false);
   assert.equal(usuarioValido(""), false);
+});
+
+/* ── El email sintético del empleado (050) ────────────────────────────────
+   Es la decisión IRREVERSIBLE del modelo: queda escrito en cada
+   `auth.users.email`. Estos tests fijan la forma. ───────────────────────── */
+
+test("DOMINIO_STAFF usa un TLD reservado (.invalid, RFC 2606)", () => {
+  // No puede colisionar jamás con un dominio real ni recibir correo.
+  assert.ok(DOMINIO_STAFF.endsWith(".invalid"), DOMINIO_STAFF);
+  // Y no se acopla al dominio comercial, que todavía no se compró.
+  assert.ok(!DOMINIO_STAFF.includes("syntra"));
+});
+
+test("emailSintetico: <usuario>.<slug>@dominio, con el slug ADENTRO", () => {
+  assert.equal(
+    emailSintetico("el-trebol", "luciana"),
+    `luciana.el-trebol@${DOMINIO_STAFF}`,
+  );
+  // El slug adentro es lo que permite que el login no consulte la base.
+  assert.ok(emailSintetico("el-trebol", "luciana").includes("el-trebol"));
+});
+
+test("emailSintetico: normaliza el usuario igual que el alta", () => {
+  // Si el alta y el login normalizaran distinto, el empleado NO ENTRARÍA NUNCA
+  // y el síntoma sería idéntico a una clave mal tipeada.
+  assert.equal(
+    emailSintetico("el-trebol", "  Lucíana  "),
+    emailSintetico("el-trebol", "luciana"),
+  );
+  assert.equal(emailSintetico("EL-TREBOL", "Luciana"), emailSintetico("el-trebol", "luciana"));
+});
+
+test("emailSintetico: el mismo usuario en dos kioscos son DOS identidades", () => {
+  assert.notEqual(
+    emailSintetico("el-trebol", "luciana"),
+    emailSintetico("dona-rosa", "luciana"),
+  );
+});
+
+test("esEmailSintetico: distingue el fabricado del real", () => {
+  assert.equal(esEmailSintetico(emailSintetico("el-trebol", "luciana")), true);
+  assert.equal(esEmailSintetico("dueno@gmail.com"), false);
+  assert.equal(esEmailSintetico(null), false);
+  assert.equal(esEmailSintetico(""), false);
+});
+
+test("pareceEmail: la arroba es el discriminante, sin ambigüedad", () => {
+  assert.equal(pareceEmail("dueno@gmail.com"), true);
+  assert.equal(pareceEmail("luciana"), false);
+  // Un usuario válido ya pasó por normalizarUsuario, que borra la arroba.
+  assert.equal(normalizarUsuario("luci@ana").includes("@"), false);
 });

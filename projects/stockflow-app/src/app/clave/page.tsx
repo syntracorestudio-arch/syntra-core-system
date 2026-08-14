@@ -1,6 +1,5 @@
 import type { CSSProperties } from "react";
 import { redirect } from "next/navigation";
-import { KeyRound } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { Wordmark } from "@/components/brand/logo";
 import { LogoMark3D } from "@/components/brand/logo-3d";
@@ -26,6 +25,9 @@ export default async function ClavePage() {
   if (!session) redirect("/login");
   if (!session.mustChangePassword) redirect("/");
 
+  const nombre = (session.member.display_name ?? "").trim() || "de nuevo";
+  const inicial = (session.member.display_name ?? "?").trim().charAt(0).toUpperCase();
+
   return (
     /* El glow ambiental es el MISMO del login (token-driven ⇒ white-label safe):
        sin él, a 1920 la pantalla era un formulario flotando en un vacío negro y
@@ -39,20 +41,33 @@ export default async function ClavePage() {
         </div>
 
         <section className="rounded-2xl border border-border bg-card p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] duration-500 animate-in fade-in slide-in-from-bottom-2 sm:p-8">
-          <span
-            aria-hidden
-            className="mb-4 grid size-11 place-items-center rounded-xl bg-primary/15 text-primary-ink ring-1 ring-primary/25"
-          >
-            <KeyRound className="size-5" />
-          </span>
+          {/* La pantalla trataba un momento de IDENTIDAD como un trámite
+              anónimo: el empleado llega acá obligado, con la cola esperando y
+              sin haber elegido estar. Saludarlo por su nombre lo convierte en
+              "esto es tuyo" — y de paso le confirma que el dueño no se equivocó
+              de usuario al dictarle. El candado se mudó adentro del botón. */}
+          <div className="mb-5 flex items-center gap-3">
+            <span
+              aria-hidden
+              className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-lg font-semibold text-primary-ink ring-1 ring-primary/25"
+            >
+              {inicial}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate font-medium">Hola, {nombre}</p>
+              <p className="truncate text-sm text-muted-foreground">{session.store.name}</p>
+            </div>
+          </div>
 
           <h1 className="text-2xl font-bold tracking-tight">Elegí tu contraseña</h1>
           <p className="mt-1 mb-6 text-sm text-muted-foreground">
-            La que te dimos era provisoria y la vio quien te dio de alta. Poné una
-            tuya y seguimos.
+            La que te dieron la sabe quien te dio de alta. Poné una tuya y entrás.
           </p>
 
-          <ClaveForm />
+          {/* El "repetir" sólo para el dueño: hoy NO existe `/recuperar`, así
+              que un typo en su clave nueva lo deja afuera sin camino de vuelta.
+              El empleado tiene al dueño al lado, que se la puede resetear. */}
+          <ClaveForm pideRepetir={session.member.role === "owner"} />
         </section>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">

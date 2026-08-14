@@ -69,3 +69,48 @@ export function usuarioValido(v: string): boolean {
   const n = normalizarUsuario(v);
   return n.length >= 3 && n.length <= 20;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EMAIL SINTÉTICO DEL EMPLEADO (050)
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * El dominio de los empleados. **RFC 2606 reserva `.invalid`**, así que este
+ * string no puede colisionar jamás con un dominio real y deja explícito que no
+ * es un buzón: nunca recibe correo, nunca se verifica, nunca sale del sistema.
+ *
+ * Es la decisión IRREVERSIBLE del modelo (queda escrito en cada
+ * `auth.users.email`), y a propósito NO se acopla a la compra del dominio
+ * comercial: si algún día se migra, es un UPDATE controlado sobre filas que
+ * generamos nosotros.
+ */
+export const DOMINIO_STAFF = "staff.stockflow.invalid";
+
+/**
+ * `kiosco + usuario` → el email con el que GoTrue lo conoce.
+ *
+ * El slug viaja DENTRO del email, y eso tiene una consecuencia buena: el login
+ * no necesita ninguna consulta previa para resolver el negocio — compone y
+ * llama a `signInWithPassword`. Un kiosco inexistente produce un email
+ * inexistente, o sea el MISMO error genérico que una clave equivocada. No se
+ * filtra qué parte falló.
+ */
+export function emailSintetico(slug: string, usuario: string): string {
+  return `${normalizarUsuario(usuario)}.${slug.trim().toLowerCase()}@${DOMINIO_STAFF}`;
+}
+
+/** ¿Este email lo fabricamos nosotros? Sirve para no mostrárselo nunca a nadie. */
+export function esEmailSintetico(email: string | null | undefined): boolean {
+  return !!email && email.toLowerCase().endsWith(`@${DOMINIO_STAFF}`);
+}
+
+/**
+ * ¿Lo que tipeó es un email (dueño) o un usuario (empleado)?
+ *
+ * La arroba es el discriminante y no una preferencia de UI: un usuario válido
+ * ya pasó por `normalizarUsuario`, que borra la arroba, así que no hay
+ * ambigüedad posible.
+ */
+export function pareceEmail(v: string): boolean {
+  return v.includes("@");
+}
