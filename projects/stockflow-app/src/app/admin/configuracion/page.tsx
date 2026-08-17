@@ -3,6 +3,7 @@ import { requireOwner } from "@/lib/session";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { ConfiguracionClient, type Settings } from "./configuracion-client";
 import { MercadoPagoCard } from "./mercadopago-card";
+import { ActividadSyntra } from "./actividad-syntra";
 import { estadoMercadoPago } from "./mercadopago-actions";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,12 @@ export default async function ConfiguracionPage() {
       <ConfiguracionClient settings={settings} storeName={session.store.name}>
         <MercadoPagoCard estado={await estadoMercadoPago()} />
       </ConfiguracionClient>
+
+      {/* 055 · Va acá y no en /super porque el punto es que la LEA EL DUEÑO.
+          Se renderiza sola si no hay nada que mostrar. */}
+      <div className="mx-auto max-w-3xl px-4 pb-8 lg:px-8">
+        <ActividadSyntra />
+      </div>
     </AppShell>
   );
 }

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireOwner } from "@/lib/session";
+import { checkRateLimit } from "@/lib/rate-limit";
 import {
   credencialTemporal,
   emailSintetico,
@@ -48,8 +49,24 @@ const empleadoSchema = z.object({
  * fiar, quién ve los costos, quién anula— era inalcanzable: el dueño no tenía
  * forma de crearle la cuenta a su cajera.
  */
+/**
+ * Freno del alta y del reseteo de credenciales (ítem 12 del plan de identidad).
+ *
+ * No es anti fuerza-bruta: acá ya hay que ser dueño del negocio. Es un techo
+ * por si la sesión del dueño queda abierta en el mostrador — sin esto, quien
+ * la agarre genera cuentas de empleado en serie, cada una con su credencial
+ * válida, y ninguna llama la atención. 10 por minuto no molesta a nadie dando
+ * de alta a su gente. Fail-open, como el resto del baseline.
+ */
+async function limitarEquipo(storeId: string): Promise<boolean> {
+  return checkRateLimit(`equipo:${storeId}`, 10, 60);
+}
+
 export async function crearEmpleado(input: unknown): Promise<AltaEmpleado> {
   const session = await requireOwner();
+  if (!(await limitarEquipo(session.store.id))) {
+    return { ok: false, error: "Diste de alta a varias personas seguidas. Esperá un minuto." };
+  }
 
   const parsed = empleadoSchema.safeParse(input);
   if (!parsed.success) {
@@ -193,6 +210,9 @@ export type ResetClave =
 
 export async function resetearClaveEmpleado(memberId: string): Promise<ResetClave> {
   const session = await requireOwner();
+  if (!(await limitarEquipo(session.store.id))) {
+    return { ok: false, error: "Reseteaste varias claves seguidas. Esperá un minuto." };
+  }
   if (!z.guid().safeParse(memberId).success) {
     return { ok: false, error: "Esa persona ya no está en tu equipo." };
   }

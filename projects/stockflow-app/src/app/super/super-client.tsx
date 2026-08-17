@@ -55,6 +55,9 @@ export function SuperClient({
   const [alta, setAlta] = useState<Extract<AltaResult, { ok: true }> | null>(null);
   const [aviso, setAviso] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  /* 055 · ninguna mutación de este panel se ejecuta sin motivo: el botón abre
+     este diálogo y la acción sale desde ahí. */
+  const [pidiendoMotivo, setPidiendoMotivo] = useState<PedidoDeMotivo | null>(null);
 
   const activos = stores.filter((s) => s.status === "active").length;
 
@@ -168,15 +171,15 @@ export function SuperClient({
                   role="switch"
                   aria-checked={s.aiAssistant}
                   disabled={pending}
+                  /* 055 · ya no ejecuta: abre el diálogo que pide el motivo. El
+                     motivo no es burocracia — es lo que el DUEÑO va a leer en
+                     su pantalla para entender qué le pasó a su negocio. */
                   onClick={() =>
-                    startTransition(async () => {
-                      await setAsistenteIA(s.id, !s.aiAssistant);
-                      setAviso({
-                        tone: "ok",
-                        text: s.aiAssistant
-                          ? `Asistente IA apagado en ${s.name}.`
-                          : `Asistente IA activado en ${s.name}.`,
-                      });
+                    setPidiendoMotivo({
+                      storeId: s.id,
+                      nombre: s.name,
+                      tipo: "ia",
+                      valor: !s.aiAssistant,
                     })
                   }
                   aria-label={
@@ -199,15 +202,11 @@ export function SuperClient({
                   type="button"
                   disabled={pending}
                   onClick={() =>
-                    startTransition(async () => {
-                      await cambiarEstado(s.id, s.status === "active" ? "suspended" : "active");
-                      setAviso({
-                        tone: "ok",
-                        text:
-                          s.status === "active"
-                            ? `${s.name} quedó suspendido.`
-                            : `${s.name} está activo de nuevo.`,
-                      });
+                    setPidiendoMotivo({
+                      storeId: s.id,
+                      nombre: s.name,
+                      tipo: "estado",
+                      valor: s.status !== "active",
                     })
                   }
                   aria-label={s.status === "active" ? `Suspender ${s.name}` : `Reactivar ${s.name}`}
@@ -232,6 +231,40 @@ export function SuperClient({
       )}
 
       {alta && <CredencialesDialog alta={alta} onClose={() => setAlta(null)} />}
+
+      {pidiendoMotivo && (
+        <DialogoDeMotivo
+          pedido={pidiendoMotivo}
+          pending={pending}
+          onCancelar={() => setPidiendoMotivo(null)}
+          onConfirmar={(motivo) => {
+            const p = pidiendoMotivo;
+            startTransition(async () => {
+              const r =
+                p.tipo === "estado"
+                  ? await cambiarEstado(p.storeId, p.valor ? "active" : "suspended", motivo)
+                  : await setAsistenteIA(p.storeId, p.valor, motivo);
+
+              setPidiendoMotivo(null);
+              if (!r.ok) {
+                setAviso({ tone: "error", text: r.error ?? "No se pudo completar." });
+                return;
+              }
+              setAviso({
+                tone: "ok",
+                text:
+                  p.tipo === "estado"
+                    ? p.valor
+                      ? `${p.nombre} está activo de nuevo.`
+                      : `${p.nombre} quedó suspendido.`
+                    : p.valor
+                      ? `Asistente IA activado en ${p.nombre}.`
+                      : `Asistente IA apagado en ${p.nombre}.`,
+              });
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -518,6 +551,98 @@ function Dialog({
           </button>
         </div>
         {children}
+      </div>
+    </div>
+  );
+}
+
+/** Qué acción está esperando su motivo. */
+type PedidoDeMotivo = {
+  storeId: string;
+  nombre: string;
+  tipo: "estado" | "ia";
+  /** Estado al que se va: suspendido→activo, IA on/off. */
+  valor: boolean;
+};
+
+/**
+ * El motivo, tipeado a mano, antes de tocar el negocio de un cliente.
+ *
+ * No es un confirm con un campo: el texto que se escribe acá lo LEE EL DUEÑO
+ * en su pantalla. Por eso el placeholder muestra un motivo de verdad y no
+ * "razón", y por eso el mínimo son 10 caracteres — "test" no le explica a
+ * nadie por qué se quedó sin caja un martes.
+ */
+function DialogoDeMotivo({
+  pedido,
+  onCancelar,
+  onConfirmar,
+  pending,
+}: {
+  pedido: PedidoDeMotivo;
+  onCancelar: () => void;
+  onConfirmar: (motivo: string) => void;
+  pending: boolean;
+}) {
+  const [motivo, setMotivo] = useState("");
+  const suficiente = motivo.trim().length >= 10;
+
+  const titulo =
+    pedido.tipo === "estado"
+      ? pedido.valor
+        ? "Reactivar " + pedido.nombre
+        : "Suspender " + pedido.nombre
+      : pedido.valor
+        ? "Activar el Asistente IA en " + pedido.nombre
+        : "Desactivar el Asistente IA en " + pedido.nombre;
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-popover p-6">
+        <h2 className="text-lg font-semibold">{titulo}</h2>
+        {pedido.tipo === "estado" && !pedido.valor && (
+          /* Se dice lo que realmente pasa: suspender apaga la caja de un
+             comercio que puede estar abierto con gente esperando. */
+          <p className="mt-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-ink">
+            Deja de poder vender. Si está abierto, se entera en la próxima venta.
+          </p>
+        )}
+        <label htmlFor="motivo" className="mt-4 block text-sm font-medium">
+          ¿Por qué?
+        </label>
+        <p className="mb-2 text-xs text-muted-foreground">
+          Esto lo va a leer el dueño en su cuenta.
+        </p>
+        <textarea
+          id="motivo"
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          rows={3}
+          autoFocus
+          placeholder="Falta de pago de la cuota de agosto, avisado por WhatsApp el 12."
+          className="w-full rounded-lg border border-input bg-card p-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          {suficiente ? "Listo." : "Faltan " + (10 - motivo.trim().length) + " caracteres."}
+        </p>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancelar}
+            className="h-10 cursor-pointer rounded-lg border border-border px-4 text-sm"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={!suficiente || pending}
+            onClick={() => onConfirmar(motivo.trim())}
+            className="h-10 cursor-pointer rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "Guardando…" : "Confirmar"}
+          </button>
+        </div>
       </div>
     </div>
   );

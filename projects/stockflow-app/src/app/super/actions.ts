@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { credencialTemporal } from "@/lib/credenciales";
+import { registrarOFallar } from "@/lib/auditoria";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export type AltaResult =
   | { ok: true; store: string; email: string; password: string }
@@ -134,13 +136,45 @@ export async function crearNegocio(input: unknown): Promise<AltaResult> {
   };
 }
 
-/** Suspender o reactivar un negocio (falta de pago, baja temporal). */
+/**
+ * Suspender o reactivar un negocio (falta de pago, baja temporal).
+ *
+ * Es LA acción más grave del panel: suspender apaga la caja de un comercio que
+ * está abierto. Por eso pide motivo y queda registrada ANTES de tocar nada —
+ * si el registro falla, no se suspende (055).
+ */
 export async function cambiarEstado(
   storeId: string,
   status: "active" | "suspended",
-): Promise<{ ok: boolean }> {
-  await requireSuperadmin();
+  motivo: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { userId, email } = await requireSuperadmin();
+  if (!(await limitarSuper(userId))) {
+    return { ok: false, error: "Demasiadas acciones seguidas. Esperá un minuto." };
+  }
+
   const admin = createAdminClient();
+  const { data: negocio } = await admin
+    .from("stores")
+    .select("name")
+    .eq("id", storeId)
+    .maybeSingle();
+
+  try {
+    /* El registro va PRIMERO. Al revés, un fallo de la bitácora dejaría un
+       negocio suspendido sin ninguna fila que se lo explique al dueño. */
+    await registrarOFallar({
+      actorId: userId,
+      actorEmail: email,
+      accion: status === "suspended" ? "negocio_suspendido" : "negocio_reactivado",
+      motivo,
+      storeId,
+      etiqueta: negocio?.name ?? null,
+    });
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "No se pudo registrar." };
+  }
+
   await admin.from("stores").update({ status }).eq("id", storeId);
   revalidatePath("/super");
   return { ok: true };
@@ -154,10 +188,46 @@ export async function cambiarEstado(
 export async function setAsistenteIA(
   storeId: string,
   enabled: boolean,
-): Promise<{ ok: boolean }> {
-  await requireSuperadmin();
+  motivo: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { userId, email } = await requireSuperadmin();
+  if (!(await limitarSuper(userId))) {
+    return { ok: false, error: "Demasiadas acciones seguidas. Esperá un minuto." };
+  }
+
   const admin = createAdminClient();
+  const { data: negocio } = await admin
+    .from("stores")
+    .select("name")
+    .eq("id", storeId)
+    .maybeSingle();
+
+  try {
+    await registrarOFallar({
+      actorId: userId,
+      actorEmail: email,
+      accion: enabled ? "asistente_activado" : "asistente_desactivado",
+      motivo,
+      storeId,
+      etiqueta: negocio?.name ?? null,
+    });
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "No se pudo registrar." };
+  }
+
   await admin.from("stores").update({ ai_assistant_enabled: enabled }).eq("id", storeId);
   revalidatePath("/super");
   return { ok: true };
+}
+
+/**
+ * Freno del panel de plataforma (ítem 12).
+ *
+ * No es anti fuerza-bruta —acá ya hay que ser superadmin— sino un techo por si
+ * una credencial nuestra se compromete: sin esto, quien la tenga suspende los
+ * negocios de todos los clientes en un `for`. 20 por minuto no molesta a nadie
+ * trabajando y corta un script. Fail-open, igual que el resto.
+ */
+async function limitarSuper(userId: string): Promise<boolean> {
+  return checkRateLimit(`super:${userId}`, 20, 60);
 }
