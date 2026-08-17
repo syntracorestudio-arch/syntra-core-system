@@ -110,6 +110,35 @@ async function mpFetch<T>(
       | { message?: string; error?: string; errors?: { code?: string; message?: string }[] }
       | null;
     const detalle = m?.message ?? m?.error ?? m?.errors?.[0]?.message ?? texto.slice(0, 200);
+
+    /* Los estados del REEMBOLSO que la doc documenta y que el dueño tiene que
+       poder entender sin llamar a nadie. Sin esto lee el texto crudo de MP, que
+       está en inglés y no le dice qué hacer. Sólo se traduce lo accionable: el
+       resto sigue pasando el detalle de MP tal cual. */
+    if (path.endsWith("/refund")) {
+      if (res.status === 409) {
+        return {
+          ok: false,
+          status: res.status,
+          message: "Esa parte ya fue devuelta. Revisá el movimiento en tu cuenta de MercadoPago.",
+        };
+      }
+      if (res.status === 422) {
+        return {
+          ok: false,
+          status: res.status,
+          message: "MercadoPago no permite devolver este pago (puede estar fuera de plazo o ya conciliado). Devolvelo desde tu cuenta.",
+        };
+      }
+      if (res.status === 425 || res.status === 428) {
+        return {
+          ok: false,
+          status: res.status,
+          message: "El pago todavía se está acreditando. Esperá unos minutos y volvé a intentar.",
+        };
+      }
+    }
+
     return { ok: false, status: res.status, message: detalle };
   }
   return { ok: true, data: json as T };
@@ -370,10 +399,16 @@ export async function mpReembolsarOrden(
   orderId: string,
   idempotencyKey: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  /* SIN `body`. La doc de MP es literal para el reembolso TOTAL: "the request
+     body must be empty". Acá decía `body: {}` — y `{}` es TRUTHY en JS, así que
+     `mpFetch` lo serializaba y mandaba el string "{}" como cuerpo. Si MP valida
+     eso, el reembolso devuelve 400 y NO devuelve la plata nunca: el cliente
+     esperando en el mostrador, la pata sigue `approved` y el dueño ve un error
+     de MP sin explicación. Encontrado contrastando contra la doc oficial ANTES
+     de tener sandbox (docs/mercadopago-sandbox-checklist.md). */
   const res = await mpFetch<MpOrden>(token, `/v1/orders/${orderId}/refund`, {
     method: "POST",
     idempotencyKey,
-    body: {},
   });
   return res.ok ? { ok: true } : { ok: false, error: res.message };
 }
