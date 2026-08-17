@@ -189,6 +189,20 @@ export default async function LoginPage({
             <LoginForm modo={modo} slug={slug} />
           </div>
 
+          {/* "Me olvidé" SÓLO en modo dueño: el empleado no tiene email y su
+              camino es pedirle al dueño que se la resetee. Ofrecérselo acá lo
+              mandaría a una pantalla que sólo puede decirle que no. */}
+          {modo !== "empleado" && (
+            <p className="mt-4 text-center text-xs">
+              <Link
+                href="/recuperar"
+                className="text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+              >
+                Me olvidé la contraseña
+              </Link>
+            </p>
+          )}
+
           {/* Cambiar de identidad, debajo del botón: el frecuente no lo toca. */}
           <p className="mt-4 text-center text-xs">
             <Link

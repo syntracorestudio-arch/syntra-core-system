@@ -105,7 +105,37 @@ hace falta.
 Regla: toda `NEXT_PUBLIC_*` es visible en el cliente — nunca poner secretos ahí. El resto
 son server-only.
 
-### 5.1 MercadoPago — SIN credenciales de aplicación propias (verificado en código)
+### 5.1 Supabase Auth — DOS ajustes sin los que `/recuperar` no funciona
+
+Ninguno de los dos está en Vercel: se configuran en el panel de Supabase, y
+**los dos fallan en silencio**, que es lo que los vuelve peligrosos.
+
+**a · URL de redirección en la allowlist** (Auth → URL Configuration → Redirect URLs)
+
+Agregar `https://<dominio-real>/**`.
+
+El link de recuperación vuelve por `/auth/callback`, que canjea el token por
+sesión y aterriza en `/cuenta`. GoTrue **sólo respeta el `redirect_to` si está
+en esa lista**; si no está, no devuelve error: cae al `site_url` y el dueño
+termina en la home **sin poder elegir contraseña**, con el token ya quemado.
+
+> Verificado en local, no deducido: en la primera corrida el mail salió con
+> `redirect_to=http://127.0.0.1:3000` en vez de nuestro callback, justamente
+> por esto. El patrón tiene que llevar comodín (`/**`): el destino incluye
+> `?next=…` y una URL exacta no matchea.
+
+**b · SMTP apuntando a Resend** (Auth → Emails → SMTP Settings)
+
+Sin esto, `/recuperar` acepta el pedido, muestra "revisá tu correo" **y el mail
+no sale nunca** — el peor modo de falla posible, porque el dueño se queda
+esperando en vez de pedir ayuda. El SMTP de Auth es independiente del
+`RESEND_API_KEY` de la app (ese lo usa el reporte mensual, no GoTrue).
+
+**Prueba de aceptación** (va en el checklist de §post-deploy): pedir el link
+con el email del dueño, abrirlo, y confirmar que **aterriza en `/cuenta`** y que
+la contraseña nueva entra. Si aterriza en la home, es (a).
+
+### 5.2 MercadoPago — SIN credenciales de aplicación propias (verificado en código)
 
 **No existen `MP_CLIENT_ID` / `MP_CLIENT_SECRET` ni flujo OAuth** — es por diseño, no un
 faltante: cada negocio usa su PROPIA aplicación de MercadoPago. La conexión
@@ -180,6 +210,9 @@ Sin esto, los mails (alertas, reportes) caen en spam o no llegan.
 - [ ] Gate del asistente: el cron `monthly-report` saltea los negocios con
       `ai_assistant_enabled=false` (solo procesa los que tienen el add-on prendido; el
       response del cron reporta `skipped`).
+- [ ] **Recuperación de contraseña de punta a punta**: pedir el link, abrirlo, que
+      aterrice en `/cuenta` (NO en la home) y que la contraseña nueva entre. Si cae
+      en la home, falta la URL en la allowlist de Auth (§5.1a).
 - [ ] Email de prueba llega a inbox.
 - [ ] Web Push: suscripción + notificación de prueba llega.
 - [ ] Sin errores en consola ni en los logs de Vercel/Supabase.
