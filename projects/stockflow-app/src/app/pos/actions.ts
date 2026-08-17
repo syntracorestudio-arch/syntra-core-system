@@ -67,6 +67,9 @@ const ERRORS: Record<string, string> = {
   split_needs_two: "Un pago dividido necesita al menos dos partes.",
   invalid_split_payment: "Revisá los montos del pago dividido.",
   split_sum_mismatch: "Las partes no suman el total de la venta.",
+  // Split con dos electrónicas (grupo)
+  group_incomplete: "Todavía falta cobrar una parte. Cobrala antes de registrar.",
+  group_amount_mismatch: "Lo cobrado no coincide con el reparto. Revisá el pago dividido.",
 };
 
 function translate(message: string): string {
@@ -172,6 +175,63 @@ export async function registerSplitSale(input: unknown): Promise<SaleResult> {
     p_pagos: parsed.data.pagos,
     p_idempotency_key: parsed.data.idempotency_key,
     p_paid: parsed.data.paid ?? false,
+  });
+
+  if (error) {
+    return { ok: false, error: translate(error.message) };
+  }
+
+  const result = data as {
+    sale_id: string;
+    total: number;
+    replayed: boolean;
+    over_limit: boolean;
+    negative_stock: { product_id: string; name: string; stock: number }[];
+  };
+
+  revalidatePath("/pos");
+  revalidatePath("/admin");
+
+  return {
+    ok: true,
+    saleId: result.sale_id,
+    total: Number(result.total),
+    replayed: result.replayed,
+    overLimit: result.over_limit,
+    negativeStock: result.negative_stock ?? [],
+  };
+}
+
+/**
+ * Cierra un split de DOS patas electrónicas (tarjeta al posnet + QR). Las dos patas
+ * ya se cobraron por MercadoPago (cada una su propio intento, ligadas por `group_id`).
+ * Toda la seguridad vive en `register_split_group`: verifica que las DOS patas del
+ * grupo estén acreditadas ANTES de registrar (si falta una → `group_incomplete`), y
+ * registra atómico vinculando ambas patas. Acá solo validamos forma.
+ */
+const splitGroupSchema = z.object({
+  group_id: z.guid(),
+  items: z.array(itemSchema).min(1),
+  pagos: z.array(splitPaymentSchema).min(2),
+  idempotency_key: z.string().min(8).max(64),
+});
+
+export async function registerSplitGroup(input: unknown): Promise<SaleResult> {
+  const session = await requireSession();
+
+  const parsed = splitGroupSchema.safeParse(input);
+  if (!parsed.success) {
+    console.error("[registerSplitGroup] payload inválido:", JSON.stringify(parsed.error.issues));
+    return { ok: false, error: "Datos del pago dividido inválidos." };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { data, error } = await supabase.rpc("register_split_group", {
+    p_store_id: session.store.id,
+    p_group_id: parsed.data.group_id,
+    p_items: parsed.data.items,
+    p_pagos: parsed.data.pagos,
+    p_idempotency_key: parsed.data.idempotency_key,
   });
 
   if (error) {

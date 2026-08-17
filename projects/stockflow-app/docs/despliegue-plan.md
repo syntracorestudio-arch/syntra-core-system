@@ -99,7 +99,7 @@ hace falta.
 | `RESEND_API_KEY` | Prod | **Usar la clave ROTADA** (la anterior se filtró — no reusarla). |
 | `RESEND_FROM` | Prod | remitente en el dominio verificado (ej. `StockFlow <no-reply@dominio>`). |
 | `RESEND_DEV_TO` | — | **NO en prod** (redirección de mails solo en dev). |
-| `STOCKFLOW_REEMBOLSO_HABILITADO` | Prod | **NO LO LEE NINGÚN CÓDIGO TODAVÍA** — ver §nota. Dejar sin setear igual; cuando el reembolso se mergee, esta fila recién ahí pasa a ser un control. |
+| `STOCKFLOW_REEMBOLSO_HABILITADO` | Prod | **Dejar SIN SETEAR.** Desde el rescate del split (054) es un control real y *fail-closed*: sólo `=1` habilita; ausente, vacío o cualquier otro valor ⇒ el reembolso se rechaza. Prender **únicamente** después de validar el endpoint contra el sandbox de MP. |
 | `NODE_ENV` | — | lo setea Vercel (`production`). No cargar a mano. |
 
 Regla: toda `NEXT_PUBLIC_*` es visible en el cliente — nunca poner secretos ahí. El resto
@@ -205,18 +205,26 @@ Nada de infra por cliente: la infra es una sola, multi-tenant por RLS.
 - **Cobros con posnet (Point)** y **split con la pata electrónica en el posnet**: ya están
   en `main` pero **dormidos** salvo que el negocio tenga `has_posnet=true` (que solo se
   prende tras validar con el device real).
-- **Split de dos electrónicas (tarjeta + QR) + recuperación + reembolso**: en la branch
-  `feat/stockflow-split-dos-electronicas`, sin mergear. Requiere terminal (flujo secuencial)
-  + sandbox MP (endpoint de reembolso) antes de mergear y de prender
-  `STOCKFLOW_REEMBOLSO_HABILITADO=1`.
+- **Split de dos electrónicas (tarjeta + QR) + recuperación + reembolso**: rescatado de
+  `feat/stockflow-split-dos-electronicas` (estuvo 3 semanas fuera de main sin PR). Sigue
+  requiriendo terminal real (flujo secuencial) + sandbox MP para el endpoint de reembolso
+  antes de prender `STOCKFLOW_REEMBOLSO_HABILITADO=1`.
 
-  > ⚠️ **PRECONDICIÓN DE MERGE, no una tarea suelta.** Hoy `main` no tiene una sola
-  > línea de reembolso —verificado: ninguna RPC, ningún endpoint de refunds en
-  > `src/lib/mercadopago.ts`, y la rama no es ancestro de `main`— y **el flag no lo
-  > lee ningún código**. Mientras siga así, "sin setear" es inofensivo porque no hay
-  > nada que apagar. En el momento en que esa rama entre, "sin setear" pasaría a
-  > significar *prendido y sin control*, y alguien siguiendo esta tabla creería lo
-  > contrario: el peor de los dos errores, porque parece cubierto.
+  > ✅ **Resuelto en el rescate (054).** Esta nota advertía que, al entrar la rama,
+  > "sin setear" pasaría a significar *prendido y sin control*. **Esa predicción era
+  > equivocada**: la rama traía el gate incorporado y es *fail-closed* —
+  > `process.env.STOCKFLOW_REEMBOLSO_HABILITADO === "1"`, así que ausente ⇒ apagado—,
+  > en la server action (`caja/actions.ts`) y en el botón (`caja/page.tsx`).
+  >
+  > Lo que **sí** faltaba, y el barrido de puntos de entrada encontró, era otra cosa:
+  > `marcar_pata_reembolsada` —la RPC que transiciona una pata `approved → refunded`—
+  > pedía sólo `rpc_member`, o sea **cualquier empleado**. Y no era un registro falso
+  > y nada más: `reembolsarGrupo` procesa únicamente las patas todavía `approved`, así
+  > que una marcada a mano **saltea el reembolso real para siempre** (el cliente no
+  > cobra nunca y el sistema dice que sí), esquivando además el flag, que vive en la
+  > acción y no en la base. 054 la pasó a owner junto con `grupos_a_medio_cobrar` y
+  > `cobros_sin_venta`. Cubierto por `supabase/tests/verify-reembolso-owner.sql`, que
+  > prueba las dos direcciones.
   >
   > Por eso el gate se construye **en esa rama y antes de mergearla**, sobre los
   > puntos de entrada que ella misma trae, con test en las dos direcciones

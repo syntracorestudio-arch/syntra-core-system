@@ -355,6 +355,29 @@ export async function mpCancelarOrden(
   return res.ok ? { ok: true } : { ok: false, error: res.message };
 }
 
+/**
+ * Reembolso TOTAL de una orden (una pata electrónica de un split a medio cobrar). Le
+ * devuelve al cliente la plata de esa pata cuando se fue con una cobrada y la otra no.
+ *
+ * Es la Orders API (la misma superficie del cobro): `POST /v1/orders/{id}/refund` sin
+ * body = reembolso total. `idempotencyKey` propio por pata → reintentar no devuelve dos
+ * veces. Money-critical: validar en el sandbox de MercadoPago antes de habilitarlo en
+ * producción (puede que el endpoint exacto sea `/v1/payments/{id}/refunds` según cuenta;
+ * por eso el reembolso queda gateado hasta la prueba real).
+ */
+export async function mpReembolsarOrden(
+  token: string,
+  orderId: string,
+  idempotencyKey: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await mpFetch<MpOrden>(token, `/v1/orders/${orderId}/refund`, {
+    method: "POST",
+    idempotencyKey,
+    body: {},
+  });
+  return res.ok ? { ok: true } : { ok: false, error: res.message };
+}
+
 export type MpTerminal = {
   id: string;
   pos_id?: number | string;
