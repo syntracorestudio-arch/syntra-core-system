@@ -1426,11 +1426,21 @@ export function PosScreen({
              grilla ya viene rankeada por rotación y el escaneo es el camino
              principal. Ver docs/responsive-audit.md §C6.
 
-             152 y no 160: a 360px de ancho quedan 328px de contenido y dos
-             columnas de 160 + 10 de gap piden 330. Por esos 2px la grilla se
-             caía a UNA sola columna, que es peor que el problema original. Con
-             152 entran 2 columnas desde 360px hasta que `sm:` toma el relevo. */
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(152px,1fr))] gap-2.5 p-4 sm:grid-cols-[repeat(auto-fill,minmax(132px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
+             En mobile ya NO se negocia con un mínimo: es `grid-cols-2` fijo.
+             Perseguir el número mágico (160 → 152) era el juego equivocado —
+             con `minmax(152px,1fr)` dos columnas piden 314px y a 360px el
+             contenedor mide 312,67, así que se perdía por 1,3px y caía a UNA
+             columna. Medido: 1 col a 360 y 2 a 390. El layout cambiaba solo al
+             cruzar un umbral que nadie eligió, y el teléfono más chico —el más
+             común en el mostrador— era el que peor densidad tenía.
+             Cuando sabemos que queremos DOS, pedir dos es más honesto que
+             negociarlo: el contenedor REPARTE el ancho en vez de que un `min`
+             decida cuántas entran. Da 151px a 360 y 166px a 390, y el ancho
+             crece con la pantalla en vez de saltar.
+             El recorte de nombres largos se arregla donde nace —el nombre
+             corto editable al importar de SEPA (responsive-audit, arreglo 4)—
+             y no bajando a media densidad el camino de venta. */
+          <div className="grid grid-cols-2 gap-2.5 p-4 sm:grid-cols-[repeat(auto-fill,minmax(132px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
             {visibles.map((p) => {
               /* "Sin stock" en rojo sobre un producto que nadie contó le dice al
                  cajero que no existe algo que acaba de vender. Sin conteo no se
