@@ -160,7 +160,16 @@ site_url = "http://127.0.0.1:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+# El link de recuperación vuelve por `/auth/callback` (canjea el token por
+# sesión y aterriza en /cuenta). GoTrue sólo respeta un `redirect_to` que esté
+# en esta allowlist: si falta, NO falla — cae en silencio al `site_url` y el
+# dueño termina en la home sin poder elegir contraseña. En producción hay que
+# cargar la URL real del dominio en Auth → URL Configuration.
+additional_redirect_urls = [
+  "https://127.0.0.1:3000",
+  "http://localhost:3000/**",
+  "http://127.0.0.1:3000/**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.

@@ -26,6 +26,10 @@ export type Member = {
   can_close_register: boolean;
   /** 052 · ve qué se vende y qué falta, en unidades. Sin plata. */
   can_see_reports: boolean;
+  /* 050 · el nombre con el que ENTRA el empleado; null para el dueño, que usa
+     su email real. Lo necesita `/cuenta`: mostrarle a un empleado su email
+     sintético no le dice nada — ese string lo fabricó el sistema, no él. */
+  usuario: string | null;
 };
 
 export type Store = {
@@ -68,7 +72,7 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
     .from("members")
     .select(
       `id, role, display_name, can_sell_on_credit, can_apply_discount,
-       can_void_sale, can_receive_stock, can_see_costs,
+       can_void_sale, can_receive_stock, can_see_costs, usuario,
        can_close_register, can_see_reports,
        profile:profiles!inner ( must_change_password ),
        store:stores!inner ( id, name, slug, timezone, branding, status, vertical, ai_assistant_enabled )`,
@@ -105,6 +109,7 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
       can_void_sale: data.can_void_sale,
       can_receive_stock: data.can_receive_stock,
       can_see_costs: data.can_see_costs,
+      usuario: data.usuario ?? null,
       can_close_register: data.can_close_register,
       can_see_reports: data.can_see_reports,
     },

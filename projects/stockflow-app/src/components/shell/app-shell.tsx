@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogOut, Menu } from "lucide-react";
+import { LogOut, Menu, UserCog } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { LogoMark, Wordmark } from "@/components/brand/logo";
 import { signOut } from "@/app/login/actions";
@@ -117,14 +117,24 @@ export async function AppShell({
         <div className="border-t border-border px-5 py-4">
           <p className="text-xs text-muted-foreground">Conectado como</p>
           <p className="truncate text-sm font-medium">{userLabel}</p>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="mt-2 flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          {/* Entrada a la propia cuenta. Va acá, pegada a la identidad, y no en
+              el nav: no es una sección del negocio, es del que está mirando. */}
+          <div className="mt-2 flex items-center gap-3">
+            <Link
+              href="/cuenta"
+              className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
-              <LogOut className="size-3.5" /> Salir
-            </button>
-          </form>
+              <UserCog className="size-3.5" /> Mi cuenta
+            </Link>
+            <form action={signOut}>
+              <button
+                type="submit"
+                className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <LogOut className="size-3.5" /> Salir
+              </button>
+            </form>
+          </div>
         </div>
       </aside>
 
