@@ -19,6 +19,7 @@ description: Use before ANY git commit in the SYNTRA repo. Enforces git status +
 - [ ] git push -u origin <branch> (NUNCA main)
 - [ ] git status final: working tree limpio salvo locales esperados (settings.json puede quedar M, sin stagear)
 - [ ] PR abierto (Autopilot) — el merge es SIEMPRE manual del owner
+- [ ] **DESPUÉS DEL MERGE**: `git fetch` + `git cherry origin/main <branch>` = vacío. Si no, hay commits huérfanos → NUEVO PR (el mergeado no se reabre)
 ```
 
 **STOP gates (hard):**
@@ -56,6 +57,38 @@ git diff --check      # no whitespace/merge conflict markers
   ```
   Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
   ```
+
+## Verificación POST-MERGE — "mergeado" ≠ "aterrizó"
+
+Un PR puede mergearse con **parte** de su rama: si llegan commits después de que
+el owner mergeó, quedan huérfanos en una rama cuyo PR ya está cerrado, y nadie
+se entera porque el PR dice *merged*.
+
+Pasó de verdad (2026-08-14, PR #229): se mergeó con **1 de 4 commits**. Los
+otros tres incluían una migración de datos que el owner había pedido hacer *en
+ese momento y no después* — quedó marcada como hecha sin estarlo. Y no fue la
+primera: `perf/contacto-jank` arrastra desde el 2026-07-24 un commit fuera de
+main con el PR #163 ya mergeado.
+
+**Después de cada merge, verificar:**
+
+```bash
+git fetch origin main
+git cherry origin/main <branch>    # vacío = todo aterrizó
+```
+
+Si sale algo: **abrir un PR nuevo**. Un PR mergeado no se reabre para eso, y
+pushear a esa rama sólo agranda el huérfano.
+
+> **Por qué no alcanza preguntarle a GitHub.** `gh pr view N --json commits`
+> devuelve los commits **como quedaron al mergear**: no puede mostrar lo que se
+> empujó después, así que una auditoría basada en eso reporta "sin huérfanos"
+> siempre. Es un detector al que el propio caso que busca lo apaga. La
+> comparación tiene que ser contra el **tip de la rama** (`origin/<branch>`).
+>
+> Corolario útil: si la rama se borró tras el merge, no puede haber huérfanos
+> —no hay dónde vivan—. El riesgo existe **sólo en ramas que siguen vivas**, y
+> ésas son pocas y enumerables.
 
 ## Push + verify
 ```bash
