@@ -47,6 +47,7 @@ import {
 import {
   registerSale,
   registerSplitSale,
+  registerSplitGroup,
   quickCreateProduct,
   buscarEnCatalogo,
   buscarPorNombre,
@@ -144,6 +145,23 @@ type SplitLeg = {
   paymentType?: "credit_card" | "debit_card";
 };
 
+/**
+ * Split con DOS patas electrónicas (tarjeta al posnet + QR). Es un cobro SECUENCIAL:
+ * la terminal es serie, así que primero se cobra la tarjeta y RECIÉN cuando acredita se
+ * pasa al QR; con las dos acreditadas se registra la venta (`register_split_group`). El
+ * `groupId` liga las dos patas en la base para la recuperación si la caja se cae en el
+ * medio (una pata cobrada, la otra no = "venta a medio cobrar"). Las claves de cada pata
+ * y de la venta se derivan del grupo para que reintentar sea idempotente.
+ */
+type SplitGroup = {
+  groupId: string;
+  pagos: Pago[];
+  cardAmount: number;
+  qrAmount: number;
+  cardPaymentType?: "credit_card" | "debit_card";
+  fase: "card-ask" | "card-terminal" | "qr-ask" | "qr-pantalla" | "qr-terminal";
+};
+
 const MEDIOS = [
   { key: "cash", label: "Efectivo", icon: Banknote },
   { key: "qr", label: "QR", icon: QrCode },
@@ -233,6 +251,8 @@ export function PosScreen({
   const [montos, setMontos] = useState<Montos>({ cash: "", card: "", transfer: "", qr: "" });
   /** Pata electrónica de un split en curso (Paso 3): ask + diálogo + pagos a registrar. */
   const [splitLeg, setSplitLeg] = useState<SplitLeg | null>(null);
+  /** Split de dos electrónicas en curso (tarjeta + QR, secuencial). */
+  const [splitGroup, setSplitGroup] = useState<SplitGroup | null>(null);
   /** Paso de confirmación (armar → confirmar) del pie del carrito. */
   const [confirmando, setConfirmando] = useState(false);
   /** Lockout anti-doble-tap: Confirmar no acepta input los primeros 250ms. */
@@ -754,6 +774,7 @@ export function PosScreen({
     setMontos({ cash: "", card: "", transfer: "", qr: "" });
     setSplitLeg(null);
     setMontoLibre(null);
+    setSplitGroup(null);
     setCarritoViejo(false);
     setEditandoQty(null);
     setCarrito([]);
@@ -816,6 +837,19 @@ export function PosScreen({
     const qr = pagos.find((p) => p.method === "qr");
     const card = pagos.find((p) => p.method === "card");
 
+    // DOS patas electrónicas (tarjeta + QR) con posnet: cobro secuencial ligado por un
+    // grupo. La tarjeta primero (terminal en serie), después el QR, y recién ahí la venta.
+    if (posnetActivo && qr && card) {
+      setSplitGroup({
+        groupId: crypto.randomUUID(),
+        pagos,
+        cardAmount: card.amount,
+        qrAmount: qr.amount,
+        fase: "card-ask",
+      });
+      return;
+    }
+
     // Parte QR (siempre asíncrona). Con posnet, preguntamos terminal o pantalla.
     if (qr) {
       setSplitLeg({ pagos, legAmount: qr.amount, fase: posnetActivo ? "elegir-qr" : "qr-pantalla" });
@@ -874,6 +908,31 @@ export function PosScreen({
         } catch {
           /* la venta está; el banner de Caja reconcilia por la misma clave */
         }
+      }
+      finalizarVenta(res, false);
+    });
+  }
+
+  /**
+   * Las DOS patas electrónicas del grupo acreditaron: registra la venta split verificando
+   * en la base que ambas estén cobradas (`register_split_group` — si falta una, no registra
+   * nada). Idempotente por la clave derivada del grupo. Si la caja se cae acá, las patas
+   * quedan 'aprobadas sin venta' ligadas por el grupo → la recuperación de Caja las cierra.
+   * Sin deshacer: hubo captura externa (dos, de hecho).
+   */
+  function finalizarSplitGroup() {
+    const g = splitGroup;
+    if (!g) return;
+    startTransition(async () => {
+      const res = await registerSplitGroup({
+        group_id: g.groupId,
+        items: itemsDeCarrito(carrito),
+        pagos: g.pagos,
+        idempotency_key: `${g.groupId}-S`,
+      });
+      if (!res.ok) {
+        setAviso({ tone: "error", text: res.error });
+        return;
       }
       finalizarVenta(res, false);
     });
@@ -1016,6 +1075,124 @@ export function PosScreen({
             idempotencyKey.current = crypto.randomUUID();
             setSplitLeg(null);
           }}
+        />
+      )}
+
+      {/* ---- Split de DOS electrónicas (tarjeta + QR): cobro SECUENCIAL, tarjeta primero ---- */}
+      {splitGroup?.fase === "card-ask" && (
+        <PreguntaModal
+          titulo="1 de 2 · Cobrás la tarjeta. ¿Débito o crédito?"
+          monto={splitGroup.cardAmount}
+          onCerrar={() => setSplitGroup(null)}
+          opciones={[
+            {
+              icon: CreditCard,
+              label: "Débito",
+              sub: "Apoyás o pasás la tarjeta en el posnet",
+              primary: true,
+              onClick: () => setSplitGroup({ ...splitGroup, fase: "card-terminal", cardPaymentType: "debit_card" }),
+            },
+            {
+              icon: CreditCard,
+              label: "Crédito",
+              sub: "Las cuotas se eligen en el posnet",
+              onClick: () => setSplitGroup({ ...splitGroup, fase: "card-terminal", cardPaymentType: "credit_card" }),
+            },
+          ]}
+        />
+      )}
+
+      {splitGroup?.fase === "card-terminal" && (
+        <CobroPointDialog
+          amount={splitGroup.cardAmount}
+          paymentType={splitGroup.cardPaymentType}
+          crear={() =>
+            crearCobroSplitPoint({
+              items: itemsDeCarrito(carrito),
+              pagos: splitGroup.pagos,
+              leg_amount: splitGroup.cardAmount,
+              idempotency_key: `${splitGroup.groupId}-C`,
+              group_id: splitGroup.groupId,
+              leg_method: "card",
+              descripcion: carrito.map(lineaNombre).join(", "),
+              payment_type: splitGroup.cardPaymentType,
+            })
+          }
+          // Tarjeta acreditada → pasamos a cobrar el QR (la venta se registra al final).
+          onPagado={() => setSplitGroup({ ...splitGroup, fase: "qr-ask" })}
+          // Es la PRIMERA pata: si la terminal no está, no se cobró nada todavía → abortamos
+          // el pago dividido sin plata en juego y el cajero lo rehace.
+          onFallback={() => {
+            setSplitGroup(null);
+            setAviso({ tone: "warn", text: "No se pudo cobrar la tarjeta en la terminal. Volvé a armar el pago." });
+          }}
+          fallbackLabel="Cancelar el pago dividido"
+          onCerrar={() => setSplitGroup(null)}
+        />
+      )}
+
+      {splitGroup?.fase === "qr-ask" && (
+        <PreguntaModal
+          titulo="2 de 2 · Tarjeta cobrada. Ahora el QR, ¿dónde?"
+          monto={splitGroup.qrAmount}
+          onCerrar={() => setSplitGroup(null)}
+          opciones={[
+            {
+              icon: CreditCard,
+              label: "En el posnet",
+              sub: "El QR se genera en la terminal",
+              primary: true,
+              onClick: () => setSplitGroup({ ...splitGroup, fase: "qr-terminal" }),
+            },
+            {
+              icon: QrCode,
+              label: "En pantalla",
+              sub: "Lo escanea con el celular",
+              onClick: () => setSplitGroup({ ...splitGroup, fase: "qr-pantalla" }),
+            },
+          ]}
+        />
+      )}
+
+      {splitGroup?.fase === "qr-pantalla" && (
+        <CobroQrDialog
+          amount={splitGroup.qrAmount}
+          crear={() =>
+            crearCobroSplit({
+              items: itemsDeCarrito(carrito),
+              pagos: splitGroup.pagos,
+              leg_amount: splitGroup.qrAmount,
+              idempotency_key: `${splitGroup.groupId}-Q`,
+              group_id: splitGroup.groupId,
+              leg_method: "qr",
+              descripcion: carrito.map(lineaNombre).join(", "),
+            })
+          }
+          // QR acreditado (la tarjeta ya estaba): las dos patas cobradas → registrar.
+          onPagado={() => finalizarSplitGroup()}
+          onCerrar={() => setSplitGroup(null)}
+        />
+      )}
+
+      {splitGroup?.fase === "qr-terminal" && (
+        <CobroPointDialog
+          amount={splitGroup.qrAmount}
+          crear={() =>
+            crearCobroSplitPoint({
+              items: itemsDeCarrito(carrito),
+              pagos: splitGroup.pagos,
+              leg_amount: splitGroup.qrAmount,
+              idempotency_key: `${splitGroup.groupId}-Q`,
+              group_id: splitGroup.groupId,
+              leg_method: "qr",
+              descripcion: carrito.map(lineaNombre).join(", "),
+            })
+          }
+          onPagado={() => finalizarSplitGroup()}
+          // La terminal se trabó para el QR: lo mostramos en pantalla (misma pata, misma clave).
+          onFallback={() => setSplitGroup({ ...splitGroup, fase: "qr-pantalla" })}
+          fallbackLabel="Cobrar con QR en pantalla"
+          onCerrar={() => setSplitGroup(null)}
         />
       )}
 
@@ -1771,7 +1948,6 @@ export function PosScreen({
               montos={montos}
               setMontos={setMontos}
               qrDisponible={mpConectado}
-              posnetActivo={posnetActivo}
               pending={pending}
               onConfirmar={confirmarSplit}
               onVolver={volverAComponer}
@@ -2847,7 +3023,6 @@ function ReparteMontos({
   montos,
   setMontos,
   qrDisponible,
-  posnetActivo,
   pending,
   onConfirmar,
   onVolver,
@@ -2856,7 +3031,6 @@ function ReparteMontos({
   montos: Montos;
   setMontos: (m: Montos) => void;
   qrDisponible: boolean;
-  posnetActivo: boolean;
   pending: boolean;
   onConfirmar: () => void;
   onVolver: () => void;
@@ -2866,10 +3040,7 @@ function ReparteMontos({
   const resto = Math.round((total - suma) * 100) / 100;
   const partes = rows.filter((r) => parseMonto(montos[r.key]) > 0).length;
   const cuadra = Math.abs(resto) < 0.01;
-  // Con posnet, tarjeta Y QR son las dos asíncronas (van a la terminal): una venta lleva
-  // una sola parte electrónica (dos = análisis aparte). Sin posnet, la tarjeta es a mano.
-  const dosElectronicas = posnetActivo && parseMonto(montos.card) > 0 && parseMonto(montos.qr) > 0;
-  const listo = cuadra && partes >= 2 && !dosElectronicas;
+  const listo = cuadra && partes >= 2;
 
   function set(key: keyof Montos, v: string) {
     setMontos({ ...montos, [key]: v.replace(/[^\d.]/g, "") });
@@ -2936,15 +3107,13 @@ function ReparteMontos({
         <span>
           {listo
             ? "Listo"
-            : dosElectronicas
-              ? "Con posnet, una sola parte electrónica por venta"
-              : !cuadra
-                ? resto > 0
-                  ? "Falta"
-                  : "Te pasaste"
-                : "Usá al menos dos medios"}
+            : !cuadra
+              ? resto > 0
+                ? "Falta"
+                : "Te pasaste"
+              : "Usá al menos dos medios"}
         </span>
-        {!cuadra && !dosElectronicas && (
+        {!cuadra && (
           <span className="tabular font-semibold">{money(Math.abs(resto))}</span>
         )}
       </div>

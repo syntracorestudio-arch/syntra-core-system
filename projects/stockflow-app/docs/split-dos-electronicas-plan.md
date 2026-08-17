@@ -1,73 +1,90 @@
-# Pago dividido con DOS partes electrónicas — análisis (diferido)
+# Pago dividido con DOS partes electrónicas (tarjeta + QR) — plan de construcción
 
-> **PLAN / ANÁLISIS.** Sin código. Cómo desarrollar un split con dos tramos
-> asíncronos (ej. tarjeta al posnet + QR) en una misma venta. Nace del pedido del
-> owner (2026-07-27): "en un kiosco es raro, pero contemplémoslo". Se **difiere**
-> frente a la versión de una sola parte electrónica (Paso 3); acá queda el diseño
-> para cuando se retome.
+> **APROBADO 2026-07-27, CON REEMBOLSO desde el arranque.** Sobre la base de Cobros
+> Fase 2/3 + Pago dividido Paso 1/2/3 (PRs #180–#183). Money-critical: se construye con
+> TDD y validación en sandbox real de MP ANTES de tocar plata de verdad.
 
-## El problema central (por qué es duro, no caro)
+## Alcance
+Una venta con DOS patas electrónicas asíncronas: **tarjeta (posnet) + QR**, más efectivo.
+Cada pata es un cobro MP independiente. La venta se registra **solo cuando las dos
+acreditan**. Incluye el camino de **reembolso** para el caso "el cliente se fue con una
+pata cobrada y la otra no".
 
-Con **una** parte electrónica, el peor caso es un huérfano recuperable: la plata se
-capturó y falta registrar la venta → el banner de Caja la re-arma. Limpio.
+## El problema central
+Dos capturas independientes crean un estado que hoy no existe: **venta a medio cobrar**
+(una pata acreditada, la otra no) = plata capturada sin venta completa. No se puede
+evitar; se gestiona con **resumir** (cobrar la que falta) o **reembolsar** (devolver la
+cobrada). Ese es el núcleo de riesgo del feature.
 
-Con **dos** capturas independientes (dos pagos MP distintos), aparece un estado que
-hoy no existe: **plata capturada de un tramo y el otro sin cobrar** = una venta a
-MEDIO COBRAR. Ejemplo: efectivo $1000 + tarjeta-posnet $2000 (acredita) + QR $1500
-(el cliente se va antes de pagar). Ya hay $2000 capturados en MP y no hay venta
-completa. Eso **no se puede evitar** con dos capturas: solo se puede **gestionar**
-(resumir o reembolsar). Ese es el salto real de complejidad y de riesgo.
+## Diseño
 
-## Diseño propuesto (cuando se construya)
+### Datos (migración 030)
+- `payment_intents.split_group_id uuid` (nullable) — agrupa las patas de un mismo split.
+  Índice parcial `(store_id, split_group_id) where split_group_id is not null`.
+- `crear_intento_cobro_split` gana `p_group_id` (guarda el grupo en cada pata). El resto
+  igual: cobra SU pata (`p_leg_amount`), guarda el reparto completo (`split_pagos`).
+- Ampliar el CHECK de `payment_intents.status` con `'refunded'`.
 
-### 1. Modelo — grupo de intentos, no un intento suelto
-Cada tramo electrónico = un `payment_intent` propio (monto parcial + su método),
-todos ligados por un `split_group_id` y guardando el reparto completo + la posición
-del tramo. La venta se registra **recién cuando TODOS los tramos del grupo están
-`approved`**. Reusa `split_pagos` (ya existe) + una columna de grupo.
+### Cobro SECUENCIAL (la terminal es serie)
+Reparto con tarjeta + QR → Confirmar → la caja genera un `group_id` y cobra en orden:
+1. **Tarjeta** (débito/crédito → posnet) → acredita.
+2. *"Ahora el QR"* → **QR** (terminal/pantalla) → acredita.
+3. Recién ahí → registrar. Un cobro en dos pasos, orquestado client-side; el `group_id`
+   liga las dos patas para la recuperación.
 
-### 2. Cobro SECUENCIAL, no simultáneo
-La terminal Point es serie (un cobro por vez), y el cliente no apoya la tarjeta y
-escanea el QR al mismo tiempo. Entonces: cobrar tramo 1 → acredita → cobrar tramo 2
-→ acredita → registrar. La caja orquesta la secuencia; nunca dos MP en paralelo.
+### Registro atómico + verificación de grupo (migración 030)
+RPC `register_split_group(p_store_id, p_group_id, p_items, p_pagos, p_idempotency_key)`:
+- Verifica que **TODOS** los intentos del grupo estén `approved` (todas las patas
+  cobradas). Si falta una → `group_incomplete` (nunca registra una venta con una pata sin
+  cobrar).
+- Registra con `register_split_sale(..., p_paid=true)` y vincula los DOS intentos a la
+  venta (`sale_id`). Idempotente por la clave compartida.
 
-### 3. Registro al final, atómico
-Cuando el último tramo acredita, se llama `register_split_sale(..., p_paid=true)` con
-el reparto completo (ya soporta múltiples métodos). Igual que hoy, pero disparado por
-"todos los tramos listos" en vez de "el único tramo listo".
+### Recuperación — "venta a medio cobrar" (migración 030 + UI)
+- `grupos_a_medio_cobrar(store)`: grupos con ≥1 pata `approved`, sin venta, y NO todas
+  acreditadas. Devuelve por grupo: patas cobradas (medio + monto) y patas pendientes.
+- Banner nuevo en Caja (distinto del huérfano simple): *"Venta a medio cobrar: cobraste
+  $X con tarjeta, falta $Y en QR"* con dos salidas:
+  - **Cobrar lo que falta** (resumir): reabre el cobro de la pata pendiente con el MISMO
+    `group_id` → al acreditar, `register_split_group`.
+  - **Reembolsar y anular** (ver abajo).
 
-### 4. Recuperación = "venta a medio cobrar" (lo nuevo y crítico)
-Un estado nuevo en Caja, distinto del huérfano simple:
-- Muestra qué tramos se cobraron (✓ tarjeta $2000) y cuál falta (QR $1500).
-- **Resumir**: reabrir el cobro del tramo que falta; al acreditar, registrar la venta.
-- **Reembolsar y cancelar**: si el cliente se fue, devolver los tramos capturados con
-  la **API de reembolsos de MercadoPago** (superficie NUEVA, hoy no la usamos) y
-  anular el intento de venta.
-- Cota de tiempo: un grupo a medio cobrar vencido (>X h) se marca para revisión del
-  dueño, nunca se queda colgado silencioso.
+### Reembolso (migración 030 + lib MP + acción)
+- Lib: `mpReembolsarOrden(token, orderId)` → **API de reembolsos de MP** (verificar
+  endpoint exacto: `POST /v1/orders/{id}/refund` vs `/v1/payments/{id}/refunds`), con
+  idempotency-key propio. Devuelve la plata de una pata capturada.
+- Acción `reembolsarGrupo(group_id)` (owner-only, como recuperarVenta): reembolsa cada
+  intento `approved` del grupo, los marca `status='refunded'`, y cancela el grupo (sin
+  venta). Registra qué se reembolsó (auditoría).
+- Idempotencia dura: no reembolsar dos veces la misma pata (guardado por `status` +
+  el idempotency-key del reembolso).
 
-### 5. Guardas de integridad
-- Un solo grupo activo por caja a la vez (no dos ventas a medio cobrar mezcladas).
-- Idempotencia por tramo (misma clave → mismo intento).
-- El binding de monto por tramo (cada intent.amount = su tramo) se mantiene.
-- La venta no existe hasta que el grupo cierra → cero venta fantasma.
+### Guardas de integridad (scale-security-baseline)
+- Un grupo activo por caja a la vez (no dos ventas a medio cobrar mezcladas).
+- Idempotencia por pata (misma clave → mismo intento) y por reembolso.
+- Binding de monto por pata intacto (`intent.amount` = su pata).
+- La venta NO existe hasta que el grupo cierra → cero venta fantasma.
+- Cota: un grupo a medio cobrar vencido (>N horas) se marca para revisión del dueño.
+- Lecturas de recuperación acotadas (7 días, como `cobros_sin_venta`).
 
-## Qué hace falta que hoy no tenemos
-1. **Grupo de intentos** (`split_group_id` + orquestación secuencial).
-2. **Estado "a medio cobrar"** en Caja + flujo de **resumir**.
-3. **API de reembolsos de MP** (para el camino "el cliente se fue") — dep/superficie
-   nueva, con su propio HMAC/idempotencia y testing.
-4. Máquina de estados del grupo (qué tramo sigue, cuál falló) + su recuperación.
+## Sub-pasos de construcción (cada uno con TDD + gate)
+1. **Grupo + cobro secuencial + registro verificado** — 030 (`split_group_id`,
+   `register_split_group`, `crear_intento_cobro_split` con group_id), orquestación
+   client-side de las dos patas, tests: grupo de 2 patas que acreditan → una venta;
+   `group_incomplete` si falta una.
+2. **Recuperación "resumir"** — `grupos_a_medio_cobrar` + banner de Caja + reabrir la
+   pata pendiente. Tests: crash tras la pata 1 → estado a medio cobrar; resumir completa.
+3. **Reembolso** — `mpReembolsarOrden` (validado en sandbox MP primero), `reembolsarGrupo`,
+   el botón del banner, `status='refunded'`. Tests: reembolso de la pata cobrada → grupo
+   anulado sin plata perdida; idempotencia (no doble reembolso).
 
-## Esfuerzo y recomendación
-Es un proyecto en sí (del tamaño de todo el split), no un ajuste. El grueso del
-riesgo está en el reembolso y en la recuperación parcial. **Recomendación:** construir
-primero la versión de **una parte electrónica** (Paso 3) —cubre el 95% real— y dejar
-esto para cuando haya demanda concreta de dos electrónicas en una venta. Cuando se
-retome: TDD sobre la máquina de estados del grupo + un sandbox real de reembolsos MP
-antes de tocar plata de verdad.
+## Riesgos y orden
+El reembolso (paso 3) es el más riesgoso: mueve plata real, API nueva. Se construye
+ÚLTIMO y se valida en sandbox de MP antes de habilitarlo. Los pasos 1–2 ya dan una venta
+de dos electrónicas usable (con recuperación por "resumir"); el 3 cierra el caso del
+cliente que se fue.
 
-## Verificación (cuando se implemente)
-Tests de: grupo con 2 tramos que acreditan en orden → una sola venta split; crash
-tras el tramo 1 → estado "a medio cobrar", resumir completa la venta; reembolso del
-tramo 1 → venta anulada sin plata perdida; idempotencia por tramo; cota de vencimiento.
+## Verificación (por sub-paso)
+`tsc`/`lint`/`build` + los tests SQL nuevos + regresión de `verify-split*`. El reembolso:
+prueba end-to-end en sandbox MP (cobrar dos patas, reembolsar una, verificar el estado y
+que MP devolvió la plata) ANTES de merge. Gate visual del owner en cada UX nueva.

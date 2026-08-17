@@ -1,10 +1,24 @@
 "use server";
 
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireOwner, requireSession } from "@/lib/session";
+import { getStoreMpAuth, mpReembolsarOrden } from "@/lib/mercadopago";
 
 export type Result = { ok: true } | { ok: false; error: string };
+
+/**
+ * ¿Está habilitado el reembolso? Money-critical: mueve plata real por una API nueva de
+ * MercadoPago. Queda apagado por defecto hasta validarlo en el sandbox de MP (plan
+ * `docs/split-dos-electronicas-plan.md`). Se prende con STOCKFLOW_REEMBOLSO_HABILITADO=1.
+ *
+ * Helper interno (no exportado): en un módulo "use server" todo export debe ser una
+ * server action async. La UI lee el mismo env en el server component de la página.
+ */
+function reembolsoHabilitado(): boolean {
+  return process.env.STOCKFLOW_REEMBOLSO_HABILITADO === "1";
+}
 
 /**
  * Anular una venta.
@@ -103,5 +117,59 @@ export async function recuperarVenta(intentId: string): Promise<Result> {
   revalidatePath("/admin/caja");
   revalidatePath("/admin");
   revalidatePath("/pos");
+  return { ok: true };
+}
+
+/**
+ * Reembolsa y anula un split "a medio cobrar": el cliente se fue con una pata cobrada y
+ * la otra no. Devuelve por MercadoPago la plata de cada pata acreditada del grupo y la
+ * marca 'refunded'; el grupo queda sin venta (nunca existió). Owner-only, como la Caja.
+ *
+ * Idempotente y resumible: solo toca patas todavía 'approved' (una ya reembolsada se
+ * saltea), y el reembolso en MP lleva idempotency-key por pata → nunca devuelve dos veces.
+ * Gateado por `reembolsoHabilitado()` hasta validarlo en el sandbox de MercadoPago.
+ */
+export async function reembolsarGrupo(groupId: string): Promise<Result> {
+  const session = await requireOwner();
+  if (!z.guid().safeParse(groupId).success) return { ok: false, error: "Grupo inválido." };
+
+  if (!reembolsoHabilitado()) {
+    return {
+      ok: false,
+      error: "El reembolso todavía no está habilitado. Falta validarlo con MercadoPago.",
+    };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { data: legs } = await supabase
+    .from("payment_intents")
+    .select("id, mp_order_id")
+    .eq("store_id", session.store.id)
+    .eq("split_group_id", groupId)
+    .eq("status", "approved")
+    .is("sale_id", null);
+
+  if (!legs || legs.length === 0) {
+    return { ok: false, error: "No hay ninguna parte cobrada para reembolsar en esa venta." };
+  }
+
+  const auth = await getStoreMpAuth(session.store.id);
+  if (!auth) return { ok: false, error: "El negocio no tiene MercadoPago conectado." };
+
+  // Secuencial y resumible: si una falla, cortamos; lo ya reembolsado queda asentado y
+  // reintentar retoma desde la pata que falta (el idempotency-key evita doble devolución).
+  for (const leg of legs) {
+    if (!leg.mp_order_id) {
+      return { ok: false, error: "Una parte no tiene orden de MercadoPago; reembolsala desde tu cuenta." };
+    }
+    const r = await mpReembolsarOrden(auth.token, String(leg.mp_order_id), `refund-${leg.id}`);
+    if (!r.ok) return { ok: false, error: `No se pudo reembolsar en MercadoPago: ${r.error}` };
+    await supabase.rpc("marcar_pata_reembolsada", {
+      p_store_id: session.store.id,
+      p_intent_id: leg.id,
+    });
+  }
+
+  revalidatePath("/admin/caja");
   return { ok: true };
 }
