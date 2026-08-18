@@ -67,6 +67,50 @@ supabase db push        # aplica supabase/migrations/*.sql en orden ascendente
 - Confirmar que RLS quedó activo en todas las tablas (las migraciones lo setean; verificar
   que ninguna quedó abierta).
 
+## 2-bis. Catálogo público (SEPA) — **sin esto el escaneo no reconoce casi nada**
+
+> **Es un paso, no una tarea opcional.** Faltaba en este plan y por eso se agrega
+> con su verificación: no estaba en ningún lado, ni acá ni como script, así que
+> un despliegue prolijo terminaba igual con un catálogo vacío.
+
+Las migraciones dejan `catalogo_publico` con **36 filas** (los cigarrillos de
+`012`). Con eso, todo escaneo que no sea un atado es un *miss*: el kiosquero
+escanea una Coca y el sistema no sabe qué es.
+
+El resto del catálogo (~83.000 productos) lo trae SEPA, que **no es una
+migración ni un seed**: es un script que se corre una vez contra el proyecto ya
+desplegado.
+
+```bash
+npm run catalogo:sepa:dry     # 1) prueba sin escribir: confirma que la fuente responde
+npm run catalogo:sepa         # 2) la corrida real (tarda; descarga y descomprime ZIPs)
+```
+
+Lee las credenciales de `.env.local`. **El ZIP del día pesa ~320 MB** (medido
+corriendo el dry-run), así que no es un paso de 30 segundos: conviene hacerlo con
+buena conexión y antes de la visita al cliente, nunca durante. Fuente: SEPA
+(Subsecretaría de Defensa del Consumidor), licencia CC-BY 4.0 — sólo exige
+atribución. Se importa **únicamente
+la identidad** del producto (código, descripción, marca); los precios de las
+cadenas NO, porque cada negocio fija los suyos.
+
+**Verificación — no se da por hecho:**
+
+```sql
+select count(*) from catalogo_publico;   -- 36 ⇒ NO se corrió · ~83.000 ⇒ OK
+```
+
+Y una prueba de a pie, escaneando o buscando cuatro productos que cualquier
+kiosco tiene: **coca · quilmes · yerba · serenito**. Si aparecen con nombre, el
+catálogo está.
+
+> **Esto condiciona el claim comercial.** Sin este paso, *"vendés la misma
+> tarde"* es falso: se puede COBRAR desde el minuto uno (monto libre + alta
+> rápida), pero no *escanear y que aparezca el nombre*. Ver el bloque de
+> decisiones de `onboarding-catalogo-plan.md`.
+
+---
+
 ## 3. Storage
 
 Hoy la app no crea buckets en las migraciones (los assets — ilustraciones, imágenes de
@@ -201,6 +245,8 @@ Sin esto, los mails (alertas, reportes) caen en spam o no llegan.
 
 - [ ] Login entra y la sesión persiste.
 - [ ] Alta de negocio (onboarding) crea el store con RLS aislando su data.
+- [ ] **Catálogo SEPA corrido** (§2-bis): `select count(*) from catalogo_publico` da
+      ~83.000 y no 36, y escanear coca/quilmes/yerba/serenito devuelve el nombre.
 - [ ] Alta de producto + venta en efectivo → aparece en Caja y en el cierre.
 - [ ] Venta con QR (MP sandbox del negocio) → acredita → se registra (sin venta fantasma).
 - [ ] Fiado + pago dividido offline → imputa a cada medio; el cierre cuadra.
