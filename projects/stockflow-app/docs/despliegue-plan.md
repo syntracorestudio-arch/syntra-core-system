@@ -67,6 +67,20 @@ supabase db push        # aplica supabase/migrations/*.sql en orden ascendente
 - Confirmar que RLS quedó activo en todas las tablas (las migraciones lo setean; verificar
   que ninguna quedó abierta).
 
+## 1-bis. Cupo de Supabase — **el bloqueante nº1, y no estaba escrito**
+
+El plan gratis de Supabase admite **2 proyectos**, y los dos están ocupados: la web de
+SYNTRA y StudioFlow. **StockFlow no tiene dónde desplegarse hasta resolver eso.**
+
+No es un problema de código —la app está lista— y por eso se olvidaba: no aparece en
+ningún error ni en ningún test. Las opciones son pausar/borrar un proyecto existente, o
+pasar a plan pago.
+
+> Se anota acá porque durante semanas vivió sólo en la memoria de las sesiones. Un
+> bloqueante que no está escrito no existe para el que lee el plan.
+
+---
+
 ## 2-bis. Catálogo público (SEPA) — **sin esto el escaneo no reconoce casi nada**
 
 > **Es un paso, no una tarea opcional.** Faltaba en este plan y por eso se agrega
