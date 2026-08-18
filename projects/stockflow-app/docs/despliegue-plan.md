@@ -168,12 +168,46 @@ termina en la home **sin poder elegir contraseña**, con el token ya quemado.
 > por esto. El patrón tiene que llevar comodín (`/**`): el destino incluye
 > `?next=…` y una URL exacta no matchea.
 
-**b · SMTP apuntando a Resend** (Auth → Emails → SMTP Settings)
+**b · SMTP de Auth apuntando a Resend** (Auth → Emails → SMTP Settings)
 
 Sin esto, `/recuperar` acepta el pedido, muestra "revisá tu correo" **y el mail
 no sale nunca** — el peor modo de falla posible, porque el dueño se queda
-esperando en vez de pedir ayuda. El SMTP de Auth es independiente del
-`RESEND_API_KEY` de la app (ese lo usa el reporte mensual, no GoTrue).
+esperando en vez de pedir ayuda.
+
+> **Es un SMTP aparte del `RESEND_API_KEY` de la app.** Ese lo usa nuestro
+> código para el reporte mensual; éste lo usa **GoTrue**, que manda sus propios
+> mails (recuperación, invitación) y no pasa por nuestro código. Se configuran
+> en lugares distintos y hay que hacer los dos.
+
+**Credenciales de Resend** (verificadas contra su documentación):
+
+| Campo | Valor |
+| --- | --- |
+| Host | `smtp.resend.com` |
+| Puerto | `465` |
+| Usuario | `resend` (literal, no un email) |
+| Contraseña | la **API key** de Resend |
+| Sender | `StockFlow <no-reply@TU-DOMINIO>` |
+
+> ⚠️ **PRECONDICIÓN: dominio verificado en Resend.** Sin él, Resend sólo deja
+> mandar desde `onboarding@resend.dev` **y únicamente a la casilla con la que se
+> creó la cuenta**. Es un sandbox anti-abuso: alcanza para probarte a vos mismo
+> que la cadena funciona, y **no** para que un cliente recupere su contraseña.
+>
+> O sea: la recuperación de contraseña **no está lista para clientes hasta que
+> el dominio esté comprado y verificado**. Es la misma dependencia que ya frena
+> el launch de la web — no una nueva.
+
+**Orden de los pasos** (cada uno depende del anterior):
+
+1. Comprar el dominio.
+2. Resend → *Domains* → agregarlo y cargar los registros DNS que pide
+   (SPF/DKIM). Verificación en minutos.
+3. Supabase → *Auth → SMTP Settings* → los cinco campos de la tabla.
+4. Supabase → *Auth → URL Configuration* → `Site URL` + `https://<dominio>/**`
+   en Redirect URLs (§5.1a — sin esto el link cae en la home).
+5. Probar: pedir el link, abrirlo, confirmar que aterriza en `/cuenta` y que la
+   contraseña nueva entra.
 
 **Prueba de aceptación** (va en el checklist de §post-deploy): pedir el link
 con el email del dueño, abrirlo, y confirmar que **aterriza en `/cuenta`** y que

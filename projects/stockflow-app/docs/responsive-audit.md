@@ -1,8 +1,12 @@
 # StockFlow — Auditoría responsive / mobile
 
-> **Estado: AUDITORÍA (2026-08-03). Sin cambios de código.** Este documento es el
-> mapa de reparación: qué está roto, **por qué causa** (no por pantalla), la regla
-> que arregla cada causa, y en qué orden conviene tocarlo.
+> **Estado: CERRADA (2026-08-18). P0, P1 y P2 implementados y verificados.**
+> Se deja como referencia: las **reglas de reparación** de §3 siguen vigentes y
+> son lo que hay que aplicar a cualquier pantalla nueva. El plan por fases de §4
+> es historia — abajo, en cada fase, está el estado real.
+>
+> Este documento nació como el mapa de reparación: qué estaba roto, **por qué
+> causa** (no por pantalla), la regla que arregla cada causa, y en qué orden.
 >
 > **Disparador:** reporte del owner desde un Android real — en el POS, al escanear,
 > la hoja de alta rápida se corta y se va de la pantalla.
@@ -267,7 +271,17 @@ cortado en la caja."*
 **Dentro de cada fase: primero los componentes compartidos** — un arreglo, muchas
 pantallas.
 
-### P0 — camino de venta. Bloquean la prueba de los 20 escaneos
+### P0 — camino de venta · ✅ HECHOS
+
+> **Corrección (2026-08-18).** El título decía que estos P0 *"bloquean la prueba
+> de los 20 escaneos"*. **Era falso cuando se escribió y siguió afirmándose
+> después**: el owner hizo la prueba desde su Android y funcionó. Se dio por
+> cierto sin verificarlo, y el doc lo repitió durante dos semanas.
+>
+> Estado real, verificado ítem por ítem el 2026-08-18: los cuatro están hechos
+> — hojas acotadas con `max-h-[85dvh]` + scroll propio + safe-area,
+> `viewportFit: cover` + `interactiveWidget`, el desborde de los medios de pago,
+> y la grilla a 2 columnas (`grid-cols-2` fijo, no `auto-fill`).
 
 | # | Qué | Dónde | Clase |
 | --- | --- | --- | --- |
@@ -281,7 +295,13 @@ pantallas.
 > está fuera de la pantalla: la prueba de los 20 escaneos **no se puede completar** sin
 > el punto 1.
 
-### P1 — pantallas diarias de admin
+### P1 — pantallas diarias de admin · ✅ HECHOS
+
+> Verificados el 2026-08-18. Sólo apareció **un** pendiente, y era nuevo: el
+> diálogo de motivo de `/super` (055) escondía su propio botón con el teclado
+> abierto — arreglado con cuerpo scrolleable + acciones fijas al pie.
+> Los dos overlays que quedan sin cota son **correctos así**: el escáner es
+> full-screen a propósito y los "¿débito o crédito?" ya estaban bien.
 
 5. El `Dialog` compartido de Productos (arregla 3 diálogos de una) — `products-client.tsx:1478`
 6. El `Sheet` de los selectores de fecha (3 pantallas) — `date-pickers.tsx:80`
@@ -292,7 +312,13 @@ pantallas.
 11. Chips de categoría con nombres largos (`max-w` + `truncate`; hoja a 1 columna en mobile) — `category-chips.tsx:352`, `:251`
 12. Nombre completo donde R2 lo exige
 
-### P2 — cosmético
+### P2 — cosmético · ✅ HECHOS
+
+> Verificados el 2026-08-18, más una pasada visual a 360 sobre 12 pantallas del
+> dueño y 3 de la empleada. El barrido con detector de **contenido cortado**
+> (no de desborde) encontró dos cosas que el checklist no cubría:
+> la línea de señales de Productos se partía a mitad de palabra
+> (`247 sin …`) y "Qué se vende" mostraba fechas ISO crudas. Las dos arregladas.
 
 13. `PageHeader` a 360px (paso de tamaño del arte en mobile) — `page-header.tsx:84`
 14. Donut de Reportes que no apila — `reportes-client.tsx:630`
@@ -334,3 +360,33 @@ pantallas.
 
 **Regla que queda para el futuro:** cualquier pantalla nueva se revisa con el dataset de
 estrés, no con datos de demo. El contenido corto es el que esconde estos bugs.
+
+---
+
+## 6. Lo que queda vivo de este documento
+
+El plan por fases está cerrado. Lo que **sigue vigente y hay que aplicar a
+cualquier pantalla nueva**:
+
+1. **Las reglas de reparación de §3** — las tres bandas de altura, la regla de
+   nombres (una línea vs. dos), el manejo de teclado y safe-area.
+2. **El umbral memorizable:** *si con el teclado abierto no se ve el campo
+   enfocado + el botón primario, dejó de ser una hoja.*
+3. **El método, que es lo que encontró todo:** buscar contenido **CORTADO**, no
+   sólo desborde. Lo que se recorta dentro de una caja no mueve ninguna métrica
+   —ni scroll horizontal, ni `scrollWidth`— y por eso se escapa de cualquier
+   medición. Un detector que descarta candidatos por tener un ancestro con
+   `overflow` oculto está ciego por construcción.
+
+### Dos lecciones que costaron caro
+
+**La medición no cierra el gate; la vista sí.** Los cuatro P0 estaban hechos y
+este doc siguió dos semanas diciendo que bloqueaban la prueba de cámara, hasta
+que el owner la hizo y funcionó. Un doc que no se verifica contra el código
+envejece hacia la mentira, no hacia la nada.
+
+**Un detector demasiado angosto no detecta: se felicita.** El primer barrido de
+diálogos buscaba `max-h-[` **con corchete** y no veía las clases de escala
+(`max-h-72`): 7 falsos positivos. Es el mismo error que el barrido de permisos
+con `has_table_privilege`. Antes de confiar en un detector, hay que verlo en
+**rojo** con un caso real.
