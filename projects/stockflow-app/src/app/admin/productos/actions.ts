@@ -43,7 +43,11 @@ export async function createProduct(input: unknown): Promise<ActionResult> {
   if (barcode) {
     const { data: existente } = await supabase
       .from("product_barcodes")
-      .select("product_id, products(name)")
+      /* La FK va nombrada aunque HOY no haya ambigüedad: es la regla que salió
+         de dejar la app sin acceso (ver src/lib/session-select.ts). El día que
+         alguien agregue otra columna de `product_barcodes` a `products`, esta
+         consulta sigue andando en vez de romperse en producción. */
+      .select("product_id, products!product_barcodes_product_id_fkey(name)")
       .eq("barcode", barcode)
       .maybeSingle();
 

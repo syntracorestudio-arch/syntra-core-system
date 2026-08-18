@@ -883,3 +883,46 @@ no el del dueño tachado.
 
 `vs_prev_pct` exige un piso de **10 unidades** en el período anterior: con `> 0`
 a secas, una base de 3 unidades producía "+72.667%", que no es un dato.
+
+---
+
+## Regla · Todo embed de PostgREST nombra su FK
+
+Nace de una caída real: el **2026-08-18** la migración `055` agregó
+`members.created_by → profiles`. Con eso `members` pasó a tener **dos** caminos
+a `profiles`, PostgREST no pudo resolver el embed `profiles!inner`, devolvió
+`PGRST201`, `getSession` empezó a dar `null` y **la app quedó sin acceso**:
+todo el mundo rebotaba al login.
+
+Lo grave no fue el error, fue **cómo pasó desapercibido**: en ese momento
+estaban en verde `tsc`, `lint`, `build`, 100 tests TS y 25 suites SQL. Ninguno
+podía verlo — las suites SQL hablan con Postgres directo y los tests TS son
+lógica pura. **Nada tocaba PostgREST**, que es por donde la app habla de verdad.
+
+**La regla:**
+
+```ts
+.select("product_id, products!product_barcodes_product_id_fkey(name)")   // ✅
+.select("product_id, products(name)")                                    // ❌
+```
+
+Nombrar la FK **aunque hoy no haya ambigüedad**. Es una cadena de texto y hace
+que la consulta sobreviva a la próxima columna que apunte a la misma tabla.
+
+**Agregar una FK es un cambio con radio de acción**, no una columna más: puede
+romper una consulta que está a tres archivos de distancia y que nadie tocó.
+
+**Relaciones que hoy ya tienen doble camino** (cualquier embed sobre ellas es
+una mina si no nombra la FK):
+
+| Tabla | Apunta 2 veces a |
+| --- | --- |
+| `members` | `profiles` (`profile_id`, `created_by`) |
+| `platform_audit` | `profiles` (`actor_id`, `target_profile`) |
+| `expenses` | `members` |
+| `sales` | `members` |
+
+**La red que lo detecta:** `npm run smoke:sesion` corre la consulta real de la
+sesión —importando `SELECT_SESION`, no una copia— con un token real y las dos
+identidades. Compartir la cadena es lo que lo vuelve real: con una copia, el
+test seguiría verde mientras la app se cae.
