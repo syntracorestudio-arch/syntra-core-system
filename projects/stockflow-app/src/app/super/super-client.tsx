@@ -598,7 +598,16 @@ function DialogoDeMotivo({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-popover p-6">
+      {/* Este diálogo tiene un `textarea`, así que el teclado se abre SÍ O SÍ.
+          Medido a 360 con el teclado puesto (viewport útil 350px): el diálogo
+          entero medía 377px y "Confirmar" caía en 484 — inalcanzable, y sin
+          confirmar el negocio no se suspende.
+          Acotarlo no alcanzaba: con `max-h` el contenido entra pero el botón
+          queda ABAJO DEL SCROLL. Por eso el cuerpo scrollea y las acciones van
+          fijas al pie — que es la regla del responsive-audit para hojas, no una
+          invención. */}
+      <div className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-popover">
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
         <h2 className="text-lg font-semibold">{titulo}</h2>
         {pedido.tipo === "estado" && !pedido.valor && (
           /* Se dice lo que realmente pasa: suspender apaga la caja de un
@@ -626,7 +635,10 @@ function DialogoDeMotivo({
           {suficiente ? "Listo." : "Faltan " + (10 - motivo.trim().length) + " caracteres."}
         </p>
 
-        <div className="mt-5 flex justify-end gap-2">
+        </div>
+
+        {/* Fijas al pie: se ven siempre, con el teclado abierto o cerrado. */}
+        <div className="flex shrink-0 justify-end gap-2 border-t border-border bg-popover px-6 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={onCancelar}
