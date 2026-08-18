@@ -7,7 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "catalogo:sepa": "node scripts/importar-sepa.mjs",
+    "catalogo:sepa:dry": "node scripts/importar-sepa.mjs --dry-run"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

@@ -417,6 +417,122 @@ server-side).
 
 ---
 
+## G-bis. DECISIONES DEL OWNER (2026-08-18) — congeladas
+
+> Las de abajo (§G) quedan como el registro de qué se preguntó y por qué. Éstas
+> son las respuestas, y mandan.
+
+### #5 · El onboarding va INCLUIDO, con tope de 90 minutos
+
+La visita C-lite es parte del precio; la caminata completa de 3-4 h es el único
+**add-on pago** (semana 3, y casi nadie lo va a pedir).
+
+**Por qué.** Con cero clientes, el recurso escaso no es el margen —el pitch ya
+regala el primer mes— sino el **aprendizaje**. Cobrar el setup aparte le mete al
+escéptico una segunda decisión de compra justo antes de ver valor. Y el seguro
+que exigiría el modelo pago **ya está construido**: alta desde la caja con
+costo→precio por margen y redondeo, escape de monto libre, alta desde Ingreso,
+card de puesta en marcha. La UX ya sobrevive a un dueño solo.
+
+**El tope de 90 min es parte de la decisión**, no una aspiración: sin él,
+"incluido" se convierte en soporte infinito. Escala hasta ~15-20 clientes; a
+partir de ahí se reemplaza por video + la card, **no cobrando**.
+
+**Qué lo refutaría:** si el piloto necesita una segunda visita o más de 2 h, el
+add-on pago tiene mercado.
+
+### #6 · El claim honesto (y el que queda PROHIBIDO)
+
+> ✅ **"A la tarde ya estás cobrando con el sistema. El catálogo se completa solo
+> la primera semana: cada producto lo cargás una sola vez, cuando lo vendés."**
+>
+> ❌ **"Tu catálogo cargado la misma tarde."** — no se dice, ni en la web, ni en
+> el pitch, ni en un mail.
+
+**Por qué el fuerte no se sostiene.** Las migraciones dejan `catalogo_publico`
+con **36 filas**; el resto lo trae SEPA, que hasta hoy no estaba ni en el plan de
+despliegue ni como script. Sin ese paso, todo escaneo que no sea un atado de
+cigarrillos es un miss, y la matemática de §C.4 —que asume ~80% de acierto— no
+aplica. Lo que **sí** se sostiene desde el minuto uno es COBRAR: monto libre y
+alta rápida con precio en un campo.
+
+**Cerrado en el mismo movimiento:** SEPA es ahora el paso **2-bis** de
+`despliegue-plan.md`, con `npm run catalogo:sepa` y su verificación.
+
+**Cuándo se puede endurecer el claim:** con SEPA corrido y las probes en verde,
+pasa a *"escaneás y el nombre aparece"*. La card de puesta en marcha ya calcula
+el % de líneas con scan automático: día 1 ≥50% y día 7 ≥90% lo habilitan;
+día 1 <25% lo refuta y el problema es cobertura, no diseño.
+
+### #10 · C-lite aprobado — con una trampa operativa que hay que conocer
+
+**El bloque de cigarrillos se hace en "Recibí mercadería"** (no existe pantalla
+de carga inicial; verificado).
+
+> ⚠️ **Hay que completar "¿cuántos quedan en total?".** El trigger de `037`
+> gradúa `stock_confiable` sólo con asientos `initial`/`adjust`: **una compra
+> sola NO gradúa**. Si en la visita se escanea y se pone cantidad sin el total,
+> los cigarrillos quedan sin alertas de stock y el bloque no compró nada.
+
+**Los 90 minutos, en orden:** 10′ setup (margen default, redondeo, medios y
+alias, empleado con permisos) · **40′ cigarrillos escaneados con el total
+contado** · 10′ tiles de sueltos y fraccionados (es como se venden de verdad) ·
+10′ una venta real de prueba + briefing del escape (monto libre) y de dónde
+mirar la card · 15′ colchón.
+
+**Afuera, y dicho en la venta:** góndola completa, costos de todo, categorías,
+vencimientos, y **la conexión de MercadoPago** — es tarea del dueño con su token
+y su webhook (`despliegue-plan.md` §5.2); hacerla en la visita se come 20 min.
+
+**Si se pasa de 90 min, se recortan los tiles — nunca el conteo de cigarrillos.**
+
+### #1 y #3 · El input universal es el REMITO, no el archivo
+
+**No se invierte un peso más en import de archivos.** El CSV que ya existe cubre
+al que tiene sistema (detecta separador `;`/`,`/tab/`|`, decodifica Latin-1 de
+Excel viejo, mapeo con preview, cap de 500 filas) y **se congela**.
+
+**Por qué la respuesta de mercado no cambia la decisión:** la lista del proveedor
+llega en un formato universal e ineludible — **papel**. Un kiosco puede no tener
+sistema, ni Excel, ni email; remito tiene siempre. Por eso la apuesta robusta es
+el lector de remito por foto, que ya está cableado a Ingreso y sirve igual en los
+dos escenarios.
+
+**Riesgo asumido:** el cap de 500 filas parte un export de 1.200 SKUs en tres
+tandas. Molesto, tolerable con el operador al lado.
+
+### #7 · NO se agrega dependencia de xlsx
+
+El paquete clásico `xlsx` (SheetJS Community) **está abandonado en npm con dos
+vulnerabilidades *high* sin fix** (prototype pollution y ReDoS); el mantenedor se
+pasó a un modelo pago. Meter eso en una app que maneja plata no se justifica por
+una conversión que el usuario hace en un clic.
+
+El camino sin dependencia **ya está construido y explicado en la UI**
+(`import-dialog.tsx`: *"Si tenés un Excel, abrilo y usá 'Guardar como → CSV'"*).
+
+**Si un cliente real choca contra esto**, se revisa con `read-excel-file` o
+ExcelJS — **nunca con `xlsx`**.
+
+### #2 · El lector USB es parte del kit, no un accesorio
+
+**Safari no implementa `BarcodeDetector`, y en iOS todos los navegadores usan
+WebKit** ⇒ instalar Chrome tampoco sirve. No hay anuncio de que Apple lo vaya a
+agregar. El escáner ya degrada con el mensaje correcto
+(`camera-scanner.tsx`: *"Usá el lector o buscá por nombre"*), pero para un
+kiosquero con iPhone **el lector es la única forma de escanear**.
+
+La prueba de los 20 escaneos se hizo en Android, donde la cámara sí anda: esa
+prueba **no cubre** al cliente con iPhone.
+
+### Sigue abierta
+
+**#9 · el techo de ≤10 s por miss en mostrador** es presupuesto de diseño, no
+dato medido. Se valida con el primer cliente real; no hay forma de contestarlo
+antes.
+
+---
+
 ## G. Preguntas abiertas para el owner
 
 1. ¿Los kioscos target suelen tener sistema previo con export (CSV/Excel)?
