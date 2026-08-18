@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "./supabase/server";
+import { SELECT_SESION } from "./session-select";
 
 /**
  * Contexto del usuario logueado: quién es, en qué negocio opera y qué puede hacer.
@@ -70,13 +71,20 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
 
   const { data, error } = await supabase
     .from("members")
+    /* La FK del embed va EXPLÍCITA (`!members_profile_id_fkey`), y no es
+       cosmético: `members` tiene DOS caminos a `profiles` desde que la 055
+       agregó `created_by`. Con `profiles!inner` a secas PostgREST no puede
+       desambiguar, devuelve PGRST201, y esta consulta falla ENTERA ⇒
+       `getSession` da null ⇒ TODO el mundo rebota al login.
+
+       Pasó de verdad: la 055 dejó la app sin acceso y no lo vio NI UN test —
+       tsc, lint, build y 25 suites SQL en verde, porque ninguna prueba tocaba
+       un embed de PostgREST.
+
+       Regla: todo embed nombra su FK. Así, el día que alguien agregue otra
+       columna apuntando a la misma tabla, esta consulta ni se entera. */
     .select(
-      `id, role, display_name, can_sell_on_credit, can_apply_discount,
-       can_void_sale, can_receive_stock, can_see_costs, usuario,
-       can_close_register, can_see_reports,
-       profile:profiles!inner ( must_change_password ),
-       store:stores!inner ( id, name, slug, timezone, branding, status, vertical, ai_assistant_enabled )`,
-    )
+SELECT_SESION)
     .eq("profile_id", auth.user.id)
     .eq("status", "active")
     /* 049 · un negocio suspendido desde /super NO opera. Era el único

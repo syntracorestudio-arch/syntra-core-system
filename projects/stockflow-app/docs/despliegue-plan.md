@@ -243,6 +243,10 @@ Sin esto, los mails (alertas, reportes) caen en spam o no llegan.
 
 ## 9. Smoke-test en producción (checklist, con una cuenta de prueba)
 
+- [ ] **`npm run smoke:sesion` en verde** — corre la consulta REAL de la sesión
+      contra PostgREST con las dos identidades (dueño con email real y empleado
+      con email sintético). Va PRIMERO: si esto está rojo, nadie puede entrar y
+      el resto del checklist da igual.
 - [ ] Login entra y la sesión persiste.
 - [ ] Alta de negocio (onboarding) crea el store con RLS aislando su data.
 - [ ] **Catálogo SEPA corrido** (§2-bis): `select count(*) from catalogo_publico` da
