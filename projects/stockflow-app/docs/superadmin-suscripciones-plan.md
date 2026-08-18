@@ -19,6 +19,8 @@ dimensionada, por buena que sea.
 | **Medio de cobro** | **transferencia a alias**, sin integración de pagos |
 | **El panel** | **se queda en `/super`**, se endurece, no se muda |
 | **Rediseño del login** | **autorizado** — se reescribe el reference-lock después del OK sobre el prototipo vivo |
+| **Primer mes** | **GRATIS** — la suscripción arranca a cobrarse recién el mes siguiente |
+| **Avisos de cobranza** | **email + in-app**. Push **NO** (ver §E) |
 | **Condición fiscal** | ⚠️ ver §G — hay que resolverlo antes de cobrarle al primer cliente |
 
 ---
@@ -193,9 +195,38 @@ Toda la integración de MP (migraciones 025-033) es el cobro **del kiosco a su c
 final**. Cobrar suscripciones sería una integración **nueva de punta a punta** — OAuth
 propio, webhooks propios, conciliación — no un reuso de lo que hay.
 
+### El mes gratis — y la ambigüedad que hay que cerrar ahora
+
+**Decisión del owner: el primer mes es de prueba; se cobra desde el siguiente.**
+
+Suena inequívoco y no lo es. Si un negocio se da de alta el **20 de agosto**, ¿el primer
+período cobrado es septiembre (vence 10/09, o sea 21 días de prueba) u octubre (vence
+10/10, o sea ~50 días)? Las dos lecturas son defendibles y la diferencia es un mes de
+plata — con el primer cliente enfrente, esa discusión es la peor posible.
+
+**Regla propuesta, y el criterio detrás:**
+
+> **El primer período que se cobra es el primer mes calendario que EMPIEZA después de que
+> se cumple un mes del alta.**
+
+| Alta | Prueba termina | Primer período cobrado | Vence | Prueba real |
+| --- | --- | --- | --- | --- |
+| 01/08 | 31/08 | septiembre | 10/09 | 30 días |
+| 20/08 | 19/09 | octubre | 10/10 | ~50 días |
+
+**Por qué así y no al revés:** el error posible siempre cae del lado de regalar unos días,
+**nunca de cobrarle a alguien que tuvo menos de un mes gratis**. Con un cliente que todavía
+está decidiendo si el sistema le sirve, ese es el lado correcto para equivocarse — y evita
+la conversación de *"pero vos me dijiste un mes"*.
+
+**Consecuencia de datos:** `subscriptions` necesita **`trial_ends_on`** (fecha, editable por
+el owner con default `alta + 30 días`) y **`first_billed_period`** derivado. El estado de
+prueba **no** es un valor de `status` más: es una fecha, y de ahí sale todo lo demás.
+
 ### Modelo de datos (contrato a congelar antes del SQL)
 
-- **`subscriptions`** — una por negocio: precio mensual, día de vencimiento, estado.
+- **`subscriptions`** — una por negocio: precio mensual, día de vencimiento (10),
+  **`trial_ends_on`**, estado.
 - **`subscription_payments`** — **append-only**: fecha, monto, período cubierto, medio,
   quién lo marcó. Es lo que permite contestar *"quién me debe"* con honestidad: **sin
   historial, el estado es una opinión**.
@@ -254,6 +285,28 @@ semana. Reclamarle a alguien que ya pagó es peor que reclamar un día más tard
 **Los 15 días del 10 al 25** son deliberados: es un servicio que el kiosco usa para vender
 todos los días. Cortarle la caja rápido no acelera el cobro — le rompe el día y transforma
 un atraso en una baja.
+
+### Decisión de canales (owner, 2026-08-18): email + in-app · **push NO**
+
+| Canal | Veredicto | Por qué |
+| --- | --- | --- |
+| **Email** | ✅ **columna vertebral** | Es el **único que sobrevive a la suspensión** (ver abajo), y su destinatario se resuelve en SQL por `role='owner'` (`020:68-74`): estructuralmente imposible que lo lea un empleado |
+| **In-app** | ✅ **refuerzo** de los pasos previos (7, 12, 18) | El kiosquero abre la app todos los días; el mail puede no leerlo en una semana. La tabla ya tiene RLS owner-only (`002:214-223`) — falta que alguien la lea |
+| **Push** | ❌ **no** | Dos motivos independientes ↓ |
+
+**Por qué push no, aunque arregláramos la fuga:**
+
+1. **Hoy filtra.** `sendPushToStore` sin `memberId` manda a **todas** las suscripciones del
+   negocio (`push.ts:55-59`), y un empleado puede tener una (se suscribe desde
+   `/admin/vencimientos`, staff-accessible). Le llega al teléfono del cajero.
+2. **El formato es el equivocado, aun arreglado.** Una burbuja de deuda **aparece sola** en
+   una pantalla que puede estar boca arriba sobre el mostrador, con clientes al lado. El
+   mail y el aviso in-app exigen que el dueño los ABRA; el push se muestra solo. Para "te
+   falta pagar", esa diferencia es toda la diferencia.
+
+> La fuga de `push.ts` **igual hay que arreglarla** — no por la cobranza, sino porque hoy
+> cualquier aviso del negocio le llega al empleado. Deja de ser bloqueante de esta feature
+> y pasa a ser deuda propia.
 
 ### La trampa que hay que resolver en el diseño
 
@@ -408,11 +461,9 @@ vencimiento (día 10), rediseño del login (autorizado).
 1. **La inscripción fiscal** (§G). "Consumidor final" no habilita a facturar. Con un
    contador, antes del primer cobro — no antes del primer despliegue.
 
-**Y una que no había preguntado y ahora importa:**
-
-2. **¿El primer cliente paga desde el mes 1, o hay período de gracia?** Cambia si el alta de
-   un negocio arranca la suscripción o si hay que poder diferirla. Es una columna, pero
-   conviene decidirlo antes de congelar el contrato de `subscriptions`.
+**Contestada también:** el primer mes es gratis (ver §D). La regla exacta de qué mes se
+cobra primero quedó propuesta ahí y necesita un OK — es la única parte del mes de prueba
+que admite dos lecturas.
 
 ---
 
