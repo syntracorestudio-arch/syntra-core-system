@@ -792,12 +792,18 @@ function IndiceCategorias({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{c.name}</p>
                 {(stockBajo > 0 || sinCosto > 0) && (
-                  <p className="tabular truncate text-xs">
+                  /* `flex-wrap` y NO `truncate`: a 360px las dos señales juntas
+                     ("35 con poco stock · 247 sin costo") no entran en los 165px
+                     de la fila, y `truncate` las cortaba a mitad de palabra —
+                     quedaba "247 sin …", que no informa nada y se lee como un
+                     bug. Es metadato secundario: que ocupe dos renglones cuesta
+                     menos que dejar media frase colgada.
+                     El separador se dibuja con `before:` sólo cuando hay dos
+                     chips y quedan en la misma línea; al bajar de renglón no
+                     aparece un "·" huérfano al principio. */
+                  <p className="tabular flex flex-wrap items-center gap-x-1.5 text-xs">
                     {stockBajo > 0 && (
                       <span className="text-warning-ink">{stockBajo} con poco stock</span>
-                    )}
-                    {stockBajo > 0 && sinCosto > 0 && (
-                      <span className="text-muted-foreground"> · </span>
                     )}
                     {sinCosto > 0 && (
                       <span className="text-muted-foreground">{sinCosto} sin costo</span>

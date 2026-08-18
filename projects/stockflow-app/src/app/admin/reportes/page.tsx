@@ -2,7 +2,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { clampAnchor, isYMD, rangeFor, todayInTz } from "@/lib/date";
+import { clampAnchor, formatRangeLabel, isYMD, rangeFor, todayInTz } from "@/lib/date";
 import {
   ReportesClient,
   type ReportesData,
@@ -62,7 +62,10 @@ export default async function ReportesPage({
       >
         <ReposicionClient
           data={(repo ?? null) as ReposicionData | null}
-          subtitulo={`Del ${from} al ${to}`}
+          /* Fecha legible, no ISO. Decía "Del 2026-08-01 al 2026-08-31": un
+             kiosquero no escribe así una fecha, y el formateador ya existía en
+             `lib/date` — esta pantalla simplemente no lo usaba. */
+          subtitulo={formatRangeLabel(periodo, from, to)}
         />
       </AppShell>
     );
