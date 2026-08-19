@@ -383,6 +383,13 @@ Ante cualquier tarea no trivial:
    `visual-quality-director`, `automation-architect`) son read-only; los engineers
    (Opus) implementan.
 5. `qa-performance-guard` valida antes de cerrar cualquier trabajo web.
+5b. **Verificación independiente.** Todo cambio que toque **datos, auth, roles,
+   permisos, migraciones o dinero** cierra con `security-adversary` en verde y
+   `/code-review` sobre el diff, además del QA técnico. Si el verificador falla:
+   vuelve al implementador, se re-verifica con un verificador **nuevo** (fresco,
+   nunca continuado), y a la **3ª iteración sin converger se escala al owner**.
+   Un hallazgo CRÍTICO de seguridad **no se itera: frena**. Detalle y por qué:
+   `docs/arquitectura-agentica-plan.md`.
 6. Para automatizaciones:
    `automation-architect` → `n8n-workflow-engineer` → `automation-qa-reliability-guard`.
 7. Antes de commits: `git status` + commits atómicos; no mezclar temas.
