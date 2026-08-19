@@ -331,3 +331,137 @@ export async function marcarPagoSuscripcion(
   revalidatePath("/super");
   return { ok: true };
 }
+
+/**
+ * Alta de la suscripción de un negocio.
+ *
+ * NO recibe fechas, y eso es el arreglo. Antes las suscripciones se cargaban a
+ * mano en la base, y la verificación adversarial midió dos tipeos plausibles
+ * que terminaban en cortes indebidos: `cobra_desde` con la fecha del alta
+ * (corte a los 5 días, con 15 de "atraso") y `prueba_hasta` solapado con
+ * `cobra_desde` (deber el mes que era gratis). Un campo que no existe no se
+ * puede tipear mal: acá se elige precio y si lleva mes de prueba, y la base
+ * calcula el resto.
+ */
+export async function crearSuscripcion(
+  storeId: string,
+  precio: number,
+  conPrueba: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  const { userId } = await requireSuperadmin();
+  if (!(await limitarSuper(userId))) {
+    return { ok: false, error: "Demasiadas acciones seguidas. Esperá un minuto." };
+  }
+  if (!z.guid().safeParse(storeId).success) {
+    return { ok: false, error: "Negocio inválido." };
+  }
+  if (!Number.isFinite(precio) || precio <= 0) {
+    return { ok: false, error: "El precio tiene que ser mayor a cero." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("crear_suscripcion", {
+    p_store_id: storeId,
+    p_precio: precio,
+    p_actor: userId,
+    p_con_prueba: conPrueba,
+  });
+
+  if (error) {
+    const m = error.message;
+    return {
+      ok: false,
+      error: m.includes("ya_tiene_suscripcion")
+        ? "Ese negocio ya tiene un plan."
+        : m.includes("precio_invalido")
+          ? "El precio tiene que ser mayor a cero."
+          : "No pudimos crear el plan.",
+    };
+  }
+
+  revalidatePath("/super");
+  return { ok: true };
+}
+
+/**
+ * Cambiar el precio mensual.
+ *
+ * Rige desde el mes SIGUIENTE y no toca lo adeudado: decisión del owner —
+ * "si un cliente está moroso, el valor de los meses que deba queda congelado".
+ * Antes, subir la cuota le subía retroactivamente la deuda a quien ya debía,
+ * sin que nadie pagara ni dejara de pagar.
+ */
+export async function cambiarPrecioSuscripcion(
+  storeId: string,
+  precio: number,
+  motivo: string,
+): Promise<{ ok: boolean; error?: string; desde?: string }> {
+  const { userId } = await requireSuperadmin();
+  if (!(await limitarSuper(userId))) {
+    return { ok: false, error: "Demasiadas acciones seguidas. Esperá un minuto." };
+  }
+  if (!z.guid().safeParse(storeId).success) {
+    return { ok: false, error: "Negocio inválido." };
+  }
+  if (!Number.isFinite(precio) || precio <= 0) {
+    return { ok: false, error: "El precio tiene que ser mayor a cero." };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("cambiar_precio_suscripcion", {
+    p_store_id: storeId,
+    p_precio: precio,
+    p_motivo: motivo,
+    p_actor: userId,
+  });
+
+  if (error) {
+    const m = error.message;
+    return {
+      ok: false,
+      error: m.includes("motivo_requerido")
+        ? "Poné el motivo del cambio (mínimo 10 caracteres)."
+        : m.includes("sin_suscripcion")
+          ? "Ese negocio no tiene un plan asignado."
+          : "No pudimos cambiar el precio.",
+    };
+  }
+
+  revalidatePath("/super");
+  return { ok: true, desde: (data as { desde?: string } | null)?.desde };
+}
+
+/** Dar de baja (o reactivar) la suscripción. No borra el historial de pagos. */
+export async function cancelarSuscripcion(
+  storeId: string,
+  motivo: string,
+  reactivar = false,
+): Promise<{ ok: boolean; error?: string }> {
+  const { userId } = await requireSuperadmin();
+  if (!(await limitarSuper(userId))) {
+    return { ok: false, error: "Demasiadas acciones seguidas. Esperá un minuto." };
+  }
+  if (!z.guid().safeParse(storeId).success) {
+    return { ok: false, error: "Negocio inválido." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("cancelar_suscripcion", {
+    p_store_id: storeId,
+    p_motivo: motivo,
+    p_actor: userId,
+    p_reactivar: reactivar,
+  });
+
+  if (error) {
+    return {
+      ok: false,
+      error: error.message.includes("motivo_requerido")
+        ? "Poné el motivo (mínimo 10 caracteres)."
+        : "No pudimos actualizar el plan.",
+    };
+  }
+
+  revalidatePath("/super");
+  return { ok: true };
+}
