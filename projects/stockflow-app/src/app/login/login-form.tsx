@@ -12,6 +12,7 @@ import {
   User,
   Store,
 } from "lucide-react";
+import Link from "next/link";
 import { signIn, type LoginState } from "./actions";
 
 /* Form directo sobre el fondo (sin card con borde): en el split panel la caja
@@ -26,9 +27,14 @@ import { signIn, type LoginState } from "./actions";
 export function LoginForm({
   modo,
   slug,
+  nombreKiosco,
 }: {
   modo: "duenio" | "empleado";
   slug?: string;
+  /* El nombre lindo del negocio recordado ("Kiosco El Trébol"). Puede faltar
+     cuando el empleado llega por link: ahí se muestra el slug y NO se inventa
+     un nombre. */
+  nombreKiosco?: string | null;
 }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(signIn, {});
   const [verClave, setVerClave] = useState(false);
@@ -57,9 +63,11 @@ export function LoginForm({
                 dispara por cantidad de intentos, no por la causa que devolvió
                 el server. Resuelve el caso real —clave correcta, kiosco
                 equivocado— que si no termina en una llamada al dueño. */}
-            {empleado && slug && fallos >= 2 && (
+            {/* Al PRIMER fallo y no al segundo: el caso real —clave correcta,
+                negocio equivocado— no mejora haciéndole repetir el intento. */}
+            {empleado && slug && fallos >= 1 && (
               <span className="mt-1 block text-xs">
-                ¿El negocio de arriba es el tuyo? Tocá «No es acá» para cambiarlo.
+                ¿Es este tu negocio? Tocá «Cambiar» para elegir otro.
               </span>
             )}
           </span>
@@ -99,7 +107,44 @@ export function LoginForm({
           </div>
         </div>
       )}
-      {empleado && slug && <input type="hidden" name="kiosco" value={slug} />}
+      {empleado && slug && (
+        <div className="space-y-1.5">
+          {/* LA MEMORIA VIVE ADENTRO DEL CAMPO QUE REEMPLAZA.
+              Antes era un chip aparte con un link «No es acá»: una fila que se
+              anunciaba a sí misma y una salida redactada como disculpa, sobre
+              algo que el usuario nunca tipeó. Acá ocupa el lugar exacto del
+              campo que se ahorró, con la misma altura y el mismo borde — se lee
+              como "esto ya está resuelto", no como un cartel.
+
+              El dato vale: en el terminal del mostrador evita que tres personas
+              por turno tipeen un slug. Lo que estaba mal era la forma. */}
+          <div className="flex items-baseline justify-between gap-2">
+            <label className="text-sm font-medium">Negocio</label>
+          </div>
+          <div className="flex h-11 items-center gap-2 rounded-xl border border-transparent bg-secondary/60 pl-3 pr-1.5">
+            <Store className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            {/* Si sólo hay slug, se muestra el slug en monoespaciada: es un
+                código, y mostrarlo como tal evita que parezca un nombre mal
+                escrito. Nunca se inventa el nombre. */}
+            <span
+              className={
+                nombreKiosco
+                  ? "min-w-0 flex-1 truncate text-sm text-foreground"
+                  : "min-w-0 flex-1 truncate font-mono text-[13px] text-foreground"
+              }
+            >
+              {nombreKiosco ?? slug}
+            </span>
+            <Link
+              href="/login?cambiar=1"
+              className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
+            >
+              Cambiar
+            </Link>
+          </div>
+          <input type="hidden" name="kiosco" value={slug} />
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <label htmlFor={empleado ? "usuario" : "email"} className="text-sm font-medium">
