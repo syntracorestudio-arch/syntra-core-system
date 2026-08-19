@@ -359,3 +359,126 @@ begin
 end $$;
 rollback;
 \echo 'OK 8 · service_role lee las dos tablas'
+
+\echo ''
+\echo '== 9 · 062 · el precio de cada mes queda CONGELADO =='
+begin;
+do $$
+declare
+  v_store uuid := '11111111-1111-1111-1111-111111111111';
+  v_res   jsonb;
+  v_deuda numeric;
+begin
+  delete from public.subscription_payments where store_id = v_store;
+  delete from public.subscription_prices   where store_id = v_store;
+  insert into public.subscriptions (store_id, precio_mensual, prueba_hasta, cobra_desde)
+  values (v_store, 60000, null, '2026-06-01')
+  on conflict (store_id) do update set precio_mensual = 60000,
+    prueba_hasta = null, cobra_desde = '2026-06-01', estado = 'activa';
+  insert into public.subscription_prices (store_id, desde, precio, motivo)
+  values (v_store, '2026-06-01', 60000, 'inicial');
+
+  -- Debe junio, julio y agosto a $60.000 = $180.000
+  v_res := public.estado_suscripcion(v_store, '2026-08-20');
+  if (v_res->>'deuda')::numeric <> 180000 then
+    raise exception 'FALLO 9.a: la deuda base es %', v_res->>'deuda';
+  end if;
+
+  /* La decision del owner: "si un cliente esta moroso el valor de los meses que
+     deba los vamos a dejar congelados". Antes de 062, `deuda` se calculaba como
+     meses x precio ACTUAL, asi que subir la cuota le subia retroactivamente lo
+     adeudado sin que nadie pagara ni dejara de pagar. */
+  insert into public.subscription_prices (store_id, desde, precio, motivo)
+  values (v_store, '2026-09-01', 90000, 'aumento');
+  update public.subscriptions set precio_mensual = 90000 where store_id = v_store;
+
+  v_res := public.estado_suscripcion(v_store, '2026-08-20');
+  v_deuda := (v_res->>'deuda')::numeric;
+  if v_deuda <> 180000 then
+    raise exception 'FALLO 9.b: tras el aumento la deuda VIEJA paso a % — se re-tarifo', v_deuda;
+  end if;
+
+  -- Y septiembre, cuando venza, si vale el precio nuevo.
+  v_res := public.estado_suscripcion(v_store, '2026-09-20');
+  if (v_res->>'deuda')::numeric <> 270000 then
+    raise exception 'FALLO 9.c: septiembre deberia sumar $90.000 (total 270000), vino %', v_res->>'deuda';
+  end if;
+end $$;
+rollback;
+\echo 'OK 9 · el aumento no toca los meses viejos · el mes nuevo si vale el precio nuevo'
+
+\echo ''
+\echo '== 10 · 062 · el alta no deja tipear fechas =='
+begin;
+do $$
+declare
+  v_store uuid := '22222222-2222-2222-2222-222222222222';
+  v_sub   public.subscriptions;
+  v_esp   date;
+begin
+  delete from public.subscription_prices   where store_id = v_store;
+  delete from public.subscription_payments where store_id = v_store;
+  delete from public.subscriptions         where store_id = v_store;
+
+  /* Los dos tipeos que midio el verificador (cobra_desde con la fecha del alta,
+     y prueba_hasta solapado con cobra_desde) dejan de ser posibles: el alta no
+     recibe fechas. Un campo que no existe no se puede tipear mal. */
+  v_sub := public.crear_suscripcion(v_store, 60000, null, true);
+
+  -- La prueba dura UN MES desde el alta, no hasta fin de mes.
+  if v_sub.prueba_hasta <> (current_date + interval '1 month')::date then
+    raise exception 'FALLO 10.a: prueba_hasta = %', v_sub.prueba_hasta;
+  end if;
+
+  -- Y se cobra desde el mes SIGUIENTE al que termina la prueba.
+  v_esp := (date_trunc('month', (current_date + interval '1 month')) + interval '1 month')::date;
+  if v_sub.cobra_desde <> v_esp then
+    raise exception 'FALLO 10.b: cobra_desde = % y deberia ser %', v_sub.cobra_desde, v_esp;
+  end if;
+
+  -- Durante la prueba no debe nada, que era el otro tipeo peligroso.
+  if public.estado_suscripcion(v_store, current_date + 5)->>'estado' <> 'prueba' then
+    raise exception 'FALLO 10.c: al alta con prueba ya le reclama';
+  end if;
+
+  -- ---- 10.d · no se duplica ---------------------------------------------
+  begin
+    perform public.crear_suscripcion(v_store, 60000, null, true);
+    raise exception 'FALLO 10.d: creo una segunda suscripcion para el mismo negocio';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> 'ya_tiene_suscripcion' then raise; end if;
+  end;
+end $$;
+rollback;
+\echo 'OK 10 · las fechas las calcula la base · un mes de prueba real · no se duplica'
+
+\echo ''
+\echo '== 11 · 062 · el aumento rige desde el mes que viene, con motivo =='
+begin;
+do $$
+declare
+  v_store uuid := '11111111-1111-1111-1111-111111111111';
+  v_res   jsonb;
+begin
+  insert into public.subscriptions (store_id, precio_mensual, cobra_desde)
+  values (v_store, 60000, '2026-06-01')
+  on conflict (store_id) do update set precio_mensual = 60000, estado = 'activa';
+
+  -- ---- 11.a · sin motivo no se cambia el precio -------------------------
+  begin
+    perform public.cambiar_precio_suscripcion(v_store, 90000, 'corto', null);
+    raise exception 'FALLO 11.a: acepto un motivo de 5 caracteres';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> 'motivo_requerido' then raise; end if;
+  end;
+
+  -- ---- 11.b · rige desde el mes SIGUIENTE -------------------------------
+  /* Nunca desde el mes en curso: si ya pago este mes y se lo subimos a mitad,
+     pasaria a deber la diferencia de un mes que ya saldo. */
+  v_res := public.cambiar_precio_suscripcion(v_store, 90000, 'aumento por inflacion acumulada', null);
+  if (v_res->>'desde')::date <> (date_trunc('month', current_date) + interval '1 month')::date then
+    raise exception 'FALLO 11.b: el precio nuevo rige desde %', v_res->>'desde';
+  end if;
+end $$;
+rollback;
+\echo 'OK 11 · motivo obligatorio · el precio nuevo rige desde el mes que viene'

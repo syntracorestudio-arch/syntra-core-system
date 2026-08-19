@@ -13,6 +13,7 @@ import {
   Play,
   LogOut,
   Sparkles,
+  SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -22,6 +23,7 @@ import {
   marcarPagoSuscripcion,
   type AltaResult,
 } from "./actions";
+import { DialogoPlan } from "./plan-dialog";
 import { signOut } from "@/app/login/actions";
 import { haceCuanto } from "@/app/admin/fiado/fiado-client";
 
@@ -93,6 +95,13 @@ export function SuperClient({
   /* 057 · marcar un pago es un acto CONTABLE: abre diálogo, no se dispara de un
      click. Un pago marcado por error deja al cliente "al día" sin haber pagado
      y no hay forma de notarlo después. */
+  /* 062 · el alta y la edición del plan. Antes esto se hacía con SQL a mano y
+     dos tipeos plausibles terminaban en cortes indebidos. */
+  const [editandoPlan, setEditandoPlan] = useState<{
+    storeId: string;
+    nombre: string;
+    sub: Suscripcion;
+  } | null>(null);
   const [cobrando, setCobrando] = useState<
     { storeId: string; nombre: string; sub: Suscripcion } | null
   >(null);
@@ -251,8 +260,29 @@ export function SuperClient({
                   onMarcarPago={() =>
                     setCobrando({ storeId: s.id, nombre: s.name, sub: s.suscripcion })
                   }
+                  onEditarPlan={() =>
+                    setEditandoPlan({ storeId: s.id, nombre: s.name, sub: s.suscripcion })
+                  }
                   pending={pending}
                 />
+                {/* El engranaje aparece SÓLO si ya hay plan: para el que no
+                    tiene, la puerta es el propio "sin plan". Cambiar el precio
+                    o dar de baja se hace una vez por año — no compite por
+                    espacio con marcar un pago, que es lo de todos los meses. */}
+                {s.suscripcion.estado !== "sin_suscripcion" && (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      setEditandoPlan({ storeId: s.id, nombre: s.name, sub: s.suscripcion })
+                    }
+                    aria-label={`Plan de ${s.name}`}
+                    title="Plan"
+                    className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:text-foreground disabled:opacity-40"
+                  >
+                    <SlidersHorizontal className="size-3.5" />
+                  </button>
+                )}
                 {/* Add-on del Asistente IA: prender/apagar por negocio. Es el flag
                     que decide si el negocio entra al reporte mensual (cron PR2). */}
                 <button
@@ -320,6 +350,21 @@ export function SuperClient({
       )}
 
       {alta && <CredencialesDialog alta={alta} onClose={() => setAlta(null)} />}
+
+      {editandoPlan && (
+        <DialogoPlan
+          storeId={editandoPlan.storeId}
+          nombre={editandoPlan.nombre}
+          sub={editandoPlan.sub}
+          pending={pending}
+          onCerrar={() => setEditandoPlan(null)}
+          onResultado={(r) => {
+            setEditandoPlan(null);
+            setAviso(r);
+          }}
+          startTransition={startTransition}
+        />
+      )}
 
       {cobrando && (
         <DialogoDePago
@@ -784,20 +829,31 @@ function pesos(n: number): string {
 function EstadoCobranza({
   sub,
   onMarcarPago,
+  onEditarPlan,
   pending,
 }: {
   sub: Suscripcion;
   onMarcarPago: () => void;
+  onEditarPlan: () => void;
   pending: boolean;
 }) {
   /* `sin_suscripcion` no se pinta de rojo: es un negocio al que todavía no se le
      armó el contrato, no uno que deba plata. Confundirlos haría que el panel
      grite por algo que se resuelve en 10 segundos. */
   if (sub.estado === "sin_suscripcion") {
+    /* 062 · es el ÚNICO estado accionable de un solo click: crear el plan es
+       lo que destraba todo lo demás (cobro, avisos, escalera). El resto de la
+       edición vive detrás del engranaje, que se usa una vez por año. */
     return (
-      <span className="shrink-0 rounded-md border border-dashed border-border px-2 py-1 text-xs text-muted-foreground">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={onEditarPlan}
+        title="Asignarle un plan"
+        className="shrink-0 cursor-pointer rounded-md border border-dashed border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground disabled:opacity-40"
+      >
         sin plan
-      </span>
+      </button>
     );
   }
 
