@@ -132,10 +132,20 @@ export async function notifyStore(
     dedupe_key: payload.dedupeKey ?? null,
   });
 
-  // Violación de unique = ya avisamos esto hoy. No es un error: es el dedupe
-  // haciendo su trabajo. Cortamos acá y no mandamos el push.
+  /* Las dos ramas devolvían `false` idéntico, y eso hacía indistinguible "ya
+     avisamos" de "el canal está roto": el cron de cobranza podía reportar
+     `ok:true, avisados:0` con la tabla entera fallando. Lo encontró la
+     verificación adversarial poniéndole un `check` que rechazaba el tipo.
+     Ahora el dedupe devuelve `false` en silencio (es su trabajo) y la falla
+     REAL se loguea, que es lo mínimo para que alguien se entere. */
   if (error) {
     if (error.code === "23505") return false;
+    console.error("[push] no se pudo registrar la notificación", {
+      store: storeId,
+      type: payload.type,
+      code: error.code,
+      message: error.message,
+    });
     return false;
   }
 

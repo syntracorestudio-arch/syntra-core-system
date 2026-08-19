@@ -34,7 +34,11 @@ export const ETIQUETA_ACCION: Record<AccionPlataforma, string> = {
 };
 
 export async function registrarOFallar(args: {
-  actorId: string;
+  /* 060 · nullable: una acción AUTOMÁTICA no tiene actor humano. El cron de
+     cobranza suspende por falta de pago y no hay nadie a quien atribuirlo —
+     inventar un uuid para llenar el campo sería peor que dejarlo vacío. El
+     `actor_email` lo distingue igual ("cron@stockflow"). */
+  actorId: string | null;
   actorEmail: string | null;
   accion: AccionPlataforma;
   motivo: string;
