@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 import { LogoMark, Wordmark } from "@/components/brand/logo";
 import { signOut } from "@/app/login/actions";
 import { NAV_GROUPS, ALL_ITEMS } from "./nav-data";
+import { AvisoSuscripcion } from "./aviso-suscripcion";
 import { SidebarNav } from "./sidebar-nav";
 import { getSession } from "@/lib/session";
 
@@ -140,6 +141,13 @@ export async function AppShell({
 
       {/* Contenido */}
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* 063 · el aviso de suscripción impaga, ARRIBA DE TODO y en el shell:
+            el push es efímero y el dueño puede pasar el día en la caja. Un
+            aviso que sólo vive en una pantalla que no visita no avisa nada.
+            Se renderiza solo (devuelve null si está al día) y sólo lo ve el
+            dueño — para un empleado la RPC responde `no_corresponde`. */}
+        <AvisoSuscripcion />
+
         {/* El colchón de abajo reserva la barra de pestañas MÁS la barra gestual
             de Android: sin el `env()`, los últimos ~20px del contenido quedaban
             debajo del pill del sistema. */}
