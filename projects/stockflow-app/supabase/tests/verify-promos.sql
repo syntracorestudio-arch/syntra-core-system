@@ -93,7 +93,14 @@ declare
 begin
 
   -- 8.c · la promo vencida del fixture no descuenta (auto-fin SIN cron)
+  /* 059 · estos asserts verifican la LÓGICA DE PRECIO (si la promo aplica o
+     ya venció), no qué puede ver un cajero. `promo_precio` dejó de estar
+     otorgada a `authenticated` porque era una fuga cross-tenant: cualquiera
+     leía el precio de otro kiosco. Se sube el privilegio del ASSERT, no se
+     baja el del PRODUCTO — el mismo criterio de 051. */
+  perform set_config('role', 'postgres', true);
   v_precio := public.promo_precio(v_store, v_prod);
+  perform set_config('role', 'authenticated', true);
   if v_precio <> 1000 then
     raise exception 'FALLO 8.c: una promo con ends_on pasado seguía viva (%)', v_precio;
   end if;
@@ -139,7 +146,10 @@ begin
   v_res   := public.create_promo(v_store, v_prod, 700, public.store_hoy('11111111-1111-1111-1111-111111111111'), public.store_hoy('11111111-1111-1111-1111-111111111111') + 3);
   v_promo := (v_res->>'promo_id')::uuid;
 
+  /* 059 · ver la nota de 8.c: el assert sube de privilegio, el producto no baja. */
+  perform set_config('role', 'postgres', true);
   v_precio := public.promo_precio(v_store, v_prod);
+  perform set_config('role', 'authenticated', true);
   if v_precio <> 700 then
     raise exception 'FALLO 1: con promo activa esperaba 700, vino %', v_precio;
   end if;
@@ -241,14 +251,25 @@ begin
   end if;
 
   -- ---- 8.a · terminada no aplica -----------------------------------------
-  if public.promo_precio(v_store, v_prod) <> 1000 then
+  /* 059 · estos asserts verifican la LÓGICA DE PRECIO (si la promo aplica o
+     ya venció), no qué puede ver un cajero. `promo_precio` dejó de estar
+     otorgada a `authenticated` porque era una fuga cross-tenant: cualquiera
+     leía el precio de otro kiosco. Se sube el privilegio del ASSERT, no se
+     baja el del PRODUCTO — el mismo criterio de 051. */
+  perform set_config('role', 'postgres', true);
+  v_precio := public.promo_precio(v_store, v_prod);
+  perform set_config('role', 'authenticated', true);
+  if v_precio <> 1000 then
     raise exception 'FALLO 8.a: tras terminarla seguía descontando';
   end if;
 
   -- ---- 8.b · programada no aplica todavía --------------------------------
   v_res   := public.create_promo(v_store, v_prod, 700, public.store_hoy('11111111-1111-1111-1111-111111111111') + 5, public.store_hoy('11111111-1111-1111-1111-111111111111') + 9);
   v_promo := (v_res->>'promo_id')::uuid;
-  if public.promo_precio(v_store, v_prod) <> 1000 then
+  perform set_config('role', 'postgres', true);
+  v_precio := public.promo_precio(v_store, v_prod);
+  perform set_config('role', 'authenticated', true);
+  if v_precio <> 1000 then
     raise exception 'FALLO 8.b: una promo programada ya descontaba';
   end if;
   perform public.end_promo(v_store, v_promo);
@@ -270,7 +291,10 @@ begin
   if (select ended_reason from public.promos where id = v_promo) <> 'vencimiento' then
     raise exception 'FALLO 10.b: ended_reason esperaba vencimiento';
   end if;
-  if public.promo_precio(v_store, v_prod) <> 1000 then
+  perform set_config('role', 'postgres', true);
+  v_precio := public.promo_precio(v_store, v_prod);
+  perform set_config('role', 'authenticated', true);
+  if v_precio <> 1000 then
     raise exception 'FALLO 10.c: seguía descontando tras resolver el vencimiento';
   end if;
 
