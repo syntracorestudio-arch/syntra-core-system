@@ -128,6 +128,22 @@ export function SuperClient({
   );
   const enPrueba = stores.filter((s) => s.suscripcion.estado === "prueba").length;
 
+  /* 063 · LA COLA DE CORTE. Con el corte automático apagado —que es el default
+     y va a seguir siéndolo mientras los pagos se marquen a mano— esta lista ES
+     el mecanismo de corte. Hasta ahora existía sólo en el JSON de la respuesta
+     del cron, o sea en ningún lado que alguien mire.
+
+     El criterio espeja el de `cobranza_escalon` (061): pasó el día 25 (15 días
+     desde el vencimiento) Y debe al menos un mes completo. Se deriva de lo que
+     la fila ya trae — una consulta nueva para esto sería trabajo de más. */
+  const paraCortar = stores.filter(
+    (s) =>
+      s.suscripcion.estado === "debe" &&
+      s.status === "active" &&
+      s.suscripcion.dias_de_atraso >= 15 &&
+      s.suscripcion.deuda >= s.suscripcion.precio,
+  );
+
   return (
     <div className="min-h-dvh">
       <header className="border-b border-border bg-card">
@@ -178,6 +194,13 @@ export function SuperClient({
                     · {enPrueba} en prueba
                   </span>
                 )}
+                {/* Va con las otras dos cifras y no en una sección aparte: es
+                    una decisión de la misma sentada semanal. */}
+                {paraCortar.length > 0 && (
+                  <span className="font-medium text-danger-ink">
+                    · {paraCortar.length} para cortar
+                  </span>
+                )}
               </p>
             )}
           </div>
@@ -223,7 +246,18 @@ export function SuperClient({
         ) : (
           <ul className="divide-y divide-border rounded-xl border border-border bg-card">
             {stores.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+              <li
+                key={s.id}
+                className={cn(
+                  "flex flex-wrap items-center gap-3 px-4 py-3",
+                  /* 063 · el que está listo para cortar se marca en la FILA, no
+                     con un ícono más: la lista se recorre de arriba a abajo una
+                     vez por semana y lo que importa es cuál salta a la vista.
+                     Un borde izquierdo no le roba ancho a nada. */
+                  paraCortar.some((p) => p.id === s.id) &&
+                    "border-l-2 border-danger bg-danger/[0.03]",
+                )}
+              >
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 text-sm font-medium">
                     {s.name}
