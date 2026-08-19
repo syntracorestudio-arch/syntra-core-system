@@ -265,3 +265,69 @@ export async function setAsistenteIA(
 async function limitarSuper(userId: string): Promise<boolean> {
   return checkRateLimit(`super:${userId}`, 20, 60);
 }
+
+/**
+ * Marcar el pago de un mes.
+ *
+ * Es el acto que sostiene todo el modelo manual: no hay integración de pagos, el
+ * cliente transfiere al alias y esto es lo que lo asienta. Por eso deja rastro
+ * —quién lo marcó y cuándo— y por eso la base impide marcar el mismo mes dos
+ * veces: un pago duplicado deja al cliente "al día" por partida doble y la suma
+ * de ingresos miente hacia arriba.
+ *
+ * El período se manda como el primer día del mes; la base igual lo normaliza
+ * (057), así que un 2026-08-23 y un 2026-08-01 son el mismo mes y el segundo
+ * choca contra el UNIQUE.
+ */
+export async function marcarPagoSuscripcion(
+  storeId: string,
+  periodo: string,
+  monto: number,
+  nota?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { userId } = await requireSuperadmin();
+  if (!(await limitarSuper(userId))) {
+    return { ok: false, error: "Demasiadas acciones seguidas. Esperá un minuto." };
+  }
+
+  if (!z.guid().safeParse(storeId).success) {
+    return { ok: false, error: "Negocio inválido." };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(periodo)) {
+    return { ok: false, error: "Período inválido." };
+  }
+  /* El monto se valida acá y no sólo en la base: un `NaN` que llegue del input
+     se guardaría como null y el ingreso del mes quedaría en cero sin aviso. */
+  if (!Number.isFinite(monto) || monto < 0) {
+    return { ok: false, error: "Monto inválido." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("marcar_pago_suscripcion", {
+    p_store_id: storeId,
+    p_periodo: periodo,
+    p_monto: monto,
+    p_actor: userId,
+    p_medio: "transferencia",
+    p_nota: nota ?? null,
+  });
+
+  if (error) {
+    /* 058 · cada error dice QUÉ hacer. Antes todo caía en "no pudimos
+       registrar el pago", que ante un período mal tipeado —un click de más en
+       el año— dejaba al operador reintentando lo mismo. */
+    const m = error.message;
+    const detalle =
+      m.includes("periodo_ya_pagado") ? "Ese mes ya está saldado."
+      : m.includes("monto_excede_lo_adeudado") ? "El monto supera lo que falta de ese mes. Revisá el período."
+      : m.includes("periodo_anterior_al_alta") ? "Ese mes es anterior al alta del negocio."
+      : m.includes("periodo_futuro") ? "No se puede registrar un mes que todavía no empezó."
+      : m.includes("sin_suscripcion") ? "Ese negocio no tiene un plan asignado."
+      : m.includes("monto_invalido") ? "El monto tiene que ser mayor a cero."
+      : "No pudimos registrar el pago.";
+    return { ok: false, error: detalle };
+  }
+
+  revalidatePath("/super");
+  return { ok: true };
+}

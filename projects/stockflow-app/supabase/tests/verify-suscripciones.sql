@@ -17,8 +17,14 @@ declare
   v_res   jsonb;
 begin
   -- Alta el 15 de agosto: prueba hasta el 15 de septiembre, cobra desde octubre.
+  /* El bloque se prepara su PROPIO estado: una suite que sólo pasa con la base
+     vacía es frágil — se cae en cuanto alguien siembra un fixture de demo, que
+     es exactamente lo que pasó. */
+  delete from public.subscription_payments where store_id = v_store;
   insert into public.subscriptions (store_id, precio_mensual, prueba_hasta, cobra_desde)
-  values (v_store, 60000, '2026-09-15', '2026-10-01');
+  values (v_store, 60000, '2026-09-15', '2026-10-01')
+  on conflict (store_id) do update set precio_mensual = 60000,
+    prueba_hasta = '2026-09-15', cobra_desde = '2026-10-01';
 
   -- Durante la prueba: nada que cobrar, ni siquiera pasado un día 10.
   v_res := public.estado_suscripcion(v_store, '2026-09-12');
@@ -52,8 +58,11 @@ declare
   v_store uuid := '11111111-1111-1111-1111-111111111111';
   v_res   jsonb;
 begin
+  delete from public.subscription_payments where store_id = v_store;
   insert into public.subscriptions (store_id, precio_mensual, prueba_hasta, cobra_desde)
-  values (v_store, 60000, null, '2026-08-01');
+  values (v_store, 60000, null, '2026-08-01')
+  on conflict (store_id) do update set precio_mensual = 60000,
+    prueba_hasta = null, cobra_desde = '2026-08-01';
 
   -- ---- 2.a · el día 10 TODAVÍA no debe: tiene todo el día para pagar ------
   v_res := public.estado_suscripcion(v_store, '2026-08-10');
@@ -84,8 +93,11 @@ declare
   v_store uuid := '11111111-1111-1111-1111-111111111111';
   v_res   jsonb;
 begin
+  delete from public.subscription_payments where store_id = v_store;
   insert into public.subscriptions (store_id, precio_mensual, prueba_hasta, cobra_desde)
-  values (v_store, 60000, null, '2026-06-01');
+  values (v_store, 60000, null, '2026-06-01')
+  on conflict (store_id) do update set precio_mensual = 60000,
+    prueba_hasta = null, cobra_desde = '2026-06-01';
 
   -- Pagó junio, no pagó julio ni agosto.
   perform public.marcar_pago_suscripcion(v_store, '2026-06-01', 60000, null);
@@ -130,8 +142,11 @@ do $$
 declare
   v_store uuid := '11111111-1111-1111-1111-111111111111';
 begin
+  delete from public.subscription_payments where store_id = v_store;
   insert into public.subscriptions (store_id, precio_mensual, cobra_desde)
-  values (v_store, 60000, '2026-08-01');
+  values (v_store, 60000, '2026-08-01')
+  on conflict (store_id) do update set precio_mensual = 60000,
+    prueba_hasta = null, cobra_desde = '2026-08-01';
 
   perform public.marcar_pago_suscripcion(v_store, '2026-08-01', 60000, null);
 
@@ -165,7 +180,8 @@ declare
   v_n      bigint;
 begin
   insert into public.subscriptions (store_id, precio_mensual, cobra_desde)
-  values (v_store, 60000, '2026-08-01');
+  values (v_store, 60000, '2026-08-01')
+  on conflict (store_id) do update set precio_mensual = 60000;
 
   perform set_config('role', 'authenticated', true);
   perform set_config('request.jwt.claims',
@@ -234,3 +250,112 @@ rollback;
 \echo '========================================================================'
 \echo ' verify-suscripciones · TODO EN VERDE'
 \echo '========================================================================'
+
+\echo ''
+\echo '== 7 · 058 · los dos ataques que midio el verificador adversarial =='
+begin;
+do $$
+declare
+  v_store uuid := '11111111-1111-1111-1111-111111111111';
+  v_res   jsonb;
+begin
+  insert into public.subscriptions (store_id, precio_mensual, cobra_desde)
+  values (v_store, 60000, '2026-06-01')
+  on conflict (store_id) do update set precio_mensual = 60000,
+    prueba_hasta = null, cobra_desde = '2026-06-01';
+  delete from public.subscription_payments where store_id = v_store;
+
+  -- ---- 7.a · A1: UN PESO NO BORRA LA DEUDA DEL MES -----------------------
+  /* Medido antes de 058: con $180.000 de deuda, marcar $0 y $1 la dejaba en
+     $60.000 — un peso borraba ciento veinte mil. */
+  v_res := public.estado_suscripcion(v_store, '2026-08-20');
+  if (v_res->>'deuda')::numeric <> 180000 then
+    raise exception 'FALLO 7.a0: la deuda base es % y deberia ser 180000', v_res->>'deuda';
+  end if;
+
+  perform public.marcar_pago_suscripcion(v_store, '2026-06-01', 1, null);
+  v_res := public.estado_suscripcion(v_store, '2026-08-20');
+  if (v_res->>'deuda')::numeric <> 179999 then
+    raise exception 'FALLO 7.a: tras pagar $1 la deuda quedo en % (deberia bajar SOLO $1)', v_res->>'deuda';
+  end if;
+  if not (v_res->>'parcial')::boolean then
+    raise exception 'FALLO 7.b: no marca que hay un pago PARCIAL';
+  end if;
+
+  -- ---- 7.c · y el resto SI se puede completar ----------------------------
+  /* Antes era imposible: el UNIQUE mataba el segundo pago del mismo mes. */
+  perform public.marcar_pago_suscripcion(v_store, '2026-06-01', 59999, null);
+  v_res := public.estado_suscripcion(v_store, '2026-08-20');
+  if (v_res->>'deuda')::numeric <> 120000 then
+    raise exception 'FALLO 7.c: tras completar junio la deuda es % y deberia ser 120000', v_res->>'deuda';
+  end if;
+
+  -- ---- 7.d · pagar de mas se rechaza ------------------------------------
+  begin
+    perform public.marcar_pago_suscripcion(v_store, '2026-07-01', 90000, null);
+    raise exception 'FALLO 7.d: acepto un pago mayor a lo adeudado del mes';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> 'monto_excede_lo_adeudado' then raise; end if;
+  end;
+
+  -- ---- 7.e · el doble click sigue bloqueado (lo que daba el UNIQUE) ------
+  perform public.marcar_pago_suscripcion(v_store, '2026-07-01', 60000, null);
+  begin
+    perform public.marcar_pago_suscripcion(v_store, '2026-07-01', 60000, null);
+    raise exception 'FALLO 7.e: se asento el mismo pago dos veces';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> 'periodo_ya_pagado' then raise; end if;
+  end;
+
+  -- ---- 7.f · A2: el periodo equivocado ya no entra -----------------------
+  /* Medido antes de 058: 2025-06-01 y 2030-06-01 se guardaban, la UI decia
+     "registrado" y la deuda no se movia. En un input type=date, errarle al
+     anio es UN CLICK. */
+  begin
+    perform public.marcar_pago_suscripcion(v_store, '2025-06-01', 60000, null);
+    raise exception 'FALLO 7.f: acepto un periodo ANTERIOR al alta';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> 'periodo_anterior_al_alta' then raise; end if;
+  end;
+
+  begin
+    perform public.marcar_pago_suscripcion(v_store, '2030-06-01', 60000, null);
+    raise exception 'FALLO 7.g: acepto un periodo FUTURO';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> 'periodo_futuro' then raise; end if;
+  end;
+
+  -- ---- 7.h · M1: no se paga sobre un negocio sin suscripcion -------------
+  /* La condicion se CREA acá en vez de asumirla: el intento anterior daba por
+     hecho que este negocio no tenia plan, y con un fixture sembrado el test
+     probaba otra cosa (fallaba por `periodo_anterior_al_alta`). */
+  delete from public.subscriptions where store_id = '22222222-2222-2222-2222-222222222222';
+  begin
+    perform public.marcar_pago_suscripcion(
+      '22222222-2222-2222-2222-222222222222', '2026-08-01', 60000, null);
+    raise exception 'FALLO 7.h: asento plata en un negocio SIN suscripcion';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> 'sin_suscripcion' then raise; end if;
+  end;
+end $$;
+rollback;
+\echo 'OK 7 · $1 baja $1 (no el mes) · se completa el resto · doble click bloqueado'
+\echo '       · periodo viejo/futuro rechazado · sin suscripcion no se cobra'
+
+\echo ''
+\echo '== 8 · M3 · service_role puede leer las tablas (bomba de runtime) =='
+begin;
+do $$
+declare v_n bigint;
+begin
+  /* 057 sólo revocó de authenticated/anon y el ACL por defecto dejaba a
+     service_role SIN select. No se notaba porque /super lee la vista y llama
+     RPCs security definer — pero la primera linea que haga
+     `admin.from("subscriptions")` revienta en runtime, no en tsc. */
+  perform set_config('role', 'service_role', true);
+  select count(*) into v_n from public.subscriptions;
+  select count(*) into v_n from public.subscription_payments;
+  perform set_config('role', 'postgres', true);
+end $$;
+rollback;
+\echo 'OK 8 · service_role lee las dos tablas'
