@@ -49,8 +49,8 @@ const RULES = [
     msg: "Tarea visual/UI → design-director + skills de diseño (ui-ux-pro-max, doctrina, reference-lock de la sección) ANTES de codear; implementa frontend-engineer; prototipos VIVOS y el OK del owner en SU navegador es el ÚNICO gate de commit (syntra-visual-gate).",
   },
   {
-    re: /\b(supabase|webhook|migracion|rpc|query|queries|endpoint|server action|cron|rate limit|hmac|auth\b|api\b|indice|index\b|rls)/,
-    msg: "Backend/data → syntra-scale-security-baseline (cotas de fecha, indices, async, rate limiting) + backend-engineer.",
+    re: /\b(supabase|webhook|migracion|rpc|query|queries|endpoint|server action|cron|rate limit|hmac|auth\b|api\b|indice|index\b|rls|grant|permiso|rol\b|roles|superadmin|privilegi|costo|ganancia|policy|policies)/,
+    msg: "Backend/data → syntra-scale-security-baseline + backend-engineer. Si toca datos/auth/roles/permisos/migraciones/dinero: cierra con security-adversary + /code-review (regla 5b).",
   },
   {
     re: /\b(commit|commitea|pushe|push\b|pr\b|merge|mergea)/,
