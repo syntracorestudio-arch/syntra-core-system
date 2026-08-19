@@ -227,6 +227,13 @@ esperando en vez de pedir ayuda.
 con el email del dueño, abrirlo, y confirmar que **aterriza en `/cuenta`** y que
 la contraseña nueva entra. Si aterriza en la home, es (a).
 
+6. **Firma del login → link a SYNTRA** (decisión del owner 2026-08-19). La línea
+   `StockFlow · un producto de SYNTRA` del pie de `/login` hoy es texto plano;
+   con el dominio comprado pasa a llevar la URL de SYNTRA. Es marca, no adorno:
+   por eso el login mantiene el pie visible **sin scroll hasta en 360×640** (ahí
+   lo que cede es el alto de la foto, no el pie). Al implementarlo: `rel="noopener"`,
+   `target="_blank"`, y volver a medir 360×640 — el texto se alarga.
+
 ### 5.2 MercadoPago — SIN credenciales de aplicación propias (verificado en código)
 
 **No existen `MP_CLIENT_ID` / `MP_CLIENT_SECRET` ni flujo OAuth** — es por diseño, no un
