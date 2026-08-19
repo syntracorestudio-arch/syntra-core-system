@@ -20,5 +20,5 @@
 export const SELECT_SESION = `id, role, display_name, can_sell_on_credit, can_apply_discount,
        can_void_sale, can_receive_stock, can_see_costs, usuario,
        can_close_register, can_see_reports,
-       profile:profiles!members_profile_id_fkey!inner ( must_change_password ),
+       profile:profiles!members_profile_id_fkey!inner ( must_change_password, is_superadmin ),
        store:stores!inner ( id, name, slug, timezone, branding, status, vertical, ai_assistant_enabled )`;

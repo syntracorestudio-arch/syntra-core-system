@@ -95,8 +95,18 @@ begin
   end if;
 
   -- ---- 3.b · suspendido ⇒ BLOQUEADO, con motivo propio --------------------
+  /* 056 · el UPDATE se hace como `postgres` y NO como el dueño, porque desde
+     esta migración el dueño ya no puede escribir `stores.status` — el grant se
+     recortó a las columnas que la app le deja editar.
+     Es decir: este test ARMABA su escenario usando la vulnerabilidad que 056
+     cerró (un dueño desuspendiéndose solo). Suspender es un acto de SYNTRA, y
+     en el producto lo hace `/super` con `service_role`; el test lo imita.
+     Lo que se verifica —que `mi_acceso` corte— sigue corriendo como el dueño,
+     que es de quien importa la respuesta. */
+  perform set_config('role', 'postgres', true);
   update public.stores set status = 'suspended'
    where id = '11111111-1111-1111-1111-111111111111';
+  perform set_config('role', 'authenticated', true);
 
   v_res := public.mi_acceso();
   if v_res->>'estado' <> 'negocio_suspendido' then
@@ -107,8 +117,10 @@ begin
   end if;
 
   -- ---- 3.d · reactivado ⇒ vuelve a entrar --------------------------------
+  perform set_config('role', 'postgres', true);
   update public.stores set status = 'active'
    where id = '11111111-1111-1111-1111-111111111111';
+  perform set_config('role', 'authenticated', true);
 
   v_res := public.mi_acceso();
   if v_res->>'estado' <> 'ok' then

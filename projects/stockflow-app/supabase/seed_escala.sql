@@ -207,10 +207,23 @@ begin
   raise notice 'Ventas históricas creadas: %', v_ventas;
 end $$;
 
+/* 056 · el dueño de escala es TAMBIÉN superadmin, sólo en desarrollo.
+ *
+ * El bootstrap de la migración 056 apunta al email REAL del owner, que no
+ * existe en una base local (acá los perfiles son `.test`). Sin esto, `/super`
+ * queda inalcanzable en dev y hay que volver a hacer el `update` a mano —
+ * exactamente lo que 056 vino a eliminar.
+ *
+ * Va en el SEED y no en la migración a propósito: los seeds NUNCA corren en
+ * producción (regla del plan de despliegue §2), así que esta línea no puede
+ * fabricarle un superadmin a un entorno real. */
+update public.profiles set is_superadmin = true where email = 'dueno@escala.test';
+
 commit;
 
 \echo ''
 \echo '=== Kiosco Escala listo (dueno@escala.test / stockflow123) ==='
+\echo '=== ese usuario es además SUPERADMIN en dev: entra a /super ==='
 select 'productos activos' as que, count(*)::text as cuanto from public.products where store_id = '33333333-3333-3333-3333-333333333333' and status = 'active'
 union all select 'con código de barras', count(*)::text from public.product_barcodes where store_id = '33333333-3333-3333-3333-333333333333'
 union all select 'bajo mínimo (low_stock)', count(*)::text from public.low_stock_products where store_id = '33333333-3333-3333-3333-333333333333'

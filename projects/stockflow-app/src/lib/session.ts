@@ -53,6 +53,11 @@ export type SessionContext = {
   store: Store;
   /** 049 · la credencial de alta todavía no se cambió: ninguna ruta responde. */
   mustChangePassword: boolean;
+  /* 056 · viene en la MISMA consulta que ya lee `profiles`, así que saberlo
+     cuesta cero. Sin esto, rutear la raíz por superadmin obligaba a una segunda
+     query a `profiles` en CADA visita de CADA usuario, para un caso que aplica
+     a una persona en toda la plataforma. */
+  esSuperadmin: boolean;
 };
 
 /** Por qué alguien con usuario válido no tiene sesión. Alimenta el mensaje del login. */
@@ -103,7 +108,10 @@ SELECT_SESION)
   if (error || !data) return null;
 
   const store = data.store as unknown as Store;
-  const profile = data.profile as unknown as { must_change_password: boolean } | null;
+  const profile = data.profile as unknown as {
+    must_change_password: boolean;
+    is_superadmin: boolean;
+  } | null;
 
   return {
     userId: auth.user.id,
@@ -123,6 +131,7 @@ SELECT_SESION)
     },
     store,
     mustChangePassword: profile?.must_change_password ?? false,
+    esSuperadmin: profile?.is_superadmin ?? false,
   };
 });
 
