@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --import ./scripts/alias-loader.mjs --test src/lib/*.test.ts",
     "catalogo:sepa": "node scripts/importar-sepa.mjs",
     "catalogo:sepa:dry": "node scripts/importar-sepa.mjs --dry-run",
     "smoke:sesion": "node --import ./scripts/alias-loader.mjs scripts/smoke-sesion.mjs"

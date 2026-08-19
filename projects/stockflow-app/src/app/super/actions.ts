@@ -44,7 +44,13 @@ const schema = z.object({
  * suelto sin negocio hace que el email quede tomado y el reintento falle.
  */
 export async function crearNegocio(input: unknown): Promise<AltaResult> {
-  await requireSuperadmin();
+  const { userId, email } = await requireSuperadmin();
+  /* 056 · el alta también se limita. Era la ÚNICA de las tres acciones del
+     panel sin freno, y es la más cara de repetir: cada intento crea un usuario
+     de auth. */
+  if (!(await limitarSuper(userId))) {
+    return { ok: false, error: "Demasiadas acciones seguidas. Esperá un minuto." };
+  }
 
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
@@ -83,6 +89,9 @@ export async function crearNegocio(input: unknown): Promise<AltaResult> {
       p_owner_profile: creado.user.id,
       p_owner_name: parsed.data.ownerName,
       p_accent: parsed.data.accent,
+      /* 056 · quién dio de alta este negocio. 055 creó la columna y nadie la
+         llenaba: quedaba SIEMPRE en null en el camino real. */
+      p_created_by: userId,
     });
     errStore = r.error;
     nuevoStore = r.data;
@@ -125,6 +134,31 @@ export async function crearNegocio(input: unknown): Promise<AltaResult> {
       .from("stores")
       .update({ vertical: parsed.data.vertical, ai_assistant_enabled: parsed.data.aiAssistant })
       .eq("id", storeId);
+  }
+
+  /* 056 · el alta AUDITA, como las otras dos. La cabecera de 055 lo pedía
+     explícitamente —"TODAS las mutaciones de /super, no sólo las de
+     emergencia"— y ésta se había quedado afuera: `negocio_creado` estaba
+     tipada y no la emitía nadie.
+     Va DESPUÉS de crear y no antes, al revés que suspender: acá el negocio ya
+     existe y no hay nada que abortar; fallar el registro no puede deshacer un
+     usuario de auth ya creado. Si la bitácora falla, se avisa pero el alta se
+     mantiene — perder el negocio recién creado sería peor que perder su fila
+     de auditoría. */
+  if (storeId) {
+    try {
+      await registrarOFallar({
+        actorId: userId,
+        actorEmail: email,
+        accion: "negocio_creado",
+        motivo: `Alta de ${parsed.data.name} (${parsed.data.slug}) para ${parsed.data.ownerEmail}.`,
+        storeId,
+        profileId: creado.user.id,
+        etiqueta: parsed.data.name,
+      });
+    } catch {
+      /* Se traga a propósito: el negocio YA está creado y funcionando. */
+    }
   }
 
   revalidatePath("/super");
