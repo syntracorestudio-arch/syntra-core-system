@@ -11,12 +11,13 @@ import {
   Copy,
   Pause,
   Play,
-  LogOut,
   Sparkles,
   SlidersHorizontal,
   KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { SuperSidebar, FILTROS, type Vista, type Filtro } from "./super-sidebar";
+import { CobranzaGrilla, type CeldaCobranza } from "./cobranza-grilla";
 import {
   crearNegocio,
   cambiarEstado,
@@ -26,7 +27,6 @@ import {
   type AltaResult,
 } from "./actions";
 import { DialogoPlan } from "./plan-dialog";
-import { signOut } from "@/app/login/actions";
 import { haceCuanto } from "@/app/admin/fiado/fiado-client";
 
 export type Vertical = "kiosco" | "dietetica" | "petshop" | "otro";
@@ -83,9 +83,11 @@ export type StoreRow = {
 export function SuperClient({
   stores,
   email,
+  celdas,
 }: {
   stores: StoreRow[];
   email: string | null;
+  celdas: CeldaCobranza[];
 }) {
   const [creando, setCreando] = useState(false);
   /* El mismo diálogo sirve para el alta y para la reemisión, pero el texto NO
@@ -114,7 +116,40 @@ export function SuperClient({
     { storeId: string; nombre: string; sub: Suscripcion } | null
   >(null);
 
+  const [vista, setVista] = useState<Vista>("cartera");
+  const [filtro, setFiltro] = useState<Filtro>("todos");
+
   const activos = stores.filter((s) => s.status === "active").length;
+
+  /* "Sin vender" = CERO ventas en 30 días, y el dato sale de `ventas_30d`, que
+     ya viene contado en SQL con su ventana.
+     La primera versión hacía la resta en el cliente contra `Date.now()` para
+     usar un umbral de 14 días. Dos problemas: `react-hooks/purity` lo prohíbe
+     con razón (durante el render es impuro), y el reloj del navegador no tiene
+     por qué coincidir con el del server — el mismo negocio podía entrar o no en
+     el filtro según quién lo mirara. 30 días avisa más tarde que 14, pero lo
+     dice sin inventar aritmética de fechas del lado del cliente. */
+  const sinVender = (s: StoreRow) => s.ventas30d === 0;
+
+  const cumple = (s: StoreRow, f: Filtro): boolean => {
+    switch (f) {
+      case "todos": return true;
+      case "deben": return s.suscripcion.estado === "debe";
+      case "prueba": return s.suscripcion.estado === "prueba";
+      case "sin_plan": return s.suscripcion.estado === "sin_suscripcion";
+      case "sin_vender": return sinVender(s);
+      case "de_baja": return s.suscripcion.estado === "cancelada";
+    }
+  };
+
+  /* Los conteos se calculan sobre TODOS los negocios y no sobre lo filtrado:
+     un chip que muestra el tamaño del recorte actual no le sirve a nadie —lo
+     que se quiere saber antes de tocarlo es cuántos hay del otro lado. */
+  const conteos = Object.fromEntries(
+    FILTROS.map((f) => [f.id, stores.filter((s) => cumple(s, f.id)).length]),
+  ) as Record<Filtro, number>;
+
+  const visibles = stores.filter((s) => cumple(s, filtro));
 
   /* 057 · las otras dos preguntas de la semana, arriba de todo.
      Se calculan acá y no en SQL porque son una suma sobre 10 filas que ya
@@ -153,37 +188,46 @@ export function SuperClient({
   );
 
   return (
-    <div className="min-h-dvh">
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 lg:px-8">
-          <div className="flex items-center gap-2.5">
-            <div className="grid size-8 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-              SF
-            </div>
-            <div>
-              <p className="text-sm font-semibold">StockFlow · SYNTRA</p>
-              <p className="text-xs text-muted-foreground">{email}</p>
-            </div>
-          </div>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <LogOut className="size-3.5" /> Salir
-            </button>
-          </form>
-        </div>
-      </header>
+    /* `overflow-x-clip` como red de seguridad: la pagina de este panel no tiene
+       por que scrollear nunca en horizontal. `clip` y no `hidden` a proposito —
+       hidden crea un contenedor de scroll y romperia el `sticky` de la primera
+       columna de la grilla. */
+    <div className="min-h-dvh overflow-x-clip lg:flex">
+      <SuperSidebar
+        email={email}
+        vista={vista}
+        onVista={setVista}
+        filtro={filtro}
+        onFiltro={setFiltro}
+        conteos={conteos}
+      />
 
-      <div className="mx-auto max-w-5xl px-4 py-6 lg:px-8 lg:py-8">
+      {/* `min-w-0` no es decorativo: sin él, la tabla de cobranza —que puede
+          medir más que la pantalla— ensancha el flex item y el desborde se lo
+          come la PÁGINA en vez de su propio contenedor. */}
+      {/* `min-w-0` no es decorativo: sin él, la tabla de cobranza —que puede
+          medir más que la pantalla— ensancha el flex item y el desborde se lo
+          come la PÁGINA en vez de su propio contenedor.
+
+          Y el `max-w-6xl` tampoco: sin tope, a 1920 las filas se estiran a
+          1680px y el nombre del negocio queda a un palmo de sus datos, con un
+          vacío en el medio que no comunica nada. La sidebar se llevó el ancho
+          que antes acotaba el `max-w-5xl` centrado. */}
+      <div className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8">
+        <div className="mx-auto max-w-6xl">
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">Negocios</h1>
+            <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">
+              {vista === "cobranza" ? "Cobranza" : "Negocios"}
+            </h1>
             <p className="text-sm text-muted-foreground">
-              {stores.length === 0
-                ? "Todavía no hay ninguno."
-                : `${activos} activo${activos === 1 ? "" : "s"} de ${stores.length}`}
+              {vista === "cobranza"
+                ? "Quién pagó cada mes, y quién viene arrastrando."
+                : stores.length === 0
+                  ? "Todavía no hay ninguno."
+                  : filtro === "todos"
+                    ? `${activos} activo${activos === 1 ? "" : "s"} de ${stores.length}`
+                    : `${visibles.length} de ${stores.length}`}
             </p>
 
             {/* Las dos cifras que se miran una vez por semana. Deliberadamente
@@ -243,7 +287,9 @@ export function SuperClient({
           </div>
         )}
 
-        {stores.length === 0 ? (
+        {vista === "cobranza" ? (
+          <CobranzaGrilla stores={stores} celdas={celdas} />
+        ) : stores.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
             <Store className="mx-auto mb-3 size-8 text-muted-foreground" />
             <p className="text-sm font-medium">Ningún negocio todavía</p>
@@ -251,9 +297,23 @@ export function SuperClient({
               Dale de alta al primero y pasale las credenciales.
             </p>
           </div>
+        ) : visibles.length === 0 ? (
+          /* Vacío POR EL FILTRO, que es otra cosa que "no hay negocios": el
+             texto tiene que decir qué pasó y ofrecer la salida, no dejar al
+             que filtró mirando una caja vacía sin saber por qué. */
+          <div className="rounded-xl border border-dashed border-border px-6 py-12 text-center">
+            <p className="text-sm font-medium">Ninguno entra en este filtro</p>
+            <button
+              type="button"
+              onClick={() => setFiltro("todos")}
+              className="mt-2 cursor-pointer text-sm text-primary-ink underline underline-offset-2"
+            >
+              Ver todos
+            </button>
+          </div>
         ) : (
           <ul className="divide-y divide-border rounded-xl border border-border bg-card">
-            {stores.map((s) => (
+            {visibles.map((s) => (
               <li
                 key={s.id}
                 className={cn(
@@ -401,6 +461,7 @@ export function SuperClient({
             ))}
           </ul>
         )}
+        </div>
       </div>
 
       {creando && (
