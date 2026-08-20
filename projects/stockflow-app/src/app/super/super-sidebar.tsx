@@ -9,16 +9,43 @@ export type Vista = "cartera" | "cobranza";
 /** Los recortes de la cartera. `todos` no es un filtro: es la ausencia de uno. */
 export type Filtro = "todos" | "deben" | "prueba" | "sin_plan" | "sin_vender" | "de_baja";
 
+/**
+ * Los filtros, AGRUPADOS POR EJE.
+ *
+ * Antes eran una lista plana de seis y mezclaba dos preguntas distintas:
+ * "Deben" y "Sin plan" hablan de la relación COMERCIAL, "Sin vender" habla de
+ * si el negocio USA el producto. Un cliente puede estar al día y no vender
+ * hace un mes —de hecho es el caso más peligroso, porque se va a dar de baja
+ * y todavía no te debe nada— y con los seis chips en fila esa diferencia no se
+ * leía: parecían seis variantes de lo mismo.
+ *
+ * Los grupos no son decoración; son las dos preguntas que se hacen en la
+ * sentada semanal: ¿quién me debe? y ¿quién se está por ir?
+ */
+export const GRUPOS: { titulo: string; filtros: { id: Filtro; label: string }[] }[] = [
+  {
+    titulo: "Cobranza",
+    filtros: [
+      { id: "deben", label: "Deben" },
+      { id: "prueba", label: "En prueba" },
+      { id: "sin_plan", label: "Sin plan" },
+      { id: "de_baja", label: "De baja" },
+    ],
+  },
+  {
+    titulo: "Uso",
+    filtros: [
+      /* La señal de retención más temprana que hay: un cliente que dejó de
+         vender se da de baja ANTES de deberte plata. */
+      { id: "sin_vender", label: "Sin vender" },
+    ],
+  },
+];
+
+/** Plano, para los conteos y para cualquiera que necesite recorrerlos todos. */
 export const FILTROS: { id: Filtro; label: string }[] = [
   { id: "todos", label: "Todos" },
-  { id: "deben", label: "Deben" },
-  { id: "prueba", label: "En prueba" },
-  { id: "sin_plan", label: "Sin plan" },
-  /* La señal de retención más temprana que hay: un cliente que dejó de vender
-     se da de baja ANTES de deberte plata. Está disponible desde el cliente #1 y
-     hasta ahora vivía como texto gris en la fila. */
-  { id: "sin_vender", label: "Sin vender (30d)" },
-  { id: "de_baja", label: "De baja" },
+  ...GRUPOS.flatMap((g) => g.filtros),
 ];
 
 /**
@@ -140,32 +167,43 @@ export function SuperSidebar({
           visible que no hace nada enseña a desconfiar de los que sí hacen. */}
       {vista === "cartera" && (
         <div className="min-h-0 flex-1 overflow-x-auto px-3 pb-3 lg:overflow-x-visible lg:overflow-y-auto">
-          <p className="hidden px-2 pb-2 pt-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground lg:block">
-            Filtrar
-          </p>
-          <div className="flex gap-1.5 lg:flex-col">
-            {FILTROS.map((f) => {
-              const n = conteos[f.id];
-              /* Un filtro que no puede devolver nada no se muestra: seis chips
-                 en cero enseñan que los chips no sirven. "Todos" queda siempre
-                 porque es el estado por defecto, no un recorte. */
-              if (n === 0 && f.id !== "todos" && filtro !== f.id) return null;
+          <div className="flex items-stretch gap-1.5 lg:flex-col lg:gap-0">
+            <Chip
+              filtro={{ id: "todos", label: "Todos" }}
+              activo={filtro === "todos"}
+              n={conteos.todos}
+              onClick={() => onFiltro("todos")}
+            />
+
+            {GRUPOS.map((g) => {
+              /* Un grupo entero en cero no se muestra: "Uso · Sin vender 0"
+                 ocupa dos renglones para decir que no hay nada. Se conserva si
+                 el filtro activo vive adentro, para no borrar de la pantalla el
+                 control que el usuario acaba de tocar. */
+              const visibles = g.filtros.filter((f) => conteos[f.id] > 0 || filtro === f.id);
+              if (visibles.length === 0) return null;
               return (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => onFiltro(f.id)}
-                  aria-pressed={filtro === f.id}
-                  className={cn(
-                    "flex h-8 shrink-0 cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-sm transition-colors lg:w-full",
-                    filtro === f.id
-                      ? "bg-secondary font-medium text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <span>{f.label}</span>
-                  <span className="tabular text-xs text-muted-foreground">{n}</span>
-                </button>
+                <div key={g.titulo} className="contents lg:block">
+                  <p className="hidden px-3 pb-1 pt-4 text-[11px] font-medium uppercase tracking-wide text-muted-foreground lg:block">
+                    {g.titulo}
+                  </p>
+                  {/* En mobile el rail es una tira horizontal y los títulos de
+                      grupo no entran; se separa con una línea vertical para que
+                      igual se lea que son dos familias. */}
+                  <span
+                    aria-hidden
+                    className="my-1 w-px shrink-0 self-stretch bg-border lg:hidden"
+                  />
+                  {visibles.map((f) => (
+                    <Chip
+                      key={f.id}
+                      filtro={f}
+                      activo={filtro === f.id}
+                      n={conteos[f.id]}
+                      onClick={() => onFiltro(f.id)}
+                    />
+                  ))}
+                </div>
               );
             })}
           </div>
@@ -181,5 +219,47 @@ export function SuperSidebar({
         </button>
       </form>
     </aside>
+  );
+}
+
+/**
+ * Un filtro.
+ *
+ * `h-10` y no `h-8`: es un objetivo táctil y 32px queda por debajo del mínimo
+ * accesible. En un rail vertical el alto extra no cuesta nada.
+ *
+ * El conteo va `tabular` para que los números queden en columna entre chips —
+ * con cifras proporcionales, un 1 y un 11 desalinean toda la lista.
+ */
+function Chip({
+  filtro,
+  activo,
+  n,
+  onClick,
+}: {
+  filtro: { id: Filtro; label: string };
+  activo: boolean;
+  n: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={activo}
+      className={cn(
+        "flex h-10 shrink-0 cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-sm",
+        "transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        "lg:w-full",
+        activo
+          ? "bg-secondary font-medium text-foreground"
+          : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
+      )}
+    >
+      <span>{filtro.label}</span>
+      <span className={cn("tabular text-xs", activo ? "text-foreground" : "text-muted-foreground")}>
+        {n}
+      </span>
+    </button>
   );
 }

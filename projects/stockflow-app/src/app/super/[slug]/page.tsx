@@ -84,6 +84,12 @@ export default async function FichaPage({
     vertical: fila.vertical ?? "kiosco",
     aiAssistant: Boolean(fila.ai_assistant_enabled),
     suscripcion: (fila.suscripcion ?? { estado: "sin_suscripcion" }) as Suscripcion,
+    /* La ficha ya trae el seguimiento y los contactos completos por separado;
+       estos tres campos existen para la CARTERA. Se llenan con lo que ya
+       tenemos a mano en vez de repetir la consulta. */
+    seguimientoEl: (sub?.seguimiento_el as string | null) ?? null,
+    ultimoContacto: contactos?.[0]?.created_at ?? null,
+    contactos: contactos?.length ?? 0,
   };
 
   return (

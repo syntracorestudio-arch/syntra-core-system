@@ -15,14 +15,28 @@ export default async function SuperPage() {
   /* Las dos lecturas son independientes: en paralelo, no en cadena (baseline).
      La grilla trae 6 meses —la ventana que la UI muestra— y no la historia
      entera: la cota vive en el argumento y además está topeada en la RPC. */
-  const [{ data }, { data: grilla }] = await Promise.all([
+  const [{ data }, { data: grilla }, { data: seguimiento }] = await Promise.all([
     admin
       .from("admin_stores")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(200),
     admin.rpc("cobranza_grilla", { p_meses: 6 }),
+    /* 067 · el seguimiento entra en la MISMA tanda: encadenarlo sumaría
+       latencia a cambio de nada. */
+    admin.rpc("resumen_seguimiento"),
   ]);
+
+  /* Indexado por negocio para que la fila no recorra un array en cada render:
+     con 30 filas da igual, pero es la clase de N² que después nadie encuentra. */
+  const porNegocio = new Map(
+    ((seguimiento ?? []) as {
+      store_id: string;
+      seguimiento_el: string | null;
+      ultimo_contacto: string | null;
+      contactos: number;
+    }[]).map((r) => [r.store_id, r]),
+  );
 
   const stores: StoreRow[] = (data ?? []).map((s) => ({
     id: s.id,
@@ -44,6 +58,9 @@ export default async function SuperPage() {
        en un solo lugar (SQL) y no se duplica acá — si se duplicara, el día que
        cambie el vencimiento habría dos verdades. */
     suscripcion: (s.suscripcion ?? { estado: "sin_suscripcion" }) as Suscripcion,
+    seguimientoEl: porNegocio.get(s.id)?.seguimiento_el ?? null,
+    ultimoContacto: porNegocio.get(s.id)?.ultimo_contacto ?? null,
+    contactos: porNegocio.get(s.id)?.contactos ?? 0,
   }));
 
   const celdas: CeldaCobranza[] = (
