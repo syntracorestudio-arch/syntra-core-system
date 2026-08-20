@@ -1,6 +1,7 @@
 import { requireSuperadmin } from "@/lib/superadmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SuperClient, type StoreRow, type Suscripcion } from "./super-client";
+import type { CeldaCobranza } from "./cobranza-grilla";
 
 export const dynamic = "force-dynamic";
 
@@ -10,11 +11,18 @@ export default async function SuperPage() {
   // Admin client: es la única pantalla que cruza tenants a propósito, detrás del
   // guard de superadmin. La vista no está otorgada a `authenticated`.
   const admin = createAdminClient();
-  const { data } = await admin
-    .from("admin_stores")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(200);
+
+  /* Las dos lecturas son independientes: en paralelo, no en cadena (baseline).
+     La grilla trae 6 meses —la ventana que la UI muestra— y no la historia
+     entera: la cota vive en el argumento y además está topeada en la RPC. */
+  const [{ data }, { data: grilla }] = await Promise.all([
+    admin
+      .from("admin_stores")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200),
+    admin.rpc("cobranza_grilla", { p_meses: 6 }),
+  ]);
 
   const stores: StoreRow[] = (data ?? []).map((s) => ({
     id: s.id,
@@ -38,5 +46,23 @@ export default async function SuperPage() {
     suscripcion: (s.suscripcion ?? { estado: "sin_suscripcion" }) as Suscripcion,
   }));
 
-  return <SuperClient stores={stores} email={email} />;
+  const celdas: CeldaCobranza[] = (
+    (grilla ?? []) as {
+      store_id: string;
+      mes: string;
+      estado: CeldaCobranza["estado"];
+      pagado: string | number;
+      precio: string | number | null;
+    }[]
+  ).map((c) => ({
+    storeId: c.store_id,
+    mes: c.mes,
+    estado: c.estado,
+    // `numeric` de Postgres viaja como string: sin esto las comparaciones y el
+    // formateo de plata operarían sobre texto.
+    pagado: Number(c.pagado ?? 0),
+    precio: c.precio === null ? null : Number(c.precio),
+  }));
+
+  return <SuperClient stores={stores} email={email} celdas={celdas} />;
 }
