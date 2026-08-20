@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { requireOwner } from "@/lib/session";
+import { requireOwner, requireSession } from "@/lib/session";
 
 export type Result = { ok: true } | { ok: false; error: string };
 
@@ -77,7 +77,21 @@ const expirySchema = z.object({
 });
 
 export async function addExpiry(input: unknown): Promise<Result> {
-  const session = await requireOwner();
+  /* 070 · antes era `requireOwner()`, y eso invertía el gradiente de riesgo:
+     anotar una fecha —un INSERT que no toca stock ni plata— exigía ser dueño,
+     mientras que `resolve_expiry` deja escribir una MERMA IRREVERSIBLE con
+     `can_receive_stock`. O sea que el empleado que recibe mercadería podía
+     registrar una pérdida pero no podía anotar la fecha del paquete que tenía
+     en la mano.
+
+     Se alinean las dos al mismo permiso en vez de endurecer la merma: quien
+     maneja la mercadería es exactamente quien lee la fecha impresa, y anotar
+     de menos —que es lo que provoca un permiso demasiado alto— es el error más
+     caro de los dos, porque el dato sólo existe con el producto en la mano. */
+  const session = await requireSession();
+  if (!(session.member.role === "owner" || session.member.can_receive_stock)) {
+    return { ok: false, error: "No tenés permiso para esto." };
+  }
   const parsed = expirySchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Revisá los datos." };
