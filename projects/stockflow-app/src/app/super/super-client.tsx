@@ -15,6 +15,7 @@ import {
   Sparkles,
   SlidersHorizontal,
   KeyRound,
+  BellRing,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { SuperSidebar, FILTROS, type Vista, type Filtro } from "./super-sidebar";
@@ -79,7 +80,44 @@ export type StoreRow = {
   vertical: string;
   aiAssistant: boolean;
   suscripcion: Suscripcion;
+  /* 067 · el seguimiento, para que una fecha agendada se vea en la LISTA y no
+     sólo adentro de la ficha del cliente. Si hay que entrar de a uno para
+     saber a quién llamar, la agenda no sirve para planificar la semana. */
+  seguimientoEl: string | null;
+  ultimoContacto: string | null;
+  contactos: number;
 };
+
+/**
+ * LAS COLUMNAS DE LA CARTERA, en un solo lugar.
+ *
+ * El encabezado y las filas TIENEN que compartir la misma definición: si viven
+ * en dos strings distintos, el día que alguien ensancha una columna el título
+ * queda corrido respecto de su dato y nadie lo nota hasta que el panel miente.
+ *
+ * Anchos fijos y no `auto`: `auto` mide el contenido de cada celda, o sea que
+ * las columnas se moverían al filtrar. Que se muevan al filtrar es exactamente
+ * lo que rompe la comparación entre filas.
+ */
+/* `justify-items-start` evita que un badge se estire a los 11rem de su columna
+   y parezca un botón deformado: en una grilla los hijos se estiran por defecto.
+
+   La última columna es FIJA (9.5rem) y no `auto`, y eso no es cosmético: con
+   `auto`, la pista se mide por su contenido, así que valía 0px en el encabezado
+   —donde la celda de acciones es `sr-only`— y ~125px en las filas. Como la
+   primera columna es `1fr`, esa diferencia se la comía ella y los títulos
+   quedaban corridos ~126px respecto de sus datos. Peor todavía: entre filas
+   también variaba, porque el engranaje del plan sólo aparece si hay plan. 9.5rem
+   entra justo los cuatro botones (4×32 + 3×6 = 146px). */
+const GRILLA =
+  "grid grid-cols-[minmax(0,1fr)_15rem_11rem_10rem_9.5rem] items-center justify-items-start gap-3";
+
+/* Escrito LITERAL y no derivado de `GRILLA` con un `.map(c => "lg:" + c)`:
+   Tailwind genera CSS escaneando clases literales en el código fuente, así que
+   una clase construida en runtime no existe en la hoja de estilos. El
+   duplicado es feo pero es la única versión que funciona. */
+const GRILLA_LG =
+  "lg:grid lg:grid-cols-[minmax(0,1fr)_15rem_11rem_10rem_9.5rem] lg:items-center lg:justify-items-start lg:gap-3";
 
 export function SuperClient({
   stores,
@@ -231,31 +269,6 @@ export function SuperClient({
                     : `${visibles.length} de ${stores.length}`}
             </p>
 
-            {/* Las dos cifras que se miran una vez por semana. Deliberadamente
-                SIN gráfico: con 10 clientes un gráfico es decoración, y la
-                decisión ("¿a quién llamo?") ya la resuelve el color de la fila.
-                La deuda sólo aparece si existe — un "$0 de deuda" permanente
-                enseña a ignorar ese renglón. */}
-            {stores.length > 0 && (
-              <p className="tabular mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                <span className="text-foreground">{pesos(porMes)} por mes</span>
-                {deudaTotal > 0 && (
-                  <span className="text-danger-ink">· {pesos(deudaTotal)} sin cobrar</span>
-                )}
-                {enPrueba > 0 && (
-                  <span className="text-muted-foreground">
-                    · {enPrueba} en prueba
-                  </span>
-                )}
-                {/* Va con las otras dos cifras y no en una sección aparte: es
-                    una decisión de la misma sentada semanal. */}
-                {paraCortar.length > 0 && (
-                  <span className="font-medium text-danger-ink">
-                    · {paraCortar.length} para cortar
-                  </span>
-                )}
-              </p>
-            )}
           </div>
           <button
             type="button"
@@ -265,6 +278,52 @@ export function SuperClient({
             <Plus className="size-4" /> Dar de alta un kiosco
           </button>
         </div>
+
+        {/* LAS TRES CIFRAS DE LA SEMANA, con jerarquía de verdad.
+            Antes vivían en una línea corrida de 14px debajo del subtítulo: la
+            información más importante de la pantalla con el peso visual de un
+            pie de página. El sistema de cards del panel del dueño existe
+            justamente para esto.
+
+            NO llevan glow verde: en esta app el verde está reservado para plata
+            REAL —cobrada— y "por mes" es lo que entra SI TODOS PAGAN. Teñir de
+            verde una promesa es la clase de detalle que hace que después nadie
+            crea en el color.
+
+            Y nada de contadores animados: animar "sin cobrar" es celebrar la
+            mora. */}
+        {vista === "cartera" && stores.length > 0 && (
+          <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Cifra
+              label="Por mes"
+              valor={pesos(porMes)}
+              nota={enPrueba > 0 ? `${enPrueba} en prueba, sin cobrar todavía` : "Si todos pagan"}
+            />
+            {/* La deuda sólo aparece si existe: un "$0 sin cobrar" permanente
+                enseña a ignorar ese renglón, y el día que diga algo tampoco se
+                lo va a mirar. */}
+            {deudaTotal > 0 && (
+              <Cifra
+                label="Sin cobrar"
+                valor={pesos(deudaTotal)}
+                tono="danger"
+                nota={`${stores.filter((x) => x.suscripcion.estado === "debe").length} ${
+                  stores.filter((x) => x.suscripcion.estado === "debe").length === 1
+                    ? "negocio"
+                    : "negocios"
+                }`}
+              />
+            )}
+            {paraCortar.length > 0 && (
+              <Cifra
+                label="Para cortar"
+                valor={String(paraCortar.length)}
+                tono="danger"
+                nota="Pasaron 15 días del vencimiento"
+              />
+            )}
+          </div>
+        )}
 
         {aviso && (
           <div
@@ -313,12 +372,39 @@ export function SuperClient({
             </button>
           </div>
         ) : (
+          <>
+          {/* ENCABEZADO DE COLUMNAS. No es adorno: hasta ahora la fila era un
+              flex-wrap y cada dato caía en una posición distinta según el largo
+              del texto anterior — "5 prod." y "2007 prod." empujaban todo lo de
+              atrás. Con tres clientes se tolera; con treinta es ilegible,
+              porque comparar exige que los números estén en columna.
+              Se oculta en mobile, donde la fila se apila y las etiquetas
+              volverían a mezclar la información en vez de ordenarla. */}
+          <div className={cn(GRILLA, "hidden px-4 pb-1.5 lg:grid")}>
+            <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Negocio
+            </span>
+            <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Uso
+            </span>
+            <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Cobranza
+            </span>
+            <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Seguimiento
+            </span>
+            <span className="sr-only">Acciones</span>
+          </div>
           <ul className="divide-y divide-border rounded-xl border border-border bg-card">
             {visibles.map((s) => (
               <li
                 key={s.id}
                 className={cn(
-                  "flex flex-wrap items-center gap-3 px-4 py-3",
+                  "px-4 py-3",
+                  /* Mobile apila; desde lg entra la grilla de columnas fijas,
+                     que es la que permite comparar entre filas. */
+                  "flex flex-wrap items-center gap-3",
+                  GRILLA_LG,
                   /* 063 · el que está listo para cortar se marca en la FILA, no
                      con un ícono más: la lista se recorre de arriba a abajo una
                      vez por semana y lo que importa es cuál salta a la vista.
@@ -349,17 +435,22 @@ export function SuperClient({
                     {s.dueno ?? "sin dueño"} · /{s.slug}
                   </p>
                 </div>
-                <div className="tabular flex shrink-0 gap-4 text-xs text-muted-foreground">
-                  <span>{s.productos} prod.</span>
+                {/* Sub-columnas de ancho fijo y no un `gap` entre textos: con
+                    gap, "1 prod." y "2007 prod." empujan lo que sigue y los
+                    tres datos caen en una x distinta en cada fila. Comparar
+                    entre filas exige que la columna sea columna. */}
+                <div className="tabular flex shrink-0 items-baseline gap-2 text-xs text-muted-foreground lg:w-full">
+                  <span className="lg:w-20">{s.productos} prod.</span>
                   {/* 057 · ventas de los ÚLTIMOS 30 DÍAS y no el acumulado
                       histórico: "1347 ventas" no distingue a un cliente activo
                       de uno que vendió mucho hace un año, que es justo la
                       diferencia que hay que ver acá. */}
-                  <span>{s.ventas30d} en 30d</span>
+                  <span className="lg:w-20">{s.ventas30d} en 30d</span>
                   {/* La última venta es el pulso real: un kiosco que no vende
                       hace una semana dejó de usar el sistema. */}
                   <span
                     className={cn(
+                      "lg:w-24",
                       s.ultimaVenta === null && "text-danger-ink",
                     )}
                   >
@@ -377,6 +468,19 @@ export function SuperClient({
                   }
                   pending={pending}
                 />
+
+                <Seguimiento
+                  seguimientoEl={s.seguimientoEl}
+                  ultimoContacto={s.ultimoContacto}
+                  contactos={s.contactos}
+                  debe={s.suscripcion.estado === "debe"}
+                />
+                {/* TODAS las acciones en UN solo hijo de la grilla.
+                    Sueltas eran seis hermanos más en una grilla de cinco
+                    columnas, así que desbordaban a renglones implícitos y los
+                    botones se estiraban a lo ancho de la columna que les
+                    tocaba. Una grilla no acomoda lo que le sobra: lo apila. */}
+                <div className="flex shrink-0 items-center gap-1.5 lg:justify-self-end">
                 {/* El engranaje aparece SÓLO si ya hay plan: para el que no
                     tiene, la puerta es el propio "sin plan". Cambiar el precio
                     o dar de baja se hace una vez por año — no compite por
@@ -467,9 +571,11 @@ export function SuperClient({
                 >
                   <KeyRound className="size-3.5" />
                 </button>
+                </div>
               </li>
             ))}
           </ul>
+          </>
         )}
         </div>
       </div>
@@ -1206,5 +1312,110 @@ function DialogoDePago({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Una de las cifras de la semana.
+ *
+ * Reusa la gramática del panel del dueño (`Card` + `CardLabel` + `tabular`) en
+ * vez de inventar una card propia: que el panel de SYNTRA se vea como el
+ * producto no es coquetería, es lo que hace que un cambio en el sistema de
+ * cards llegue también acá.
+ *
+ * `tabular` en el número es lo que permite compararlos de un vistazo entre
+ * cards; con cifras proporcionales, tres montos del mismo largo se ven de
+ * anchos distintos.
+ */
+function Cifra({
+  label,
+  valor,
+  nota,
+  tono = "neutro",
+}: {
+  label: string;
+  valor: string;
+  nota?: string;
+  tono?: "neutro" | "danger";
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-xl border p-4",
+        "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+        tono === "danger" ? "border-danger/30 bg-danger/[0.06]" : "border-border bg-card",
+      )}
+    >
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "tabular mt-1 text-2xl font-semibold",
+          tono === "danger" ? "text-danger-ink" : "text-foreground",
+        )}
+      >
+        {valor}
+      </p>
+      {nota && <p className="mt-0.5 text-xs text-muted-foreground">{nota}</p>}
+    </div>
+  );
+}
+
+/**
+ * La columna de seguimiento.
+ *
+ * 066 dejó anotar el contacto y agendar cuándo volver a llamar, pero eso vivía
+ * SÓLO adentro de la ficha: una fecha para el 28 no se veía en ningún lado a
+ * menos que entraras al cliente. Una agenda que obliga a abrir de a uno no
+ * sirve para planificar la semana, que es para lo que se anotó.
+ *
+ * Tres estados, en orden de urgencia:
+ *  · hay fecha agendada  → la fecha, que es un compromiso con uno mismo;
+ *  · debe y nunca se lo contactó → ámbar, porque es el caso más fácil de
+ *    resolver (quizás sólo no se enteró) y el más fácil de que se pase;
+ *  · hubo contacto → hace cuánto.
+ */
+function Seguimiento({
+  seguimientoEl,
+  ultimoContacto,
+  contactos,
+  debe,
+}: {
+  seguimientoEl: string | null;
+  ultimoContacto: string | null;
+  contactos: number;
+  debe: boolean;
+}) {
+  if (seguimientoEl) {
+    return (
+      <span className="flex shrink-0 items-center gap-1.5 text-xs text-foreground">
+        <BellRing className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        {new Date(seguimientoEl + "T00:00:00").toLocaleDateString("es-AR", {
+          day: "numeric",
+          month: "short",
+        })}
+      </span>
+    );
+  }
+
+  if (!ultimoContacto) {
+    /* Sólo se marca en ámbar si DEBE: en un cliente al día, no haberlo
+       contactado nunca es lo normal y teñirlo sería una alarma falsa. */
+    return debe ? (
+      <span className="shrink-0 text-xs text-warning-ink">Nunca contactado</span>
+    ) : (
+      <span className="shrink-0 text-xs text-muted-foreground">—</span>
+    );
+  }
+
+  return (
+    <span
+      className="shrink-0 text-xs text-muted-foreground"
+      title={new Date(ultimoContacto).toLocaleString("es-AR")}
+    >
+      {haceCuanto(ultimoContacto)}
+      {contactos > 1 && ` · ${contactos}`}
+    </span>
   );
 }
