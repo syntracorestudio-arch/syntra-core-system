@@ -465,3 +465,104 @@ export async function cancelarSuscripcion(
   revalidatePath("/super");
   return { ok: true };
 }
+
+/**
+ * Reemitir la contraseña del DUEÑO de un negocio.
+ *
+ * POR QUÉ EXISTE. Las credenciales se muestran una sola vez, en el alta
+ * ("no la vas a poder ver de nuevo"), y no había ninguna forma de volver a
+ * emitirlas. "Me olvidé la contraseña" manda un email que HOY NO SALE: el SMTP
+ * está gateado por la compra del dominio (despliegue-plan.md §5.1b). O sea que
+ * un cliente que perdía la clave se quedaba afuera de su propio negocio y el
+ * único camino era abrir Supabase a mano.
+ *
+ * Es la contracara de `resetearClaveEmpleado` (equipo/actions.ts): aquel lo usa
+ * el dueño con su equipo; éste lo usa SYNTRA con el dueño, que es el único que
+ * no tiene a nadie arriba para rescatarlo.
+ *
+ * CIERRA LAS SESIONES ABIERTAS, igual que el reset de empleados. Es deliberado
+ * y tiene un costo real: si el negocio está vendiendo con esa cuenta, la caja
+ * se cae y hay que volver a entrar. Se acepta porque la alternativa es peor —
+ * una clave reemitida que no expulsa a quien tenía la vieja no es un reset, es
+ * una segunda llave. Como esto se dispara cuando el dueño LLAMA porque no puede
+ * entrar, en la práctica casi nunca hay sesión que cortar.
+ */
+export async function reemitirCredenciales(
+  storeId: string,
+  motivo: string,
+): Promise<AltaResult> {
+  const { userId, email } = await requireSuperadmin();
+  if (!(await limitarSuper(userId))) {
+    return { ok: false, error: "Demasiadas acciones seguidas. Esperá un minuto." };
+  }
+  if (motivo.trim().length < 10) {
+    return { ok: false, error: "Contá en una línea por qué se reemite." };
+  }
+
+  const admin = createAdminClient();
+
+  /* El dueño del negocio. Se resuelve por `members` y no por un campo en
+     `stores` porque la titularidad vive ahí (001:39) y puede haber cambiado. */
+  const { data: duenio } = await admin
+    .from("members")
+    .select("profile_id, store:stores!inner ( name ), profile:profiles!members_profile_id_fkey!inner ( email )")
+    .eq("store_id", storeId)
+    .eq("role", "owner")
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (!duenio) {
+    return { ok: false, error: "Ese negocio no tiene un dueño activo." };
+  }
+
+  const objetivo = duenio as unknown as {
+    profile_id: string;
+    store: { name: string } | null;
+    profile: { email: string | null } | null;
+  };
+  const nombreNegocio = objetivo.store?.name ?? "el negocio";
+  const emailDuenio = objetivo.profile?.email ?? null;
+
+  if (!emailDuenio) {
+    return { ok: false, error: "El dueño no tiene email cargado." };
+  }
+
+  /* La bitácora va PRIMERO, mismo criterio que suspender. Si fallara DESPUÉS,
+     el dueño se encontraría con que su contraseña dejó de andar y sin ninguna
+     fila que se lo explique — que es exactamente la sensación de haber sido
+     hackeado. Al revés, el peor caso es una fila de más. */
+  try {
+    await registrarOFallar({
+      actorId: userId,
+      actorEmail: email,
+      accion: "credenciales_reemitidas",
+      motivo,
+      storeId,
+      profileId: objetivo.profile_id,
+      etiqueta: nombreNegocio,
+    });
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "No se pudo registrar." };
+  }
+
+  const password = credencialTemporal();
+  const { error: errPass } = await admin.auth.admin.updateUserById(objetivo.profile_id, {
+    password,
+  });
+  if (errPass) {
+    return { ok: false, error: "No pudimos cambiar la contraseña." };
+  }
+
+  /* Provisoria por definición: esta clave la dictamos nosotros por teléfono.
+     A diferencia del superadmin, acá el flag SÍ se hace cumplir — el dueño
+     entra por `getSession`, que lo manda a /clave (session.ts:174). */
+  await admin
+    .from("profiles")
+    .update({ must_change_password: true })
+    .eq("id", objetivo.profile_id);
+
+  await admin.auth.admin.signOut(objetivo.profile_id, "global");
+
+  revalidatePath("/super");
+  return { ok: true, store: nombreNegocio, email: emailDuenio, password };
+}

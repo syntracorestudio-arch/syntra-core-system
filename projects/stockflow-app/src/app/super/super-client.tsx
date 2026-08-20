@@ -14,6 +14,7 @@ import {
   LogOut,
   Sparkles,
   SlidersHorizontal,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -21,6 +22,7 @@ import {
   cambiarEstado,
   setAsistenteIA,
   marcarPagoSuscripcion,
+  reemitirCredenciales,
   type AltaResult,
 } from "./actions";
 import { DialogoPlan } from "./plan-dialog";
@@ -86,7 +88,13 @@ export function SuperClient({
   email: string | null;
 }) {
   const [creando, setCreando] = useState(false);
-  const [alta, setAlta] = useState<Extract<AltaResult, { ok: true }> | null>(null);
+  /* El mismo diálogo sirve para el alta y para la reemisión, pero el texto NO
+     puede ser el mismo: en el alta la clave estrena una cuenta y en la
+     reemisión reemplaza una que dejó de andar. `modo` es lo que decide qué se
+     le dice al que la está por dictar por teléfono. */
+  const [alta, setAlta] = useState<
+    (Extract<AltaResult, { ok: true }> & { modo: "alta" | "reemision" }) | null
+  >(null);
   const [aviso, setAviso] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
   /* 055 · ninguna mutación de este panel se ejecuta sin motivo: el botón abre
@@ -367,6 +375,28 @@ export function SuperClient({
                 >
                   {s.status === "active" ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
                 </button>
+                {/* Reemitir la contraseña del dueño. Va acá, al lado de
+                    suspender, porque las dos son cosas que se hacen cuando el
+                    cliente LLAMA — no es una acción de configuración.
+                    Es la única salida real hoy: "Me olvidé la contraseña" manda
+                    un mail y todavía no hay SMTP. */}
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() =>
+                    setPidiendoMotivo({
+                      storeId: s.id,
+                      nombre: s.name,
+                      tipo: "credenciales",
+                      valor: true,
+                    })
+                  }
+                  aria-label={`Reemitir la contraseña del dueño de ${s.name}`}
+                  title="Reemitir la contraseña del dueño"
+                  className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary hover:text-foreground disabled:opacity-40"
+                >
+                  <KeyRound className="size-3.5" />
+                </button>
               </li>
             ))}
           </ul>
@@ -378,7 +408,7 @@ export function SuperClient({
           onClose={() => setCreando(false)}
           onDone={(r) => {
             setCreando(false);
-            setAlta(r);
+            setAlta({ ...r, modo: "alta" });
           }}
         />
       )}
@@ -428,6 +458,20 @@ export function SuperClient({
           onConfirmar={(motivo) => {
             const p = pidiendoMotivo;
             startTransition(async () => {
+              /* La reemisión sale antes que las otras dos porque NO termina en
+                 un aviso: termina abriendo el diálogo con la contraseña, que es
+                 lo único que hay que hacer con ella. */
+              if (p.tipo === "credenciales") {
+                const r = await reemitirCredenciales(p.storeId, motivo);
+                setPidiendoMotivo(null);
+                if (!r.ok) {
+                  setAviso({ tone: "error", text: r.error ?? "No se pudo completar." });
+                  return;
+                }
+                setAlta({ ...r, modo: "reemision" });
+                return;
+              }
+
               const r =
                 p.tipo === "estado"
                   ? await cambiarEstado(p.storeId, p.valor ? "active" : "suspended", motivo)
@@ -649,18 +693,32 @@ function CredencialesDialog({
   alta,
   onClose,
 }: {
-  alta: Extract<AltaResult, { ok: true }>;
+  alta: Extract<AltaResult, { ok: true }> & { modo: "alta" | "reemision" };
   onClose: () => void;
 }) {
   const [copiado, setCopiado] = useState(false);
+  const esReemision = alta.modo === "reemision";
   const texto = `StockFlow — ${alta.store}\nEntrá con:\nEmail: ${alta.email}\nContraseña: ${alta.password}`;
 
   return (
-    <Dialog title={`${alta.store} está listo`} onClose={onClose}>
+    <Dialog
+      title={esReemision ? `Contraseña nueva de ${alta.store}` : `${alta.store} está listo`}
+      onClose={onClose}
+    >
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Pasale estos datos al dueño. La contraseña es temporal y{" "}
-          <strong className="text-foreground">no la vas a poder ver de nuevo</strong>.
+          {esReemision ? (
+            <>
+              Dictásela al dueño. La anterior{" "}
+              <strong className="text-foreground">dejó de funcionar</strong> y se cerraron
+              las sesiones que tuviera abiertas.
+            </>
+          ) : (
+            <>
+              Pasale estos datos al dueño. La contraseña es temporal y{" "}
+              <strong className="text-foreground">no la vas a poder ver de nuevo</strong>.
+            </>
+          )}
         </p>
 
         <dl className="space-y-2 rounded-lg border border-border bg-background p-3">
@@ -748,8 +806,9 @@ function Dialog({
 type PedidoDeMotivo = {
   storeId: string;
   nombre: string;
-  tipo: "estado" | "ia";
-  /** Estado al que se va: suspendido→activo, IA on/off. */
+  tipo: "estado" | "ia" | "credenciales";
+  /** Estado al que se va: suspendido→activo, IA on/off. Irrelevante en
+      `credenciales`, que no es un toggle sino un acto de una sola dirección. */
   valor: boolean;
 };
 
@@ -776,13 +835,15 @@ function DialogoDeMotivo({
   const suficiente = motivo.trim().length >= 10;
 
   const titulo =
-    pedido.tipo === "estado"
-      ? pedido.valor
-        ? "Reactivar " + pedido.nombre
-        : "Suspender " + pedido.nombre
-      : pedido.valor
-        ? "Activar el Asistente IA en " + pedido.nombre
-        : "Desactivar el Asistente IA en " + pedido.nombre;
+    pedido.tipo === "credenciales"
+      ? "Reemitir la contraseña de " + pedido.nombre
+      : pedido.tipo === "estado"
+        ? pedido.valor
+          ? "Reactivar " + pedido.nombre
+          : "Suspender " + pedido.nombre
+        : pedido.valor
+          ? "Activar el Asistente IA en " + pedido.nombre
+          : "Desactivar el Asistente IA en " + pedido.nombre;
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
@@ -804,6 +865,15 @@ function DialogoDeMotivo({
             Deja de poder vender. Si está abierto, se entera en la próxima venta.
           </p>
         )}
+        {pedido.tipo === "credenciales" && (
+          /* Mismo criterio que suspender: se avisa ANTES lo que se rompe. Si
+             el dueño está laburando en ese momento, la caja se le cae y tiene
+             que volver a entrar con la clave nueva. */
+          <p className="mt-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-ink">
+            La contraseña actual deja de andar y se cierran sus sesiones abiertas.
+            Si está vendiendo, va a tener que volver a entrar.
+          </p>
+        )}
         <label htmlFor="motivo" className="mt-4 block text-sm font-medium">
           ¿Por qué?
         </label>
@@ -816,7 +886,14 @@ function DialogoDeMotivo({
           onChange={(e) => setMotivo(e.target.value)}
           rows={3}
           autoFocus
-          placeholder="Falta de pago de la cuota de agosto, avisado por WhatsApp el 12."
+          /* El ejemplo cambia con la acción: el de "falta de pago" no tiene
+             nada que ver con reemitir una clave, y un placeholder que no
+             corresponde enseña a escribir cualquier cosa. */
+          placeholder={
+            pedido.tipo === "credenciales"
+              ? "Me llamó porque no puede entrar; perdió la contraseña."
+              : "Falta de pago de la cuota de agosto, avisado por WhatsApp el 12."
+          }
           className="w-full rounded-lg border border-input bg-card p-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
         />
         <p className="mt-1 text-xs text-muted-foreground">

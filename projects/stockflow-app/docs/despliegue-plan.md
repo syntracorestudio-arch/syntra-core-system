@@ -67,6 +67,36 @@ supabase db push        # aplica supabase/migrations/*.sql en orden ascendente
 - Confirmar que RLS quedó activo en todas las tablas (las migraciones lo setean; verificar
   que ninguna quedó abierta).
 
+## 2-ter. Crear el superadmin — **sin esto nadie puede entrar a `/super`**
+
+Las migraciones NO alcanzan para tener acceso a la plataforma, y es fácil no darse
+cuenta: el bootstrap de `056_plataforma_acceso.sql:95-98` hace un `update` sobre
+`profiles` filtrando por email, y en una base nueva **eso no matchea ninguna fila**
+(las migraciones corren antes de que exista ningún usuario, y no hay signup público).
+`otorgar_superadmin` tampoco sirve para arrancar: exige un superadmin que ya exista.
+
+En local no se nota porque `seed.sql` inserta usuarios, y `seed.sql` **nunca corre en
+producción**.
+
+```bash
+npm run superadmin:crear -- --email=syntracore.studio@gmail.com
+```
+
+- Pide la contraseña **por teclado, sin eco** (pasarla por argumento la dejaría en el
+  historial del shell). Mínimo 12 caracteres.
+- En un entorno sin terminal interactiva acepta `SUPERADMIN_PASSWORD`.
+- Necesita `NEXT_PUBLIC_SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` (de `.env.local` o
+  del entorno del proceso).
+- **Es idempotente**: correrlo de nuevo actualiza la contraseña y reconfirma el flag.
+  Es también el camino de recuperación si el owner pierde su propia clave.
+- **Se niega** si el email pertenece a alguien que trabaja en un negocio de la
+  plataforma: darle superadmin a un cliente lo dejaría ver y suspender los kioscos de
+  todos, y además le cambiaría la contraseña sin avisarle. Se puede saltear con
+  `--forzar`, a propósito.
+
+Después: entrar con esa cuenta y **escribir `/super` a mano** (no hay ningún link;
+quien no es superadmin no tiene por qué enterarse de que el panel existe).
+
 ## 1-bis. Cupo de Supabase — **el bloqueante nº1, y no estaba escrito**
 
 El plan gratis de Supabase admite **2 proyectos**, y los dos están ocupados: la web de
