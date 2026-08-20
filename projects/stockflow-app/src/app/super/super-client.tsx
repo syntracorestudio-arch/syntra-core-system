@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/cn";
 import { SuperSidebar, FILTROS, type Vista, type Filtro } from "./super-sidebar";
 import { CobranzaGrilla, type CeldaCobranza } from "./cobranza-grilla";
+import { Resumen, type MesIngreso, type CobradoCliente } from "./resumen-client";
 import {
   crearNegocio,
   cambiarEstado,
@@ -123,10 +124,14 @@ export function SuperClient({
   stores,
   email,
   celdas,
+  meses,
+  porCliente,
 }: {
   stores: StoreRow[];
   email: string | null;
   celdas: CeldaCobranza[];
+  meses: MesIngreso[];
+  porCliente: CobradoCliente[];
 }) {
   const [creando, setCreando] = useState(false);
   /* El mismo diálogo sirve para el alta y para la reemisión, pero el texto NO
@@ -257,10 +262,12 @@ export function SuperClient({
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">
-              {vista === "cobranza" ? "Cobranza" : "Negocios"}
+              {vista === "cobranza" ? "Cobranza" : vista === "resumen" ? "Resumen" : "Negocios"}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {vista === "cobranza"
+              {vista === "resumen"
+                ? "Cuánto entra, de dónde viene y cuánto falta."
+                : vista === "cobranza"
                 ? "Quién pagó cada mes, y quién viene arrastrando."
                 : stores.length === 0
                   ? "Todavía no hay ninguno."
@@ -347,7 +354,9 @@ export function SuperClient({
           </div>
         )}
 
-        {vista === "cobranza" ? (
+        {vista === "resumen" ? (
+          <Resumen meses={meses} porCliente={porCliente} stores={stores} />
+        ) : vista === "cobranza" ? (
           <CobranzaGrilla stores={stores} celdas={celdas} />
         ) : stores.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
