@@ -566,3 +566,115 @@ export async function reemitirCredenciales(
   revalidatePath("/super");
   return { ok: true, store: nombreNegocio, email: emailDuenio, password };
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   066 · EL CONTACTO HUMANO Y LAS NOTAS
+
+   "71 días de atraso" se lee igual hayas reclamado tres veces o ninguna, y son
+   dos conversaciones opuestas. La escalera automática registra lo que manda el
+   sistema; esto registra lo que hizo la persona.
+
+   Las tres revalidan la ficha Y la cartera: el "último contacto" se muestra en
+   las dos, y que una quede vieja hace dudar de las dos.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+const CANALES = ["whatsapp", "llamada", "email", "presencial", "otro"] as const;
+export type Canal = (typeof CANALES)[number];
+
+export async function registrarContacto(
+  storeId: string,
+  canal: string,
+  resumen: string,
+  seguimiento: string | null,
+  tocarSeguimiento: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  const { userId, email } = await requireSuperadmin();
+  if (!(await limitarSuper(userId))) {
+    return { ok: false, error: "Demasiadas acciones seguidas. Esperá un minuto." };
+  }
+  if (!CANALES.includes(canal as Canal)) {
+    return { ok: false, error: "Elegí por dónde lo contactaste." };
+  }
+  if (resumen.trim().length < 3) {
+    return { ok: false, error: "Escribí aunque sea dos palabras de qué pasó." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("registrar_contacto", {
+    p_store_id: storeId,
+    p_canal: canal,
+    p_resumen: resumen.trim(),
+    p_actor_id: userId,
+    p_actor_email: email,
+    p_seguimiento: seguimiento,
+    p_tocar_seguimiento: tocarSeguimiento,
+  });
+
+  if (error) {
+    if (error.message.includes("seguimiento_en_el_pasado")) {
+      return { ok: false, error: "Esa fecha ya pasó." };
+    }
+    return { ok: false, error: "No pudimos registrar el contacto." };
+  }
+
+  /* "layout" y no la ruta a secas: la ficha vive en /super/<slug> y acá sólo
+     tenemos el id. Revalidar el layout alcanza a /super y a todas sus hijas de
+     una, sin tener que salir a buscar el slug para invalidar una sola. */
+  revalidatePath("/super", "layout");
+  return { ok: true };
+}
+
+/**
+ * Borrar un contacto cargado por error.
+ *
+ * Existe DELETE pero no UPDATE (066): son notas internas del operador sobre sí
+ * mismo, así que cargar una en el negocio equivocado tiene que poder deshacerse
+ * —si no, la lista se llena de basura y se deja de mirar—, pero reescribir "ya
+ * le reclamé" en silencio, no. Se borra y se carga de nuevo, y la fecha nueva
+ * queda a la vista.
+ */
+export async function borrarContacto(id: string): Promise<{ ok: boolean; error?: string }> {
+  const { userId } = await requireSuperadmin();
+  if (!(await limitarSuper(userId))) {
+    return { ok: false, error: "Demasiadas acciones seguidas. Esperá un minuto." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("client_contacts").delete().eq("id", id);
+  if (error) return { ok: false, error: "No pudimos borrarlo." };
+
+  revalidatePath("/super", "layout");
+  return { ok: true };
+}
+
+export async function guardarNotas(
+  storeId: string,
+  notas: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { userId } = await requireSuperadmin();
+  if (!(await limitarSuper(userId))) {
+    return { ok: false, error: "Demasiadas acciones seguidas. Esperá un minuto." };
+  }
+  if (notas.length > 2000) {
+    return { ok: false, error: "La nota es muy larga (máximo 2000 caracteres)." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("guardar_notas", {
+    p_store_id: storeId,
+    p_notas: notas,
+  });
+
+  if (error) {
+    /* Sin plan no hay dónde guardar la nota: `notas` vive en `subscriptions`.
+       Se dice con todas las letras en vez de fallar genérico, porque la
+       solución es concreta y está a un click. */
+    if (error.message.includes("sin_suscripcion")) {
+      return { ok: false, error: "Asignale un plan al negocio antes de dejarle notas." };
+    }
+    return { ok: false, error: "No pudimos guardar la nota." };
+  }
+
+  revalidatePath("/super", "layout");
+  return { ok: true };
+}
