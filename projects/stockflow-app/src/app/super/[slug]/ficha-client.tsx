@@ -14,7 +14,7 @@ import {
 import { cn } from "@/lib/cn";
 import type { StoreRow } from "../super-client";
 import { IdentidadSyntra } from "../super-sidebar";
-import { Contactos, Notas, CANAL_LABEL, haceCuanto } from "./contactos-notas";
+import { Contactos, Notas, PuestaEnMarcha, CANAL_LABEL, haceCuanto } from "./contactos-notas";
 
 export type Pago = {
   periodo: string;
@@ -122,6 +122,8 @@ export function FichaCliente({
   tienePlan,
   alias,
   email,
+  diasDesdeAlta,
+  vendioEstaSemana,
 }: {
   store: StoreRow;
   pagos: Pago[];
@@ -132,6 +134,8 @@ export function FichaCliente({
   tienePlan: boolean;
   alias: string | null;
   email: string | null;
+  diasDesdeAlta: number;
+  vendioEstaSemana: boolean;
 }) {
   const [copiado, setCopiado] = useState(false);
   const ultimo = contactos[0] ?? null;
@@ -170,6 +174,18 @@ export function FichaCliente({
           {store.dueno ?? "Sin dueño cargado"} · /{store.slug} · desde {fechaCorta(store.createdAt)}
         </p>
       </header>
+
+      {/* La puesta en marcha va ANTES que la deuda cuando existe: si el cliente
+          nunca arrancó, eso EXPLICA la deuda, y reclamarle plata a alguien que
+          no pudo usar el producto es la peor conversación posible. */}
+      <div className="mb-6 empty:hidden">
+        <PuestaEnMarcha
+          productos={store.productos}
+          ventas={store.ventas}
+          diasDesdeAlta={diasDesdeAlta}
+          vendioEstaSemana={vendioEstaSemana}
+        />
+      </div>
 
       {/* LA DEUDA Y EL MENSAJE, ARRIBA DE TODO. Es lo que se mira mientras suena
           el teléfono; el resto de la ficha es respaldo para esa conversación. */}

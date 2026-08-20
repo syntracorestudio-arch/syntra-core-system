@@ -12,6 +12,14 @@ export default async function SuperPage() {
   // guard de superadmin. La vista no está otorgada a `authenticated`.
   const admin = createAdminClient();
 
+  /* La misma ventana de 36 meses que las otras dos consultas de ingresos, en un
+     solo lugar para que no se desincronicen. */
+  const hoy = new Date();
+  const hoyISO = hoy.toISOString().slice(0, 10);
+  const desde36 = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() - 35, 1))
+    .toISOString()
+    .slice(0, 10);
+
   /* Las dos lecturas son independientes: en paralelo, no en cadena (baseline).
      La grilla trae 6 meses —la ventana que la UI muestra— y no la historia
      entera: la cota vive en el argumento y además está topeada en la RPC. */
@@ -21,6 +29,7 @@ export default async function SuperPage() {
     { data: seguimiento },
     { data: ingresos },
     { data: cobradoCliente },
+    { data: pagos },
   ] = await Promise.all([
     admin
       .from("admin_stores")
@@ -36,6 +45,10 @@ export default async function SuperPage() {
        vuelve al servidor. */
     admin.rpc("ingresos_mensuales", { p_meses: 36 }),
     admin.rpc("cobrado_por_cliente_mes", { p_meses: 36 }),
+    /* 069 · los pagos individuales, para conciliar contra el banco. Van por
+       `pagado_el` (cuándo entró la plata) y no por período ni por fecha de
+       carga: el resumen bancario está ordenado por el día del movimiento. */
+    admin.rpc("pagos_asentados", { p_desde: desde36, p_hasta: hoyISO }),
   ]);
 
   /* Indexado por negocio para que la fila no recorra un array en cada render:
@@ -120,6 +133,25 @@ export default async function SuperPage() {
         nombre: c.nombre,
         mes: c.mes,
         cobrado: Number(c.cobrado),
+      }))}
+      pagos={((pagos ?? []) as {
+        id: string;
+        negocio: string;
+        periodo: string;
+        monto: string | number;
+        medio: string;
+        nota: string | null;
+        pagado_el: string;
+        a_destiempo: boolean;
+      }[]).map((p) => ({
+        id: p.id,
+        negocio: p.negocio,
+        periodo: p.periodo,
+        monto: Number(p.monto),
+        medio: p.medio,
+        nota: p.nota,
+        pagadoEl: p.pagado_el,
+        aDestiempo: Boolean(p.a_destiempo),
       }))}
     />
   );

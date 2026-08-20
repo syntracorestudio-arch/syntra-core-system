@@ -12,6 +12,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { Download } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { StoreRow } from "./super-client";
 
@@ -21,6 +22,17 @@ export type MesIngreso = {
   cobrado: number;
   pagaron: number;
   enCurso: boolean;
+};
+
+export type PagoAsentado = {
+  id: string;
+  negocio: string;
+  periodo: string;
+  monto: number;
+  medio: string;
+  nota: string | null;
+  pagadoEl: string;
+  aDestiempo: boolean;
 };
 
 export type CobradoCliente = {
@@ -76,10 +88,12 @@ const kFmt = (v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))
 export function Resumen({
   meses,
   porCliente,
+  pagos,
   stores,
 }: {
   meses: MesIngreso[];
   porCliente: CobradoCliente[];
+  pagos: PagoAsentado[];
   stores: StoreRow[];
 }) {
   /* Los años que realmente tienen datos, del más nuevo al más viejo. Ofrecer
@@ -126,6 +140,20 @@ export function Resumen({
     });
     return [...acc.values()].sort((a, b) => b.total - a.total);
   }, [porCliente, anio, mes]);
+
+  /* Los pagos del período se recortan por `pagadoEl` —cuándo entró la plata— y
+     NO por el mes que saldan. Es la diferencia entre conciliar y no conciliar:
+     el resumen del banco está ordenado por el día del movimiento, así que un
+     pago de julio transferido el 4 de agosto pertenece al cruce de agosto. */
+  const pagosDelPeriodo = useMemo(
+    () =>
+      pagos.filter((p) => {
+        const a = Number(p.pagadoEl.slice(0, 4));
+        const m = Number(p.pagadoEl.slice(5, 7)) - 1;
+        return a === anio && (mes === -1 || m === mes);
+      }),
+    [pagos, anio, mes],
+  );
 
   const etiquetaPeriodo = mes === -1 ? `${anio}` : `${MESES[mes]} de ${anio}`;
 
@@ -282,6 +310,8 @@ export function Resumen({
         <CarteraDonut stores={stores} />
         <PorCliente clientes={clientesDelPeriodo} periodo={etiquetaPeriodo} />
       </div>
+
+      <Conciliacion pagos={pagosDelPeriodo} periodo={etiquetaPeriodo} />
     </div>
   );
 }
@@ -534,5 +564,149 @@ function PorCliente({
         </ul>
       )}
     </Bloque>
+  );
+}
+
+/**
+ * Conciliación — la lista plana para cruzar contra el resumen del banco.
+ *
+ * POR QUÉ FILAS Y NO UNA SUMA. Todo el resto de esta pantalla agrega; acá se
+ * desagrega a propósito. Una suma mensual dice que falta plata, pero no cuál:
+ * conciliar es tildar cada movimiento del banco contra su fila, y para eso hace
+ * falta la fila.
+ *
+ * ORDENADA POR CUÁNDO ENTRÓ LA PLATA, que es el orden del extracto bancario, y
+ * NO por el mes que salda ni por cuándo se cargó. Cuando esas fechas no
+ * coinciden se marca "cargado después": es lo que explica por qué una fila no
+ * aparece donde uno la busca.
+ */
+function Conciliacion({
+  pagos,
+  periodo,
+}: {
+  pagos: PagoAsentado[];
+  periodo: string;
+}) {
+  const total = pagos.reduce((t, p) => t + p.monto, 0);
+
+  function exportar() {
+    /* CSV armado a mano y no con una librería: son seis columnas de texto
+       plano. `;` como separador y no `,` porque Excel en español lo espera así
+       —con coma, todo entra en una sola columna— y BOM al principio porque si
+       no, Excel abre los acentos rotos. Los dos detalles son la diferencia
+       entre un archivo que se abre y uno que hay que "importar". */
+    const filas = [
+      ["Fecha de pago", "Negocio", "Mes que salda", "Monto", "Medio", "Nota"],
+      ...pagos.map((p) => [
+        new Date(p.pagadoEl).toLocaleDateString("es-AR"),
+        p.negocio,
+        `${MESES[Number(p.periodo.slice(5, 7)) - 1]} ${p.periodo.slice(0, 4)}`,
+        String(p.monto),
+        p.medio,
+        p.nota ?? "",
+      ]),
+    ];
+    const csv = filas
+      .map((f) => f.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"))
+      .join("\r\n");
+
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cobrado-${periodo.replace(/\s+/g, "-").toLowerCase()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-4 lg:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold">Cobrado en {periodo}</h2>
+          <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+            Cada pago asentado, por el día en que entró la plata — el mismo orden
+            que el resumen del banco. Sirve para tildar uno por uno.
+          </p>
+        </div>
+        {pagos.length > 0 && (
+          <button
+            type="button"
+            onClick={exportar}
+            className="flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 text-sm transition-colors hover:border-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <Download className="size-3.5" aria-hidden /> Bajar CSV
+          </button>
+        )}
+      </div>
+
+      {pagos.length === 0 ? (
+        <div className="mt-3">
+          <Vacio>Ningún pago asentado en {periodo}.</Vacio>
+        </div>
+      ) : (
+        <>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[34rem] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  {["Entró", "Negocio", "Salda", "Medio", "Monto"].map((h, i) => (
+                    <th
+                      key={h}
+                      className={cn(
+                        "pb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground",
+                        i === 4 && "text-right",
+                      )}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {pagos.map((p) => (
+                  <tr key={p.id}>
+                    <td className="tabular py-2 pr-3 align-top">
+                      {new Date(p.pagadoEl).toLocaleDateString("es-AR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                      })}
+                      {p.aDestiempo && (
+                        /* Se dice por qué la fecha del extracto y la de carga no
+                           coinciden, en vez de dejar al que concilia buscando
+                           una fila que está en otro día. */
+                        <span className="ml-1.5 text-[11px] text-muted-foreground">
+                          (cargado después)
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3 align-top">{p.negocio}</td>
+                    <td className="py-2 pr-3 align-top capitalize text-muted-foreground">
+                      {MESES[Number(p.periodo.slice(5, 7)) - 1]}
+                    </td>
+                    <td className="py-2 pr-3 align-top text-muted-foreground">{p.medio}</td>
+                    <td className="tabular py-2 text-right align-top font-medium">
+                      {pesos(p.monto)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-border">
+                  <td colSpan={4} className="pt-2 text-xs text-muted-foreground">
+                    {pagos.length} {pagos.length === 1 ? "movimiento" : "movimientos"}
+                  </td>
+                  <td className="tabular pt-2 text-right font-semibold">{pesos(total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Este total tiene que coincidir con lo que entró al banco en {periodo}.
+            Si no coincide, falta asentar un pago o hay uno cargado de más.
+          </p>
+        </>
+      )}
+    </section>
   );
 }

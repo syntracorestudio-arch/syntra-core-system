@@ -266,3 +266,87 @@ export function Notas({
     </div>
   );
 }
+
+/**
+ * Puesta en marcha — los cuatro pasos que predicen si paga el mes 2.
+ *
+ * POR QUÉ ESTO Y NO "días desde el alta". Un cliente que no cargó productos a
+ * los diez días no está "nuevo": está trabado, y nadie se enteró. La deuda
+ * avisa 40 días tarde —cuando ya decidió irse—; esto avisa en la primera
+ * semana, que es cuando todavía se puede hacer algo.
+ *
+ * Los cuatro pasos salen de datos que YA existen (`admin_stores`): no hay
+ * ninguna tabla de onboarding que alguien tenga que acordarse de actualizar, y
+ * por eso no puede quedar desincronizada de la realidad.
+ *
+ * DESAPARECE cuando está completo. Un checklist con los cuatro tildes es ruido
+ * permanente en la ficha de un cliente que hace dos años que funciona.
+ */
+export function PuestaEnMarcha({
+  productos,
+  ventas,
+  diasDesdeAlta,
+  vendioEstaSemana,
+}: {
+  productos: number;
+  ventas: number;
+  /* Las dos cuentas de días llegan RESUELTAS desde el servidor y no se hacen
+     acá. Dos motivos, y ninguno es de estilo: `react-hooks/purity` prohíbe
+     `Date.now()` durante el render —con razón, porque el resultado cambia entre
+     renders— y además el reloj del navegador no tiene por qué coincidir con el
+     del server, así que el mismo cliente podía verse trabado o no según quién
+     mirara. */
+  diasDesdeAlta: number;
+  vendioEstaSemana: boolean;
+}) {
+  const dias = diasDesdeAlta;
+  const vendioReciente = vendioEstaSemana;
+
+  const pasos = [
+    { label: "Le creamos el negocio", hecho: true },
+    { label: "Cargó productos", hecho: productos > 0 },
+    { label: "Hizo su primera venta", hecho: ventas > 0 },
+    { label: "Viene vendiendo esta semana", hecho: vendioReciente },
+  ];
+
+  const completo = pasos.every((p) => p.hecho);
+  if (completo) return null;
+
+  /* El primer paso que falta es el ÚNICO que importa: son secuenciales, y
+     decirle a alguien que no vendió cuando todavía no cargó productos es
+     ruido. */
+  const trabadoEn = pasos.find((p) => !p.hecho)!;
+
+  return (
+    <div className="rounded-xl border border-warning/30 bg-warning/[0.06] p-4">
+      <h2 className="text-sm font-semibold">Puesta en marcha</h2>
+      <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+        Los pasos que predicen si el cliente sigue el mes que viene. Se llenan
+        solos con lo que hace en la app.
+      </p>
+
+      <ul className="mt-3 space-y-1.5">
+        {pasos.map((p) => (
+          <li key={p.label} className="flex items-center gap-2 text-sm">
+            {p.hecho ? (
+              <Check className="size-4 shrink-0 text-success-ink" aria-hidden />
+            ) : (
+              <span
+                aria-hidden
+                className="size-4 shrink-0 rounded-full border border-muted-foreground/40"
+              />
+            )}
+            <span className={p.hecho ? "text-muted-foreground" : "font-medium"}>{p.label}</span>
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-3 text-xs text-warning-ink">
+        {/* Se nombra el paso trabado Y hace cuánto está dado de alta: "no cargó
+            productos" es distinto a los dos días que a los treinta. */}
+        Está trabado en «{trabadoEn.label.toLowerCase()}» y ya pasaron{" "}
+        {dias === 0 ? "menos de un día" : dias === 1 ? "un día" : `${dias} días`} del alta.
+      </p>
+    </div>
+  );
+}

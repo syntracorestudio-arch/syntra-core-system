@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/cn";
 import { SuperSidebar, FILTROS, type Vista, type Filtro } from "./super-sidebar";
 import { CobranzaGrilla, type CeldaCobranza } from "./cobranza-grilla";
-import { Resumen, type MesIngreso, type CobradoCliente } from "./resumen-client";
+import { Resumen, type MesIngreso, type CobradoCliente, type PagoAsentado } from "./resumen-client";
 import {
   crearNegocio,
   cambiarEstado,
@@ -126,12 +126,14 @@ export function SuperClient({
   celdas,
   meses,
   porCliente,
+  pagos,
 }: {
   stores: StoreRow[];
   email: string | null;
   celdas: CeldaCobranza[];
   meses: MesIngreso[];
   porCliente: CobradoCliente[];
+  pagos: PagoAsentado[];
 }) {
   const [creando, setCreando] = useState(false);
   /* El mismo diálogo sirve para el alta y para la reemisión, pero el texto NO
@@ -355,7 +357,7 @@ export function SuperClient({
         )}
 
         {vista === "resumen" ? (
-          <Resumen meses={meses} porCliente={porCliente} stores={stores} />
+          <Resumen meses={meses} porCliente={porCliente} pagos={pagos} stores={stores} />
         ) : vista === "cobranza" ? (
           <CobranzaGrilla stores={stores} celdas={celdas} />
         ) : stores.length === 0 ? (
@@ -622,9 +624,9 @@ export function SuperClient({
           sub={cobrando.sub}
           pending={pending}
           onCancelar={() => setCobrando(null)}
-          onConfirmar={(periodo, monto, nota) => {
+          onConfirmar={(periodo, monto, nota, pagadoEl) => {
             startTransition(async () => {
-              const r = await marcarPagoSuscripcion(cobrando.storeId, periodo, monto, nota);
+              const r = await marcarPagoSuscripcion(cobrando.storeId, periodo, monto, nota, pagadoEl);
               setCobrando(null);
               setAviso(
                 r.ok
@@ -1236,7 +1238,7 @@ function DialogoDePago({
   nombre: string;
   sub: Suscripcion;
   onCancelar: () => void;
-  onConfirmar: (periodo: string, monto: number, nota?: string) => void;
+  onConfirmar: (periodo: string, monto: number, nota?: string, pagadoEl?: string) => void;
   pending: boolean;
 }) {
   /* 058 · se propone lo que FALTA del mes más viejo, no el precio entero: si
@@ -1248,6 +1250,10 @@ function DialogoDePago({
   const [periodo, setPeriodo] = useState(sugerido);
   const [monto, setMonto] = useState(String(Math.round(precio)));
   const [nota, setNota] = useState("");
+  /* 069 · vacío = hoy. Se pide sólo si el pago entró OTRO día: llenarlo siempre
+     sería fricción para el caso normal, y dejarlo sin pedir nunca es lo que
+     rompía la conciliación. */
+  const [pagadoEl, setPagadoEl] = useState("");
 
   const montoNum = Number(monto);
   const valido = /^\d{4}-\d{2}-\d{2}$/.test(periodo) && Number.isFinite(montoNum) && montoNum >= 0;
@@ -1290,6 +1296,25 @@ function DialogoDePago({
             className="tabular w-full rounded-lg border border-input bg-card p-3 text-sm outline-none focus:border-primary"
           />
 
+          <label htmlFor="pagado-el" className="mt-4 block text-sm font-medium">
+            ¿Cuándo entró la plata?{" "}
+            <span className="font-normal text-muted-foreground">(si no, hoy)</span>
+          </label>
+          <input
+            id="pagado-el"
+            type="date"
+            value={pagadoEl}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setPagadoEl(e.target.value)}
+            className="h-11 w-full cursor-pointer rounded-lg border border-input bg-card px-3 text-sm outline-none focus:border-primary"
+          />
+          {/* El porqué, donde se decide: sin esta línea nadie completa un campo
+              que parece redundante con "hoy". */}
+          <p className="mt-1 text-xs text-muted-foreground">
+            Poné la fecha del extracto bancario, no la de hoy, si los cargás
+            después. Es lo que hace que la conciliación cierre.
+          </p>
+
           <label htmlFor="nota-pago" className="mt-4 block text-sm font-medium">
             Nota <span className="font-normal text-muted-foreground">(opcional)</span>
           </label>
@@ -1313,7 +1338,7 @@ function DialogoDePago({
           <button
             type="button"
             disabled={!valido || pending}
-            onClick={() => onConfirmar(periodo, montoNum, nota.trim() || undefined)}
+            onClick={() => onConfirmar(periodo, montoNum, nota.trim() || undefined, pagadoEl || undefined)}
             className="h-10 cursor-pointer rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "Guardando…" : "Registrar pago"}

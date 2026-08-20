@@ -284,6 +284,10 @@ export async function marcarPagoSuscripcion(
   periodo: string,
   monto: number,
   nota?: string,
+  /* 069 · cuándo entró la plata de verdad. Vacío = hoy, que es el caso normal.
+     Sin este dato la conciliación no cierra: un pago transferido el viernes y
+     cargado el lunes figuraba como del lunes y no matcheaba el extracto. */
+  pagadoEl?: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const { userId } = await requireSuperadmin();
   if (!(await limitarSuper(userId))) {
@@ -310,6 +314,7 @@ export async function marcarPagoSuscripcion(
     p_actor: userId,
     p_medio: "transferencia",
     p_nota: nota ?? null,
+    p_pagado_el: pagadoEl && /^\d{4}-\d{2}-\d{2}$/.test(pagadoEl) ? pagadoEl : null,
   });
 
   if (error) {
@@ -322,6 +327,7 @@ export async function marcarPagoSuscripcion(
       : m.includes("monto_excede_lo_adeudado") ? "El monto supera lo que falta de ese mes. Revisá el período."
       : m.includes("periodo_anterior_al_alta") ? "Ese mes es anterior al alta del negocio."
       : m.includes("periodo_futuro") ? "No se puede registrar un mes que todavía no empezó."
+      : m.includes("pagado_el_futuro") ? "La fecha de pago no puede ser futura."
       : m.includes("sin_suscripcion") ? "Ese negocio no tiene un plan asignado."
       : m.includes("monto_invalido") ? "El monto tiene que ser mayor a cero."
       : "No pudimos registrar el pago.";
