@@ -27,9 +27,10 @@
  *
  *   npm run superadmin:crear -- --email=vos@ejemplo.com
  *
- * La contraseña se pide por teclado y NO se muestra: pasarla por argumento la
- * dejaría en el historial del shell. En un entorno sin terminal interactiva
- * (CI) se acepta `SUPERADMIN_PASSWORD`, que es peor pero a veces es lo único.
+ * La contraseña se pide por TECLADO y nunca por argumento: un argumento queda
+ * escrito para siempre en el historial del shell. En PowerShell y cmd además se
+ * escribe sin eco; en Git Bash se ve (ver `puedeOcultar`), y se avisa.
+ * En entornos sin consola (CI) se acepta `SUPERADMIN_PASSWORD`.
  */
 import { readFile } from "node:fs/promises";
 import { createInterface } from "node:readline";
@@ -92,19 +93,104 @@ if (!email || !email.includes("@")) {
 
 /* ── contraseña ─────────────────────────────────────────────────────────── */
 
-/** Pide por teclado sin eco. El prompt se escribe ANTES de mutear la salida. */
-function preguntarOculto(texto) {
-  return new Promise((resolve) => {
-    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    process.stdout.write(texto);
-    // Silencia el eco de readline: sin esto la contraseña queda en pantalla.
-    rl._writeToOutput = () => {};
-    rl.question("", (v) => {
-      rl.close();
-      process.stdout.write("\n");
-      resolve(v);
-    });
+/**
+ * ¿Podemos apagar el eco del teclado?
+ *
+ * En Git Bash / MinTTY (MSYS2, que es la terminal por defecto de Git en
+ * Windows) Node NO recibe una TTY: MinTTY conecta el proceso con pipes en vez
+ * de con handles de consola de Windows, así que `process.stdin.isTTY` queda
+ * `undefined` y `setRawMode` no existe. En PowerShell y en cmd sí hay TTY.
+ *
+ * La primera versión de este script exigía TTY y abortaba si no la había — con
+ * el resultado de que en Git Bash no se podía crear la cuenta: el comando
+ * quedaba colgado sin mostrar siquiera el prompt.
+ */
+const puedeOcultar = Boolean(process.stdin.isTTY) && typeof process.stdin.setRawMode === "function";
+
+/**
+ * Abre UNA sola lectura de teclado para las dos preguntas.
+ *
+ * Si se puede, se apaga el eco. Si no —Git Bash—, se pide igual y se avisa que
+ * se va a ver: mostrarla en TU terminal, en TU máquina, es un riesgo bajo, y
+ * bastante menor que el que este script venía a evitar (que la contraseña quede
+ * escrita para siempre en el historial del shell).
+ *
+ * Con una interfaz por pregunta, el `close()` de la primera deja `stdin`
+ * consumido y la segunda recibe EOF al instante: pedía la contraseña, y al
+ * repetirla fallaba sola sin que el usuario tipeara nada.
+ */
+function abrirTeclado() {
+  const rl = puedeOcultar
+    ? createInterface({ input: process.stdin, output: process.stdout, terminal: true })
+    : createInterface({ input: process.stdin });
+
+  if (puedeOcultar) rl._writeToOutput = () => {};
+
+  /* COLA DE LÍNEAS, y no `rl.question` por pregunta.
+     Con stdin no interactiva (un pipe, que es lo que da MinTTY) readline emite
+     TODAS las líneas disponibles de una y después cierra. Con `question`, la
+     primera consumía su línea, el stream cerraba, y la segunda pregunta moría
+     con "stdin cerrado" sin que el usuario llegara a tipear nada. Guardando las
+     líneas a medida que llegan, da igual si vienen juntas o de a una. */
+  const pendientes = [];
+  const esperando = [];
+  let cerrado = false;
+
+  rl.on("line", (v) => {
+    const q = esperando.shift();
+    if (q) q.resolve(v);
+    else pendientes.push(v);
   });
+
+  rl.on("close", () => {
+    cerrado = true;
+    while (esperando.length) {
+      esperando.shift().reject(
+        new Error(
+          [
+            "No se pudo leer del teclado (stdin cerrado).",
+            "Probá en PowerShell, o pasá SUPERADMIN_PASSWORD como variable de entorno.",
+          ].join("\n"),
+        ),
+      );
+    }
+  });
+
+  return {
+    /**
+     * El prompt va a STDERR y no a stdout: stdout puede estar bufferizado o
+     * redirigido (npm run envuelve el proceso), y un prompt que no se ve es,
+     * para el que lo corre, un programa colgado. Fue exactamente el síntoma
+     * reportado.
+     */
+    preguntar(texto) {
+      process.stderr.write(texto);
+      // Con el eco apagado el Enter tampoco se ve: el salto lo ponemos nosotros.
+      const cerrarLinea = () => {
+        if (puedeOcultar) process.stderr.write("\n");
+      };
+
+      if (pendientes.length) {
+        cerrarLinea();
+        return Promise.resolve(pendientes.shift());
+      }
+      if (cerrado) {
+        return Promise.reject(new Error("No se pudo leer del teclado (stdin cerrado)."));
+      }
+      return new Promise((resolve, reject) => {
+        esperando.push({
+          resolve: (v) => {
+            cerrarLinea();
+            resolve(v);
+          },
+          reject,
+        });
+      });
+    },
+    cerrar() {
+      rl.close();
+    },
+  };
 }
 
 /**
@@ -116,18 +202,26 @@ const MINIMO = 12;
 
 let password = env.SUPERADMIN_PASSWORD ?? "";
 if (!password) {
-  if (!process.stdin.isTTY) {
-    console.error(
-      "No hay terminal interactiva y no vino SUPERADMIN_PASSWORD.\n" +
-        "Corrélo a mano, o pasá la variable si es un entorno automatizado.",
+  if (!puedeOcultar) {
+    process.stderr.write(
+      "· Esta terminal no deja ocultar lo que tipeás (pasa en Git Bash).\n" +
+        "  La contraseña se va a VER en pantalla. Si preferís que no, cortá con\n" +
+        "  Ctrl+C y corré el mismo comando en PowerShell.\n\n",
     );
-    process.exit(1);
   }
-  password = await preguntarOculto(`Contraseña para ${email} (mínimo ${MINIMO}): `);
-  const otra = await preguntarOculto("Repetila: ");
-  if (password !== otra) {
-    console.error("No coinciden. No se tocó nada.");
+  const teclado = abrirTeclado();
+  try {
+    password = await teclado.preguntar(`Contraseña para ${email} (mínimo ${MINIMO}): `);
+    const otra = await teclado.preguntar("Repetila: ");
+    if (password !== otra) {
+      console.error("No coinciden. No se tocó nada.");
+      process.exit(1);
+    }
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : String(e));
     process.exit(1);
+  } finally {
+    teclado.cerrar();
   }
 }
 
