@@ -92,6 +92,24 @@ export default async function FichaPage({
     contactos: contactos?.length ?? 0,
   };
 
+  /* Las cuentas de días se hacen ACÁ, en el servidor, y fuera del JSX.
+     En el servidor porque el reloj del navegador no tiene por qué coincidir con
+     el de la base —el mismo cliente no puede verse trabado o no según quién
+     abra la ficha—, y fuera del JSX porque `react-hooks/purity` prohíbe
+     `Date.now()` durante el render. */
+  /* eslint-disable-next-line react-hooks/purity -- Server Component async: corre
+     UNA vez por request y no se vuelve a renderizar, así que el motivo de la
+     regla (resultado inestable entre renders) no aplica. Del lado del cliente
+     sí está prohibido, y por eso las dos cuentas se hacen acá y viajan
+     resueltas. */
+  const ahora = Date.now();
+  const diasDesdeAlta = Math.floor(
+    (ahora - new Date(fila.created_at as string).getTime()) / 86_400_000,
+  );
+  const vendioEstaSemana =
+    fila.ultima_venta !== null &&
+    Math.floor((ahora - new Date(fila.ultima_venta as string).getTime()) / 86_400_000) <= 7;
+
   return (
     <FichaCliente
       store={store}
@@ -120,6 +138,8 @@ export default async function FichaPage({
          mensaje incompleto que el que copia puede completar. */
       alias={process.env.STOCKFLOW_ALIAS_COBRO?.trim() || null}
       email={email}
+      diasDesdeAlta={diasDesdeAlta}
+      vendioEstaSemana={vendioEstaSemana}
     />
   );
 }
