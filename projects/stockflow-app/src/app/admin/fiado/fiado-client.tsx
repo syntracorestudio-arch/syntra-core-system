@@ -126,7 +126,7 @@ export function FiadoClient({
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-border rounded-xl border border-border bg-[#0e1219]">
+        <ul className="divide-y divide-border rounded-xl border border-border bg-surface-1">
           {visibles.map((c) => {
             const debe = c.balance < 0;
             const monto = Math.abs(c.balance);

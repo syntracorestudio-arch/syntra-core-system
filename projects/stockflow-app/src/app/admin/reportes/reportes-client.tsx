@@ -973,7 +973,7 @@ function GananciaReal({
       <Link
         href="/admin/gastos"
         className={cn(
-          "group flex items-center gap-3 rounded-xl border border-dashed border-border bg-card px-5 py-4 duration-500 animate-in fade-in slide-in-from-bottom-2 transition-colors hover:border-primary/40",
+          "group flex items-center gap-3 rounded-xl border border-dashed border-border bg-card px-5 py-4 duration-200 animate-in fade-in slide-in-from-bottom-2 transition-colors hover:border-primary/40",
           className,
         )}
       >

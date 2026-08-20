@@ -43,9 +43,15 @@ export function CardHero({
     <section
       className={cn(
         "bg-noise relative overflow-hidden rounded-xl border border-border p-4 lg:p-5",
-        "bg-[linear-gradient(135deg,#182236_0%,#111621_60%)]",
-        "shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
-        "duration-500 animate-in fade-in slide-in-from-bottom-2",
+        /* El degradé arranca en un tono más claro que `--surface-2` a
+           propósito: es lo que hace que el hero se despegue de las cards
+           normales. El extremo oscuro SÍ es la superficie tokenizada. */
+        "bg-[linear-gradient(135deg,#182236_0%,var(--surface-2)_60%)]",
+        "shadow-elev-1",
+        /* 200ms y no 500: techo de 240ms en rutas autenticadas (§2.A). Medio
+           segundo para que aparezca una card es tiempo mirando una pantalla
+           que todavía no se puede usar. */
+        "duration-200 animate-in fade-in slide-in-from-bottom-2",
         className,
       )}
       {...props}
@@ -71,11 +77,11 @@ export function Card({
   return (
     <section
       className={cn(
-        "rounded-xl border border-border bg-card p-4 lg:p-5",
-        "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
-        "duration-500 animate-in fade-in slide-in-from-bottom-2",
+        "rounded-xl border border-border bg-surface-2 p-4 lg:p-5",
+        "shadow-elev-0",
+        "duration-200 animate-in fade-in slide-in-from-bottom-2",
         interactive &&
-          "transition-[border-color,transform] duration-150 hover:-translate-y-px hover:border-[#2e3c55]",
+          "transition-[border-color,transform] duration-150 hover:-translate-y-px hover:border-border-hover",
         className,
       )}
       {...props}
@@ -89,8 +95,13 @@ export function CardList({ className, children, ...props }: DivProps) {
   return (
     <section
       className={cn(
-        "rounded-xl border border-border bg-[#0e1219] p-4 lg:p-5",
-        "duration-500 animate-in fade-in slide-in-from-bottom-2",
+        /* `--surface-1`: un paso MÁS OSCURA que la card estándar, para que los
+           niveles de arriba salten hacia adelante. Era el único nivel de la
+           escala sin nombre — vivía como `bg-surface-1` repetido en cinco
+           archivos, así que "cambiar el fondo de las colecciones" significaba
+           buscar y reemplazar a mano. */
+        "rounded-xl border border-border bg-surface-1 p-4 lg:p-5",
+        "duration-200 animate-in fade-in slide-in-from-bottom-2",
         className,
       )}
       {...props}
@@ -123,7 +134,7 @@ export function CardAlert({
     <section
       className={cn(
         "relative overflow-hidden rounded-xl border border-border p-4 lg:p-5",
-        "duration-500 animate-in fade-in slide-in-from-bottom-2",
+        "duration-200 animate-in fade-in slide-in-from-bottom-2",
         className,
       )}
       style={{ background: ALERT_BG[tone] }}

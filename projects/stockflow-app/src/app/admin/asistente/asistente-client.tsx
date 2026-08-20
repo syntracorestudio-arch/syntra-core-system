@@ -404,7 +404,7 @@ export function AsistenteClient({
               type="button"
               onClick={() => setVerAnalisis(!verAnalisis)}
               aria-expanded={verAnalisis}
-              className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-[#0e1219] px-4 py-3 text-left transition duration-150 hover:-translate-y-px hover:border-[#2e3c55]"
+              className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-surface-1 px-4 py-3 text-left transition duration-150 hover:-translate-y-px hover:border-border-hover"
             >
               <span className="flex min-w-0 items-center gap-2.5">
                 <span

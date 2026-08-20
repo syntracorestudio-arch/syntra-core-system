@@ -295,7 +295,11 @@ export function ReposicionClient({
                     <span
                       aria-hidden
                       className={cn(
-                        "w-full rounded-t-md transition-[height] duration-500",
+                        /* 200ms. Anima `height`, que el presupuesto desaconseja —pero
+                           acá el contenedor del gráfico tiene alto fijo, así que
+                           la barra creciendo no mueve nada afuera ni produce CLS.
+                           Lo que sí había que corregir es el medio segundo. */
+                        "w-full rounded-t-md transition-[height] duration-200",
                         pico ? "bg-primary" : "bg-primary/35",
                       )}
                       style={{ height: `${Math.max(pct, 2)}%` }}

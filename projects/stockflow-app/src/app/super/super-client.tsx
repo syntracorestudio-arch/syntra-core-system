@@ -1376,7 +1376,7 @@ function Cifra({
     <div
       className={cn(
         "rounded-xl border p-4",
-        "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+        "shadow-elev-0",
         tono === "danger" ? "border-danger/30 bg-danger/[0.06]" : "border-border bg-card",
       )}
     >
