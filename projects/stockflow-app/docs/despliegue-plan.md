@@ -188,6 +188,8 @@ hace falta.
 | `RESEND_FROM` | Prod | remitente en el dominio verificado (ej. `StockFlow <no-reply@dominio>`). |
 | `RESEND_DEV_TO` | — | **NO en prod** (redirección de mails solo en dev). |
 | `STOCKFLOW_REEMBOLSO_HABILITADO` | Prod | **Dejar SIN SETEAR.** Desde el rescate del split (054) es un control real y *fail-closed*: sólo `=1` habilita; ausente, vacío o cualquier otro valor ⇒ el reembolso se rechaza. Prender **únicamente** después de validar el endpoint contra el sandbox de MP. |
+| `STOCKFLOW_SUPER_PATH` | Prod | **SECRETO.** El segmento de la URL del login de plataforma: `/acceso/<este-valor>`. Sin esta variable **el login del panel no existe** (404 en cualquier segmento) — es el default seguro, se prefiere no poder entrar a exponer una ruta con un valor conocido. Random largo, sin relación con la marca. No es `NEXT_PUBLIC_`: si viajara al bundle dejaría de ser secreto. |
+| `STOCKFLOW_ALIAS_COBRO` | Prod | El alias donde los clientes transfieren la suscripción. Lo usa el mensaje de cobro de la ficha. Si falta, el mensaje se arma **sin** esa línea y el panel lo avisa — no rompe nada, pero el cliente no sabe adónde transferir. |
 | `NODE_ENV` | — | lo setea Vercel (`production`). No cargar a mano. |
 
 Regla: toda `NEXT_PUBLIC_*` es visible en el cliente — nunca poner secretos ahí. El resto

@@ -22,6 +22,47 @@ export const FILTROS: { id: Filtro; label: string }[] = [
 ];
 
 /**
+ * La identidad del panel de plataforma.
+ *
+ * Se exporta para que la FICHA de un cliente use exactamente ésta y no una
+ * copia parecida. Que las dos pantallas se vean iguales no es prolijidad: el
+ * error caro de este panel es operar sobre el negocio equivocado, y saber en
+ * qué sistema estás parado es la primera prevención. Una ficha sin cromo se
+ * parece demasiado al panel de un cliente.
+ */
+export function IdentidadSyntra({
+  email,
+  salirVisible = "",
+}: {
+  email: string | null;
+  salirVisible?: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 px-4 py-4 lg:px-5">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-secondary text-muted-foreground">
+        <ShieldCheck className="size-4" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold tracking-tight">SYNTRA</p>
+        <p className="truncate text-xs text-muted-foreground">{email}</p>
+      </div>
+      {/* En el rail de mobile el "Salir" del pie queda oculto: sin esto no
+          habria forma de cerrar sesion desde el telefono. En la ficha se
+          muestra siempre. */}
+      <form action={signOut} className={salirVisible}>
+        <button
+          type="submit"
+          aria-label="Salir"
+          className="grid size-9 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <LogOut className="size-4" aria-hidden />
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/**
  * El rail del panel de plataforma.
  *
  * POR QUÉ SIDEBAR Y NO TABS. La recomendación del `design-director` era tabs:
@@ -72,26 +113,7 @@ export function SuperSidebar({
         "lg:sticky lg:top-0 lg:flex lg:flex-col",
       )}
     >
-      <div className="flex items-center gap-2.5 px-4 py-4 lg:px-5">
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-secondary text-muted-foreground">
-          <ShieldCheck className="size-4" aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold tracking-tight">SYNTRA</p>
-          <p className="truncate text-xs text-muted-foreground">{email}</p>
-        </div>
-        {/* En mobile el rail se colapsa y el "Salir" del pie queda oculto: sin
-            esto no habría forma de cerrar sesión desde el teléfono. */}
-        <form action={signOut} className="lg:hidden">
-          <button
-            type="submit"
-            aria-label="Salir"
-            className="grid size-9 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <LogOut className="size-4" aria-hidden />
-          </button>
-        </form>
-      </div>
+      <IdentidadSyntra email={email} salirVisible="lg:hidden" />
 
       <nav className="flex gap-1 px-3 pb-3 lg:flex-col lg:px-3">
         {navs.map((n) => (
