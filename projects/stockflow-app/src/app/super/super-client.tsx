@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
   Store,
@@ -328,7 +329,16 @@ export function SuperClient({
               >
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 text-sm font-medium">
-                    {s.name}
+                    {/* La fila NAVEGA a la ficha; no se expande. El historial de
+                        pagos y la bitácora son lo que se lee mientras se habla
+                        con el cliente, y eso no entra en un acordeón que empuja
+                        el resto de la lista. */}
+                    <Link
+                      href={`/super/${s.slug}`}
+                      className="rounded-sm underline-offset-2 transition-colors hover:text-primary-ink hover:underline"
+                    >
+                      {s.name}
+                    </Link>
                     {s.status !== "active" && (
                       <span className="rounded-full bg-danger/15 px-1.5 py-0.5 text-[10px] font-semibold text-danger-ink ring-1 ring-danger/30">
                         suspendido
