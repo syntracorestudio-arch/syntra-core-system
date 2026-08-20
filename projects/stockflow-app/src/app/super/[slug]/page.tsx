@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { FichaCliente, type Pago, type EntradaBitacora } from "./ficha-client";
+import { FichaCliente, type Pago, type EntradaBitacora, type Contacto } from "./ficha-client";
 import type { StoreRow, Suscripcion } from "../super-client";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +45,7 @@ export default async function FichaPage({
     .toISOString()
     .slice(0, 10);
 
-  const [{ data: pagos }, { data: bitacora }, { data: sub }] = await Promise.all([
+  const [{ data: pagos }, { data: bitacora }, { data: sub }, { data: contactos }] = await Promise.all([
     admin
       .from("subscription_payments")
       .select("periodo, monto, medio, nota, created_at")
@@ -56,9 +56,17 @@ export default async function FichaPage({
     admin.rpc("bitacora_del_negocio", { p_store_id: fila.id, p_limite: 50 }),
     admin
       .from("subscriptions")
-      .select("notas, precio_mensual, cobra_desde, prueba_hasta, estado")
+      .select("notas, precio_mensual, cobra_desde, prueba_hasta, estado, seguimiento_el")
       .eq("store_id", fila.id)
       .maybeSingle(),
+    /* 066 · los contactos humanos. Acotados igual que el resto: la ficha de un
+       cliente de tres años no puede volverse una consulta sin techo. */
+    admin
+      .from("client_contacts")
+      .select("id, canal, resumen, actor_email, created_at")
+      .eq("store_id", fila.id)
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   const store: StoreRow = {
@@ -90,6 +98,15 @@ export default async function FichaPage({
       })) satisfies Pago[]}
       bitacora={(bitacora ?? []) as EntradaBitacora[]}
       notas={(sub?.notas as string | null) ?? null}
+      tienePlan={Boolean(sub)}
+      seguimiento={(sub?.seguimiento_el as string | null) ?? null}
+      contactos={(contactos ?? []).map((c) => ({
+        id: c.id as string,
+        canal: c.canal as string,
+        resumen: c.resumen as string,
+        actorEmail: c.actor_email as string,
+        cuando: c.created_at as string,
+      })) satisfies Contacto[]}
       /* El alias sale del entorno y no de la base: es de SYNTRA, no de ningún
          negocio, y no tiene por qué viajar en ninguna tabla de clientes. Si no
          está seteado, el mensaje se arma sin esa línea en vez de decir

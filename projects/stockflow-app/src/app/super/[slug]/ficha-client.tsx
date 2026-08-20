@@ -14,12 +14,21 @@ import {
 import { cn } from "@/lib/cn";
 import type { StoreRow } from "../super-client";
 import { IdentidadSyntra } from "../super-sidebar";
+import { Contactos, Notas, CANAL_LABEL, haceCuanto } from "./contactos-notas";
 
 export type Pago = {
   periodo: string;
   monto: number;
   medio: string | null;
   nota: string | null;
+  cuando: string;
+};
+
+export type Contacto = {
+  id: string;
+  canal: string;
+  resumen: string;
+  actorEmail: string;
   cuando: string;
 };
 
@@ -108,6 +117,9 @@ export function FichaCliente({
   pagos,
   bitacora,
   notas,
+  contactos,
+  seguimiento,
+  tienePlan,
   alias,
   email,
 }: {
@@ -115,10 +127,14 @@ export function FichaCliente({
   pagos: Pago[];
   bitacora: EntradaBitacora[];
   notas: string | null;
+  contactos: Contacto[];
+  seguimiento: string | null;
+  tienePlan: boolean;
   alias: string | null;
   email: string | null;
 }) {
   const [copiado, setCopiado] = useState(false);
+  const ultimo = contactos[0] ?? null;
   const sub = store.suscripcion;
   const mensaje = mensajeDeCobro(store, alias);
 
@@ -165,6 +181,24 @@ export function FichaCliente({
               sin registrar · {sub.meses_impagos} {sub.meses_impagos === 1 ? "mes" : "meses"} desde{" "}
               {mesLargo(sub.desde)} · {sub.dias_de_atraso} días de atraso
             </span>
+          </p>
+
+          {/* 066 · LO QUE CAMBIA LA CONVERSACIÓN. Los mismos 71 días de atraso
+              se hablan distinto si ya reclamaste tres veces o si es la primera.
+              Va acá y no abajo con el resto: se lee ANTES de levantar el
+              teléfono, no después. */}
+          <p className="mt-1 text-sm">
+            {ultimo ? (
+              <span className="text-muted-foreground">
+                Último contacto {haceCuanto(ultimo.cuando)} ({CANAL_LABEL[ultimo.canal] ?? ultimo.canal})
+                {contactos.length > 1 && ` · ${contactos.length} en total`}
+              </span>
+            ) : (
+              /* Que NUNCA se lo haya contactado es un dato tan accionable como
+                 la deuda, y es el caso más fácil de resolver: quizás sólo no se
+                 enteró. */
+              <span className="text-warning-ink">Nunca lo contactaste por esto.</span>
+            )}
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -223,14 +257,8 @@ export function FichaCliente({
             </p>
           )}
 
-          {notas && (
-            <>
-              <h2 className="mb-2 mt-6 text-sm font-semibold">Notas</h2>
-              <p className="whitespace-pre-wrap rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-                {notas}
-              </p>
-            </>
-          )}
+          <h2 className="mb-2 mt-6 text-sm font-semibold">Notas</h2>
+          <Notas storeId={store.id} valor={notas} habilitado={tienePlan} />
         </section>
 
         <section>
@@ -258,6 +286,21 @@ export function FichaCliente({
       </div>
 
       <section className="mt-6">
+        <h2 className="mb-2 text-sm font-semibold">Contactos</h2>
+        <Contactos
+          storeId={store.id}
+          contactos={contactos}
+          seguimiento={seguimiento}
+          tienePlan={tienePlan}
+        />
+      </section>
+
+      <section className="mt-6">
+        {/* Dos listas separadas a propósito: arriba lo que HABLAMOS con el
+            cliente (interno, sólo lo vemos nosotros) y acá lo que le HICIMOS al
+            negocio — que él lee en su propia pantalla. Mezclarlas sería el
+            camino más corto a escribir una nota de cobranza en un lugar que el
+            cliente puede leer. */}
         <h2 className="mb-2 text-sm font-semibold">Lo que hicimos sobre este negocio</h2>
         {bitacora.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
