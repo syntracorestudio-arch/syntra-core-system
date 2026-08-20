@@ -194,11 +194,16 @@ function abrirTeclado() {
 }
 
 /**
- * 12 caracteres, no 6 (el mínimo de GoTrue). Esta cuenta ve TODOS los negocios
- * de la plataforma y puede suspender cualquiera: es la credencial más valiosa
- * del sistema y, por decisión del owner, es de un solo factor.
+ * 8 caracteres — decisión del owner (2026-08-19), sobre el 6 que trae GoTrue.
+ *
+ * Queda anotado para cuando se retome el tema: esta cuenta ve TODOS los negocios
+ * de la plataforma y puede suspender cualquiera, y se defiende con un solo
+ * factor (2FA descartada). El freno real hoy es el rate limit del login del
+ * panel, que es fail-closed y muy apretado (3 intentos por cuenta cada 30
+ * minutos); el largo de la clave pesa sobre todo si esa cuenta se reusa en otro
+ * lado, donde una filtración ajena se convierte en acceso a la plataforma.
  */
-const MINIMO = 12;
+const MINIMO = 8;
 
 let password = env.SUPERADMIN_PASSWORD ?? "";
 if (!password) {
