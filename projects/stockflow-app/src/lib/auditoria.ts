@@ -22,7 +22,8 @@ export type AccionPlataforma =
   | "negocio_suspendido"
   | "negocio_reactivado"
   | "asistente_activado"
-  | "asistente_desactivado";
+  | "asistente_desactivado"
+  | "credenciales_reemitidas";
 
 /** Etiqueta que ve el DUEÑO. En su idioma, no en el nuestro. */
 export const ETIQUETA_ACCION: Record<AccionPlataforma, string> = {
@@ -31,6 +32,10 @@ export const ETIQUETA_ACCION: Record<AccionPlataforma, string> = {
   negocio_reactivado: "Reactivamos el acceso a tu negocio",
   asistente_activado: "Activamos el Asistente IA",
   asistente_desactivado: "Desactivamos el Asistente IA",
+  /* La lee el DUEÑO en su propia pantalla, y es la fila más importante de
+     todas para él: si ve esto y no lo pidió, alguien le cambió la clave. Por
+     eso dice "a pedido tuyo" — vuelve verificable el motivo desde su lado. */
+  credenciales_reemitidas: "Te reemitimos la contraseña a pedido tuyo",
 };
 
 export async function registrarOFallar(args: {
