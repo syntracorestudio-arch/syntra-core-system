@@ -30,6 +30,37 @@
   --popover: #171d2a; /* elevado: popover / modal / sheet */
   --popover-foreground: #f1f5fb;
 
+  /* ─────────────────────────────────────────────────────────────────────────
+     ESCALA DE PROFUNDIDAD — 4 superficies + 3 elevaciones, y nada más.
+     Valores de `docs/design-layer-plan.md §2.A`; acá sólo se tokenizan.
+
+     Los tres primeros ya existían con otros nombres (`--background`, `--card`,
+     `--popover`) y se alian para que la escala se pueda leer completa de un
+     vistazo: el problema no era que faltaran valores, era que el nivel 1 —el
+     de las COLECCIONES— no tenía nombre y vivía como `bg-[#0e1219]` repetido
+     en cinco archivos.
+
+     Regla dura: ningún hex de superficie fuera de estos cuatro, ninguna sombra
+     fuera de estas tres.
+     ───────────────────────────────────────────────────────────────────────── */
+  --surface-0: var(--background); /* lienzo */
+  --surface-1: #0e1219; /* HUNDIDA — colecciones / CardList */
+  --surface-2: var(--card); /* card estándar */
+  --surface-3: var(--popover); /* overlay: popover / modal / sheet */
+
+  /* SOMBRA PROYECTADA SÓLO EN `--elev-2` (overlays). En dark, una sombra
+     proyectada sobre una card de contenido lee como suciedad, no como altura:
+     por eso los niveles 0 y 1 son casi todo `inset` — luz en el borde
+     superior, que es lo que da relieve sin ensuciar. */
+  --elev-0: inset 0 1px 0 rgb(255 255 255 / 0.04); /* card */
+  --elev-1: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.4); /* hero / hover */
+  --elev-2: 0 8px 24px -8px rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.06); /* overlay */
+
+  /* El borde de una superficie interactiva bajo el cursor. No es parte de la
+     escala de profundidad, pero era el otro hex suelto que compartian
+     `card-system`, gastos y el asistente. */
+  --border-hover: #2e3c55;
+
   /* Acento de marca — WHITE-LABEL (default azul eléctrico) */
   --primary: #2e6bff;
   --primary-foreground: #ffffff; /* ~4.6:1 sobre el fill — AA */
@@ -114,6 +145,15 @@
   --color-danger-foreground: var(--danger-foreground);
   --color-info: var(--info);
   --color-info-ink: var(--info-ink);
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  /* `--shadow-*` es el prefijo que Tailwind 4 mapea a `shadow-<nombre>`. */
+  --shadow-elev-0: var(--elev-0);
+  --shadow-elev-1: var(--elev-1);
+  --shadow-elev-2: var(--elev-2);
+  --color-border-hover: var(--border-hover);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -305,7 +345,11 @@
   }
 }
 .sf-tap {
-  animation: sf-tap 0.35s ease-out;
+  /* 120ms y no 350. Es el acuse de recibo de tocar un producto en el POS —
+     >50 veces por día, o sea el tramo más apretado del presupuesto operativo
+     (§2.A: ≤120ms, sólo transform/opacity/box-shadow). A 350ms el eco de un
+     tap todavía estaba en pantalla cuando ya se había tocado el siguiente. */
+  animation: sf-tap 0.12s ease-out;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

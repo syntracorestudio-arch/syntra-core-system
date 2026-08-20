@@ -211,10 +211,11 @@ El producto con intención declarada salió diferenciado; el que no la tiene sal
 
 | Pendiente | Estado |
 |---|---|
-| Tokens `--surface-*` / `--elev-*` en StockFlow | **Diferido** — espera el cierre del arco de StockFlow (`globals.css` es transversal) |
-| `card-system.tsx`: `duration-500` → 200ms + tokens de elevación | Diferido, ídem |
-| `.sf-tap` 350ms → ≤140ms | Diferido, ídem |
-| Migrar las 7 rutas que reimplementan la card | Diferido, ídem |
+| Tokens `--surface-*` / `--elev-*` en StockFlow | ✅ **HECHO** (2026-08-20). Los tres primeros ya existían con otros nombres; lo que faltaba era `--surface-1` —el nivel de las COLECCIONES— que vivía como `bg-[#0e1219]` repetido en 5 archivos. Se sumó `--border-hover`, el otro hex compartido. |
+| `card-system.tsx`: `duration-500` → 200ms + tokens de elevación | ✅ **HECHO**. Y también `PageHeader` (lo importa toda ruta del admin, así que era la duración más percibida del producto), `reportes` y `reposicion`. **Cero `duration-500` en rutas autenticadas.** |
+| `.sf-tap` 350ms → ≤140ms | ✅ **HECHO** — 120ms. Es acuse de recibo de tocar un producto en el POS: >50 usos/día, el tramo más apretado de §2.A. |
+| Migrar las 7 rutas que reimplementan la card | **Parcial.** Las 4 que reimplementaban la SUPERFICIE de colección ahora usan el token (cambio sin efecto visual). Migrarlas al componente `CardList` cambia padding y estructura: es un ítem aparte, no se hizo en la tanda de tokens. |
+| Sombras `inset` sueltas fuera de la escala | **Parcial.** Las 3 que coincidían EXACTO con `--elev-0` migraron. Quedan 3 de `rgba(255,255,255,0.06)` que tienen sólo el inset, mientras `--elev-1` además lleva sombra proyectada: reemplazarlas CAMBIARÍA el aspecto, y eso no se hace dentro de una tanda de tokenización. Requiere decisión de diseño. |
 | Lock de sistema `stockflow-sistema.md` (4 arquetipos) | Tras los tokens |
 | Retirar auto-declaraciones de precedencia (§1.3) | Pendiente |
 | Resolver 3 skills con cuerpo contradictorio | **Prerequisito** — sumar fuentes sobre esa base produce la mezcla que se quiere evitar |

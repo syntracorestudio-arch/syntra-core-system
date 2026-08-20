@@ -252,7 +252,7 @@ export function CajaClient({
           No hubo ventas este día.
         </p>
       ) : (
-        <ul className="divide-y divide-border rounded-xl border border-border bg-[#0e1219]">
+        <ul className="divide-y divide-border rounded-xl border border-border bg-surface-1">
           {data.ventas.map((v) => {
             const anulada = v.status === "voided";
             const meta = MEDIOS[v.payment_method] ?? { label: v.payment_method, icon: Banknote };

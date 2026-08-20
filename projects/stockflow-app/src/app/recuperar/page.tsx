@@ -29,7 +29,7 @@ export default async function RecuperarPage({
           <Wordmark className="text-base text-foreground" />
         </div>
 
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] duration-500 animate-in fade-in slide-in-from-bottom-2 sm:p-8">
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-elev-0 duration-500 animate-in fade-in slide-in-from-bottom-2 sm:p-8">
           {enviado ? (
             <>
               <div className="mb-4 grid size-11 place-items-center rounded-xl bg-primary/15 ring-1 ring-primary/25">

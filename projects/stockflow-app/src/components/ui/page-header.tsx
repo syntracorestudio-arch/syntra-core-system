@@ -47,8 +47,11 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   const grande = artSize === "lg";
+  /* 200ms y no 500: techo de 240ms en rutas autenticadas (§2.A). Este
+     componente lo importa TODA pantalla del admin, así que su duración es la
+     que más se percibe del producto entero. */
   return (
-    <header className="relative overflow-hidden rounded-2xl border border-border px-5 py-4 duration-500 animate-in fade-in slide-in-from-bottom-2 sm:px-6 sm:py-5">
+    <header className="relative overflow-hidden rounded-2xl border border-border px-5 py-4 duration-200 animate-in fade-in slide-in-from-bottom-2 sm:px-6 sm:py-5">
       <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-accent/60 via-card to-card" />
       {!art && Icon ? (
         <div aria-hidden className="absolute -bottom-8 -right-4 rotate-[-8deg] text-primary opacity-[0.08]">

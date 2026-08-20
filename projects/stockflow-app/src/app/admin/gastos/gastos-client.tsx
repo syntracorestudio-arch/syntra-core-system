@@ -152,7 +152,7 @@ export function GastosClient({
               </div>
             </div>
           ) : (
-            <ul className="divide-y divide-border rounded-xl border border-border bg-[#0e1219]">
+            <ul className="divide-y divide-border rounded-xl border border-border bg-surface-1">
               {expenses.map((e) => {
                 const anulada = e.status === "voided";
                 const Icon = CATEGORIA_ICON[e.category] ?? CircleDashed;
@@ -308,7 +308,7 @@ function NuevoGastoDialog({
                       "flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-colors",
                       activo
                         ? "border-primary bg-primary/10 text-foreground"
-                        : "border-border text-muted-foreground hover:border-[#2e3c55] hover:text-foreground",
+                        : "border-border text-muted-foreground hover:border-border-hover hover:text-foreground",
                     )}
                   >
                     <c.icon className="size-4 shrink-0" />
