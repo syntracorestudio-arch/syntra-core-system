@@ -9,7 +9,7 @@ import { requireSession } from "@/lib/session";
 export type Result = { ok: true } | { ok: false; error: string };
 
 export type ResolveResult =
-  | { ok: true; promosTerminadas: number }
+  | { ok: true; promosTerminadas: number; restante: number }
   | { ok: false; error: string };
 
 /**
@@ -46,9 +46,14 @@ export async function resolveExpiry(
   revalidatePath("/pos");
   revalidatePath("/admin/promos");
   revalidatePath("/admin/promos/carteles");
+  const r = data as { promos_terminadas?: number; restante?: number } | null;
   return {
     ok: true,
-    promosTerminadas: Number((data as { promos_terminadas?: number } | null)?.promos_terminadas ?? 0),
+    promosTerminadas: Number(r?.promos_terminadas ?? 0),
+    /* 070 · lo que quedó del lote cuando la merma fue parcial y el lote NO
+       venció. La pantalla lo dice ("quedan 4 u. con su fecha") porque si no,
+       el lote reaparece en la lista y parece que la acción no funcionó. */
+    restante: Number(r?.restante ?? 0),
   };
 }
 
