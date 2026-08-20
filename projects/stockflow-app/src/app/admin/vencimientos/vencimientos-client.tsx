@@ -406,7 +406,18 @@ function Fila({
 
       <span
         className={cn(
-          "flex w-auto shrink-0 items-center gap-1 text-xs lg:w-36",
+          /* `w-44` y no `w-36`: medido, "mar 11 · venció hace 9 d." necesita
+             131px y la lane daba 128 — se cortaba por TRES píxeles, y con el
+             día de dos dígitos el "d." final desaparecía. Se dimensiona para el
+             peor caso y no para los datos de hoy: `days_left` no tiene cota
+             inferior (la consulta sólo topea a 180 días HACIA ADELANTE), así
+             que "venció hace 365 d." es posible y tiene que entrar.
+
+             `w-48` y no `w-44`: con 44 el peor caso medido entraba EXACTO
+             (150px de 150), o sea con cero margen — cualquier diferencia de
+             render, zoom o fuente lo volvía a cortar. El nombre tiene ~576px a
+             1152, así que los 16px extra no le hacen falta a nadie más. */
+          "flex w-auto shrink-0 items-center gap-1 text-xs lg:w-48",
           u.tone === "danger" && "text-danger-ink",
           u.tone === "warning" && "text-warning-ink",
           u.tone === "muted" && "text-muted-foreground",
