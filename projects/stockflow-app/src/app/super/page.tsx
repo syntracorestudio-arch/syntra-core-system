@@ -15,7 +15,13 @@ export default async function SuperPage() {
   /* Las dos lecturas son independientes: en paralelo, no en cadena (baseline).
      La grilla trae 6 meses —la ventana que la UI muestra— y no la historia
      entera: la cota vive en el argumento y además está topeada en la RPC. */
-  const [{ data }, { data: grilla }, { data: seguimiento }] = await Promise.all([
+  const [
+    { data },
+    { data: grilla },
+    { data: seguimiento },
+    { data: ingresos },
+    { data: cobradoCliente },
+  ] = await Promise.all([
     admin
       .from("admin_stores")
       .select("*")
@@ -25,6 +31,11 @@ export default async function SuperPage() {
     /* 067 · el seguimiento entra en la MISMA tanda: encadenarlo sumaría
        latencia a cambio de nada. */
     admin.rpc("resumen_seguimiento"),
+    /* 068 · los ingresos. Ventana de 36 meses acotada EN LA RPC: el panel
+       filtra por mes y por año en memoria, así que cambiar el período no
+       vuelve al servidor. */
+    admin.rpc("ingresos_mensuales", { p_meses: 36 }),
+    admin.rpc("cobrado_por_cliente_mes", { p_meses: 36 }),
   ]);
 
   /* Indexado por negocio para que la fila no recorra un array en cada render:
@@ -81,5 +92,35 @@ export default async function SuperPage() {
     precio: c.precio === null ? null : Number(c.precio),
   }));
 
-  return <SuperClient stores={stores} email={email} celdas={celdas} />;
+  return (
+    <SuperClient
+      stores={stores}
+      email={email}
+      celdas={celdas}
+      meses={((ingresos ?? []) as {
+        mes: string;
+        comprometido: string | number;
+        cobrado: string | number;
+        pagaron: number;
+        en_curso: boolean;
+      }[]).map((m) => ({
+        mes: m.mes,
+        comprometido: Number(m.comprometido),
+        cobrado: Number(m.cobrado),
+        pagaron: Number(m.pagaron),
+        enCurso: Boolean(m.en_curso),
+      }))}
+      porCliente={((cobradoCliente ?? []) as {
+        store_id: string;
+        nombre: string;
+        mes: string;
+        cobrado: string | number;
+      }[]).map((c) => ({
+        storeId: c.store_id,
+        nombre: c.nombre,
+        mes: c.mes,
+        cobrado: Number(c.cobrado),
+      }))}
+    />
+  );
 }

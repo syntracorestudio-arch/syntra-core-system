@@ -1,10 +1,10 @@
 "use client";
 
-import { LayoutList, CalendarCheck, LogOut, ShieldCheck } from "lucide-react";
+import { LayoutList, CalendarCheck, ChartColumn, LogOut, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { signOut } from "@/app/login/actions";
 
-export type Vista = "cartera" | "cobranza";
+export type Vista = "cartera" | "cobranza" | "resumen";
 
 /** Los recortes de la cartera. `todos` no es un filtro: es la ausencia de uno. */
 export type Filtro = "todos" | "deben" | "prueba" | "sin_plan" | "sin_vender" | "de_baja";
@@ -126,6 +126,10 @@ export function SuperSidebar({
   const navs: { id: Vista; label: string; icon: typeof LayoutList }[] = [
     { id: "cartera", label: "Cartera", icon: LayoutList },
     { id: "cobranza", label: "Cobranza", icon: CalendarCheck },
+    /* Última porque es la de MENOR frecuencia: la cartera se mira los lunes,
+       el resumen una vez por mes. El orden del rail es el del uso, no el de la
+       importancia. */
+    { id: "resumen", label: "Resumen", icon: ChartColumn },
   ];
 
   return (
